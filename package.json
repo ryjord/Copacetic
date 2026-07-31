@@ -1,0 +1,119 @@
+{
+  "name": "copacetic",
+  "productName": "Copacetic",
+  "version": "1.0.0",
+  "description": "A calm, honest browser that shows you the true state of every page.",
+  "author": {
+    "name": "Riley Jordan",
+    "email": "rileyjordan21@hotmail.com"
+  },
+  "license": "MIT",
+  "private": true,
+  "main": "dist/electron/main/index.js",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development concurrently -k -n next,main,preload,electron -c cyan,magenta,yellow,green \"next dev --port 3000\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"npm run build:preload -- --watch\" \"wait-on http://localhost:3000 dist/electron/main/index.js dist/electron/preload/index.js && electron .\"",
+    "dev:renderer": "next dev --port 3000",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "next build",
+    "build:main": "tsc -p tsconfig.electron.json && npm run build:preload",
+    "build:preload": "esbuild electron/preload/index.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outfile=dist/electron/preload/index.js",
+    "start": "cross-env NODE_ENV=production electron .",
+    "package": "npm run build && electron-builder --publish never",
+    "package:dir": "npm run build && electron-builder --dir --publish never",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "tailwind-merge": "^3.5.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.0.4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.0.2",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.28.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.8",
+    "prettier": "^3.4.2",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5",
+    "vitest": "^3.2.4",
+    "wait-on": "^9.0.4"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "build": {
+    "appId": "uk.co.ryjord.copacetic",
+    "productName": "Copacetic",
+    "copyright": "Copyright © 2026 Riley Jordan",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/electron/**/*",
+      "out/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network"
+    }
+  }
+}

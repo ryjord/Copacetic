@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.electron.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["electron/preload/**/*.ts", "electron/shared/**/*.ts"]
+}
