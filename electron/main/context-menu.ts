@@ -1,0 +1,138 @@
+import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
+import type { TabId } from '../shared/types';
+import { isNavigableUrl } from '../shared/url';
+import type { Browser } from './browser';
+
+/**
+ * The menu shown when someone right-clicks inside a page.
+ *
+ * Items appear only when they would do something. A menu of greyed-out entries
+ * makes a user read the whole list to find the two that apply.
+ */
+export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
+  const items: MenuItemConstructorOptions[] = [];
+  const push = (item: MenuItemConstructorOptions) => items.push(item);
+  const separate = () => {
+    if (items.length > 0 && items[items.length - 1]?.type !== 'separator') push({ type: 'separator' });
+  };
+
+  const linkUrl = params.linkURL && isNavigableUrl(params.linkURL) ? params.linkURL : '';
+  const imageUrl = params.mediaType === 'image' && params.srcURL ? params.srcURL : '';
+  const hasSelection = params.selectionText.trim().length > 0;
+
+  if (linkUrl) {
+    push({
+      label: 'Open link in new tab',
+      click: () =>
+        browser.tabs.create(linkUrl, {
+          activate: true,
+          openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
+        }),
+    });
+    push({
+      label: 'Open link in background tab',
+      click: () => browser.tabs.create(linkUrl, { activate: false }),
+    });
+    push({ label: 'Copy link address', click: () => clipboard.writeText(linkUrl) });
+    push({ label: 'Download linked file', click: () => browser.downloadUrl(linkUrl) });
+    separate();
+  }
+
+  if (imageUrl) {
+    push({ label: 'Open image in new tab', click: () => browser.tabs.create(imageUrl, { activate: true }) });
+    push({ label: 'Copy image', click: () => browser.tabs.copyImageAt(tabId, params.x, params.y) });
+    push({ label: 'Copy image address', click: () => clipboard.writeText(imageUrl) });
+    push({ label: 'Save image', click: () => browser.downloadUrl(imageUrl) });
+    separate();
+  }
+
+  if (params.isEditable) {
+    push({ role: 'undo' });
+    push({ role: 'redo' });
+    push({ type: 'separator' });
+    push({ role: 'cut' });
+    push({ role: 'copy' });
+    push({ role: 'paste' });
+    push({ role: 'pasteAndMatchStyle' });
+    push({ role: 'selectAll' });
+    separate();
+
+    for (const suggestion of params.dictionarySuggestions.slice(0, 5)) {
+      push({ label: suggestion, click: () => browser.tabs.replaceMisspelling(tabId, suggestion) });
+    }
+    if (params.misspelledWord) {
+      if (params.dictionarySuggestions.length === 0) {
+        push({ label: 'No spelling suggestions', enabled: false });
+      }
+      push({
+        label: `Add “${params.misspelledWord}” to dictionary`,
+        click: () => browser.tabs.addToDictionary(tabId, params.misspelledWord),
+      });
+      separate();
+    }
+  } else if (hasSelection) {
+    const selection = params.selectionText.trim();
+    push({ role: 'copy' });
+    push({
+      label: `Search for “${truncate(selection, 32)}”`,
+      click: () => browser.tabs.create(browser.searchUrlFor(selection), { activate: true }),
+    });
+    separate();
+  }
+
+  if (!linkUrl && !imageUrl && !hasSelection && !params.isEditable) {
+    push({ label: 'Back', enabled: browser.tabs.canGoBack(tabId), click: () => browser.tabs.goBack(tabId) });
+    push({ label: 'Forward', enabled: browser.tabs.canGoForward(tabId), click: () => browser.tabs.goForward(tabId) });
+    push({ label: 'Reload', click: () => browser.tabs.reload(tabId) });
+    separate();
+    push({ label: 'Copy page address', click: () => clipboard.writeText(browser.tabs.urlFor(tabId) ?? '') });
+    push({ label: 'Bookmark this page', click: () => browser.toggleBookmarkForActiveTab() });
+    separate();
+  }
+
+  push({ label: 'Inspect element', click: () => browser.tabs.inspectAt(tabId, params.x, params.y) });
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/** The menu shown when someone right-clicks a tab in the strip. */
+export function showTabContextMenu(browser: Browser, tabId: TabId): void {
+  const url = browser.tabs.urlFor(tabId);
+  const isBookmarked = url ? browser.store.isBookmarked(url) : false;
+
+  const items: MenuItemConstructorOptions[] = [
+    { label: 'New tab to the right', click: () => browser.tabs.create(undefined, { activate: true }) },
+    { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
+    { label: 'Reload', click: () => browser.tabs.reload(tabId) },
+    { type: 'separator' },
+    {
+      label: isBookmarked ? 'Remove bookmark' : 'Bookmark this page',
+      enabled: url !== null,
+      click: () => {
+        if (url) {
+          browser.store.toggleBookmark(url, browser.tabs.titleFor(tabId));
+          browser.scheduleStatePush();
+        }
+      },
+    },
+    { label: 'Copy address', enabled: url !== null, click: () => clipboard.writeText(url ?? '') },
+    {
+      label: 'Open in default browser',
+      enabled: url !== null && (url.startsWith('http://') || url.startsWith('https://')),
+      click: () => {
+        if (url) void shell.openExternal(url);
+      },
+    },
+    { type: 'separator' },
+    { label: 'Close tab', click: () => browser.tabs.close(tabId) },
+    { label: 'Close other tabs', click: () => browser.tabs.closeOthers(tabId) },
+    { label: 'Close tabs to the right', click: () => browser.tabs.closeToTheRight(tabId) },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+function truncate(value: string, max: number): string {
+  const collapsed = value.replace(/\s+/g, ' ');
+  return collapsed.length <= max ? collapsed : `${collapsed.slice(0, max - 1)}…`;
+}

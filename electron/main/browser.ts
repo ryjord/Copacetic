@@ -1,0 +1,376 @@
+import { type BrowserWindow, app, dialog, session as electronSession, shell } from 'electron';
+import { randomUUID } from 'node:crypto';
+import { PUSH, type ChromeSurface } from '../shared/channels';
+import type {
+  AppInfo,
+  BrowserState,
+  ClearRange,
+  PermissionDecision,
+  PermissionKind,
+  PermissionPrompt,
+  Settings,
+  TabId,
+} from '../shared/types';
+import { START_PAGE_URL, buildSearchUrl, isNavigableUrl } from '../shared/url';
+import { ContentBlocker } from './blocker';
+import { DownloadManager } from './downloads';
+import { chromeEntryUrl, isDevelopment } from './env';
+import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
+import { BrowserStore } from './store';
+import { type ContentInsets, TabManager } from './tabs';
+import { createChromeWindow } from './window';
+
+const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
+
+interface PendingPermission {
+  prompt: PermissionPrompt;
+  resolve: (decision: PermissionDecision) => void;
+}
+
+/**
+ * Owns every long-lived piece of the browser and exposes the verbs that menus,
+ * shortcuts and IPC all call into. Keeping the verbs in one place means a menu
+ * item and its keyboard shortcut can never drift apart from the button in the
+ * chrome that does the same thing.
+ */
+export class Browser {
+  readonly window: BrowserWindow;
+  readonly store: BrowserStore;
+  readonly blocker: ContentBlocker;
+  readonly downloads: DownloadManager;
+  readonly tabs: TabManager;
+
+  private readonly pendingPermissions = new Map<string, PendingPermission>();
+  private pushQueued = false;
+  private isQuitting = false;
+
+  constructor() {
+    this.store = new BrowserStore();
+    this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
+    this.downloads = new DownloadManager(() => this.scheduleStatePush());
+
+    hardenChromeSession(electronSession.defaultSession);
+
+    const webSession = getWebSession();
+    hardenWebSession(webSession, this.securityDelegate());
+    this.blocker.attach(webSession);
+    this.downloads.attach(webSession);
+
+    this.window = createChromeWindow();
+    this.tabs = new TabManager(this.window, this.store, this.blocker, this.securityDelegate(), () =>
+      this.scheduleStatePush(),
+    );
+
+    this.window.on('closed', () => this.dispose());
+    this.window.webContents.on('did-finish-load', () => this.scheduleStatePush());
+  }
+
+  // ------------------------------------------------------------------ start
+
+  async start(): Promise<void> {
+    await this.window.loadURL(chromeEntryUrl());
+    this.window.show();
+    this.restoreTabs();
+    if (isDevelopment()) this.window.webContents.openDevTools({ mode: 'detach' });
+  }
+
+  private restoreTabs(): void {
+    const settings = this.store.getSettings();
+    const session = this.store.getSession();
+
+    if (!settings.restoreTabsOnLaunch || session.urls.length === 0) {
+      this.tabs.create(START_PAGE_URL);
+      return;
+    }
+
+    session.urls.forEach((url, index) => {
+      this.tabs.create(url, { activate: index === session.activeIndex });
+    });
+    if (this.tabs.tabCount === 0) this.tabs.create(START_PAGE_URL);
+  }
+
+  // ------------------------------------------------------------------ state
+
+  getState(): BrowserState {
+    const { tabs, tabOrder, activeTabId } = this.tabs.snapshot();
+    return {
+      tabs,
+      tabOrder,
+      activeTabId,
+      downloads: this.downloads.list(),
+      find: this.tabs.getFindState(),
+      permissionPrompts: [...this.pendingPermissions.values()].map((pending) => pending.prompt),
+      settings: this.store.getSettings(),
+      hasClosedTabs: this.tabs.hasClosedTabs(),
+    };
+  }
+
+  /**
+   * Navigation fires many events in quick succession. Coalescing them into one
+   * push per tick keeps the chrome from re-rendering a dozen times per load.
+   */
+  scheduleStatePush(): void {
+    if (this.pushQueued || this.isQuitting) return;
+    this.pushQueued = true;
+    setImmediate(() => {
+      this.pushQueued = false;
+      if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) return;
+      this.window.webContents.send(PUSH.state, this.getState());
+    });
+  }
+
+  private pushToChrome(channel: string, payload?: unknown): void {
+    if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) return;
+    this.window.webContents.send(channel, payload);
+  }
+
+  getAppInfo(): AppInfo {
+    return {
+      version: app.getVersion(),
+      electronVersion: process.versions.electron ?? 'unknown',
+      chromeVersion: process.versions.chrome ?? 'unknown',
+      platform: process.platform,
+      isDevelopment: isDevelopment(),
+      blockerRuleCount: this.blocker.ruleCount,
+    };
+  }
+
+  // -------------------------------------------------------------- security
+
+  private securityDelegate(): SecurityDelegate {
+    return {
+      requestPermission: (input) =>
+        new Promise<PermissionDecision>((resolve) => {
+          const tabId = this.tabs.tabIdForWebContentsId(input.webContentsId);
+          if (!tabId) {
+            resolve('deny');
+            return;
+          }
+          const prompt: PermissionPrompt = {
+            id: randomUUID(),
+            tabId,
+            origin: input.origin,
+            kind: input.kind,
+            description: input.description,
+          };
+          this.pendingPermissions.set(prompt.id, { prompt, resolve });
+          this.scheduleStatePush();
+        }),
+
+      openInNewTab: (url, options) => {
+        if (!isNavigableUrl(url)) return;
+        this.tabs.create(url, {
+          activate: options.activate,
+          openerWebContentsId: options.openerWebContentsId,
+        });
+      },
+
+      confirmExternalOpen: async (url) => {
+        const scheme = safeScheme(url);
+        if (!scheme) return false;
+        const { response } = await dialog.showMessageBox(this.window, {
+          type: 'question',
+          buttons: ['Open', 'Cancel'],
+          defaultId: 1,
+          cancelId: 1,
+          title: 'Leave Copacetic?',
+          message: `Open this link in another application?`,
+          detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${truncate(url, 240)}`,
+          noLink: true,
+        });
+        if (response !== 0) return false;
+        await shell.openExternal(url);
+        return true;
+      },
+
+      getStoredDecision: (origin, kind) => this.store.getPermissionDecision(origin, kind),
+      rememberDecision: (origin, kind, decision) => this.store.setPermissionDecision(origin, kind, decision),
+    };
+  }
+
+  respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
+    const pending = this.pendingPermissions.get(id);
+    if (!pending) return;
+    this.pendingPermissions.delete(id);
+    if (remember) {
+      this.store.setPermissionDecision(pending.prompt.origin, pending.prompt.kind, decision);
+    }
+    pending.resolve(decision);
+    this.scheduleStatePush();
+  }
+
+  forgetPermission(origin: string, kind: PermissionKind): void {
+    const decisions = { ...this.store.getSettings().permissionDecisions };
+    delete decisions[`${origin}|${kind}`];
+    this.store.updateSettings({ permissionDecisions: decisions });
+    this.scheduleStatePush();
+  }
+
+  // -------------------------------------------------------------- commands
+
+  newTab(url: string = START_PAGE_URL): void {
+    this.tabs.create(url);
+    this.pushToChrome(PUSH.focusOmnibox);
+  }
+
+  closeActiveTab(): void {
+    const active = this.tabs.getActiveTabId();
+    if (active) this.tabs.close(active);
+  }
+
+  reopenClosedTab(): void {
+    this.tabs.reopenClosed();
+  }
+
+  cycleTab(offset: number): void {
+    const { tabOrder, activeTabId } = this.tabs.snapshot();
+    if (tabOrder.length === 0 || !activeTabId) return;
+    const index = tabOrder.indexOf(activeTabId);
+    const next = tabOrder[(index + offset + tabOrder.length) % tabOrder.length];
+    if (next) this.tabs.activate(next);
+  }
+
+  /** `index` is zero-based; `-1` selects the last tab, matching every browser. */
+  selectTabAt(index: number): void {
+    const { tabOrder } = this.tabs.snapshot();
+    const target = index === -1 ? tabOrder[tabOrder.length - 1] : tabOrder[index];
+    if (target) this.tabs.activate(target);
+  }
+
+  withActiveTab(action: (tabId: TabId) => void): void {
+    const active = this.tabs.getActiveTabId();
+    if (active) action(active);
+  }
+
+  navigateActive(input: string): void {
+    this.withActiveTab((tabId) => this.tabs.navigate(tabId, input));
+  }
+
+  goHome(): void {
+    this.withActiveTab((tabId) => this.tabs.navigate(tabId, START_PAGE_URL));
+  }
+
+  adjustZoom(direction: 'in' | 'out' | 'reset'): void {
+    this.withActiveTab((tabId) => {
+      const tab = this.tabs.snapshot().tabs.find((candidate) => candidate.id === tabId);
+      if (!tab) return;
+      if (direction === 'reset') {
+        this.tabs.setZoom(tabId, this.store.getSettings().defaultZoomFactor);
+        return;
+      }
+      const currentIndex = nearestZoomIndex(tab.zoomFactor);
+      const nextIndex = Math.min(ZOOM_STEPS.length - 1, Math.max(0, currentIndex + (direction === 'in' ? 1 : -1)));
+      this.tabs.setZoom(tabId, ZOOM_STEPS[nextIndex] ?? 1);
+    });
+  }
+
+  toggleBookmarkForActiveTab(): void {
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    const tab = tabs.find((candidate) => candidate.id === activeTabId);
+    if (!tab || tab.isStartPage) return;
+    this.store.toggleBookmark(tab.url, tab.title);
+    this.scheduleStatePush();
+  }
+
+  openSurface(surface: ChromeSurface): void {
+    this.pushToChrome(PUSH.openSurface, surface);
+  }
+
+  focusOmnibox(): void {
+    this.pushToChrome(PUSH.focusOmnibox);
+  }
+
+  toggleTabDevTools(): void {
+    this.withActiveTab((tabId) => this.tabs.toggleDevTools(tabId));
+  }
+
+  printActiveTab(): void {
+    this.withActiveTab((tabId) => this.tabs.print(tabId));
+  }
+
+  updateSettings(patch: Partial<Settings>): Settings {
+    const next = this.store.updateSettings(patch);
+    if (patch.blockTrackers !== undefined) this.blocker.setEnabled(patch.blockTrackers);
+    this.scheduleStatePush();
+    return next;
+  }
+
+  async clearBrowsingData(range: ClearRange): Promise<void> {
+    this.store.clearHistory(range);
+    if (range === 'all') {
+      await getWebSession().clearStorageData();
+      await getWebSession().clearCache();
+    }
+    this.scheduleStatePush();
+  }
+
+  openDownloadsFolder(): void {
+    void shell.openPath(app.getPath('downloads'));
+  }
+
+  downloadUrl(url: string): void {
+    if (!isNavigableUrl(url)) return;
+    this.tabs.downloadUrl(url);
+  }
+
+  searchUrlFor(query: string): string {
+    return buildSearchUrl(query, this.store.getSettings().searchEngine);
+  }
+
+  /** Hand a link to the system browser. Only ever https, never a local path. */
+  async openExternal(url: string): Promise<void> {
+    if (!url.startsWith('https://')) return;
+    await shell.openExternal(url);
+  }
+
+  setContentInsets(insets: ContentInsets): void {
+    this.tabs.setContentInsets(insets);
+  }
+
+  // -------------------------------------------------------------- teardown
+
+  saveSession(): void {
+    this.store.saveSession(this.tabs.sessionSnapshot());
+  }
+
+  prepareForQuit(): void {
+    if (this.isQuitting) return;
+    this.isQuitting = true;
+    this.saveSession();
+    this.downloads.cancelAllInFlight();
+    this.downloads.flush();
+    this.store.flushAll();
+  }
+
+  private dispose(): void {
+    this.prepareForQuit();
+    this.tabs.dispose();
+    for (const pending of this.pendingPermissions.values()) pending.resolve('deny');
+    this.pendingPermissions.clear();
+  }
+}
+
+function nearestZoomIndex(zoomFactor: number): number {
+  let bestIndex = ZOOM_STEPS.indexOf(1);
+  let bestDistance = Number.POSITIVE_INFINITY;
+  ZOOM_STEPS.forEach((step, index) => {
+    const distance = Math.abs(step - zoomFactor);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
+
+function safeScheme(url: string): string | null {
+  try {
+    return new URL(url).protocol.replace(/:$/, '');
+  } catch {
+    return null;
+  }
+}
+
+function truncate(value: string, max: number): string {
+  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
+}
