@@ -1,0 +1,221 @@
+@import 'tailwindcss';
+
+/*
+ * Copacetic's one visual rule: the chrome is monochrome, and colour only ever
+ * appears where it carries state. If something is green it is because the
+ * connection is encrypted, not because green looked nice there.
+ */
+
+@theme {
+  /* Surfaces, from deepest to nearest. Cool slate rather than pure black, so
+     page content in a tab reads as sitting inside something. */
+  --color-void: #080b0f;
+  --color-base: #0b0f14;
+  --color-raised: #121922;
+  --color-hover: #1a2430;
+  --color-sunken: #070a0e;
+
+  --color-line: oklch(1 0 0 / 7%);
+  --color-line-strong: oklch(1 0 0 / 14%);
+
+  --color-ink: #e6edf3;
+  --color-ink-dim: #8c9baa;
+  --color-ink-faint: #5a6875;
+
+  /* State colours. Each one means exactly one thing, everywhere. */
+  --color-clear: #7fd1ae;
+  --color-caution: #e8b667;
+  --color-alert: #e8796b;
+  --color-active: #7fb2d1;
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SF Mono', monospace;
+
+  --radius-tab: 9px;
+  --radius-field: 10px;
+  --radius-panel: 16px;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * Start-page atmosphere. This is the only place a theme changes anything —
+ * the chrome itself never shifts hue, so the state colours always read the
+ * same whichever atmosphere is chosen.
+ */
+:root {
+  --ambient-near: #123043;
+  --ambient-far: #1b2a4a;
+}
+:root[data-theme='slate'] {
+  --ambient-near: #1e2730;
+  --ambient-far: #2a3440;
+}
+:root[data-theme='ember'] {
+  --ambient-near: #3a1f21;
+  --ambient-far: #46281c;
+}
+:root[data-theme='moss'] {
+  --ambient-near: #16302a;
+  --ambient-far: #1d3a2b;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--color-base);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* The chrome is an application surface, not a document. */
+    user-select: none;
+    cursor: default;
+  }
+
+  input,
+  textarea {
+    user-select: text;
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: default;
+  }
+
+  /* Keyboard users get a visible ring; pointer users never see one. */
+  :focus-visible {
+    outline: 2px solid var(--color-active);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-active) 35%, transparent);
+  }
+}
+
+@layer components {
+  /* Frameless window: the tab strip is the title bar and must be draggable,
+     while everything interactive inside it opts back out. */
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 99px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Small caps label used for section headers and state words. Letter-spaced
+     enough to read as a label rather than as prose. */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+}
+
+@layer utilities {
+  .ambient-field {
+    background:
+      radial-gradient(120% 90% at 18% 0%, var(--ambient-near) 0%, transparent 55%),
+      radial-gradient(110% 100% at 92% 100%, var(--ambient-far) 0%, transparent 58%), var(--color-void);
+  }
+}
+
+@keyframes copacetic-indeterminate {
+  0% {
+    transform: translateX(-100%) scaleX(0.35);
+  }
+  50% {
+    transform: translateX(30%) scaleX(0.6);
+  }
+  100% {
+    transform: translateX(220%) scaleX(0.35);
+  }
+}
+
+@keyframes copacetic-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes copacetic-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-indeterminate {
+  animation: copacetic-indeterminate 1.15s var(--ease-out-quint) infinite;
+}
+.animate-rise {
+  animation: copacetic-rise 0.22s var(--ease-out-quint) both;
+}
+.animate-fade {
+  animation: copacetic-fade 0.16s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
