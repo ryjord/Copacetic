@@ -133,6 +133,14 @@ to be improvements:
   handled in the main process from cached insets, so it never lags a round trip
   behind.
 
+## Download
+
+Installers for macOS, Windows and Linux are on the
+[latest release](https://github.com/ryjord/Copacetic/releases/latest):
+`.dmg` (macOS, arm64 and x64), `Setup.exe` (Windows) and `.AppImage` / `.deb`
+(Linux). Builds are not code-signed, so expect an "unidentified developer" or
+SmartScreen prompt on first launch.
+
 ## Running it
 
 Requires Node 20.9 or newer.
