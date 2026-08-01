@@ -71,6 +71,12 @@
     "appId": "uk.co.ryjord.copacetic",
     "productName": "Copacetic",
     "copyright": "Copyright © 2026 Riley Jordan",
+    "publish": {
+      "provider": "github",
+      "owner": "ryjord",
+      "repo": "Copacetic",
+      "releaseType": "release"
+    },
     "directories": {
       "output": "release",
       "buildResources": "build"
