@@ -10,6 +10,7 @@ import { ErrorPage } from '@/components/content/ErrorPage';
 import { StartPage } from '@/components/content/StartPage';
 import { getBridge, isRunningInShell, send } from '@/lib/bridge';
 import { useBrowserStore } from '@/store/useBrowserStore';
+import { ConnectionPanel } from './ConnectionPanel';
 import { FindBar } from './FindBar';
 import { PermissionBanner } from './PermissionBanner';
 import { TabStrip } from './TabStrip';
@@ -38,6 +39,9 @@ export function Chrome() {
   const tabs = useBrowserStore((state) => state.orderedTabs);
   const activeTab = useBrowserStore((state) => state.activeTab);
   const activeTabId = useBrowserStore((state) => state.activeTabId);
+
+  const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
+  const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -97,7 +101,12 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [find.isOpen, permissionPrompts.length, surface]);
+  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen]);
+
+  // The panel describes one particular tab, so it must not linger over another.
+  useEffect(() => {
+    closeConnectionPanel();
+  }, [activeTabId, closeConnectionPanel]);
 
   // A surface covers the whole content area, so the tab's view has to step
   // aside — a native view always paints above the renderer's HTML.
@@ -126,6 +135,7 @@ export function Chrome() {
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />
 
+      {isConnectionPanelOpen && <ConnectionPanel tab={activeTab} />}
       {find.isOpen && <FindBar find={find} />}
       {prompt && <PermissionBanner prompt={prompt} />}
 

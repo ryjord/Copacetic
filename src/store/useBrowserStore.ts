@@ -22,11 +22,27 @@ interface BrowserStoreState extends BrowserState {
   surface: ChromeSurface;
   /** Incremented to ask the omnibox to take focus and select its contents. */
   omniboxFocusToken: number;
+  /**
+   * Whether the connection panel is open.
+   *
+   * It lives here rather than inside the badge because the panel is rendered
+   * as part of the chrome column, not as a popover: a native view always
+   * paints above the renderer's HTML, so anything overlapping the page area
+   * would simply be hidden behind it.
+   */
+  isConnectionPanelOpen: boolean;
+  /**
+   * When the panel was opened, so it can say how long a certificate has left
+   * without reading the clock during render.
+   */
+  connectionPanelOpenedAt: number | null;
 
   applyState(next: BrowserState): void;
   setSurface(surface: ChromeSurface): void;
   toggleSurface(surface: Exclude<ChromeSurface, 'none'>): void;
   requestOmniboxFocus(): void;
+  toggleConnectionPanel(): void;
+  closeConnectionPanel(): void;
 }
 
 const EMPTY_STATE: BrowserState = {
@@ -54,6 +70,8 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   activeTab: null,
   surface: 'none',
   omniboxFocusToken: 0,
+  isConnectionPanelOpen: false,
+  connectionPanelOpenedAt: null,
 
   applyState: (next) => {
     const byId = new Map(next.tabs.map((tab) => [tab.id, tab]));
@@ -74,6 +92,11 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   toggleSurface: (surface) => set({ surface: get().surface === surface ? 'none' : surface }),
 
   requestOmniboxFocus: () => set({ omniboxFocusToken: get().omniboxFocusToken + 1 }),
+
+  toggleConnectionPanel: () =>
+    set({ isConnectionPanelOpen: !get().isConnectionPanelOpen, connectionPanelOpenedAt: Date.now() }),
+
+  closeConnectionPanel: () => set({ isConnectionPanelOpen: false }),
 }));
 
 export function selectSettings(state: BrowserStoreState): Settings {
