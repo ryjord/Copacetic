@@ -4,6 +4,10 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ## 1.1.0 — unreleased
 
+Shipping as `1.1.0-beta.1` first: the release pipeline has never run, and a
+prerelease exercises it without offering anything to people on the stable
+channel. The apt repository is deliberately left untouched by a beta.
+
 Adds update checking, and carries the hardening and performance work that was
 staged as 1.0.1 but never released on its own — everything below reaches a user
 in the same build.
