@@ -4,13 +4,25 @@ export const INTERNAL_SCHEME = 'copacetic';
 export const START_PAGE_URL = `${INTERNAL_SCHEME}://start`;
 
 /**
- * Schemes a tab is allowed to load.
+ * Schemes a tab is allowed to load when the *user* asks for it — typing an
+ * address, restoring a session, opening a bookmark.
  *
  * `data:`, `blob:`, `javascript:` and `filesystem:` are absent on purpose:
  * top-level navigation to them is a long-standing phishing and XSS vector, and
  * Chromium blocks most of it already. Copacetic blocks all of it, everywhere.
  */
 export const NAVIGABLE_SCHEMES = new Set(['http:', 'https:', 'file:', `${INTERNAL_SCHEME}:`, 'about:']);
+
+/**
+ * Schemes a *page* is allowed to drive a tab to.
+ *
+ * `file:` is deliberately absent here while being present above. Typing
+ * `file:///…` is a thing a user can mean; `window.open('file:///Users/you/')`
+ * from a hostile page is not. Without the split, page code could render a
+ * listing of the user's home directory in a new tab, or probe for well-known
+ * local paths, with no prompt and no gesture beyond the one that opened it.
+ */
+export const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 const SEARCH_ENGINE_LIST: SearchEngine[] = [
   {
@@ -54,6 +66,15 @@ export function buildSearchUrl(query: string, engineId: SearchEngineId): string 
 export function isNavigableUrl(value: string): boolean {
   try {
     return NAVIGABLE_SCHEMES.has(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+/** True when page code may send a tab here. Stricter than `isNavigableUrl`. */
+export function isPageNavigableUrl(value: string): boolean {
+  try {
+    return PAGE_NAVIGABLE_SCHEMES.has(new URL(value).protocol);
   } catch {
     return false;
   }
@@ -157,6 +178,40 @@ export function isLoopbackHost(host: string): boolean {
 }
 
 /**
+ * Hosts that only exist inside the user's own network.
+ *
+ * This is the set the main process must not be talked into contacting on a
+ * page's behalf. A remote page naming `169.254.169.254` or `192.168.1.1` is
+ * asking for a request only the browser can usefully make — with the user's
+ * cookies, from inside their network — which is exactly the request it should
+ * not get.
+ */
+export function isPrivateHost(host: string): boolean {
+  const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
+  if (bare === '' || isLoopbackHost(bare)) return true;
+  // mDNS and the conventional suffix for internal-only names.
+  if (bare.endsWith('.local') || bare.endsWith('.internal')) return true;
+
+  if (bare.includes(':')) {
+    // IPv6 unique-local (fc00::/7) and link-local (fe80::/10).
+    return /^f[cd]/.test(bare) || /^fe[89ab]/.test(bare);
+  }
+
+  const octets = bare.split('.');
+  if (octets.length !== 4) return false;
+  const a = Number(octets[0]);
+  const b = Number(octets[1]);
+  if (!Number.isInteger(a) || !Number.isInteger(b)) return false;
+
+  if (a === 0 || a === 10 || a === 127) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  // Link-local, which is also where every cloud metadata endpoint lives.
+  if (a === 169 && b === 254) return true;
+  return false;
+}
+
+/**
  * Multi-label public suffixes common enough to be worth special-casing.
  *
  * This is a heuristic, not the IANA Public Suffix List. It only affects which
@@ -203,6 +258,35 @@ const COMPOUND_SUFFIXES = new Set([
   'co.kr',
   'com.tw',
 ]);
+
+/**
+ * Whether the main process should fetch a favicon a page asked for.
+ *
+ * Cross-origin is allowed: plenty of sites serve their icon from a CDN, and a
+ * page can already load any public image itself, so refusing would break real
+ * sites without taking away a capability. What is refused is a page on the
+ * public internet naming a host that only exists inside the user's network.
+ * That request is not one the page could usefully make on its own, and the
+ * main process would be making it with the user's cookies attached.
+ */
+export function isFetchableFavicon(pageUrl: string, faviconUrl: string): boolean {
+  let favicon: URL;
+  try {
+    favicon = new URL(faviconUrl);
+  } catch {
+    return false;
+  }
+
+  if (favicon.protocol !== 'https:' && favicon.protocol !== 'http:') return false;
+  if (!isPrivateHost(favicon.hostname)) return true;
+
+  // A local page may point at its own local icon; a remote one may not.
+  try {
+    return isPrivateHost(new URL(pageUrl).hostname);
+  } catch {
+    return false;
+  }
+}
 
 export interface DisplayUrlParts {
   scheme: string;

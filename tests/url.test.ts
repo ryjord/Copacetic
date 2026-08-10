@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSearchUrl,
+  isFetchableFavicon,
   isLoopbackHost,
   isNavigableUrl,
+  isPageNavigableUrl,
+  isPrivateHost,
   resolveOmniboxInput,
   splitUrlForDisplay,
 } from '../electron/shared/url';
@@ -162,5 +165,91 @@ describe('buildSearchUrl', () => {
 
   it('falls back to the default engine for an unknown id', () => {
     expect(buildSearchUrl('x', 'nope' as never)).toContain('duckduckgo.com');
+  });
+});
+
+describe('isPageNavigableUrl', () => {
+  it('allows the schemes a page may legitimately send a tab to', () => {
+    expect(isPageNavigableUrl('https://example.com')).toBe(true);
+    expect(isPageNavigableUrl('http://example.com')).toBe(true);
+    expect(isPageNavigableUrl('copacetic://start')).toBe(true);
+  });
+
+  // The split that matters: a user typing a local path means it, a page
+  // saying `window.open('file:///…')` does not.
+  it('refuses file: even though a typed address may use it', () => {
+    expect(isNavigableUrl('file:///Users/someone/Desktop/notes.txt')).toBe(true);
+    expect(isPageNavigableUrl('file:///Users/someone/Desktop/notes.txt')).toBe(false);
+    expect(isPageNavigableUrl('file:///etc/passwd')).toBe(false);
+  });
+
+  it.each([
+    'javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'blob:https://example.com/x',
+    'vbscript:msgbox',
+    'filesystem:https://example.com/temporary/x',
+  ])('refuses %s', (url) => {
+    expect(isPageNavigableUrl(url)).toBe(false);
+    expect(isNavigableUrl(url)).toBe(false);
+  });
+
+  it('refuses anything that is not a URL at all', () => {
+    expect(isPageNavigableUrl('')).toBe(false);
+    expect(isPageNavigableUrl('not a url')).toBe(false);
+  });
+});
+
+describe('isPrivateHost', () => {
+  it.each([
+    ['127.0.0.1', 'loopback'],
+    ['localhost', 'loopback by name'],
+    ['10.1.2.3', 'RFC1918 class A'],
+    ['172.16.0.1', 'RFC1918 class B, lower bound'],
+    ['172.31.255.254', 'RFC1918 class B, upper bound'],
+    ['192.168.0.1', 'RFC1918 class C'],
+    ['169.254.169.254', 'link-local, where cloud metadata lives'],
+    ['0.0.0.0', 'unspecified'],
+    ['printer.local', 'mDNS'],
+    ['db.internal', 'conventional internal suffix'],
+    ['fd00::1', 'IPv6 unique-local'],
+    ['fe80::1', 'IPv6 link-local'],
+  ])('treats %s as private (%s)', (host) => {
+    expect(isPrivateHost(host)).toBe(true);
+  });
+
+  it.each(['example.com', '8.8.8.8', '1.1.1.1', '172.32.0.1', '172.15.0.1', '2606:4700::1111'])(
+    'treats %s as public',
+    (host) => {
+      expect(isPrivateHost(host)).toBe(false);
+    },
+  );
+});
+
+describe('isFetchableFavicon', () => {
+  it('allows a site to serve its icon from its own origin or a CDN', () => {
+    expect(isFetchableFavicon('https://example.com/page', 'https://example.com/favicon.ico')).toBe(true);
+    expect(isFetchableFavicon('https://github.com/x', 'https://githubassets.com/favicon.ico')).toBe(true);
+  });
+
+  // The reason this function exists: the fetch runs in the web session, with
+  // whatever cookies the user holds for the host it names.
+  it.each([
+    'http://169.254.169.254/latest/meta-data/iam/security-credentials/',
+    'http://192.168.1.1/admin/',
+    'http://127.0.0.1:8080/',
+    'http://router.local/status',
+  ])('refuses a remote page pointing at %s', (faviconUrl) => {
+    expect(isFetchableFavicon('https://attacker.example/page', faviconUrl)).toBe(false);
+  });
+
+  it('still lets a local page load its own local icon', () => {
+    expect(isFetchableFavicon('http://localhost:3000/', 'http://localhost:3000/favicon.ico')).toBe(true);
+  });
+
+  it('refuses schemes that are not a real network fetch', () => {
+    expect(isFetchableFavicon('https://example.com/', 'file:///etc/passwd')).toBe(false);
+    expect(isFetchableFavicon('https://example.com/', 'javascript:alert(1)')).toBe(false);
+    expect(isFetchableFavicon('https://example.com/', 'nonsense')).toBe(false);
   });
 });

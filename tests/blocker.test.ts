@@ -104,3 +104,27 @@ describe('ContentBlocker', () => {
     });
   });
 });
+
+describe('ContentBlocker, fully-qualified hostnames', () => {
+  let fake: ReturnType<typeof fakeSession>;
+
+  beforeEach(() => {
+    const blocker = new ContentBlocker(true);
+    fake = fakeSession();
+    blocker.attach(fake.session as never);
+  });
+
+  const ask = (url: string) => fake.request({ url, resourceType: 'script', webContentsId: 7 });
+
+  // `doubleclick.net.` is a fully-qualified name that resolves identically to
+  // `doubleclick.net`, and `new URL().hostname` keeps the dot. One character
+  // should not be enough to walk past the whole list.
+  it('blocks a tracker written with a trailing dot', () => {
+    expect(ask('https://doubleclick.net./pixel.gif')).toBe(true);
+    expect(ask('https://ads.doubleclick.net./pixel.gif')).toBe(true);
+  });
+
+  it('still lets an unrelated fully-qualified host through', () => {
+    expect(ask('https://example.com./app.js')).toBe(false);
+  });
+});

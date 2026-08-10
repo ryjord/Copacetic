@@ -218,7 +218,12 @@ export class ContentBlocker {
   }
 
   /** Matches the domain itself and any subdomain of it. */
-  private matches(hostname: string): boolean {
+  private matches(rawHostname: string): boolean {
+    // `doubleclick.net.` is a fully-qualified name that resolves identically to
+    // `doubleclick.net`, and `new URL().hostname` keeps the trailing dot. Left
+    // alone it is a one-character bypass of the entire list.
+    const hostname = rawHostname.replace(/\.+$/, '');
+
     if (this.blocked.has(hostname)) return true;
     let index = hostname.indexOf('.');
     while (index !== -1) {

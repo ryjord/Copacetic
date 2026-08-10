@@ -3,7 +3,7 @@
 import { ArrowRight, Bookmark, Clock, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SEARCH_ENGINES, splitUrlForDisplay } from '../../../electron/shared/url';
-import type { Suggestion, TabState } from '../../../electron/shared/types';
+import type { Suggestion, TabId, TabState } from '../../../electron/shared/types';
 import { Favicon } from '@/components/ui/Favicon';
 import { ask, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,26 @@ export function Omnibox({ tab }: OmniboxProps) {
     inputRef.current?.blur();
   }, []);
 
+  // Switching tabs by shortcut happens entirely in the main process, so it
+  // never blurs this input the way clicking a tab does. Without this, a draft
+  // typed against one tab stays on screen and Enter navigates whichever tab is
+  // now active — the wrong one.
+  //
+  // This runs before the focus token below on purpose: opening a new tab
+  // changes both, and the token must have the last word so Cmd+T still lands
+  // in a focused address bar.
+  // Both sides are normalised to null: comparing a bare `tab?.id` against this
+  // makes `undefined !== null` true on every render with no active tab, and
+  // because setting the same value bails out the condition never clears.
+  const activeTabId = tab?.id ?? null;
+  const [editingTabId, setEditingTabId] = useState<TabId | null>(activeTabId);
+  if (activeTabId !== editingTabId) {
+    setEditingTabId(activeTabId);
+    setIsEditing(false);
+    setDraft('');
+    setHighlighted(0);
+  }
+
   // Cmd+L, the menu and a new tab all raise the same focus token. Reacting to
   // it while rendering, rather than in an effect, avoids a second render pass
   // that would briefly show the unfocused address.
@@ -87,6 +107,19 @@ export function Omnibox({ tab }: OmniboxProps) {
   // Derived rather than cleared in an effect: an empty box shows no list, and
   // a stale list never flashes between keystrokes.
   const visibleSuggestions = isEditing && draft.trim() ? suggestions : [];
+
+  // The list is real chrome, so its height is part of the content rectangle the
+  // main process matches the page to — and resizing the page forces Chromium to
+  // relay it out. Letting the height follow the result count meant one relayout
+  // per character, on the thread that also handles input.
+  //
+  // So the reserved height only ever grows while a single edit is in progress,
+  // and resets when it ends. Typing usually starts broad and narrows, which
+  // makes this one relayout per edit rather than one per keystroke, without
+  // reserving room for results that never existed.
+  const [reservedRows, setReservedRows] = useState(0);
+  const targetRows = isEditing ? Math.max(reservedRows, visibleSuggestions.length) : 0;
+  if (targetRows !== reservedRows) setReservedRows(targetRows);
 
   const commit = useCallback(
     (value: string) => {
@@ -164,6 +197,7 @@ export function Omnibox({ tab }: OmniboxProps) {
         <SuggestionList
           suggestions={visibleSuggestions}
           highlighted={highlighted}
+          reservedRows={reservedRows}
           onChoose={commit}
           onHover={setHighlighted}
         />
@@ -202,22 +236,30 @@ const SUGGESTION_ICONS = {
   bookmark: Bookmark,
 } as const;
 
+/** Fixed so the reserved height below can be computed exactly. */
+const SUGGESTION_ROW_PX = 34;
+
 function SuggestionList({
   suggestions,
   highlighted,
+  reservedRows,
   onChoose,
   onHover,
 }: {
   suggestions: Suggestion[];
   highlighted: number;
+  reservedRows: number;
   onChoose: (target: string) => void;
   onHover: (index: number) => void;
 }) {
   return (
     <ul
       // Part of the chrome column, not an overlay: the content area below is
-      // measured after this renders, so the page moves down to make room.
+      // measured after this renders, so the page moves down to make room. The
+      // reserved height keeps that measurement stable while a query is being
+      // typed — see the note where `reservedRows` is derived.
       className="animate-fade mt-1.5 overflow-hidden rounded-panel border border-line bg-raised shadow-[0_18px_40px_-12px_rgb(0_0_0/0.75)]"
+      style={{ minHeight: reservedRows * SUGGESTION_ROW_PX }}
       role="listbox"
     >
       {suggestions.map((suggestion, index) => {
@@ -231,7 +273,7 @@ function SuggestionList({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onChoose(suggestion.target)}
               className={cn(
-                'flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors',
+                'flex h-[34px] w-full items-center gap-2.5 px-3 text-left transition-colors',
                 isActive ? 'bg-hover' : 'hover:bg-hover/60',
               )}
             >

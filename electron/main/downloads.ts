@@ -19,6 +19,14 @@ const BIDI_OVERRIDES = new RegExp('[\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069
 
 const RESERVED_PATH_CHARACTERS = /[/\\:*?"<>|]/g;
 
+/**
+ * Windows treats these as device names rather than files, in any directory and
+ * with any extension. Writing to one does not create `CON.txt`; it talks to the
+ * console device, and the download either hangs or fails in a way no user can
+ * interpret.
+ */
+const WINDOWS_DEVICE_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+
 interface LiveDownload {
   item: DownloadItem;
   lastSampleAt: number;
@@ -208,9 +216,16 @@ export function sanitiseFilename(filename: string): string {
     // A leading dot hides the file; a leading `..` would try to climb out.
     .replace(/^\.+/, '')
     .replace(RESERVED_PATH_CHARACTERS, '_')
+    // Windows silently drops a trailing dot or space, so `evil.exe.` and
+    // `evil.exe ` both land as `evil.exe` after the extension check a user
+    // might have done by eye.
+    .replace(/[. ]+$/, '')
     .trim();
 
-  return cleaned.slice(0, 180) || 'download';
+  if (!cleaned) return 'download';
+  // Prefixed rather than rejected, so the user still gets the name they expect
+  // to see next to the file they just downloaded.
+  return WINDOWS_DEVICE_NAMES.test(cleaned) ? `_${cleaned}`.slice(0, 180) : cleaned.slice(0, 180);
 }
 
 export function uniqueSavePath(directory: string, filename: string): string {
