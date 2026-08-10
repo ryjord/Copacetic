@@ -85,7 +85,9 @@ Being straight about the gaps, since the whole project is about not overstating
 things:
 
 - **No sync, no accounts, no cloud.** Everything lives in `userData` on this
-  machine.
+  machine. The one request Copacetic makes on its own behalf is the update
+  check, which reads a version number from the GitHub releases API and sends
+  nothing about you. It can be turned off in Settings.
 - **No extension support.** Chrome extensions are not loaded.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
 - **Certificate inspection is Chromium's.** Copacetic reports whether Chromium
@@ -140,6 +142,40 @@ Installers for macOS, Windows and Linux are on the
 `.dmg` (macOS, arm64 and x64), `Setup.exe` (Windows) and `.AppImage` / `.deb`
 (Linux). Builds are not code-signed, so expect an "unidentified developer" or
 SmartScreen prompt on first launch.
+
+On macOS, Gatekeeper will refuse the app outright rather than just warning.
+Right-click the app and choose Open, or clear the quarantine flag:
+
+```bash
+xattr -cr /Applications/Copacetic.app
+```
+
+### Staying up to date
+
+Copacetic checks whether a newer release exists and shows what it finds in
+Settings. What it can do about it depends on the build, and it says so rather
+than pretending:
+
+| Build                 | What happens                                                |
+| --------------------- | ----------------------------------------------------------- |
+| Windows (`Setup.exe`) | Downloads in the background, installs when you quit         |
+| Linux (`.AppImage`)   | Downloads in the background, installs when you quit         |
+| macOS (`.dmg`)        | Tells you a version is available and links the download     |
+| Linux (`.deb`)        | Your package manager installs it, from Copacetic's apt repo |
+
+macOS is manual because installing an update in place requires a code-signed
+app, and Copacetic is not signed. That is a cost decision, not an oversight,
+and it is stated in Settings rather than hidden behind a button that fails.
+
+The `.deb` never updates itself, because the file belongs to `dpkg`. Instead it
+registers Copacetic's own signed apt repository when it installs, so new
+versions arrive with your normal `apt upgrade` — the same way everything else on
+the machine is updated. The repository is hosted on GitHub Pages and signed with
+a key bound to that source alone, so it cannot vouch for any other package. See
+[docs/apt-repository.md](docs/apt-repository.md).
+
+If you would rather nothing touched your apt configuration, use the
+`.AppImage`, which updates itself in place.
 
 ## Running it
 

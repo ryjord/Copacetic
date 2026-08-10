@@ -166,6 +166,13 @@ export interface Settings {
   restoreTabsOnLaunch: boolean;
   showStartPageClock: boolean;
   showTopSites: boolean;
+  /**
+   * Ask GitHub whether a newer release exists, on launch and on a long timer.
+   * The request carries nothing about the user — it reads a version number —
+   * but it is still the only routine network call the browser makes on its own
+   * behalf, so it is a setting rather than an assumption.
+   */
+  checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
   sidebarWidth: number;
@@ -185,6 +192,37 @@ export interface BrowserState {
   permissionPrompts: PermissionPrompt[];
   settings: Settings;
   hasClosedTabs: boolean;
+  update: UpdateState;
+}
+
+/**
+ * Where an update comes from on this build.
+ *
+ * - `automatic` — the app downloads and installs it itself.
+ * - `system` — the OS package manager does it, from Copacetic's apt
+ *   repository, which the `.deb` registers when it installs.
+ * - `manual` — nothing can install it, so the user has to download it.
+ * - `unsupported` — a development build, with nothing to update.
+ */
+export type UpdateDelivery = 'automatic' | 'system' | 'manual' | 'unsupported';
+
+export type UpdateStatus =
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'current' }
+  | { state: 'available'; version: string }
+  | { state: 'downloading'; percent: number }
+  | { state: 'ready'; version: string }
+  | { state: 'error'; message: string };
+
+export interface UpdateState {
+  status: UpdateStatus;
+  delivery: UpdateDelivery;
+  /** Why this build cannot install updates itself, when it cannot. */
+  manualReason: string | null;
+  lastCheckedAt: number | null;
+  /** Where to send someone who has to install it by hand. */
+  releasesUrl: string;
 }
 
 export interface AppInfo {

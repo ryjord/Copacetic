@@ -18,6 +18,7 @@ import { chromeEntryUrl, isDevelopment } from './env';
 import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
 import { BrowserStore } from './store';
 import { type ContentInsets, TabManager } from './tabs';
+import { UpdateManager } from './updates';
 import { createChromeWindow } from './window';
 
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
@@ -50,6 +51,7 @@ export class Browser {
   readonly blocker: ContentBlocker;
   readonly downloads: DownloadManager;
   readonly tabs: TabManager;
+  readonly updates: UpdateManager;
 
   private readonly pendingPermissions = new Map<string, PendingPermission>();
   private pushQueued = false;
@@ -59,6 +61,7 @@ export class Browser {
     this.store = new BrowserStore();
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
+    this.updates = new UpdateManager(() => this.scheduleStatePush());
 
     hardenChromeSession(electronSession.defaultSession);
 
@@ -87,6 +90,7 @@ export class Browser {
     await this.window.loadURL(chromeEntryUrl());
     this.window.show();
     this.restoreTabs();
+    this.updates.start(this.store.getSettings().checkForUpdates);
     if (isDevelopment()) this.window.webContents.openDevTools({ mode: 'detach' });
   }
 
@@ -118,6 +122,7 @@ export class Browser {
       permissionPrompts: [...this.pendingPermissions.values()].map((pending) => pending.prompt),
       settings: this.store.getSettings(),
       hasClosedTabs: this.tabs.hasClosedTabs(),
+      update: this.updates.getState(),
     };
   }
 
@@ -330,6 +335,7 @@ export class Browser {
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
     if (patch.blockTrackers !== undefined) this.blocker.setEnabled(patch.blockTrackers);
+    if (patch.checkForUpdates !== undefined) this.updates.start(patch.checkForUpdates);
     this.scheduleStatePush();
     return next;
   }
@@ -383,6 +389,7 @@ export class Browser {
 
   private dispose(): void {
     this.prepareForQuit();
+    this.updates.stop();
     this.tabs.dispose();
     for (const pending of this.pendingPermissions.values()) pending.resolve('deny');
     this.pendingPermissions.clear();

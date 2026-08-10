@@ -63,6 +63,10 @@ export const INVOKE = {
 
   appGetInfo: 'app:get-info',
   appOpenExternal: 'app:open-external',
+
+  updatesCheck: 'updates:check',
+  updatesInstall: 'updates:install',
+  updatesOpenReleases: 'updates:open-releases',
 } as const;
 
 /** Pushes from main to the chrome renderer. */

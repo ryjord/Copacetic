@@ -29,3 +29,7 @@ yarn-error.log*
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# The apt signing key is written by CI at build time and must never be committed.
+build/keyring/*
+!build/keyring/.gitkeep
