@@ -156,21 +156,26 @@ Copacetic checks whether a newer release exists and shows what it finds in
 Settings. What it can do about it depends on the build, and it says so rather
 than pretending:
 
-| Build                 | What happens                                            |
-| --------------------- | ------------------------------------------------------- |
-| Windows (`Setup.exe`) | Downloads in the background, installs when you quit     |
-| Linux (`.AppImage`)   | Downloads in the background, installs when you quit     |
-| macOS (`.dmg`)        | Tells you a version is available and links the download |
-| Linux (`.deb`)        | Tells you and links the download — see below            |
+| Build                 | What happens                                                |
+| --------------------- | ----------------------------------------------------------- |
+| Windows (`Setup.exe`) | Downloads in the background, installs when you quit         |
+| Linux (`.AppImage`)   | Downloads in the background, installs when you quit         |
+| macOS (`.dmg`)        | Tells you a version is available and links the download     |
+| Linux (`.deb`)        | Your package manager installs it, from Copacetic's apt repo |
 
 macOS is manual because installing an update in place requires a code-signed
 app, and Copacetic is not signed. That is a cost decision, not an oversight,
 and it is stated in Settings rather than hidden behind a button that fails.
 
-The `.deb` is manual for a different reason: the file belongs to `dpkg`, so the
-app must not overwrite itself, and there is no Copacetic apt repository for
-`apt upgrade` to pull from. If you want updates handled by your system, the
-`.AppImage` updates itself today.
+The `.deb` never updates itself, because the file belongs to `dpkg`. Instead it
+registers Copacetic's own signed apt repository when it installs, so new
+versions arrive with your normal `apt upgrade` — the same way everything else on
+the machine is updated. The repository is hosted on GitHub Pages and signed with
+a key bound to that source alone, so it cannot vouch for any other package. See
+[docs/apt-repository.md](docs/apt-repository.md).
+
+If you would rather nothing touched your apt configuration, use the
+`.AppImage`, which updates itself in place.
 
 ## Running it
 

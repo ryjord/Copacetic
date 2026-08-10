@@ -196,13 +196,15 @@ export interface BrowserState {
 }
 
 /**
- * Where an update can come from on this build.
+ * Where an update comes from on this build.
  *
- * `automatic` means the app can download and install one itself. That needs a
- * signed build on macOS, and on Linux it only works for the AppImage — a `.deb`
- * is owned by the system package manager, not by us.
+ * - `automatic` — the app downloads and installs it itself.
+ * - `system` — the OS package manager does it, from Copacetic's apt
+ *   repository, which the `.deb` registers when it installs.
+ * - `manual` — nothing can install it, so the user has to download it.
+ * - `unsupported` — a development build, with nothing to update.
  */
-export type UpdateDelivery = 'automatic' | 'manual' | 'unsupported';
+export type UpdateDelivery = 'automatic' | 'system' | 'manual' | 'unsupported';
 
 export type UpdateStatus =
   | { state: 'idle' }

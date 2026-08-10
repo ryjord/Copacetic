@@ -27,16 +27,16 @@ describe('describeDelivery', () => {
     expect(result.manualReason).toMatch(/not code-signed/i);
   });
 
-  it('falls back to a manual download for a Linux package-managed build', () => {
+  // The .deb registers Copacetic's apt repository when it installs, so the
+  // system genuinely does handle it — but the app itself still must not write
+  // over a dpkg-owned file.
+  it('hands a Linux package-managed build to the system', () => {
     const result = on('linux', { isAppImage: false });
-    expect(result.delivery).toBe('manual');
+    expect(result.delivery).toBe('system');
     expect(result.manualReason).toMatch(/package manager/i);
-    // Must not imply apt will handle it: there is no repository for it to
-    // pull from, so the only real path is a manual download.
-    expect(result.manualReason).toMatch(/by hand|download/i);
   });
 
-  it('never claims a manual platform can update itself', () => {
+  it('never claims a non-automatic platform can update itself', () => {
     for (const platform of ['darwin', 'linux'] as const) {
       const result = describeDelivery({ platform, isPackaged: true, isAppImage: false });
       expect(result.delivery).not.toBe('automatic');
@@ -55,6 +55,7 @@ describe('describeDelivery', () => {
   // An AppImage flag must not rescue macOS, and must not apply on Windows.
   it('only lets the AppImage flag matter on Linux', () => {
     expect(describeDelivery({ platform: 'darwin', isPackaged: true, isAppImage: true }).delivery).toBe('manual');
+    expect(describeDelivery({ platform: 'linux', isPackaged: true, isAppImage: false }).delivery).toBe('system');
     expect(describeDelivery({ platform: 'win32', isPackaged: true, isAppImage: true }).delivery).toBe('automatic');
   });
 });

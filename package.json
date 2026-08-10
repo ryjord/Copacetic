@@ -71,7 +71,7 @@
   "build": {
     "appId": "uk.co.ryjord.copacetic",
     "productName": "Copacetic",
-    "copyright": "Copyright © 2026 Riley Jordan",
+    "copyright": "Copyright \u00a9 2026 Riley Jordan",
     "publish": {
       "provider": "github",
       "owner": "ryjord",
@@ -121,6 +121,19 @@
         "deb"
       ],
       "category": "Network"
-    }
+    },
+    "deb": {
+      "afterInstall": "build/deb/after-install.sh",
+      "afterRemove": "build/deb/after-remove.sh"
+    },
+    "extraResources": [
+      {
+        "from": "build/keyring",
+        "to": ".",
+        "filter": [
+          "copacetic-archive-keyring.gpg"
+        ]
+      }
+    ]
   }
 }

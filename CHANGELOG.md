@@ -13,10 +13,14 @@ in the same build.
 - **Update checking**, split by what each platform actually allows.
   - Windows (NSIS) and the Linux AppImage download an update in the background
     and apply it on quit.
-  - macOS and the Linux `.deb` cannot install updates themselves — macOS
-    because the build is not code-signed, `.deb` because the system package
-    manager owns it. Those builds say so plainly in Settings and offer the
-    release page rather than a button that would fail.
+  - The `.deb` registers Copacetic's own signed apt repository when it
+    installs, so upgrades arrive with a normal `apt upgrade` rather than the
+    app writing over a file `dpkg` owns. The repository is published to GitHub
+    Pages by the release workflow and signed with a key bound to that source
+    alone.
+  - macOS cannot install updates itself, because doing so in place requires a
+    code-signed app. That build says so plainly in Settings and offers the
+    download rather than a button that would fail.
   - Settings gains an Updates section showing the current state, a "Check now"
     button, and a toggle for the periodic check.
 - The update check is the only network request Copacetic makes on its own
