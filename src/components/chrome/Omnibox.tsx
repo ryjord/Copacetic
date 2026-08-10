@@ -47,6 +47,22 @@ export function Omnibox({ tab }: OmniboxProps) {
     inputRef.current?.blur();
   }, []);
 
+  // Switching tabs by shortcut happens entirely in the main process, so it
+  // never blurs this input the way clicking a tab does. Without this, a draft
+  // typed against one tab stays on screen and Enter navigates whichever tab is
+  // now active — the wrong one.
+  //
+  // This runs before the focus token below on purpose: opening a new tab
+  // changes both, and the token must have the last word so Cmd+T still lands
+  // in a focused address bar.
+  const [editingTabId, setEditingTabId] = useState(tab?.id ?? null);
+  if (tab?.id !== editingTabId) {
+    setEditingTabId(tab?.id ?? null);
+    setIsEditing(false);
+    setDraft('');
+    setHighlighted(0);
+  }
+
   // Cmd+L, the menu and a new tab all raise the same focus token. Reacting to
   // it while rendering, rather than in an effect, avoids a second render pass
   // that would briefly show the unfocused address.
