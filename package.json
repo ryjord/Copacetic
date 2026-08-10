@@ -1,7 +1,7 @@
 {
   "name": "copacetic",
   "productName": "Copacetic",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A calm, honest browser that shows you the true state of every page.",
   "author": {
     "name": "Riley Jordan",
@@ -131,7 +131,8 @@
         "from": "build/keyring",
         "to": ".",
         "filter": [
-          "copacetic-archive-keyring.gpg"
+          "copacetic-archive-keyring.gpg",
+          "copacetic-apt-source"
         ]
       }
     ]

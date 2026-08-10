@@ -46,19 +46,25 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # The .deb registers Copacetic's apt repository on install, and it can
-      # only do that if it carries the public half of the signing key. Without
-      # the secret the file is absent and the install script leaves apt alone,
-      # so a fork still builds a working package.
-      - name: Embed the apt signing key
-        if: matrix.os == 'ubuntu-latest' && env.APT_GPG_PRIVATE_KEY != ''
+      # The .deb only registers an apt source when one is actually hosted, so
+      # both the key and the URL are embedded together or not at all. Set the
+      # APT_REPO_URL repository variable to turn this on; until then the
+      # package installs without touching apt, which is the honest state.
+      #
+      # It is deliberately not GitHub Pages: a repository rejects any file over
+      # 100 MB and this .deb is around 150 MB, so the packages have to live on
+      # object storage.
+      - name: Embed the apt signing key and source URL
+        if: matrix.os == 'ubuntu-latest' && vars.APT_REPO_URL != '' && env.APT_GPG_PRIVATE_KEY != ''
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
         run: |
           mkdir -p build/keyring
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           gpg --export > build/keyring/copacetic-archive-keyring.gpg
+          printf '%s' "${{ vars.APT_REPO_URL }}" > build/keyring/copacetic-apt-source
           test -s build/keyring/copacetic-archive-keyring.gpg
+          test -s build/keyring/copacetic-apt-source
 
       - name: Build and publish
         shell: bash
@@ -88,7 +94,13 @@ jobs:
         id: gate
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          APT_REPO_URL: ${{ vars.APT_REPO_URL }}
         run: |
+          if [ -z "$APT_REPO_URL" ]; then
+            echo "No APT_REPO_URL variable; no repository is hosted yet."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$APT_GPG_PRIVATE_KEY" ]; then
             echo "No APT_GPG_PRIVATE_KEY secret; skipping the apt repository."
             echo "run=false" >> "$GITHUB_OUTPUT"

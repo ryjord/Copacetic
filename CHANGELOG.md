@@ -2,6 +2,23 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.1.1 — unreleased
+
+### Fixed
+
+- The `.deb` no longer registers an apt source that does not exist. The
+  repository could not be published: GitHub rejects any file over 100 MB and
+  the package is around 150 MB, so the `gh-pages` push failed after the
+  installers had already gone out. A source pointing at a 404 makes
+  `apt update` fail on every run, so the package now installs without touching
+  apt, and Settings says plainly that Linux `.deb` updates are manual.
+- The 1.1.0 and 1.1.0-beta.1 `.deb` assets were withdrawn for the same reason.
+  Every other installer from those releases is unaffected.
+
+The apt work itself is finished and correct — signing, indexes, the install
+script — and is gated behind an `APT_REPO_URL` variable until the packages have
+somewhere to live. See `docs/apt-repository.md`.
+
 ## 1.1.0 — 2026-08-10
 
 Released as `1.1.0-beta.1` first, which exercised the release pipeline on all
