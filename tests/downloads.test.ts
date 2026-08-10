@@ -50,3 +50,35 @@ describe('sanitiseFilename', () => {
     expect(sanitiseFilename('a'.repeat(500)).length).toBe(180);
   });
 });
+
+describe('sanitiseFilename, Windows-specific traps', () => {
+  // Windows resolves these to devices, not files, in any directory and with
+  // any extension. `CON.txt` talks to the console rather than creating a file.
+  it.each(['CON', 'con.txt', 'PRN', 'aux.log', 'NUL', 'COM1', 'com9.dat', 'LPT1', 'lpt9.pdf'])(
+    'defuses the reserved device name %s',
+    (name) => {
+      const result = sanitiseFilename(name);
+      expect(result).toBe(`_${name}`);
+      expect(/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(result)).toBe(false);
+    },
+  );
+
+  it('leaves names that merely start with those letters alone', () => {
+    expect(sanitiseFilename('console.log')).toBe('console.log');
+    expect(sanitiseFilename('contract.pdf')).toBe('contract.pdf');
+    expect(sanitiseFilename('company.xlsx')).toBe('company.xlsx');
+  });
+
+  // Windows silently drops a trailing dot or space, so `evil.exe.` is written
+  // as `evil.exe` after a user has read the name and seen something harmless.
+  it('strips trailing dots and spaces that would change the real extension', () => {
+    expect(sanitiseFilename('invoice.pdf.')).toBe('invoice.pdf');
+    expect(sanitiseFilename('invoice.pdf   ')).toBe('invoice.pdf');
+    expect(sanitiseFilename('setup.exe. . .')).toBe('setup.exe');
+  });
+
+  it('never returns an empty name', () => {
+    expect(sanitiseFilename('...')).toBe('download');
+    expect(sanitiseFilename('   ')).toBe('download');
+  });
+});
