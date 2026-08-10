@@ -79,7 +79,7 @@ export class BrowserStore {
   }
 
   updateSettings(patch: Partial<Settings>): Settings {
-    return this.settingsFile.update((current) => ({ ...current, ...patch }));
+    return this.settingsFile.update((current) => normaliseSettings({ ...current, ...patch }));
   }
 
   setPermissionDecision(origin: string, kind: string, decision: PermissionDecision): void {
@@ -340,7 +340,7 @@ function reviveSettings(raw: unknown): Settings | null {
   const engine = asString(raw.searchEngine, DEFAULT_SETTINGS.searchEngine);
   const theme = asString(raw.theme, DEFAULT_SETTINGS.theme);
 
-  return {
+  return normaliseSettings({
     searchEngine: engine in SEARCH_ENGINES ? (engine as Settings['searchEngine']) : DEFAULT_SETTINGS.searchEngine,
     theme: (['deep', 'slate', 'ember', 'moss'] as const).includes(theme as Settings['theme'])
       ? (theme as Settings['theme'])
@@ -351,8 +351,23 @@ function reviveSettings(raw: unknown): Settings | null {
     showStartPageClock: asBoolean(raw.showStartPageClock, DEFAULT_SETTINGS.showStartPageClock),
     showTopSites: asBoolean(raw.showTopSites, DEFAULT_SETTINGS.showTopSites),
     permissionDecisions: decisions,
-    sidebarWidth: clamp(asNumber(raw.sidebarWidth, DEFAULT_SETTINGS.sidebarWidth), 240, 560),
-    defaultZoomFactor: clamp(asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor), 0.25, 5),
+    sidebarWidth: asNumber(raw.sidebarWidth, DEFAULT_SETTINGS.sidebarWidth),
+    defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
+  });
+}
+
+/**
+ * Bounds every numeric setting, wherever it came from.
+ *
+ * Applying this only when reading from disk left a gap: a value pushed over
+ * IPC was stored unbounded and stayed that way until the next launch, so a
+ * zoom factor of 40 survived exactly as long as the session did.
+ */
+export function normaliseSettings(settings: Settings): Settings {
+  return {
+    ...settings,
+    sidebarWidth: clamp(settings.sidebarWidth, 240, 560),
+    defaultZoomFactor: clamp(settings.defaultZoomFactor, 0.25, 5),
   };
 }
 
