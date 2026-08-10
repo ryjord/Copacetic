@@ -1,8 +1,8 @@
 'use client';
 
-import { FileText, Lock, ShieldOff, Ban, Timer, HelpCircle } from 'lucide-react';
+import { FileText, Lock, ShieldOff, Ban, Timer, HelpCircle, BadgeCheck, CalendarClock } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { SecurityLevel, TabState } from '../../../electron/shared/types';
+import type { CertificateSummary, SecurityLevel, TabState } from '../../../electron/shared/types';
 import { useDismissLayer } from '@/lib/dismissLayer';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,9 @@ const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string
  */
 export function ConnectionBadge({ tab }: { tab: TabState | null }) {
   const [isOpen, setIsOpen] = useState(false);
+  // Stamped when the popover opens. Reading the clock is a side effect, so it
+  // belongs in the event that caused it rather than in render or an effect.
+  const [openedAt, setOpenedAt] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Registered as a layer rather than listening directly, so that Escape with
@@ -50,7 +53,10 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
     <div ref={containerRef} className="relative shrink-0">
       <button
         type="button"
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={() => {
+          setOpenedAt(Date.now());
+          setIsOpen((open) => !open);
+        }}
         aria-label={`Connection: ${style.word}. Show details`}
         aria-expanded={isOpen}
         className={cn(
@@ -83,10 +89,53 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
               emphasise={tab.blockedCount > 0}
             />
           </dl>
+
+          {tab.security.certificate && <CertificateRows certificate={tab.security.certificate} now={openedAt} />}
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * What Chromium validated, reported rather than re-derived.
+ *
+ * The README is straight about this being Chromium's judgement and not our own
+ * chain analysis, so the wording here stays inside that claim: who issued it
+ * and when it stops being valid, not a verdict Copacetic has not earned.
+ *
+ * Expiry is the one field allowed colour, because a certificate days from
+ * expiring is state a user cannot see any other way.
+ */
+function CertificateRows({ certificate, now }: { certificate: CertificateSummary; now: number | null }) {
+  const daysLeft = now === null ? null : Math.floor((certificate.validTo - now) / 86_400_000);
+  const expiringSoon = daysLeft !== null && daysLeft <= 14;
+
+  return (
+    <dl className="mt-3 space-y-1.5 border-t border-line pt-3">
+      <Row label="Issued by" value={certificate.issuer} icon={<BadgeCheck size={11} />} />
+      {certificate.subject && <Row label="Issued to" value={certificate.subject} mono />}
+      <div className="flex items-center justify-between gap-4">
+        <dt className="flex items-center gap-1.5 text-[11px] text-ink-faint">
+          <CalendarClock size={11} />
+          Expires
+        </dt>
+        <dd className={cn('truncate text-[11.5px]', expiringSoon ? 'text-caution' : 'text-ink-dim')}>
+          {formatExpiry(certificate.validTo, daysLeft)}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+export function formatExpiry(validTo: number, daysLeft: number | null): string {
+  if (!validTo) return 'Unknown';
+  const date = new Date(validTo).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  if (daysLeft === null) return date;
+  if (daysLeft < 0) return `${date} — expired`;
+  if (daysLeft === 0) return `${date} — today`;
+  if (daysLeft <= 90) return `${date} — ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+  return date;
 }
 
 function Row({

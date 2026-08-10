@@ -1,6 +1,6 @@
 import { type BrowserWindow, type ContextMenuParams, WebContentsView, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
-import type { FindState, PageError, SecurityState, TabId, TabState } from '../shared/types';
+import type { CertificateSummary, FindState, PageError, SecurityState, TabId, TabState } from '../shared/types';
 import {
   START_PAGE_URL,
   fallbackTitleFor,
@@ -11,6 +11,7 @@ import {
   resolveOmniboxInput,
 } from '../shared/url';
 import type { ContentBlocker } from './blocker';
+import { certificateFor } from './certificates';
 import { describeNetError, isAbortError } from './net-errors';
 import { WEB_PARTITION, type SecurityDelegate, getWebSession, guardTabWebContents } from './security';
 import type { BrowserStore } from './store';
@@ -138,7 +139,10 @@ export class TabManager {
       canGoForward: alive && !tab.isStartPage && contents.navigationHistory.canGoForward(),
       isAudible: alive ? contents.isCurrentlyAudible() : false,
       isMuted: tab.isMuted,
-      security: describeSecurity(tab.isStartPage ? START_PAGE_URL : tab.url),
+      security: describeSecurity(
+        tab.isStartPage ? START_PAGE_URL : tab.url,
+        tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
+      ),
       error: tab.error,
       blockedCount: alive ? this.blocker.countFor(contents.id) : 0,
       loadMs: tab.loadMs,
@@ -792,7 +796,7 @@ export class TabManager {
   }
 }
 
-export function describeSecurity(url: string): SecurityState {
+export function describeSecurity(url: string, certificate: CertificateSummary | null = null): SecurityState {
   let parsed: URL | null = null;
   try {
     parsed = new URL(url);
@@ -806,6 +810,7 @@ export function describeSecurity(url: string): SecurityState {
       scheme: 'copacetic',
       host: 'start',
       detail: 'A Copacetic page. Nothing here touches the network.',
+      certificate: null,
     };
   }
 
@@ -813,7 +818,13 @@ export function describeSecurity(url: string): SecurityState {
   const host = parsed.hostname;
 
   if (scheme === 'copacetic' || scheme === 'about') {
-    return { level: 'internal', scheme, host, detail: 'A Copacetic page. Nothing here touches the network.' };
+    return {
+      level: 'internal',
+      scheme,
+      host,
+      detail: 'A Copacetic page. Nothing here touches the network.',
+      certificate: null,
+    };
   }
 
   if (scheme === 'file') {
@@ -822,6 +833,7 @@ export function describeSecurity(url: string): SecurityState {
       scheme,
       host: hostOf(url) || 'local file',
       detail: 'A file on this machine. It was never sent over a network.',
+      certificate: null,
     };
   }
 
@@ -831,6 +843,7 @@ export function describeSecurity(url: string): SecurityState {
       scheme,
       host,
       detail: 'Encrypted. Chromium checked this site’s certificate against your system’s trusted authorities.',
+      certificate,
     };
   }
 
@@ -840,6 +853,7 @@ export function describeSecurity(url: string): SecurityState {
       scheme,
       host,
       detail: 'Loopback connection. This traffic never leaves your machine.',
+      certificate: null,
     };
   }
 
@@ -849,8 +863,15 @@ export function describeSecurity(url: string): SecurityState {
       scheme,
       host,
       detail: 'Not encrypted. Anyone on this network can read this page and change it before you see it.',
+      certificate: null,
     };
   }
 
-  return { level: 'unknown', scheme, host, detail: 'Copacetic cannot describe this connection.' };
+  return {
+    level: 'unknown',
+    scheme,
+    host,
+    detail: 'Copacetic cannot describe this connection.',
+    certificate: null,
+  };
 }

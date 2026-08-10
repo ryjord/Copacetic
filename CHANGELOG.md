@@ -2,7 +2,21 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.1.1 — unreleased
+## 1.2.0 — unreleased
+
+### Added
+
+- The connection badge shows who issued the certificate and when it expires,
+  on any encrypted page. An expiry within a fortnight is shown in amber, which
+  is the only new colour: it is state a user has no other way to see.
+- Only a certificate Chromium accepted is ever described. Reporting the issuer
+  of one it rejected would make a failed connection look informative.
+
+This closes a gap the README named itself. The scope is unchanged and still
+honest — Copacetic reports Chromium's judgement rather than doing its own chain
+analysis.
+
+## 1.1.1 — 2026-08-10
 
 ### Fixed
 

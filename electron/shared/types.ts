@@ -17,6 +17,23 @@ export type DownloadId = string;
  */
 export type SecurityLevel = 'secure' | 'insecure' | 'internal' | 'unknown';
 
+/**
+ * What Chromium validated, reported rather than re-derived.
+ *
+ * Copacetic does no chain analysis of its own — it says what Chromium
+ * accepted, which is the honest scope of what a browser interface can claim.
+ */
+export interface CertificateSummary {
+  /** Who issued it, e.g. `Let's Encrypt`. */
+  issuer: string;
+  /** Who it was issued to. */
+  subject: string;
+  /** Milliseconds since the epoch. */
+  validFrom: number;
+  validTo: number;
+  fingerprint: string;
+}
+
 export interface SecurityState {
   level: SecurityLevel;
   /** Scheme without the trailing colon, e.g. `https`. */
@@ -24,6 +41,8 @@ export interface SecurityState {
   host: string;
   /** One plain sentence shown in the connection popover. */
   detail: string;
+  /** Present only for an https page whose certificate Chromium accepted. */
+  certificate: CertificateSummary | null;
 }
 
 export interface PageError {

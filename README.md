@@ -32,9 +32,11 @@ full contrast and everything else dimmed, in a monospace face. So
 `paypal.com.attacker.net/login` reads as **attacker.net** — which is the point.
 
 **Honest connection reporting.** Click the badge in the address bar for the real
-scheme, the host, the measured load time, and how many tracker requests were
-blocked on this page. When Copacetic cannot describe a connection, it says so
-rather than guessing.
+scheme, the host, the measured load time, how many tracker requests were blocked
+on this page, and — on an encrypted connection — who issued the certificate and
+when it expires. An expiry inside a fortnight is the one thing there that turns
+amber, because it is state you cannot see any other way. When Copacetic cannot
+describe a connection, it says so rather than guessing.
 
 **Tracker blocking that does not break pages.** A curated list of ~120 domains
 that exist only to follow people between sites. Not an EasyList engine — a
@@ -90,8 +92,10 @@ things:
   nothing about you. It can be turned off in Settings.
 - **No extension support.** Chrome extensions are not loaded.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
-- **Certificate inspection is Chromium's.** Copacetic reports whether Chromium
-  validated the certificate; it does not do its own chain analysis.
+- **Certificate inspection is Chromium's.** The badge reports the issuer and
+  expiry of the certificate Chromium accepted; it does no chain analysis of its
+  own, and a certificate Chromium rejected is never described at all — a failed
+  connection must not be dressed up as an informative one.
 - **The public-suffix handling in the address bar is a heuristic**, not the full
   IANA list. It only affects which part of the host is emphasised, never a
   security decision.
