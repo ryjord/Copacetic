@@ -53,7 +53,10 @@ export function handleAppProtocol(): void {
     const url = new URL(request.url);
     if (url.hostname !== APP_HOST) return new Response('Not found', { status: 404 });
 
-    const filePath = resolveWithinRoot(root, decodeURIComponent(url.pathname));
+    const pathname = safeDecode(url.pathname);
+    if (pathname === null) return new Response('Bad request', { status: 400 });
+
+    const filePath = resolveWithinRoot(root, pathname);
     if (!filePath) return new Response('Forbidden', { status: 403 });
 
     const resolved = await resolveFile(filePath, root);
@@ -75,11 +78,27 @@ export function handleAppProtocol(): void {
 }
 
 /**
+ * `decodeURIComponent` throws on a malformed escape like `%ZZ`, which would
+ * otherwise reject inside the protocol handler rather than answering.
+ */
+function safeDecode(pathname: string): string | null {
+  try {
+    const decoded = decodeURIComponent(pathname);
+    // A null byte truncates a path for some syscalls; nothing legitimate has one.
+    return decoded.includes('\0') ? null : decoded;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Join a request path onto the renderer root, refusing anything that escapes
  * it. `..` in a URL path is normally collapsed by the URL parser, but this is
  * the one place a mistake would expose the whole filesystem.
+ *
+ * Exported for tests: this is the sandbox boundary for the whole app protocol.
  */
-function resolveWithinRoot(root: string, pathname: string): string | null {
+export function resolveWithinRoot(root: string, pathname: string): string | null {
   const candidate = path.resolve(root, `.${path.posix.normalize(pathname)}`);
   const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
   return candidate === root || candidate.startsWith(rootWithSep) ? candidate : null;
