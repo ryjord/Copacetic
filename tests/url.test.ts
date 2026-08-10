@@ -6,6 +6,7 @@ import {
   isNavigableUrl,
   isPageNavigableUrl,
   isPrivateHost,
+  originOf,
   resolveOmniboxInput,
   splitUrlForDisplay,
 } from '../electron/shared/url';
@@ -291,5 +292,23 @@ describe('splitUrlForDisplay with the real suffix list', () => {
   it('leaves addresses without a registrable domain alone', () => {
     expect(emphasised('https://192.168.0.1/')).toBe('192.168.0.1');
     expect(emphasised('http://localhost:3000/')).toBe('localhost');
+  });
+});
+
+describe('originOf, which keys every permission decision', () => {
+  it('is stable for the same site across paths and queries', () => {
+    expect(originOf('https://example.com/a?b=c#d')).toBe('https://example.com');
+    expect(originOf('https://example.com/other')).toBe(originOf('https://example.com/'));
+  });
+
+  // A permission granted to one origin must never apply to another.
+  it('separates scheme, host and port', () => {
+    expect(originOf('https://example.com/')).not.toBe(originOf('http://example.com/'));
+    expect(originOf('https://example.com/')).not.toBe(originOf('https://sub.example.com/'));
+    expect(originOf('https://example.com:8443/')).not.toBe(originOf('https://example.com/'));
+  });
+
+  it('is empty for something that is not a URL', () => {
+    expect(originOf('nonsense')).toBe('');
   });
 });

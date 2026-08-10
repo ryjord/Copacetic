@@ -2,9 +2,17 @@
 
 import { Ban, BadgeCheck, CalendarClock, FileText, HelpCircle, Lock, ShieldOff, Timer, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { CertificateSummary, ConnectionEntry, SecurityLevel, TabState } from '../../../electron/shared/types';
+import {
+  PERMISSION_LABELS,
+  type CertificateSummary,
+  type ConnectionEntry,
+  type PermissionKind,
+  type SecurityLevel,
+  type TabState,
+} from '../../../electron/shared/types';
+import { originOf } from '../../../electron/shared/url';
 import { IconButton } from '@/components/ui/IconButton';
-import { ask } from '@/lib/bridge';
+import { ask, send } from '@/lib/bridge';
 import { useDismissLayer } from '@/lib/dismissLayer';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -78,9 +86,65 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
           briefly showing one tab's hosts under another tab's heading. Cheaper
           to reason about than resetting state on a change.
         */}
+        <SitePermissions url={tab.url} />
+
         <ConnectionLog key={tab.id} tabId={tab.id} />
       </div>
     </section>
+  );
+}
+
+/**
+ * What this site has already been allowed, or refused, to do.
+ *
+ * These decisions were always stored and always honoured; they were just
+ * listed in Settings, away from the site they apply to. A permission you
+ * granted six months ago is only meaningful if you can see it while you are
+ * on the site it belongs to.
+ */
+function SitePermissions({ url }: { url: string }) {
+  const decisions = useBrowserStore((state) => state.settings.permissionDecisions);
+  const origin = originOf(url);
+  if (!origin) return null;
+
+  const granted = Object.entries(decisions)
+    .map(([key, decision]) => {
+      const separator = key.lastIndexOf('|');
+      return { origin: key.slice(0, separator), kind: key.slice(separator + 1) as PermissionKind, decision };
+    })
+    .filter((entry) => entry.origin === origin);
+
+  if (granted.length === 0) {
+    return (
+      <p className="mt-3 border-t border-line pt-3 text-[12px] text-ink-faint">
+        This site has not asked for anything that needed your permission.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <h2 className="label mb-2">This site can</h2>
+      <ul className="divide-y divide-line rounded-field border border-line">
+        {granted.map((entry) => (
+          <li key={entry.kind} className="flex items-center gap-3 px-2.5 py-1.5">
+            <span className="min-w-0 flex-1 truncate text-[11.5px] text-ink-dim">
+              {PERMISSION_LABELS[entry.kind] ?? entry.kind}
+            </span>
+            <span className={cn('label shrink-0', entry.decision === 'allow' ? 'text-clear' : 'text-ink-faint')}>
+              {entry.decision === 'allow' ? 'Allowed' : 'Blocked'}
+            </span>
+            <button
+              type="button"
+              onClick={() => send((api) => api.permissions.forget(origin, entry.kind))}
+              className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-ink-faint transition-colors hover:bg-hover hover:text-ink"
+            >
+              Reset
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

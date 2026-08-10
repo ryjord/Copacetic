@@ -175,6 +175,19 @@ export type PermissionKind =
 
 export type PermissionDecision = 'allow' | 'deny';
 
+/** What each permission means, in the words a person would use. */
+export const PERMISSION_LABELS: Record<PermissionKind, string> = {
+  geolocation: 'Know your location',
+  notifications: 'Send you notifications',
+  media: 'Use your camera and microphone',
+  'clipboard-read': 'Read your clipboard',
+  'display-capture': 'Record your screen',
+  midi: 'Use your MIDI devices',
+  pointerLock: 'Lock your pointer',
+  fullscreen: 'Go fullscreen',
+  openExternal: 'Open another application',
+};
+
 export interface PermissionPrompt {
   id: string;
   tabId: TabId;

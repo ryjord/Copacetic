@@ -21,6 +21,10 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   through, and including trackers when blocking is switched off. The blocked
   count says what was stopped; this says what was not.
 
+- The connection panel lists what the current site has already been allowed or
+  refused to do, with a reset for each. Those decisions were always stored and
+  always honoured — they were just listed in Settings, away from the site they
+  apply to, which is not where anyone looks.
 - The address bar uses the full IANA Public Suffix List instead of a
   hand-written list of about forty suffixes. `user.github.io`,
   `thing.s3.amazonaws.com` and `example.pvt.k12.ma.us` are now read correctly,

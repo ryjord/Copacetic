@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { AppInfo, PermissionKind, Settings, ThemeId, UpdateStatus } from '../../../electron/shared/types';
+import {
+  PERMISSION_LABELS,
+  type AppInfo,
+  type PermissionKind,
+  type Settings,
+  type ThemeId,
+  type UpdateStatus,
+} from '../../../electron/shared/types';
 import { SEARCH_ENGINE_OPTIONS } from '../../../electron/shared/url';
 import { Toggle } from '@/components/ui/Toggle';
 import { ask, send } from '@/lib/bridge';
@@ -308,7 +315,9 @@ function PermissionList({ decisions }: { decisions: Record<string, 'allow' | 'de
           return (
             <li key={key} className="flex items-center gap-3 px-3 py-2">
               <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{origin}</span>
-              <span className="shrink-0 text-[11.5px] text-ink-faint">{kind}</span>
+              <span className="shrink-0 text-[11.5px] text-ink-faint">
+                {PERMISSION_LABELS[kind as PermissionKind] ?? kind}
+              </span>
               <span className={cn('label shrink-0', decision === 'allow' ? 'text-clear' : 'text-alert')}>
                 {decision === 'allow' ? 'Allowed' : 'Blocked'}
               </span>
