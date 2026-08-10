@@ -11,7 +11,7 @@ import type {
   Settings,
   TabId,
 } from '../shared/types';
-import { START_PAGE_URL, buildSearchUrl, isNavigableUrl } from '../shared/url';
+import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
 import { ContentBlocker } from './blocker';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
@@ -21,6 +21,17 @@ import { type ContentInsets, TabManager } from './tabs';
 import { createChromeWindow } from './window';
 
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
+
+/**
+ * Schemes that are never passed to `shell.openExternal`, whatever the user
+ * answers to the confirmation dialog.
+ *
+ * These are the ones the security model already refuses to navigate to. A
+ * dialog is not a meaningful defence for them: nobody can evaluate a truncated
+ * `javascript:` payload, and `file:` would let a page nominate any local path
+ * for whichever application claims it.
+ */
+const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
 
 interface PendingPermission {
   prompt: PermissionPrompt;
@@ -57,8 +68,13 @@ export class Browser {
     this.downloads.attach(webSession);
 
     this.window = createChromeWindow();
-    this.tabs = new TabManager(this.window, this.store, this.blocker, this.securityDelegate(), () =>
-      this.scheduleStatePush(),
+    this.tabs = new TabManager(
+      this.window,
+      this.store,
+      this.blocker,
+      this.securityDelegate(),
+      () => this.scheduleStatePush(),
+      (tabId) => this.dropPermissionsForTab(tabId),
     );
 
     this.window.on('closed', () => this.dispose());
@@ -158,7 +174,9 @@ export class Browser {
         }),
 
       openInNewTab: (url, options) => {
-        if (!isNavigableUrl(url)) return;
+        // Page-initiated, so the strict set: `window.open('file:///…')` must
+        // not become a tab.
+        if (!isPageNavigableUrl(url)) return;
         this.tabs.create(url, {
           activate: options.activate,
           openerWebContentsId: options.openerWebContentsId,
@@ -168,6 +186,11 @@ export class Browser {
       confirmExternalOpen: async (url) => {
         const scheme = safeScheme(url);
         if (!scheme) return false;
+        // Everything refused for navigation lands here, so without this check
+        // the schemes the security model rejects would simply be handed to
+        // whichever application the OS has associated with them — routing
+        // around the refusal rather than enforcing it.
+        if (NEVER_HANDED_TO_OS.has(`${scheme}:`)) return false;
         const { response } = await dialog.showMessageBox(this.window, {
           type: 'question',
           buttons: ['Open', 'Cancel'],
@@ -197,6 +220,22 @@ export class Browser {
     }
     pending.resolve(decision);
     this.scheduleStatePush();
+  }
+
+  /**
+   * A prompt outlives its tab in two ways if nothing does this: the page's
+   * permission promise never settles, and the chrome keeps rendering a banner
+   * for a tab that is no longer there. Closing the tab is an answer — deny.
+   */
+  private dropPermissionsForTab(tabId: TabId): void {
+    let dropped = false;
+    for (const [id, pending] of this.pendingPermissions) {
+      if (pending.prompt.tabId !== tabId) continue;
+      this.pendingPermissions.delete(id);
+      pending.resolve('deny');
+      dropped = true;
+    }
+    if (dropped) this.scheduleStatePush();
   }
 
   forgetPermission(origin: string, kind: PermissionKind): void {

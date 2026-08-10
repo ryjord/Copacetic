@@ -1,10 +1,18 @@
 import { type BrowserWindow, type ContextMenuParams, WebContentsView, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import type { FindState, PageError, SecurityState, TabId, TabState } from '../shared/types';
-import { START_PAGE_URL, fallbackTitleFor, hostOf, isLoopbackHost, resolveOmniboxInput } from '../shared/url';
+import {
+  START_PAGE_URL,
+  fallbackTitleFor,
+  hostOf,
+  isFetchableFavicon,
+  isLoopbackHost,
+  isNavigableUrl,
+  resolveOmniboxInput,
+} from '../shared/url';
 import type { ContentBlocker } from './blocker';
 import { describeNetError, isAbortError } from './net-errors';
-import { WEB_PARTITION, type SecurityDelegate, guardTabWebContents } from './security';
+import { WEB_PARTITION, type SecurityDelegate, getWebSession, guardTabWebContents } from './security';
 import type { BrowserStore } from './store';
 
 /** Chrome insets in CSS pixels, measured by the renderer. */
@@ -60,6 +68,8 @@ export class TabManager {
     private readonly blocker: ContentBlocker,
     private readonly securityDelegate: SecurityDelegate,
     private readonly onChanged: () => void,
+    /** Fired once per closed tab so owners can drop state keyed to it. */
+    private readonly onTabClosed: (id: TabId) => void = () => {},
   ) {
     this.window.on('resize', () => this.applyBounds());
     this.blocker.onCount((webContentsId) => {
@@ -97,13 +107,21 @@ export class TabManager {
   }
 
   sessionSnapshot(): { urls: string[]; activeIndex: number } {
-    const urls = this.order.flatMap((id) => {
+    // `urls` skips start-page tabs, so the active tab's index has to be
+    // counted against the filtered list as it is built. Taking it from
+    // `this.order` instead would be off by one for every start-page tab
+    // sitting to the left of the active one, and restore the wrong site.
+    const urls: string[] = [];
+    let activeIndex = 0;
+
+    for (const id of this.order) {
       const tab = this.tabs.get(id);
-      if (!tab || tab.isStartPage) return [];
-      return [tab.url];
-    });
-    const activeIndex = Math.max(0, this.activeId ? this.order.indexOf(this.activeId) : 0);
-    return { urls, activeIndex: Math.min(activeIndex, Math.max(0, urls.length - 1)) };
+      if (!tab || tab.isStartPage) continue;
+      if (id === this.activeId) activeIndex = urls.length;
+      urls.push(tab.url);
+    }
+
+    return { urls, activeIndex };
   }
 
   private toState(tab: TabRecord): TabState {
@@ -258,9 +276,15 @@ export class TabManager {
   // ------------------------------------------------------------- lifecycle
 
   create(
-    rawUrl: string = START_PAGE_URL,
+    requestedUrl: string = START_PAGE_URL,
     options: { activate?: boolean; index?: number; openerWebContentsId?: number } = {},
   ): TabId {
+    // Last line of defence. Callers are expected to have already decided the
+    // URL is allowed, but this is the single place every tab is born, so
+    // refusing here means no future caller can quietly open a `data:` or
+    // `javascript:` tab by forgetting a check of its own.
+    const rawUrl = requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) ? requestedUrl : START_PAGE_URL;
+
     const id = randomUUID();
     const settings = this.store.getSettings();
     const view = new WebContentsView({
@@ -343,6 +367,7 @@ export class TabManager {
     this.destroyTab(tab);
     this.tabs.delete(id);
     this.order = this.order.filter((tabId) => tabId !== id);
+    this.onTabClosed(id);
 
     if (this.activeId === id) {
       // Select the neighbour on the right, matching every other browser, and
@@ -707,13 +732,25 @@ export class TabManager {
       this.onChanged();
     }
 
+    // The page chooses this URL, and the fetch below runs in the web session
+    // with whatever cookies the user already holds for the host. Without an
+    // origin check that is an authenticated request to anywhere the page
+    // names — a cloud metadata endpoint, an intranet admin panel, a loopback
+    // dev server — triggered by a `<link rel="icon">` the user never sees.
+    if (!isFetchableFavicon(tab.url, faviconUrl)) return;
+
     try {
-      const { getWebSession } = await import('./security');
       const response = await getWebSession().fetch(faviconUrl, { bypassCustomProtocolHandlers: true });
       if (!response.ok) return;
 
       const contentType = response.headers.get('content-type') ?? 'image/png';
       if (!contentType.startsWith('image/')) return;
+
+      // Check the advertised length before buffering: reading the body first
+      // would let a hostile response exhaust main-process memory regardless of
+      // the cap applied afterwards.
+      const declaredLength = Number(response.headers.get('content-length') ?? '0');
+      if (declaredLength > MAX_FAVICON_BYTES) return;
 
       const buffer = Buffer.from(await response.arrayBuffer());
       if (buffer.byteLength === 0 || buffer.byteLength > MAX_FAVICON_BYTES) return;
