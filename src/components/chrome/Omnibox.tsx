@@ -3,7 +3,7 @@
 import { ArrowRight, Bookmark, Clock, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SEARCH_ENGINES, splitUrlForDisplay } from '../../../electron/shared/url';
-import type { Suggestion, TabState } from '../../../electron/shared/types';
+import type { Suggestion, TabId, TabState } from '../../../electron/shared/types';
 import { Favicon } from '@/components/ui/Favicon';
 import { ask, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
@@ -55,9 +55,13 @@ export function Omnibox({ tab }: OmniboxProps) {
   // This runs before the focus token below on purpose: opening a new tab
   // changes both, and the token must have the last word so Cmd+T still lands
   // in a focused address bar.
-  const [editingTabId, setEditingTabId] = useState(tab?.id ?? null);
-  if (tab?.id !== editingTabId) {
-    setEditingTabId(tab?.id ?? null);
+  // Both sides are normalised to null: comparing a bare `tab?.id` against this
+  // makes `undefined !== null` true on every render with no active tab, and
+  // because setting the same value bails out the condition never clears.
+  const activeTabId = tab?.id ?? null;
+  const [editingTabId, setEditingTabId] = useState<TabId | null>(activeTabId);
+  if (activeTabId !== editingTabId) {
+    setEditingTabId(activeTabId);
     setIsEditing(false);
     setDraft('');
     setHighlighted(0);
