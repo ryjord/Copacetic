@@ -1,8 +1,9 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { IconButton } from '@/components/ui/IconButton';
+import { useDismissLayer } from '@/lib/dismissLayer';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 interface SurfaceShellProps {
@@ -23,13 +24,8 @@ interface SurfaceShellProps {
 export function SurfaceShell({ title, subtitle, actions, children }: SurfaceShellProps) {
   const setSurface = useBrowserStore((state) => state.setSurface);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSurface('none');
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [setSurface]);
+  // A surface is only ever rendered while open, so it is always a live layer.
+  useDismissLayer(true, () => setSurface('none'));
 
   return (
     <section className="animate-fade absolute inset-0 z-40 flex flex-col bg-base" aria-label={title}>

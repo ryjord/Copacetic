@@ -3,6 +3,7 @@
 import { FileText, Lock, ShieldOff, Ban, Timer, HelpCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { SecurityLevel, TabState } from '../../../electron/shared/types';
+import { useDismissLayer } from '@/lib/dismissLayer';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -25,20 +26,17 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Registered as a layer rather than listening directly, so that Escape with
+  // this popover open over a surface closes the popover and nothing else.
+  useDismissLayer(isOpen, () => setIsOpen(false));
+
   useEffect(() => {
     if (!isOpen) return;
     const close = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
     };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
-    };
     document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', escape);
-    };
+    return () => document.removeEventListener('mousedown', close);
   }, [isOpen]);
 
   if (!tab || tab.isStartPage) {
