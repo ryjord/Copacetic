@@ -15,10 +15,33 @@ Nothing. GitHub Pages hosts the repository, and the signing key is one you
 generate yourself. There is no certificate to buy — unlike macOS code signing,
 apt repository signing uses plain GPG.
 
-## One-time setup
+## Current setup
 
-Everything below happens once. After it, releases publish the repository on
-their own.
+Done on 10 August 2026. Recorded here so the details are not folklore.
+
+|              |                                                     |
+| ------------ | --------------------------------------------------- |
+| Key ID       | `D729BEB377078736`                                  |
+| Fingerprint  | `FAF1 C904 0138 53AA 76EA 0E06 D729 BEB3 7707 8736` |
+| Secret       | `APT_GPG_PRIVATE_KEY` on `ryjord/Copacetic`         |
+| Repository   | <https://ryjord.github.io/Copacetic/apt>            |
+| Pages branch | `gh-pages`, serving from `/`                        |
+
+**Back the private key up.** It lives in `~/.gnupg` on one machine and nowhere
+else. If it is lost, every installed copy stops trusting the repository and the
+only remedy is for each user to reinstall by hand. Export it and put it
+somewhere durable — a password manager, not a folder:
+
+```bash
+gpg --armor --export-secret-keys D729BEB377078736
+```
+
+Treat that output like a password. Anyone holding it can publish a package that
+every Copacetic installation will accept as genuine.
+
+## Repeating the setup from scratch
+
+Only needed for a fork, or if the key is ever lost and has to be replaced.
 
 ### 1. Generate a signing key
 
