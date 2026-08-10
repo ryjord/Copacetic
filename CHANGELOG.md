@@ -11,6 +11,19 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   is the only new colour: it is state a user has no other way to see.
 - Only a certificate Chromium accepted is ever described. Reporting the issuer
   of one it rejected would make a failed connection look informative.
+- The connection panel lists every host the page contacted, how many requests
+  each received, and how many were blocked — including hosts that were allowed
+  through, and including trackers when blocking is switched off. The blocked
+  count says what was stopped; this says what was not.
+
+### Fixed
+
+- The connection detail is visible again on any page that actually loads. It
+  was an absolutely positioned popover hanging over the content area, and a
+  native view always paints above the renderer's HTML, so it was hidden behind
+  the page on every real site. It only ever looked right on the start page,
+  which has no view to hide it. It is now part of the chrome column, like the
+  address-bar suggestions and the find bar, and the page is pushed down.
 
 This closes a gap the README named itself. The scope is unchanged and still
 honest — Copacetic reports Chromium's judgement rather than doing its own chain

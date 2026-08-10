@@ -3,6 +3,7 @@ import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
 import type {
   AppInfo,
+  ConnectionEntry,
   Bookmark,
   BrowserState,
   ClearRange,
@@ -106,6 +107,10 @@ const api: CopaceticApi = {
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */
+  connections: {
+    list: (id: TabId): Promise<ConnectionEntry[]> => ipcRenderer.invoke(INVOKE.connectionsList, id),
+  },
+
   updates: {
     check: () => ipcRenderer.invoke(INVOKE.updatesCheck),
     install: () => ipcRenderer.invoke(INVOKE.updatesInstall),

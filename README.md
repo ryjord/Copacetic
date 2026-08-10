@@ -38,6 +38,12 @@ when it expires. An expiry inside a fortnight is the one thing there that turns
 amber, because it is state you cannot see any other way. When Copacetic cannot
 describe a connection, it says so rather than guessing.
 
+**Every host a page contacted, not just the blocked ones.** The connection panel
+lists each host the page actually talked to, how many requests went to it, and
+which were stopped. The blocked count tells you what was prevented; this tells
+you what was allowed, which is the half no mainstream browser shows without
+opening developer tools.
+
 **Tracker blocking that does not break pages.** A curated list of ~120 domains
 that exist only to follow people between sites. Not an EasyList engine — a
 short, honest list, and the count you see is the real number of blocked

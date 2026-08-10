@@ -5,6 +5,7 @@ import type {
   AppInfo,
   BrowserState,
   ClearRange,
+  ConnectionEntry,
   PermissionDecision,
   PermissionKind,
   PermissionPrompt,
@@ -366,6 +367,12 @@ export class Browser {
   async openExternal(url: string): Promise<void> {
     if (!url.startsWith('https://')) return;
     await shell.openExternal(url);
+  }
+
+  /** Every host a tab has contacted since its last page load. */
+  connectionsFor(tabId: TabId): ConnectionEntry[] {
+    const webContentsId = this.tabs.webContentsIdFor(tabId);
+    return webContentsId === undefined ? [] : this.blocker.connectionsFor(webContentsId);
   }
 
   setContentInsets(insets: ContentInsets): void {

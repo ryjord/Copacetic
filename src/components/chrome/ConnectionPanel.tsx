@@ -1,8 +1,10 @@
 'use client';
 
 import { Ban, BadgeCheck, CalendarClock, FileText, HelpCircle, Lock, ShieldOff, Timer, X } from 'lucide-react';
-import type { CertificateSummary, SecurityLevel, TabState } from '../../../electron/shared/types';
+import { useEffect, useState } from 'react';
+import type { CertificateSummary, ConnectionEntry, SecurityLevel, TabState } from '../../../electron/shared/types';
 import { IconButton } from '@/components/ui/IconButton';
+import { ask } from '@/lib/bridge';
 import { useDismissLayer } from '@/lib/dismissLayer';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -69,8 +71,82 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
           />
           {certificate && <CertificateRows certificate={certificate} now={openedAt} />}
         </dl>
+
+        <ConnectionLog tabId={tab.id} />
       </div>
     </section>
+  );
+}
+
+/**
+ * Every host the page has actually talked to.
+ *
+ * The blocked count says what was stopped. This is the other half: what was
+ * allowed through. No mainstream browser shows that without opening developer
+ * tools, and it is the most direct answer this product can give to "what is
+ * this page doing behind my back".
+ */
+function ConnectionLog({ tabId }: { tabId: string }) {
+  const [entries, setEntries] = useState<ConnectionEntry[] | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void ask((api) => api.connections.list(tabId), []).then((result) => {
+      if (!cancelled) setEntries(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tabId]);
+
+  if (entries === null) return null;
+
+  if (entries.length === 0) {
+    return (
+      <p className="mt-3 border-t border-line pt-3 text-[12px] text-ink-faint">
+        No requests recorded for this page yet.
+      </p>
+    );
+  }
+
+  const blockedHosts = entries.filter((entry) => entry.blocked > 0).length;
+  const visible = expanded ? entries : entries.slice(0, 6);
+
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <div className="mb-2 flex items-baseline justify-between gap-4">
+        <h2 className="label">Hosts contacted</h2>
+        <p className="text-[11px] text-ink-faint">
+          {entries.length} host{entries.length === 1 ? '' : 's'}
+          {blockedHosts > 0 && <span className="text-caution"> · {blockedHosts} blocked</span>}
+        </p>
+      </div>
+
+      <ul className="max-h-56 divide-y divide-line overflow-y-auto rounded-field border border-line">
+        {visible.map((entry) => (
+          <li key={entry.host} className="flex items-center gap-3 px-2.5 py-1.5">
+            <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{entry.host}</span>
+            {entry.blocked > 0 ? (
+              <span className="label shrink-0 text-caution">Blocked {entry.blocked}</span>
+            ) : (
+              entry.isTracker && <span className="label shrink-0 text-ink-faint">Allowed</span>
+            )}
+            <span className="shrink-0 font-mono text-[11px] text-ink-faint">{entry.requests}</span>
+          </li>
+        ))}
+      </ul>
+
+      {entries.length > visible.length && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="mt-2 text-[11.5px] text-ink-faint transition-colors hover:text-ink"
+        >
+          Show all {entries.length}
+        </button>
+      )}
+    </div>
   );
 }
 

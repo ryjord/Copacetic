@@ -34,6 +34,21 @@ export interface CertificateSummary {
   fingerprint: string;
 }
 
+/**
+ * One host a page has contacted, and what happened to those requests.
+ *
+ * The blocked count on the badge says what was stopped. This says what was
+ * allowed through as well, which is the half no mainstream browser shows
+ * without opening developer tools.
+ */
+export interface ConnectionEntry {
+  host: string;
+  requests: number;
+  blocked: number;
+  /** True when the host is on the bundled tracker list. */
+  isTracker: boolean;
+}
+
 export interface SecurityState {
   level: SecurityLevel;
   /** Scheme without the trailing colon, e.g. `https`. */
