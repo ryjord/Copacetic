@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { AppInfo, PermissionKind, Settings, ThemeId } from '../../../electron/shared/types';
+import type { AppInfo, PermissionKind, Settings, ThemeId, UpdateStatus } from '../../../electron/shared/types';
 import { SEARCH_ENGINE_OPTIONS } from '../../../electron/shared/url';
 import { Toggle } from '@/components/ui/Toggle';
 import { ask, send } from '@/lib/bridge';
@@ -146,6 +146,10 @@ export function SettingsSurface() {
           </div>
         </Section>
 
+        <Section title="Updates">
+          <UpdatePanel />
+        </Section>
+
         {info && (
           <Section title="About">
             <dl className="space-y-1.5 font-mono text-[11.5px]">
@@ -163,6 +167,113 @@ export function SettingsSurface() {
       </div>
     </SurfaceShell>
   );
+}
+
+/**
+ * What the app can honestly say about being up to date.
+ *
+ * The two paths are genuinely different, so they are not dressed up as one
+ * button that behaves differently. Where an update can be installed, it
+ * downloads and applies on quit. Where it cannot — an unsigned macOS build, or
+ * a `.deb` the package manager owns — saying so and linking the download is the
+ * only honest option; a "Update" button that silently fails would be worse than
+ * no button.
+ */
+function UpdatePanel() {
+  const settings = useBrowserStore((state) => state.settings);
+  const update = useBrowserStore((state) => state.update);
+  const [busy, setBusy] = useState(false);
+
+  if (!update) return null;
+  const { status, delivery, manualReason, lastCheckedAt, releasesUrl } = update;
+
+  const check = () => {
+    setBusy(true);
+    void ask(async (api) => api.updates.check(), undefined).finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <StatusLine status={status} />
+        {status.state !== 'checking' && !busy && (
+          <span className="text-[11.5px] text-ink-faint">{describeLastCheck(lastCheckedAt)}</span>
+        )}
+      </div>
+
+      {manualReason && <p className="text-[12px] leading-relaxed text-ink-faint">{manualReason}</p>}
+
+      {delivery !== 'unsupported' && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={check}
+            disabled={busy || status.state === 'checking'}
+            className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-50"
+          >
+            Check now
+          </button>
+
+          {status.state === 'ready' && delivery === 'automatic' && (
+            <button
+              type="button"
+              onClick={() => send((api) => api.updates.install())}
+              className="rounded-field border border-clear/40 px-3 py-1.5 text-[12.5px] text-clear transition-colors hover:bg-hover"
+            >
+              Restart and update
+            </button>
+          )}
+
+          {status.state === 'available' && delivery === 'manual' && (
+            <button
+              type="button"
+              onClick={() => send((api) => api.updates.openReleases())}
+              className="rounded-field border border-caution/40 px-3 py-1.5 text-[12.5px] text-caution transition-colors hover:bg-hover"
+            >
+              Download {status.version}
+            </button>
+          )}
+        </div>
+      )}
+
+      <Toggle
+        label="Check for updates automatically"
+        description={`Asks ${new URL(releasesUrl).host} for the latest version number, on launch and every few hours. Nothing about you is sent — it reads a number and compares it to this build.`}
+        checked={settings.checkForUpdates}
+        onChange={(checkForUpdates) => send((api) => api.settings.update({ checkForUpdates }))}
+      />
+    </div>
+  );
+}
+
+function StatusLine({ status }: { status: UpdateStatus }) {
+  // Colour only where it carries state: something to act on, or something wrong.
+  switch (status.state) {
+    case 'checking':
+      return <span className="text-[12.5px] text-ink-dim">Checking…</span>;
+    case 'current':
+      return <span className="text-[12.5px] text-ink-dim">Copacetic is up to date.</span>;
+    case 'available':
+      return <span className="text-[12.5px] text-caution">Version {status.version} is available.</span>;
+    case 'downloading':
+      return <span className="text-[12.5px] text-ink-dim">Downloading… {status.percent}%</span>;
+    case 'ready':
+      return <span className="text-[12.5px] text-clear">Version {status.version} is ready to install.</span>;
+    case 'error':
+      return <span className="text-[12.5px] text-alert">Could not check: {status.message}</span>;
+    default:
+      return <span className="text-[12.5px] text-ink-dim">Not checked yet.</span>;
+  }
+}
+
+function describeLastCheck(at: number | null): string {
+  if (!at) return '';
+  const minutes = Math.floor((Date.now() - at) / 60_000);
+  if (minutes < 1) return 'Checked just now';
+  if (minutes < 60) return `Checked ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Checked ${hours}h ago`;
+  return `Checked ${Math.floor(hours / 24)}d ago`;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

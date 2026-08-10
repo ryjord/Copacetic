@@ -100,6 +100,14 @@ export interface CopaceticApi {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
   };
+  updates: {
+    /** Ask now, rather than waiting for the periodic check. */
+    check(): Promise<void>;
+    /** Restart into an update that has already been downloaded. */
+    install(): Promise<void>;
+    /** Open the releases page for a build that cannot update itself. */
+    openReleases(): Promise<void>;
+  };
   on: {
     state(listener: (state: BrowserState) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;

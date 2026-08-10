@@ -2,11 +2,27 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.0.1 — unreleased
+## 1.1.0 — unreleased
 
-A correctness and hardening release. No new features, and no change to how
-anything looks. Several of these close gaps between what the README's security
-table claimed and what the code actually did.
+Adds update checking, and carries the hardening and performance work that was
+staged as 1.0.1 but never released on its own — everything below reaches a user
+in the same build.
+
+### Added
+
+- **Update checking**, split by what each platform actually allows.
+  - Windows (NSIS) and the Linux AppImage download an update in the background
+    and apply it on quit.
+  - macOS and the Linux `.deb` cannot install updates themselves — macOS
+    because the build is not code-signed, `.deb` because the system package
+    manager owns it. Those builds say so plainly in Settings and offer the
+    release page rather than a button that would fail.
+  - Settings gains an Updates section showing the current state, a "Check now"
+    button, and a toggle for the periodic check.
+- The update check is the only network request Copacetic makes on its own
+  behalf. It reads a version number from the GitHub releases API and sends
+  nothing about the user. It can be turned off, and the Settings copy says
+  exactly what it does.
 
 ### Security
 

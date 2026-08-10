@@ -38,6 +38,13 @@ const EMPTY_STATE: BrowserState = {
   permissionPrompts: [],
   settings: DEFAULT_SETTINGS_SHAPE,
   hasClosedTabs: false,
+  update: {
+    status: { state: 'idle' },
+    delivery: 'unsupported',
+    manualReason: null,
+    lastCheckedAt: null,
+    releasesUrl: 'https://github.com/ryjord/Copacetic/releases/latest',
+  },
 };
 
 export const useBrowserStore = create<BrowserStoreState>((set, get) => ({

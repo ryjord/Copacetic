@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   restoreTabsOnLaunch: true,
   showStartPageClock: true,
   showTopSites: true,
+  checkForUpdates: true,
   permissionDecisions: {},
   sidebarWidth: 300,
   defaultZoomFactor: 1,

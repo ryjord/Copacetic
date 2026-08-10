@@ -132,6 +132,12 @@ export function registerIpcHandlers(browser: Browser): void {
 
   handle(INVOKE.appGetInfo, () => browser.getAppInfo());
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
+
+  // ---------------------------------------------------------------- updates
+
+  handle(INVOKE.updatesCheck, () => browser.updates.check());
+  handle(INVOKE.updatesInstall, () => browser.updates.install());
+  handle(INVOKE.updatesOpenReleases, () => browser.updates.openReleasesPage());
 }
 
 export function removeIpcHandlers(): void {

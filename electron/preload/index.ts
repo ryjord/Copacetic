@@ -106,6 +106,12 @@ const api: CopaceticApi = {
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */
+  updates: {
+    check: () => ipcRenderer.invoke(INVOKE.updatesCheck),
+    install: () => ipcRenderer.invoke(INVOKE.updatesInstall),
+    openReleases: () => ipcRenderer.invoke(INVOKE.updatesOpenReleases),
+  },
+
   on: {
     state: (listener: (state: BrowserState) => void) => subscribe(PUSH.state, listener),
     focusOmnibox: (listener: () => void) => subscribe(PUSH.focusOmnibox, listener),
