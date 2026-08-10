@@ -250,18 +250,31 @@ export class TabManager {
     this.applyVisibility();
   }
 
-  private applyBounds(): void {
-    if (this.isDisposed || this.window.isDestroyed()) return;
+  private currentBounds(): { x: number; y: number; width: number; height: number } {
     const [width, height] = this.window.getContentSize();
-    const bounds = {
+    return {
       x: this.insets.left,
       y: this.insets.top,
       width: Math.max(0, (width ?? 0) - this.insets.left - this.insets.right),
       height: Math.max(0, (height ?? 0) - this.insets.top - this.insets.bottom),
     };
-    for (const tab of this.tabs.values()) {
-      if (!tab.view.webContents.isDestroyed()) tab.view.setBounds(bounds);
-    }
+  }
+
+  /**
+   * Only the tab the user is looking at is resized here.
+   *
+   * `setBounds` forces a relayout of the page inside the view, and the chrome
+   * reports new insets whenever its own height changes — which the address bar
+   * suggestion list does on almost every keystroke. Sizing every tab meant one
+   * character typed relaid out every open page at once. Background views are
+   * sized when they are created and again when they are activated, which is
+   * the only time their size can matter.
+   */
+  private applyBounds(): void {
+    if (this.isDisposed || this.window.isDestroyed()) return;
+    const active = this.activeId ? this.tabs.get(this.activeId) : null;
+    if (!active || active.view.webContents.isDestroyed()) return;
+    active.view.setBounds(this.currentBounds());
   }
 
   private applyVisibility(): void {
@@ -328,6 +341,9 @@ export class TabManager {
     this.order.splice(Math.min(Math.max(0, insertAt), this.order.length), 0, id);
 
     this.window.contentView.addChildView(view);
+    // Sized once up front so a background tab loads against the real viewport
+    // rather than a zero-sized one and picks the wrong responsive breakpoint.
+    view.setBounds(this.currentBounds());
     view.setVisible(false);
     this.attachEvents(tab);
     guardTabWebContents(view.webContents, this.securityDelegate);
