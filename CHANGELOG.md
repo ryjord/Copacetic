@@ -21,6 +21,12 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   through, and including trackers when blocking is switched off. The blocked
   count says what was stopped; this says what was not.
 
+- The address bar uses the full IANA Public Suffix List instead of a
+  hand-written list of about forty suffixes. `user.github.io`,
+  `thing.s3.amazonaws.com` and `example.pvt.k12.ma.us` are now read correctly,
+  and two projects sharing a host no longer look like the same site. Verified
+  against the conformance suite published with the list — all 78 cases.
+
 ### Fixed
 
 - The connection detail is visible again on any page that actually loads. It

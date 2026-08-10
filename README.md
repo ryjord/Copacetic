@@ -30,6 +30,9 @@ place colour appears is the one place worth looking.
 you click it. It renders the URL structurally, with the registrable domain at
 full contrast and everything else dimmed, in a monospace face. So
 `paypal.com.attacker.net/login` reads as **attacker.net** — which is the point.
+Which part counts as the domain comes from the full IANA Public Suffix List, so
+`user.github.io` and `example.pvt.k12.ma.us` are read correctly rather than
+approximated, and two projects sharing a host never look like the same site.
 
 **Honest connection reporting.** Click the badge in the address bar for the real
 scheme, the host, the measured load time, how many tracker requests were blocked
@@ -108,9 +111,6 @@ things:
   expiry of the certificate Chromium accepted; it does no chain analysis of its
   own, and a certificate Chromium rejected is never described at all — a failed
   connection must not be dressed up as an informative one.
-- **The public-suffix handling in the address bar is a heuristic**, not the full
-  IANA list. It only affects which part of the host is emphasised, never a
-  security decision.
 - **Not audited.** A personal project built to a high standard, not a browser
   that has been through security review.
 

@@ -1,3 +1,4 @@
+import { PUBLIC_SUFFIX_EXCEPTIONS, PUBLIC_SUFFIX_RULES, PUBLIC_SUFFIX_WILDCARDS } from './public-suffix-list';
 import type { SearchEngine, SearchEngineId } from './types';
 
 export const INTERNAL_SCHEME = 'copacetic';
@@ -212,52 +213,77 @@ export function isPrivateHost(host: string): boolean {
 }
 
 /**
- * Multi-label public suffixes common enough to be worth special-casing.
- *
- * This is a heuristic, not the IANA Public Suffix List. It only affects which
- * part of the host the omnibox renders in full contrast, so being wrong on an
- * exotic suffix is a cosmetic miss, never a security decision.
+ * Rules are stored punycoded, because a URL always reports its hostname that
+ * way. An internationalised host typed by hand is converted so both forms
+ * resolve to the same answer; the conversion is skipped entirely for the
+ * ordinary all-ASCII case, which is every host the browser itself produces.
  */
-const COMPOUND_SUFFIXES = new Set([
-  'co.uk',
-  'org.uk',
-  'ac.uk',
-  'gov.uk',
-  'me.uk',
-  'net.uk',
-  'sch.uk',
-  'com.au',
-  'net.au',
-  'org.au',
-  'edu.au',
-  'gov.au',
-  'co.nz',
-  'net.nz',
-  'org.nz',
-  'co.za',
-  'org.za',
-  'co.jp',
-  'or.jp',
-  'ne.jp',
-  'ac.jp',
-  'go.jp',
-  'com.br',
-  'net.br',
-  'org.br',
-  'com.cn',
-  'net.cn',
-  'org.cn',
-  'gov.cn',
-  'co.in',
-  'net.in',
-  'org.in',
-  'com.mx',
-  'com.sg',
-  'com.hk',
-  'com.tr',
-  'co.kr',
-  'com.tw',
-]);
+function toAsciiHost(host: string): string {
+  const lower = host.toLowerCase();
+  if (!/[^\u0000-\u007f]/.test(lower)) return lower;
+  try {
+    return new URL(`https://${lower}`).hostname;
+  } catch {
+    return lower;
+  }
+}
+
+/**
+ * How many labels of `host` form its public suffix.
+ *
+ * Implements the algorithm from publicsuffix.org: an exception rule wins
+ * outright, otherwise the rule matching the most labels prevails, and a host
+ * matching nothing is treated as if the rule were `*` — one label.
+ *
+ * This decides which part of an address the omnibox renders at full contrast,
+ * which is the anti-spoofing surface of the whole interface. The heuristic it
+ * replaced hand-listed about forty suffixes and got everything else wrong:
+ * `example.pvt.k12.ma.us` read as `ma.us`, and every private suffix — the
+ * `github.io` and `vercel.app` sort — read as though two unrelated projects
+ * were the same site.
+ */
+export function publicSuffixLabelCount(host: string): number {
+  const labels = host.split('.');
+  let prevailing = 0;
+
+  for (let i = 0; i < labels.length; i += 1) {
+    const candidate = labels.slice(i).join('.');
+    const ruleLabels = labels.length - i;
+
+    // An exception rule wins over everything, and its public suffix is the
+    // rule with its leftmost label removed.
+    if (PUBLIC_SUFFIX_EXCEPTIONS.has(candidate)) return ruleLabels - 1;
+
+    if (PUBLIC_SUFFIX_RULES.has(candidate) && ruleLabels > prevailing) {
+      prevailing = ruleLabels;
+    }
+
+    // `*.foo` matches `anything.foo`, so the wildcard is checked against the
+    // candidate one label to the right.
+    if (i > 0 && PUBLIC_SUFFIX_WILDCARDS.has(candidate) && ruleLabels + 1 > prevailing) {
+      prevailing = ruleLabels + 1;
+    }
+  }
+
+  // No rule at all: the implicit `*` rule makes the last label the suffix.
+  return prevailing || 1;
+}
+
+/**
+ * The registrable domain — the public suffix plus the one label a person
+ * actually registered. Null when the host *is* a public suffix, since nobody
+ * owns `co.uk` and pretending otherwise would be a lie in the address bar.
+ */
+export function registrableDomainOf(host: string): string | null {
+  const bare = toAsciiHost(host).replace(/\.$/, '');
+  if (!bare || bare.startsWith('.') || bare.includes('..')) return null;
+
+  const labels = bare.split('.');
+  const suffixLabels = publicSuffixLabelCount(bare);
+  if (labels.length <= suffixLabels) return null;
+
+  return labels.slice(labels.length - suffixLabels - 1).join('.');
+}
 
 /**
  * Whether the main process should fetch a favicon a page asked for.
@@ -334,9 +360,14 @@ export function splitUrlForDisplay(value: string): DisplayUrlParts | null {
   }
 
   const labels = host.split('.');
-  const lastTwo = labels.slice(-2).join('.');
-  const takeCount = COMPOUND_SUFFIXES.has(lastTwo) ? 3 : 2;
-  const registrableDomain = labels.slice(-takeCount).join('.');
+  const registrableDomain = registrableDomainOf(host);
+  // A host that is itself a public suffix has no registrable part, so the
+  // whole thing is emphasised rather than inventing an owner for it.
+  if (!registrableDomain) {
+    return { scheme, subdomain: '', registrableDomain: host, path, isInternal };
+  }
+
+  const takeCount = registrableDomain.split('.').length;
   const subdomain = labels.slice(0, Math.max(0, labels.length - takeCount)).join('.');
 
   return {

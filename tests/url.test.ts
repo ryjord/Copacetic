@@ -253,3 +253,43 @@ describe('isFetchableFavicon', () => {
     expect(isFetchableFavicon('https://example.com/', 'nonsense')).toBe(false);
   });
 });
+
+describe('splitUrlForDisplay with the real suffix list', () => {
+  const emphasised = (url: string) => splitUrlForDisplay(url)?.registrableDomain;
+
+  // The whole point of the address bar: the part at full contrast must be the
+  // part that tells you who you are actually talking to.
+  it('reads a lookalike host as its real owner', () => {
+    expect(emphasised('https://paypal.com.attacker.tld/login')).toBe('attacker.tld');
+    expect(emphasised('https://www.google.com.evil.co.uk/')).toBe('evil.co.uk');
+    expect(emphasised('https://accounts.google.com.phish.github.io/')).toBe('phish.github.io');
+  });
+
+  // Cases the hand-written list of about forty suffixes got wrong.
+  it.each([
+    ['https://example.pvt.k12.ma.us/', 'example.pvt.k12.ma.us'],
+    ['https://user.github.io/repo', 'user.github.io'],
+    ['https://app.vercel.app/', 'app.vercel.app'],
+    ['https://thing.s3.amazonaws.com/', 'thing.s3.amazonaws.com'],
+    ['https://site.co.uk/page', 'site.co.uk'],
+    ['https://sub.site.co.uk/page', 'site.co.uk'],
+    ['https://a.b.c.example.com/', 'example.com'],
+  ])('emphasises the registrable domain of %s', (url, expected) => {
+    expect(emphasised(url)).toBe(expected);
+  });
+
+  // Two different projects on a shared host are different sites, and used to
+  // read as the same one.
+  it('does not make two hosts on a shared suffix look like the same site', () => {
+    expect(emphasised('https://alice.github.io/')).not.toBe(emphasised('https://mallory.github.io/'));
+  });
+
+  it('emphasises the whole host when nobody owns it', () => {
+    expect(emphasised('https://co.uk/')).toBe('co.uk');
+  });
+
+  it('leaves addresses without a registrable domain alone', () => {
+    expect(emphasised('https://192.168.0.1/')).toBe('192.168.0.1');
+    expect(emphasised('http://localhost:3000/')).toBe('localhost');
+  });
+});
