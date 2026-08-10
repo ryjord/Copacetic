@@ -54,6 +54,21 @@ table claimed and what the code actually did.
   over a surface. Overlays now share a dismissal stack, and only the topmost
   one answers.
 
+### Performance
+
+- The address bar no longer re-parses the whole history on every keystroke.
+  Scoring derived each entry's host with `new URL()` on every query, which
+  measured 152ms per keystroke against a ten-thousand-entry profile — running
+  synchronously in the process that also drives the page. Parsed forms are
+  cached per entry and re-derived only when a URL or title actually changes.
+  The same profile now measures 1.3ms per keystroke.
+- Typing no longer relayouts every open page. `applyBounds` resized every tab,
+  and resizing a view forces a relayout of the page inside it. The chrome
+  reports new insets whenever its own height changes, which the suggestion list
+  does as the number of results changes, so one character typed resized every
+  tab at once. Only the visible tab is resized now; background views are sized
+  when they are created and again when they are activated.
+
 ### Internal
 
 - CI runs on `development` as well as `main`, and cancels superseded runs on
