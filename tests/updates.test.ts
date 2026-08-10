@@ -31,6 +31,9 @@ describe('describeDelivery', () => {
     const result = on('linux', { isAppImage: false });
     expect(result.delivery).toBe('manual');
     expect(result.manualReason).toMatch(/package manager/i);
+    // Must not imply apt will handle it: there is no repository for it to
+    // pull from, so the only real path is a manual download.
+    expect(result.manualReason).toMatch(/by hand|download/i);
   });
 
   it('never claims a manual platform can update itself', () => {

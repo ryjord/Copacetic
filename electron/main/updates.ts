@@ -44,11 +44,15 @@ export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryI
   }
 
   if (platform === 'linux' && !isAppImage) {
-    // A .deb belongs to the system package manager; writing over it would be
-    // going behind apt's back.
+    // A .deb belongs to dpkg, so the app must not write over itself. But there
+    // is no Copacetic apt repository either, so `apt upgrade` will never see a
+    // new version — saying "your package manager handles it" would send people
+    // to a dead end. Publishing a signed apt repo is what makes that sentence
+    // true; until then this is the honest wording.
     return {
       delivery: 'manual',
-      manualReason: 'This build was installed by your package manager, which owns updating it.',
+      manualReason:
+        'This build was installed by your package manager, and Copacetic is not served from an apt repository yet, so new versions have to be downloaded and installed by hand.',
     };
   }
 
