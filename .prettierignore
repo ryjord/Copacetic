@@ -1,0 +1,7 @@
+node_modules
+.next
+out
+dist
+release
+package-lock.json
+*.ico

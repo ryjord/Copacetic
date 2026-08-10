@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  guard:
+    name: Check the tag matches package.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Nothing else enforces this, and a mismatch ships installers whose
+      # version disagrees with the tag people downloaded them from.
+      - name: Compare versions
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $pkg"
+            exit 1
+          fi
+          echo "Releasing $pkg"
+
+  release:
+    name: Release (${{ matrix.os }})
+    needs: guard
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # The .deb registers Copacetic's apt repository on install, and it can
+      # only do that if it carries the public half of the signing key. Without
+      # the secret the file is absent and the install script leaves apt alone,
+      # so a fork still builds a working package.
+      - name: Embed the apt signing key
+        if: matrix.os == 'ubuntu-latest' && env.APT_GPG_PRIVATE_KEY != ''
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          mkdir -p build/keyring
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --export > build/keyring/copacetic-archive-keyring.gpg
+          test -s build/keyring/copacetic-archive-keyring.gpg
+
+      - name: Build and publish
+        run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No Apple Developer certificate is configured, so let the build run
+          # ad-hoc signed rather than failing while looking for one.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+  apt:
+    name: Publish the apt repository
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Skip when no signing key is configured
+        id: gate
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APT_GPG_PRIVATE_KEY" ]; then
+            echo "No APT_GPG_PRIVATE_KEY secret; skipping the apt repository."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install the archive tools
+        if: steps.gate.outputs.run == 'true'
+        run: sudo apt-get update && sudo apt-get install -y apt-utils gnupg
+
+      # The existing branch carries every previously published .deb. Rebuilding
+      # the indexes from scratch each time would strand anyone still on an
+      # older version, so the pool is preserved and added to.
+      - name: Check out the published repository
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+        continue-on-error: true
+
+      - name: Collect the new package
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p pages/apt/pool/main
+          gh release download "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.deb' \
+            --dir pages/apt/pool/main \
+            --clobber
+          ls -l pages/apt/pool/main
+
+      - name: Import the signing key
+        if: steps.gate.outputs.run == 'true'
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+
+      - name: Build and sign the indexes
+        if: steps.gate.outputs.run == 'true'
+        working-directory: pages/apt
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            mkdir -p "dists/stable/main/binary-$arch"
+            apt-ftparchive --arch "$arch" packages pool > "dists/stable/main/binary-$arch/Packages"
+            gzip -9kf "dists/stable/main/binary-$arch/Packages"
+          done
+
+          apt-ftparchive \
+            -o APT::FTPArchive::Release::Origin=Copacetic \
+            -o APT::FTPArchive::Release::Label=Copacetic \
+            -o APT::FTPArchive::Release::Suite=stable \
+            -o APT::FTPArchive::Release::Codename=stable \
+            -o APT::FTPArchive::Release::Architectures="amd64 arm64" \
+            -o APT::FTPArchive::Release::Components=main \
+            release dists/stable > dists/stable/Release
+
+          rm -f dists/stable/Release.gpg dists/stable/InRelease
+          gpg --batch --yes --armor --detach-sign -o dists/stable/Release.gpg dists/stable/Release
+          gpg --batch --yes --clearsign -o dists/stable/InRelease dists/stable/Release
+
+          # A repository that is published but unverifiable is worse than one
+          # that failed to publish, so prove the signature before pushing.
+          gpg --verify dists/stable/Release.gpg dists/stable/Release
+          gpg --verify dists/stable/InRelease
+
+      - name: Publish
+        if: steps.gate.outputs.run == 'true'
+        working-directory: pages
+        run: |
+          set -euo pipefail
+          # Stops GitHub Pages running the tree through Jekyll, which would
+          # drop the dists/ directory for starting with an underscore rule set
+          # and generally mangle a binary archive.
+          touch .nojekyll
+          git init -q -b gh-pages 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" 2>/dev/null || true
+          git add -A
+          git commit -q -m "apt: publish ${GITHUB_REF_NAME}" || { echo "Nothing changed."; exit 0; }
+          git push -q --force origin HEAD:gh-pages
