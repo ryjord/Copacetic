@@ -1,6 +1,6 @@
 import { type Session, type WebContents, session as electronSession, shell } from 'electron';
 import type { PermissionDecision, PermissionKind } from '../shared/types';
-import { INTERNAL_SCHEME, NAVIGABLE_SCHEMES, isLoopbackHost } from '../shared/url';
+import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../shared/url';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from './env';
 
 /**
@@ -230,11 +230,15 @@ function hardenAttachedFrames(contents: WebContents): void {
   });
 }
 
+/**
+ * Every caller here is reacting to something *page code* did, so this is the
+ * strict set — a page cannot reach `file:` even though the user can type it.
+ */
 function isNavigable(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol === `${INTERNAL_SCHEME}:`) return true;
-    return NAVIGABLE_SCHEMES.has(parsed.protocol);
+    return PAGE_NAVIGABLE_SCHEMES.has(parsed.protocol);
   } catch {
     return false;
   }

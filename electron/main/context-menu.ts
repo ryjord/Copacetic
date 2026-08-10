@@ -1,6 +1,6 @@
 import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
 import type { TabId } from '../shared/types';
-import { isNavigableUrl } from '../shared/url';
+import { isPageNavigableUrl } from '../shared/url';
 import type { Browser } from './browser';
 
 /**
@@ -16,8 +16,12 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     if (items.length > 0 && items[items.length - 1]?.type !== 'separator') push({ type: 'separator' });
   };
 
-  const linkUrl = params.linkURL && isNavigableUrl(params.linkURL) ? params.linkURL : '';
-  const imageUrl = params.mediaType === 'image' && params.srcURL ? params.srcURL : '';
+  // Both of these are strings the page controls, so they get the same strict
+  // treatment as anything else page code hands us. `srcURL` in particular is
+  // routinely a `data:` URL, which must never become a tab of its own.
+  const linkUrl = params.linkURL && isPageNavigableUrl(params.linkURL) ? params.linkURL : '';
+  const imageUrl =
+    params.mediaType === 'image' && params.srcURL && isPageNavigableUrl(params.srcURL) ? params.srcURL : '';
   const hasSelection = params.selectionText.trim().length > 0;
 
   if (linkUrl) {
