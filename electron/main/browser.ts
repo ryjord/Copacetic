@@ -14,6 +14,7 @@ import type {
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
 import { ContentBlocker } from './blocker';
+import { forgetCertificates } from './certificates';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
@@ -344,6 +345,9 @@ export class Browser {
   async clearBrowsingData(range: ClearRange): Promise<void> {
     this.store.clearHistory(range);
     if (range === 'all') {
+      // Certificate summaries are browsing data too: they name every host
+      // visited this session.
+      forgetCertificates();
       await getWebSession().clearStorageData();
       await getWebSession().clearCache();
     }

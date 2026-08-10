@@ -42,6 +42,7 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
 
   return (
     <section
+      id="connection-panel"
       className="animate-fade shrink-0 border-b border-line bg-raised px-3 py-3"
       aria-label="Connection details"
     >
@@ -72,7 +73,12 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
           {certificate && <CertificateRows certificate={certificate} now={openedAt} />}
         </dl>
 
-        <ConnectionLog tabId={tab.id} />
+        {/*
+          Keyed by tab so a switch produces a fresh instance rather than
+          briefly showing one tab's hosts under another tab's heading. Cheaper
+          to reason about than resetting state on a change.
+        */}
+        <ConnectionLog key={tab.id} tabId={tab.id} />
       </div>
     </section>
   );
@@ -110,7 +116,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
     );
   }
 
-  const blockedHosts = entries.filter((entry) => entry.blocked > 0).length;
+  const blockedHosts = entries.reduce((total, entry) => total + (entry.blocked > 0 ? 1 : 0), 0);
   const visible = expanded ? entries : entries.slice(0, 6);
 
   return (
@@ -164,7 +170,23 @@ function CertificateRows({ certificate, now }: { certificate: CertificateSummary
 
   return (
     <>
-      <Row label="Issued by" value={certificate.issuer} icon={<BadgeCheck size={11} />} />
+      <div className="flex items-center justify-between gap-4">
+        <dt className="flex items-center gap-1.5 text-[11px] text-ink-faint">
+          <BadgeCheck size={11} />
+          Issued by
+        </dt>
+        <dd
+          className={cn('truncate text-[11.5px]', certificate.isIssuedByKnownRoot ? 'text-ink-dim' : 'text-caution')}
+        >
+          {certificate.issuer}
+        </dd>
+      </div>
+      {!certificate.isIssuedByKnownRoot && (
+        <p className="text-[11.5px] leading-relaxed text-caution sm:col-span-2">
+          This certificate chains to a root installed on this machine, not one your system shipped with. Something
+          local — a company proxy, antivirus, or a debugging tool — is reading this connection.
+        </p>
+      )}
       {certificate.subject && <Row label="Issued to" value={certificate.subject} mono />}
       <div className="flex items-center justify-between gap-4">
         <dt className="flex items-center gap-1.5 text-[11px] text-ink-faint">

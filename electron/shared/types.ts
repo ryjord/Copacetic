@@ -32,6 +32,13 @@ export interface CertificateSummary {
   validFrom: number;
   validTo: number;
   fingerprint: string;
+  /**
+   * False when the chain ends at a root installed on this machine rather than
+   * one shipped with the system. That is what TLS interception looks like — a
+   * corporate proxy, antivirus, or a debugging tool reading the connection —
+   * and it is invisible in every mainstream browser's padlock.
+   */
+  isIssuedByKnownRoot: boolean;
 }
 
 /**

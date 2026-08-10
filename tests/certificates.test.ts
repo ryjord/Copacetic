@@ -6,7 +6,13 @@ const { certificateFor, forgetCertificates, observeCertificates, summariseCertif
   await import('../electron/main/certificates');
 
 type VerifyProc = (
-  request: { hostname: string; certificate: unknown; verificationResult: string; errorCode: number },
+  request: {
+    hostname: string;
+    certificate: unknown;
+    verificationResult: string;
+    errorCode: number;
+    isIssuedByKnownRoot: boolean;
+  },
   callback: (verdict: number) => void,
 ) => void;
 
@@ -15,9 +21,16 @@ function fakeSession() {
   let proc: VerifyProc | null = null;
   return {
     session: { setCertificateVerifyProc: (fn: VerifyProc) => (proc = fn) },
-    verify(hostname: string, certificate: unknown, verificationResult = 'net::OK'): number[] {
+    verify(
+      hostname: string,
+      certificate: unknown,
+      verificationResult = 'net::OK',
+      isIssuedByKnownRoot = true,
+    ): number[] {
       const verdicts: number[] = [];
-      proc?.({ hostname, certificate, verificationResult, errorCode: 0 }, (v) => verdicts.push(v));
+      proc?.({ hostname, certificate, verificationResult, errorCode: 0, isIssuedByKnownRoot }, (v) =>
+        verdicts.push(v),
+      );
       return verdicts;
     },
   };
@@ -107,6 +120,54 @@ describe('what the badge is told', () => {
 
   it('returns null for a host never seen', () => {
     expect(certificateFor('never-visited.example')).toBeNull();
+  });
+});
+
+describe('cache behaviour', () => {
+  it('clears everything when browsing data is cleared', () => {
+    const fake = fakeSession();
+    observeCertificates(fake.session as never);
+    fake.verify('example.com', cert());
+    expect(certificateFor('example.com')).not.toBeNull();
+
+    forgetCertificates();
+    expect(certificateFor('example.com')).toBeNull();
+  });
+
+  // Eviction used to be oldest-first-seen, which could drop the certificate of
+  // the page the user was actually looking at while incidental hosts survived.
+  it('keeps a host that is still being used, however many others are seen', () => {
+    const fake = fakeSession();
+    observeCertificates(fake.session as never);
+
+    fake.verify('important.example', cert());
+    for (let i = 0; i < 400; i += 1) {
+      fake.verify(`filler${i}.example`, cert());
+      // Still in use, so it must survive.
+      fake.verify('important.example', cert());
+    }
+
+    expect(certificateFor('important.example')).not.toBeNull();
+  });
+});
+
+describe('locally-installed roots', () => {
+  // The signal that something is reading the connection: a company proxy,
+  // antivirus, or a debugging tool. Invisible in every mainstream padlock.
+  it('records when a certificate does not chain to a system root', () => {
+    const fake = fakeSession();
+    observeCertificates(fake.session as never);
+    fake.verify('intranet.example', cert(), 'net::OK', false);
+
+    expect(certificateFor('intranet.example')).toMatchObject({ isIssuedByKnownRoot: false });
+  });
+
+  it('records an ordinary public certificate as known', () => {
+    const fake = fakeSession();
+    observeCertificates(fake.session as never);
+    fake.verify('example.com', cert(), 'net::OK', true);
+
+    expect(certificateFor('example.com')).toMatchObject({ isIssuedByKnownRoot: true });
   });
 });
 

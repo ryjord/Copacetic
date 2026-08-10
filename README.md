@@ -38,6 +38,12 @@ when it expires. An expiry inside a fortnight is the one thing there that turns
 amber, because it is state you cannot see any other way. When Copacetic cannot
 describe a connection, it says so rather than guessing.
 
+**It tells you when something is reading your connection.** If a site's
+certificate chains to a root installed on this machine rather than one your
+system shipped with — a company proxy, antivirus, or a debugging tool
+intercepting TLS — the panel says so. Every mainstream browser shows the same
+padlock in that situation as in any other.
+
 **Every host a page contacted, not just the blocked ones.** The connection panel
 lists each host the page actually talked to, how many requests went to it, and
 which were stopped. The blocked count tells you what was prevented; this tells

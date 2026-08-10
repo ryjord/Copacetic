@@ -42,6 +42,7 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
       onClick={togglePanel}
       aria-label={`Connection: ${style.word}. Show details`}
       aria-expanded={isOpen}
+      aria-controls="connection-panel"
       className={cn(
         'flex shrink-0 items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-line-strong',
         style.className,

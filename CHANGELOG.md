@@ -11,6 +11,11 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   is the only new colour: it is state a user has no other way to see.
 - Only a certificate Chromium accepted is ever described. Reporting the issuer
   of one it rejected would make a failed connection look informative.
+- The panel says when a certificate chains to a root installed on this machine
+  rather than one the system shipped with. That is what TLS interception looks
+  like — a company proxy, antivirus, or a debugging tool reading the
+  connection — and every mainstream browser shows the same padlock for it as
+  for an ordinary connection.
 - The connection panel lists every host the page contacted, how many requests
   each received, and how many were blocked — including hosts that were allowed
   through, and including trackers when blocking is switched off. The blocked

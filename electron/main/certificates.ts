@@ -15,7 +15,15 @@ import type { CertificateSummary } from '../shared/types';
  */
 const USE_CHROMIUM_VERDICT = -3;
 
-/** Certificates seen this session, so the badge can describe the current page. */
+/**
+ * Certificates seen this session, so the badge can describe the current page.
+ *
+ * Keyed by hostname because that is the only identifier the verify request
+ * carries — it has no webContents id, so a certificate cannot be tied to the
+ * tab that caused it. In practice two tabs on one host see the same
+ * certificate; if a host rotated mid-session, the most recently accepted one
+ * is what gets described.
+ */
 const seen = new Map<string, CertificateSummary>();
 
 /** Bounded: a long session touching many hosts should not grow without limit. */
@@ -30,7 +38,7 @@ const MAX_REMEMBERED = 300;
 export function observeCertificates(session: Session): void {
   session.setCertificateVerifyProc((request, callback) => {
     try {
-      remember(request.hostname, request.certificate, request.verificationResult);
+      remember(request.hostname, request.certificate, request.verificationResult, request.isIssuedByKnownRoot);
     } catch {
       // Recording is a nicety; it must never affect whether a page loads.
     }
@@ -38,18 +46,28 @@ export function observeCertificates(session: Session): void {
   });
 }
 
-function remember(hostname: string, certificate: Certificate | undefined, verificationResult: string): void {
+function remember(
+  hostname: string,
+  certificate: Certificate | undefined,
+  verificationResult: string,
+  isIssuedByKnownRoot: boolean,
+): void {
   if (!hostname || !certificate) return;
   // Only describe a certificate Chromium actually accepted. Reporting the
   // issuer of a rejected certificate would dress up a failed connection as an
   // informative one.
   if (verificationResult !== 'net::OK') return;
 
+  const key = hostname.toLowerCase();
+  // Delete before setting so a refreshed entry moves to the back of the
+  // iteration order. Without it eviction is oldest-first-seen, which can drop
+  // the certificate of the page the user is currently looking at.
+  seen.delete(key);
   if (seen.size >= MAX_REMEMBERED) {
     const oldest = seen.keys().next();
     if (!oldest.done) seen.delete(oldest.value);
   }
-  seen.set(hostname.toLowerCase(), summariseCertificate(certificate));
+  seen.set(key, summariseCertificate(certificate, isIssuedByKnownRoot));
 }
 
 export function certificateFor(hostname: string): CertificateSummary | null {
@@ -64,12 +82,13 @@ export function forgetCertificates(): void {
  * Electron reports validity in seconds since the epoch; everything else in
  * this codebase works in milliseconds.
  */
-export function summariseCertificate(certificate: Certificate): CertificateSummary {
+export function summariseCertificate(certificate: Certificate, isIssuedByKnownRoot = true): CertificateSummary {
   return {
     issuer: certificate.issuerName || certificate.issuer?.commonName || 'Unknown',
     subject: certificate.subjectName || certificate.subject?.commonName || '',
     validFrom: (certificate.validStart ?? 0) * 1000,
     validTo: (certificate.validExpiry ?? 0) * 1000,
     fingerprint: certificate.fingerprint ?? '',
+    isIssuedByKnownRoot,
   };
 }

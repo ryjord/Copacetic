@@ -96,7 +96,9 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   toggleConnectionPanel: () =>
     set({ isConnectionPanelOpen: !get().isConnectionPanelOpen, connectionPanelOpenedAt: Date.now() }),
 
-  closeConnectionPanel: () => set({ isConnectionPanelOpen: false }),
+  closeConnectionPanel: () => {
+    if (get().isConnectionPanelOpen) set({ isConnectionPanelOpen: false });
+  },
 }));
 
 export function selectSettings(state: BrowserStoreState): Settings {
