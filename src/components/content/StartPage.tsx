@@ -17,6 +17,7 @@ export function StartPage({ tabId }: { tabId: string }) {
   const settings = useBrowserStore((state) => state.settings);
   const [query, setQuery] = useState('');
   const [topSites, setTopSites] = useState<TopSite[]>([]);
+  const [fetched, setFetched] = useState<string | null>(null);
   const minute = useMinuteTick();
 
   useEffect(() => {
@@ -30,6 +31,23 @@ export function StartPage({ tabId }: { tabId: string }) {
     };
   }, [settings.showTopSites]);
 
+  // Fetched rather than pushed: the image is measured in megabytes and has no
+  // business travelling with every state update.
+  useEffect(() => {
+    if (!settings.hasWallpaper) return;
+    let cancelled = false;
+    void ask((api) => api.wallpaper.get(), null).then((image) => {
+      if (!cancelled) setFetched(image);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.hasWallpaper]);
+
+  // Derived rather than cleared in the effect: removing the wallpaper takes it
+  // off screen immediately, with no second render pass to arrange it.
+  const wallpaper = settings.hasWallpaper ? fetched : null;
+
   const engineName = SEARCH_ENGINES[settings.searchEngine]?.name ?? 'the web';
 
   const submit = (event: React.FormEvent) => {
@@ -39,8 +57,27 @@ export function StartPage({ tabId }: { tabId: string }) {
   };
 
   return (
-    <div className="ambient-field flex h-full w-full flex-col items-center justify-center overflow-y-auto px-8">
-      <div className="flex w-full max-w-xl flex-col items-center">
+    <div className="ambient-field relative flex h-full w-full flex-col items-center justify-center overflow-y-auto px-8">
+      {wallpaper && (
+        <>
+          {/*
+            next/image exists to optimise and lazily fetch images over a
+            network. This is a data URL already in memory, in a statically
+            exported page with no image loader, so the rule has nothing to
+            offer here.
+          */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={wallpaper} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
+          {/*
+            A scrim, because the clock and the search field have to stay
+            legible over a photograph nobody vetted. Dark rather than blurred:
+            it costs nothing to composite and does not fight the image.
+          */}
+          <div className="absolute inset-0 bg-base/70" aria-hidden />
+        </>
+      )}
+
+      <div className="relative flex w-full max-w-xl flex-col items-center">
         {settings.showStartPageClock && (
           <div className="mb-8 flex flex-col items-center">
             {/* Blank until mounted: a statically exported page cannot know what

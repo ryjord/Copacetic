@@ -19,6 +19,7 @@ import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
+import { chooseWallpaper, clearWallpaper, hasWallpaper } from './wallpaper';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
@@ -135,7 +136,7 @@ export class Browser {
       find: this.tabs.getFindState(),
       permissionPrompts: [...this.pendingPermissions.values()].map((pending) => pending.prompt),
       authPrompts: [...this.pendingAuth.values()].map((pending) => pending.prompt),
-      settings: this.store.getSettings(),
+      settings: { ...this.store.getSettings(), hasWallpaper: hasWallpaper() },
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
     };
@@ -470,6 +471,18 @@ export class Browser {
     } catch (error) {
       return error instanceof Error ? error.message : 'The file could not be written.';
     }
+  }
+
+  /** Resolves empty on success, or with a sentence for the user. */
+  async chooseWallpaper(): Promise<string> {
+    const error = await chooseWallpaper(this.window);
+    this.scheduleStatePush();
+    return error;
+  }
+
+  clearWallpaper(): void {
+    clearWallpaper();
+    this.scheduleStatePush();
   }
 
   openDownloadsFolder(): void {

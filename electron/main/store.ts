@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   permissionDecisions: {},
   zoomLevels: {},
   blockerAllowlist: [],
+  hasWallpaper: false,
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };
@@ -453,6 +454,8 @@ function reviveSettings(raw: unknown): Settings | null {
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     permissionDecisions: decisions,
     zoomLevels: reviveZoomLevels(raw.zoomLevels),
+    // Derived from whether the file exists, so it is never read from disk.
+    hasWallpaper: false,
     blockerAllowlist: Array.isArray(raw.blockerAllowlist)
       ? raw.blockerAllowlist.filter((site): site is string => typeof site === 'string' && site.length > 0)
       : [],

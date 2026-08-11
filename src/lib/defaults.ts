@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   permissionDecisions: {},
   zoomLevels: {},
   blockerAllowlist: [],
+  hasWallpaper: false,
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };

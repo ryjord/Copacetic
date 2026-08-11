@@ -101,6 +101,13 @@ export interface CopaceticApi {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
   };
+  wallpaper: {
+    /** The image as a data URL, or null. Fetched on demand, never pushed. */
+    get(): Promise<string | null>;
+    /** Opens a picker. Resolves empty on success, or with a message. */
+    choose(): Promise<string>;
+    clear(): Promise<void>;
+  };
   data: {
     /** Write bookmarks or history to a file the user chooses. */
     export(kind: 'bookmarks' | 'history'): Promise<string>;

@@ -144,6 +144,7 @@ export function SettingsSurface() {
             The atmosphere only tints the start page. The rest of the interface stays monochrome so colour always
             means the same thing.
           </p>
+          <WallpaperControl hasWallpaper={settings.hasWallpaper} />
           <Toggle
             label="Show the clock"
             checked={settings.showStartPageClock}
@@ -247,6 +248,46 @@ function ShortcutReference({ isMac }: { isMac: boolean }) {
           </dl>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The start page is the one surface where colour is free — it is not chrome
+ * and nothing on it reports state — so a picture belongs here and nowhere
+ * else in the interface.
+ */
+function WallpaperControl({ hasWallpaper }: { hasWallpaper: boolean }) {
+  const [message, setMessage] = useState('');
+
+  return (
+    <div className="mb-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setMessage('');
+            void ask((api) => api.wallpaper.choose(), '').then(setMessage);
+          }}
+          className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
+        >
+          {hasWallpaper ? 'Change wallpaper' : 'Choose a wallpaper'}
+        </button>
+        {hasWallpaper && (
+          <button
+            type="button"
+            onClick={() => send((api) => api.wallpaper.clear())}
+            className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-faint transition-colors hover:bg-raised hover:text-ink"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-faint">
+        Copied into your profile and resized, so moving the original later does not blank it. The start page dims it
+        slightly so the clock and search field stay readable.
+      </p>
+      {message && <p className="mt-1 text-[12px] text-alert">{message}</p>}
     </div>
   );
 }

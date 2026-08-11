@@ -14,6 +14,13 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   Allowed sites are listed in Settings with a way back.
 - What was allowed through is still recorded, so the connection log stays
   honest about a site you chose not to block on.
+- A wallpaper for the start page. The image is copied into your profile and
+  resized on the way in, so moving the original later does not blank it and a
+  large photograph does not become a large read on every new tab. The start
+  page dims it so the clock and search field stay readable.
+- The start page is the only surface that gets this. It is not chrome and
+  nothing on it reports state, which is exactly why colour is free there and
+  fixed everywhere else.
 
 ## 1.2.3 — 2026-08-11
 

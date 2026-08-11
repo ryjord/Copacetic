@@ -1,4 +1,5 @@
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
+import { readWallpaper } from './wallpaper';
 import { INVOKE } from '../shared/channels';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../shared/types';
 import type { Browser } from './browser';
@@ -134,6 +135,12 @@ export function registerIpcHandlers(browser: Browser): void {
 
   handle(INVOKE.appGetInfo, () => browser.getAppInfo());
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
+
+  // -------------------------------------------------------------- wallpaper
+
+  handle(INVOKE.wallpaperGet, () => readWallpaper());
+  handle(INVOKE.wallpaperChoose, () => browser.chooseWallpaper());
+  handle(INVOKE.wallpaperClear, () => browser.clearWallpaper());
 
   // ------------------------------------------------------------------- data
 
