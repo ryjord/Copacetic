@@ -2,7 +2,7 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.2.5 — unreleased
+## 1.2.5 — 2026-08-11
 
 Released as one version rather than two: 1.2.4 went out only as a prerelease,
 and the settings fix below is what makes its tracker allowlist work at all.
