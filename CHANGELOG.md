@@ -2,7 +2,10 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.2.2 — unreleased
+## 1.2.3 — unreleased
+
+Customisation, keyboard access, and two places the interface was quietly
+saying less than it knew.
 
 ### Added
 
