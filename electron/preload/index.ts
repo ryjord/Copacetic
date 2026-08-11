@@ -8,7 +8,7 @@ import type {
   BrowserState,
   ClearRange,
   DownloadId,
-  HistoryEntry,
+  HistoryPage,
   PermissionDecision,
   PermissionKind,
   Settings,
@@ -54,7 +54,7 @@ const api: CopaceticApi = {
   },
 
   history: {
-    list: (query = ''): Promise<HistoryEntry[]> => ipcRenderer.invoke(INVOKE.historyList, query),
+    list: (query = '', offset = 0): Promise<HistoryPage> => ipcRenderer.invoke(INVOKE.historyList, query, offset),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.historyRemove, id),
     clear: (range: ClearRange) => ipcRenderer.invoke(INVOKE.historyClear, range),
     topSites: (limit = 8): Promise<TopSite[]> => ipcRenderer.invoke(INVOKE.historyTopSites, limit),

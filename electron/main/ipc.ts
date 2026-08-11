@@ -61,7 +61,9 @@ export function registerIpcHandlers(browser: Browser): void {
 
   // ---------------------------------------------------------------- history
 
-  handle(INVOKE.historyList, (_event, query) => browser.store.listHistory(asString(query)));
+  handle(INVOKE.historyList, (_event, query, offset) =>
+    browser.store.listHistory(asString(query), 300, Math.max(0, Number(offset) || 0)),
+  );
   handle(INVOKE.historyRemove, (_event, id) => {
     browser.store.removeHistory(asString(id));
     browser.scheduleStatePush();

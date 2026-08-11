@@ -125,6 +125,12 @@ export interface HistoryEntry {
   visitCount: number;
 }
 
+export interface HistoryPage {
+  entries: HistoryEntry[];
+  /** Every entry matching the query, not only those in this page. */
+  total: number;
+}
+
 export interface Bookmark {
   id: string;
   url: string;

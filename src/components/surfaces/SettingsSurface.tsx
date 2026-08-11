@@ -10,6 +10,7 @@ import {
   type ThemeId,
   type UpdateStatus,
 } from '../../../electron/shared/types';
+import { SHORTCUT_GROUPS, readableAccelerator } from '../../../electron/shared/shortcuts';
 import { SEARCH_ENGINE_OPTIONS } from '../../../electron/shared/url';
 import { Toggle } from '@/components/ui/Toggle';
 import { ask, send } from '@/lib/bridge';
@@ -196,6 +197,10 @@ export function SettingsSurface() {
           <ExportPanel />
         </Section>
 
+        <Section title="Keyboard">
+          <ShortcutReference isMac={info?.platform === 'darwin'} />
+        </Section>
+
         <Section title="Updates">
           <UpdatePanel />
         </Section>
@@ -216,6 +221,32 @@ export function SettingsSurface() {
         )}
       </div>
     </SurfaceShell>
+  );
+}
+
+/**
+ * Every shortcut, read from the same list a test checks against the menu, so
+ * this cannot quietly become wrong when a binding changes.
+ */
+function ShortcutReference({ isMac }: { isMac: boolean }) {
+  return (
+    <div className="space-y-4">
+      {SHORTCUT_GROUPS.map((group) => (
+        <div key={group.title}>
+          <h3 className="label mb-1.5">{group.title}</h3>
+          <dl className="divide-y divide-line rounded-field border border-line">
+            {group.shortcuts.map((shortcut) => (
+              <div key={shortcut.accelerator} className="flex items-center justify-between gap-4 px-3 py-1.5">
+                <dt className="min-w-0 flex-1 truncate text-[12px] text-ink-dim">{shortcut.description}</dt>
+                <dd className="shrink-0 font-mono text-[11.5px] text-ink-faint">
+                  {readableAccelerator(shortcut.accelerator, isMac)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
   );
 }
 

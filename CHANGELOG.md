@@ -14,8 +14,17 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   only — the tab strip, the address bar and the header — because colour in this
   interface means state, so a display option must never touch it.
 
+- A keyboard reference in Settings, listing every shortcut. It reads from the
+  same list a test checks against the menu, so a binding that changes without
+  the reference being updated fails the build rather than quietly leaving the
+  reference wrong.
+
 ### Fixed
 
+- History no longer stops at 300 entries without saying so. It shows how many
+  it is displaying out of how many match, with a button for the rest. A search
+  could previously never reach a match past the cap, and nothing indicated
+  anything had been left out.
 - Tabs can be reached with a keyboard. The strip is now a proper tablist with
   a roving tabindex: one tab stop for the whole strip, arrows to move within
   it, Home and End for the ends, Enter or Space to select and Delete to close.

@@ -35,6 +35,12 @@ interface FaviconRecord {
   updatedAt: number;
 }
 
+export interface HistoryPage {
+  entries: HistoryEntry[];
+  /** Every entry matching the query, not just the ones in this page. */
+  total: number;
+}
+
 export interface SessionSnapshot {
   urls: string[];
   activeIndex: number;
@@ -152,13 +158,30 @@ export class BrowserStore {
     });
   }
 
-  listHistory(query = '', limit = 300): HistoryEntry[] {
+  /**
+   * A page of history, and how many entries there are in total.
+   *
+   * The total matters: capping at some number and saying nothing meant a
+   * search could never reach a match past the cap, with no hint that anything
+   * had been left out. Better to show the page and admit its size.
+   */
+  listHistory(query = '', limit = 300, offset = 0): HistoryPage {
+    const matches = this.matchingHistory(query);
+    return { entries: matches.slice(offset, offset + limit), total: matches.length };
+  }
+
+  private matchingHistory(query: string): HistoryEntry[] {
     const entries = this.historyFile.get();
-    if (!query.trim()) return entries.slice(0, limit);
     const needle = query.trim().toLowerCase();
-    return entries
-      .filter((entry) => entry.url.toLowerCase().includes(needle) || entry.title.toLowerCase().includes(needle))
-      .slice(0, limit);
+    if (!needle) return entries;
+    return entries.filter(
+      (entry) => entry.url.toLowerCase().includes(needle) || entry.title.toLowerCase().includes(needle),
+    );
+  }
+
+  /** Everything matching, for the export, which must never be a partial one. */
+  allHistory(): HistoryEntry[] {
+    return this.historyFile.get();
   }
 
   removeHistory(id: string): void {

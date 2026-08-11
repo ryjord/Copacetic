@@ -92,3 +92,44 @@ describe('interface density', () => {
     expect(new BrowserStore().getSettings().density).toBe('compact');
   });
 });
+
+describe('history paging', () => {
+  const seed = (count: number) => {
+    for (let i = 0; i < count; i += 1) store.recordVisit(`https://site${i}.example/`, `Page ${i}`);
+  };
+
+  it('reports the total, not just what fits in a page', () => {
+    seed(420);
+    const page = store.listHistory('', 300);
+    expect(page.entries).toHaveLength(300);
+    expect(page.total).toBe(420);
+  });
+
+  // The bug this replaces: a search could never reach a match past the cap,
+  // and nothing said anything had been left out.
+  it('reaches entries past the first page', () => {
+    seed(420);
+    const second = store.listHistory('', 300, 300);
+    expect(second.entries).toHaveLength(120);
+    expect(second.total).toBe(420);
+    expect(second.entries[0]?.url).not.toBe(store.listHistory('', 300).entries[0]?.url);
+  });
+
+  it('counts matches for a search, not the whole history', () => {
+    seed(50);
+    store.recordVisit('https://findme.example/', 'Unique');
+    const page = store.listHistory('findme');
+    expect(page.total).toBe(1);
+    expect(page.entries).toHaveLength(1);
+  });
+
+  it('is empty past the end rather than wrapping', () => {
+    seed(10);
+    expect(store.listHistory('', 300, 999).entries).toEqual([]);
+  });
+
+  it('exports everything, never a page', () => {
+    seed(420);
+    expect(store.allHistory()).toHaveLength(420);
+  });
+});

@@ -460,7 +460,7 @@ export class Browser {
 
     const contents = isBookmarks
       ? bookmarksToHtml(this.store.listBookmarks(), now)
-      : historyToJson(this.store.listHistory('', Number.MAX_SAFE_INTEGER), now);
+      : historyToJson(this.store.allHistory(), now);
 
     try {
       await writeFile(filePath, contents, 'utf8');
