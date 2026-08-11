@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { PUSH, type ChromeSurface } from '../shared/channels';
 import type {
   AppInfo,
+  AuthPrompt,
   BrowserState,
   ClearRange,
   ConnectionEntry,
@@ -13,8 +14,11 @@ import type {
   TabId,
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
+import { writeFile } from 'node:fs/promises';
+import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
+import { bookmarksToHtml, historyToJson } from './export';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
@@ -36,6 +40,11 @@ const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.
  */
 const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
 
+interface PendingAuth {
+  prompt: AuthPrompt;
+  respond: (username?: string, password?: string) => void;
+}
+
 interface PendingPermission {
   prompt: PermissionPrompt;
   resolve: (decision: PermissionDecision) => void;
@@ -56,6 +65,7 @@ export class Browser {
   readonly updates: UpdateManager;
 
   private readonly pendingPermissions = new Map<string, PendingPermission>();
+  private readonly pendingAuth = new Map<string, PendingAuth>();
   private pushQueued = false;
   private isQuitting = false;
 
@@ -82,6 +92,7 @@ export class Browser {
       (tabId) => this.dropPermissionsForTab(tabId),
     );
 
+    this.attachAuthHandler();
     this.window.on('closed', () => this.dispose());
     this.window.webContents.on('did-finish-load', () => this.scheduleStatePush());
   }
@@ -122,6 +133,7 @@ export class Browser {
       downloads: this.downloads.list(),
       find: this.tabs.getFindState(),
       permissionPrompts: [...this.pendingPermissions.values()].map((pending) => pending.prompt),
+      authPrompts: [...this.pendingAuth.values()].map((pending) => pending.prompt),
       settings: this.store.getSettings(),
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
@@ -218,6 +230,70 @@ export class Browser {
     };
   }
 
+  /**
+   * HTTP Basic, Digest and friends. Without this, intranets, routers, NAS
+   * boxes and plenty of dev servers simply fail to load — the challenge goes
+   * unanswered and the request is refused.
+   *
+   * Credentials are handed straight to the request that asked for them and
+   * kept nowhere. Storing them would need a password manager, and there is not
+   * one yet; a browser that quietly kept passwords somewhere it had not
+   * described would be exactly the thing this project argues against.
+   */
+  private attachAuthHandler(): void {
+    app.on('login', (event, webContents, details, authInfo, callback) => {
+      // Only challenges a person can actually evaluate. A subresource buried in
+      // a cross-origin frame gives the user nothing to judge, so it is left to
+      // fail the way Chromium would leave it.
+      const tabId = webContents ? this.tabs.tabIdForWebContentsId(webContents.id) : null;
+      const tabUrl = tabId ? this.tabs.urlFor(tabId) : null;
+
+      if (!isPromptWorthy({ isProxy: authInfo.isProxy, challengeUrl: details.url, tabUrl })) {
+        return;
+      }
+
+      // Taking the event means Copacetic owns the answer; without this
+      // Chromium cancels the challenge itself.
+      event.preventDefault();
+
+      const id = randomUUID();
+
+      let settled = false;
+      const respond = (username?: string, password?: string) => {
+        if (settled) return;
+        settled = true;
+        this.pendingAuth.delete(id);
+        // Calling back with nothing cancels the challenge, which is what the
+        // user asked for when they dismissed the prompt.
+        if (username === undefined) callback();
+        else callback(username, password);
+        this.scheduleStatePush();
+      };
+
+      this.pendingAuth.set(id, {
+        prompt: describeAuthPrompt({
+          id,
+          tabId,
+          isProxy: authInfo.isProxy,
+          host: authInfo.host,
+          port: authInfo.port,
+          realm: authInfo.realm,
+          scheme: authInfo.scheme,
+        }),
+        respond,
+      });
+      this.scheduleStatePush();
+    });
+  }
+
+  respondToAuth(id: string, username: string, password: string): void {
+    this.pendingAuth.get(id)?.respond(username, password);
+  }
+
+  cancelAuth(id: string): void {
+    this.pendingAuth.get(id)?.respond();
+  }
+
   respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
     const pending = this.pendingPermissions.get(id);
     if (!pending) return;
@@ -242,6 +318,15 @@ export class Browser {
       pending.resolve('deny');
       dropped = true;
     }
+
+    // Same reasoning for a challenge: closing the tab is an answer, and the
+    // request behind it must not be left waiting forever.
+    for (const [, pending] of [...this.pendingAuth]) {
+      if (pending.prompt.tabId !== tabId) continue;
+      pending.respond();
+      dropped = true;
+    }
+
     if (dropped) this.scheduleStatePush();
   }
 
@@ -354,6 +439,37 @@ export class Browser {
     this.scheduleStatePush();
   }
 
+  /**
+   * Write bookmarks or history somewhere the user picks. Resolves with an
+   * empty string when it worked, or a sentence explaining why it did not —
+   * the same shape as opening a download, so the chrome can just show it.
+   */
+  async exportData(kind: 'bookmarks' | 'history'): Promise<string> {
+    const now = Date.now();
+    const stamp = new Date(now).toISOString().slice(0, 10);
+    const isBookmarks = kind === 'bookmarks';
+
+    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
+      title: isBookmarks ? 'Export bookmarks' : 'Export history',
+      defaultPath: isBookmarks ? `copacetic-bookmarks-${stamp}.html` : `copacetic-history-${stamp}.json`,
+      filters: isBookmarks
+        ? [{ name: 'Bookmarks', extensions: ['html'] }]
+        : [{ name: 'History', extensions: ['json'] }],
+    });
+    if (canceled || !filePath) return '';
+
+    const contents = isBookmarks
+      ? bookmarksToHtml(this.store.listBookmarks(), now)
+      : historyToJson(this.store.listHistory('', Number.MAX_SAFE_INTEGER), now);
+
+    try {
+      await writeFile(filePath, contents, 'utf8');
+      return '';
+    } catch (error) {
+      return error instanceof Error ? error.message : 'The file could not be written.';
+    }
+  }
+
   openDownloadsFolder(): void {
     void shell.openPath(app.getPath('downloads'));
   }
@@ -404,6 +520,8 @@ export class Browser {
     this.tabs.dispose();
     for (const pending of this.pendingPermissions.values()) pending.resolve('deny');
     this.pendingPermissions.clear();
+    for (const pending of [...this.pendingAuth.values()]) pending.respond();
+    this.pendingAuth.clear();
   }
 }
 

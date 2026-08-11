@@ -153,6 +153,10 @@ export function SettingsSurface() {
           </div>
         </Section>
 
+        <Section title="Your data">
+          <ExportPanel />
+        </Section>
+
         <Section title="Updates">
           <UpdatePanel />
         </Section>
@@ -173,6 +177,48 @@ export function SettingsSurface() {
         )}
       </div>
     </SurfaceShell>
+  );
+}
+
+/**
+ * Getting your own data back out.
+ *
+ * "Everything lives on this machine" is honest but, on its own, also lock-in.
+ * An export in the format every other browser imports is what makes the claim
+ * something a person can act on rather than take on trust.
+ */
+function ExportPanel() {
+  const [message, setMessage] = useState('');
+
+  const exportData = (kind: 'bookmarks' | 'history') => {
+    setMessage('');
+    void ask((api) => api.data.export(kind), '').then((error) => setMessage(error));
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[12px] leading-relaxed text-ink-faint">
+        Bookmarks are written in the standard format every browser imports. History is plain JSON, readable in any
+        text editor. Nothing leaves this machine unless you put it somewhere else.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => exportData('bookmarks')}
+          className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
+        >
+          Export bookmarks
+        </button>
+        <button
+          type="button"
+          onClick={() => exportData('history')}
+          className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
+        >
+          Export history
+        </button>
+      </div>
+      {message && <p className="text-[12px] text-alert">{message}</p>}
+    </div>
   );
 }
 

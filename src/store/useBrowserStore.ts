@@ -52,6 +52,7 @@ const EMPTY_STATE: BrowserState = {
   downloads: [],
   find: { isOpen: false, query: '', activeMatch: 0, totalMatches: 0, matchCase: false },
   permissionPrompts: [],
+  authPrompts: [],
   settings: DEFAULT_SETTINGS_SHAPE,
   hasClosedTabs: false,
   update: {

@@ -68,6 +68,14 @@ file manager. Live throughput and time remaining. Filenames are sanitised
 against directory traversal and against right-to-left override tricks that
 disguise an `.exe` as a `.jpg`.
 
+**Sites that ask you to sign in.** HTTP authentication — the challenge
+intranets, routers, NAS boxes and plenty of dev servers use — is answered
+through a prompt in the chrome. Copacetic only asks when the challenge comes
+from the site the address bar is showing, or from the proxy for your network;
+a subresource on some other origin asking for a password gives you nothing to
+judge. Nothing is stored, because there is no password manager yet and keeping
+a password somewhere undescribed is not a thing this browser will do.
+
 **The rest of what a browser needs.** Tab drag-reorder, middle-click close,
 audio indicators and per-tab mute, find-in-page with match counts, per-tab zoom,
 session restore, a command palette (`Cmd/Ctrl+K`), native context menus, and a
@@ -102,7 +110,9 @@ Being straight about the gaps, since the whole project is about not overstating
 things:
 
 - **No sync, no accounts, no cloud.** Everything lives in `userData` on this
-  machine. The one request Copacetic makes on its own behalf is the update
+  machine, and Settings will write your bookmarks and history back out —
+  bookmarks in the format every browser imports, history as plain JSON — so
+  that is a statement you can check rather than take on trust. The one request Copacetic makes on its own behalf is the update
   check, which reads a version number from the GitHub releases API and sends
   nothing about you. It can be turned off in Settings.
 - **No extension support.** Chrome extensions are not loaded.

@@ -2,6 +2,27 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.1 — unreleased
+
+### Added
+
+- HTTP authentication. Basic, Digest and the rest were never answered, so
+  intranets, routers, NAS boxes and many dev servers simply failed to load —
+  the most concrete "this browser cannot do that" left in the product. The
+  prompt appears in the chrome, and credentials go to the request that asked
+  for them and are kept nowhere.
+- Copacetic only asks when the challenge comes from the same origin as the
+  page the address bar is showing, or from a proxy. A subresource on another
+  origin asking for a password would mean the window says one site while the
+  credentials go to another, which is a phishing route rather than a login.
+- The realm is server-chosen text displayed inside Copacetic's own window, so
+  it is stripped of control characters and bidirectional overrides, collapsed
+  to one line, capped, and shown quoted and attributed to the site.
+- Settings can export bookmarks and history. Bookmarks are written in the
+  Netscape format every browser imports; history is plain JSON, readable in a
+  text editor. "Everything lives on this machine" is honest but on its own it
+  is also lock-in, and this makes the claim checkable.
+
 ## 1.2.0 — 2026-08-11
 
 Four features that all do the same thing: say something true about the page

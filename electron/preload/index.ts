@@ -107,6 +107,16 @@ const api: CopaceticApi = {
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */
+  data: {
+    export: (kind: 'bookmarks' | 'history'): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
+  },
+
+  auth: {
+    respond: (id: string, username: string, password: string) =>
+      ipcRenderer.invoke(INVOKE.authRespond, id, username, password),
+    cancel: (id: string) => ipcRenderer.invoke(INVOKE.authCancel, id),
+  },
+
   connections: {
     list: (id: TabId): Promise<ConnectionEntry[]> => ipcRenderer.invoke(INVOKE.connectionsList, id),
   },
