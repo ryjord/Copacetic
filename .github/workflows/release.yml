@@ -27,6 +27,34 @@ jobs:
           fi
           echo "Releasing $pkg"
 
+      # The .deb is built with the repository URL baked in, and it is published
+      # before the apt job runs. If the bucket turns out to be unusable at that
+      # point, the package is already out there pointing at a source that does
+      # not work — which is exactly how 1.1.0 went wrong. So the bucket is
+      # checked before anything is built.
+      - name: Check the package repository is usable
+        if: vars.APT_REPO_URL != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.R2_ACCOUNT_ID }}" ] || [ -z "${{ vars.R2_BUCKET }}" ]; then
+            echo "::error::APT_REPO_URL is set but the bucket is not configured."
+            exit 1
+          fi
+
+          aws s3 ls "s3://${{ vars.R2_BUCKET }}/" \
+            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" > /dev/null
+          echo "  bucket is writable"
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${{ vars.APT_REPO_URL }}/")
+          case "$code" in
+            200|404) echo "  public url answers ($code)" ;;
+            *) echo "::error::${{ vars.APT_REPO_URL }} answered $code; is public access on?"; exit 1 ;;
+          esac
+
   release:
     name: Release (${{ matrix.os }})
     needs: guard
@@ -146,7 +174,7 @@ jobs:
           AWS_DEFAULT_REGION: auto
         run: |
           mkdir -p pages/apt/pool/main
-          aws s3 sync "s3://${{ vars.R2_BUCKET }}/apt/pool" pages/apt/pool \
+          aws s3 sync "s3://${{ vars.R2_BUCKET }}/pool" pages/apt/pool \
             --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
             --no-progress
           ls -l pages/apt/pool/main || true
@@ -163,6 +191,27 @@ jobs:
             --dir pages/apt/pool/main \
             --clobber
           ls -l pages/apt/pool/main
+
+      # apt only needs the versions it might install. Every package kept is
+      # ~150MB against a 10GB budget, so the pool holds the newest few and the
+      # rest are dropped — including from the bucket, via the sync below.
+      - name: Prune the pool to the newest few
+        if: steps.gate.outputs.run == 'true'
+        working-directory: pages/apt/pool/main
+        run: |
+          set -euo pipefail
+          keep=3
+          total=$(ls -1 ./*.deb 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$total" -le "$keep" ]; then
+            echo "$total package(s) in the pool; nothing to prune."
+            exit 0
+          fi
+          # Sorted by version, newest last, so the head of the list is oldest.
+          ls -1 ./*.deb | sort -V | head -n "-$keep" | while read -r old; do
+            echo "  dropping $(basename "$old")"
+            rm -f "$old"
+          done
+          echo "kept: $(ls -1 ./*.deb | tr '\n' ' ')"
 
       - name: Import the signing key
         if: steps.gate.outputs.run == 'true'
@@ -212,9 +261,10 @@ jobs:
           # Packages first, indexes last. An index naming a package that is not
           # there yet makes every apt update in between fail; the other way
           # round is merely a few minutes of not being offered the new version.
-          aws s3 sync pool "s3://${{ vars.R2_BUCKET }}/apt/pool" \
-            --endpoint-url "$ENDPOINT" --no-progress --content-type application/vnd.debian.binary-package
-          aws s3 sync dists "s3://${{ vars.R2_BUCKET }}/apt/dists" \
+          aws s3 sync pool "s3://${{ vars.R2_BUCKET }}/pool" \
+            --endpoint-url "$ENDPOINT" --no-progress --delete \
+            --content-type application/vnd.debian.binary-package
+          aws s3 sync dists "s3://${{ vars.R2_BUCKET }}/dists" \
             --endpoint-url "$ENDPOINT" --no-progress --cache-control 'no-cache'
 
       # A repository apt cannot read is the same as no repository, and the only
