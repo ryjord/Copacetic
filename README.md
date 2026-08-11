@@ -187,6 +187,32 @@ Right-click the app and choose Open, or clear the quarantine flag:
 xattr -cr /Applications/Copacetic.app
 ```
 
+### Installing on Debian or Ubuntu
+
+Add the repository once, and Copacetic installs and updates like any other
+package:
+
+```bash
+sudo curl -fsSL https://pub-4eb7b3b013b1424caf0cfa2c570bcc61.r2.dev/copacetic-archive-keyring.gpg \
+  -o /usr/share/keyrings/copacetic-archive-keyring.gpg
+sudo curl -fsSL https://pub-4eb7b3b013b1424caf0cfa2c570bcc61.r2.dev/copacetic.sources \
+  -o /etc/apt/sources.list.d/copacetic.sources
+sudo apt update && sudo apt install copacetic
+```
+
+You are trusting a key fetched over the network there, so check it is the one
+that actually signs these packages before you do:
+
+```bash
+gpg --show-keys --with-colons /usr/share/keyrings/copacetic-archive-keyring.gpg | awk -F: '/^fpr/{print $10; exit}'
+# FAF1C904013853AA76EA0E06D729BEB377078736
+```
+
+`Signed-By` in that source file binds the key to this repository alone, so it
+cannot vouch for any other package on your system. Installing the `.deb` by
+hand does the same thing — the package registers the source itself — so this is
+only needed on a machine that has never had Copacetic on it.
+
 ### Staying up to date
 
 Copacetic checks whether a newer release exists and shows what it finds in
@@ -204,11 +230,11 @@ macOS is manual because installing an update in place requires a code-signed
 app, and Copacetic is not signed. That is a cost decision, not an oversight,
 and it is stated in Settings rather than hidden behind a button that fails.
 
-The `.deb` never updates itself, because the file belongs to `dpkg`. The
-intended answer is an apt repository, which is built and signed already — but
-it needs somewhere to live that will accept a 150 MB package, and that is not
-yet set up. Until it is, the `.deb` installs without touching your apt
-configuration at all and new versions are a manual download.
+The `.deb` never updates itself, because the file belongs to `dpkg`. It
+registers Copacetic's own signed repository instead, so new versions arrive
+with a normal `apt upgrade` — the same way everything else on the machine is
+updated. The repository is signed with a key bound to that one source, so it
+cannot vouch for any other package.
 
 If you want updates handled for you on Linux today, use the `.AppImage`, which
 updates itself in place.

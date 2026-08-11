@@ -44,14 +44,13 @@ export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryI
   }
 
   if (platform === 'linux' && !isAppImage) {
-    // A .deb belongs to dpkg, so the app must never write over itself, and an
-    // apt repository big enough to host a ~150MB package is not yet hosted —
-    // see docs/apt-repository.md. Until it is, this is a manual download, and
-    // saying otherwise would point people at a source that does not exist.
+    // A .deb belongs to dpkg, so the app must never write over itself. The
+    // package registers Copacetic's signed apt repository when it installs, so
+    // the upgrade arrives the way every other upgrade on the machine does.
     return {
-      delivery: 'manual',
+      delivery: 'system',
       manualReason:
-        'This build was installed by your package manager, so Copacetic will not replace it. New versions have to be downloaded and installed by hand. The AppImage updates itself, if you would rather it were automatic.',
+        'Your package manager installs updates for this build. Copacetic adds its own signed apt repository, so new versions arrive with a normal system update.',
     };
   }
 

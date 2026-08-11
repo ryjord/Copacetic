@@ -248,6 +248,32 @@ jobs:
           gpg --verify dists/stable/Release.gpg dists/stable/Release
           gpg --verify dists/stable/InRelease
 
+      # Published alongside the repository so a machine that has never seen
+      # Copacetic can add the source and install it. Without these the only way
+      # in is downloading a .deb by hand, which rather defeats having a
+      # repository at all.
+      - name: Write the public key and a ready-made source file
+        if: steps.gate.outputs.run == 'true'
+        working-directory: pages/apt
+        run: |
+          set -euo pipefail
+          gpg --export > copacetic-archive-keyring.gpg
+          test -s copacetic-archive-keyring.gpg
+
+          cat > copacetic.sources <<EOF
+          Types: deb
+          URIs: ${{ vars.APT_REPO_URL }}
+          Suites: stable
+          Components: main
+          Architectures: amd64 arm64
+          Signed-By: /usr/share/keyrings/copacetic-archive-keyring.gpg
+          EOF
+
+          # The fingerprint, so anyone can check the key they just fetched is
+          # the one that signs these packages before trusting it.
+          gpg --fingerprint --with-colons | awk -F: '/^fpr/{print $10; exit}' > copacetic-key-fingerprint.txt
+          cat copacetic-key-fingerprint.txt
+
       - name: Publish
         if: steps.gate.outputs.run == 'true'
         working-directory: pages/apt
@@ -267,6 +293,11 @@ jobs:
           aws s3 sync dists "s3://${{ vars.R2_BUCKET }}/dists" \
             --endpoint-url "$ENDPOINT" --no-progress --cache-control 'no-cache'
 
+          for file in copacetic-archive-keyring.gpg copacetic.sources copacetic-key-fingerprint.txt; do
+            aws s3 cp "$file" "s3://${{ vars.R2_BUCKET }}/$file" \
+              --endpoint-url "$ENDPOINT" --no-progress --cache-control 'no-cache'
+          done
+
       # A repository apt cannot read is the same as no repository, and the only
       # honest moment to find that out is now rather than from a user.
       - name: Check apt can read what was just published
@@ -274,7 +305,8 @@ jobs:
         run: |
           set -euo pipefail
           base="${{ vars.APT_REPO_URL }}"
-          for file in dists/stable/InRelease dists/stable/Release dists/stable/Release.gpg; do
+          for file in dists/stable/InRelease dists/stable/Release dists/stable/Release.gpg \
+                      copacetic-archive-keyring.gpg copacetic.sources; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$base/$file")
             echo "  $file -> $code"
             [ "$code" = "200" ] || { echo "::error::$base/$file answered $code"; exit 1; }
