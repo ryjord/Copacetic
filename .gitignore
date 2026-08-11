@@ -33,3 +33,6 @@ yarn-error.log*
 # The apt signing key is written by CI at build time and must never be committed.
 build/keyring/*
 !build/keyring/.gitkeep
+
+# Working notes stay local; only the screenshot the README renders is tracked.
+docs/*.md
