@@ -25,7 +25,6 @@ Going out as `1.2.0-beta.1` first, as 1.1.0 did.
   each received, and how many were blocked — including hosts that were allowed
   through, and including trackers when blocking is switched off. The blocked
   count says what was stopped; this says what was not.
-
 - The connection panel lists what the current site has already been allowed or
   refused to do, with a reset for each. Those decisions were always stored and
   always honoured — they were just listed in Settings, away from the site they
@@ -45,9 +44,9 @@ Going out as `1.2.0-beta.1` first, as 1.1.0 did.
   which has no view to hide it. It is now part of the chrome column, like the
   address-bar suggestions and the find bar, and the page is pushed down.
 
-This closes a gap the README named itself. The scope is unchanged and still
-honest — Copacetic reports Chromium's judgement rather than doing its own chain
-analysis.
+Certificate reporting closes a gap the README named itself. Its scope is
+unchanged and still honest: Copacetic reports Chromium's judgement rather than
+doing any chain analysis of its own.
 
 ## 1.1.1 — 2026-08-10
 
