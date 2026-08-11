@@ -111,6 +111,38 @@ jobs:
           # ad-hoc signed rather than failing while looking for one.
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+  # A release missing a platform is not obviously broken from the outside: the
+  # page still lists installers, just not all of them, and the people affected
+  # are the ones who cannot see what everyone else got. Two releases went out
+  # that way before anyone noticed, so the run now says so itself.
+  complete:
+    name: Check every platform actually published
+    needs: release
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare the assets against what a release must contain
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          expected="Copacetic-$version.dmg Copacetic-$version-arm64.dmg Copacetic-Setup-$version.exe \
+                    Copacetic-$version.AppImage copacetic_${version}_amd64.deb \
+                    latest.yml latest-mac.yml latest-linux.yml"
+
+          assets=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          missing=""
+          for name in $expected; do
+            printf '%s\n' "$assets" | grep -qx "$name" || missing="$missing $name"
+          done
+
+          if [ -n "$missing" ]; then
+            echo "::error::This release is missing:$missing"
+            exit 1
+          fi
+          echo "All platforms published."
+
   apt:
     name: Publish the apt repository
     needs: release
