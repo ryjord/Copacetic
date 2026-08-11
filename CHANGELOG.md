@@ -18,6 +18,10 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   resized on the way in, so moving the original later does not blank it and a
   large photograph does not become a large read on every new tab. The start
   page dims it so the clock and search field stay readable.
+- Settings shows a preview of the wallpaper, dimmed exactly as the start page
+  dims it, so what you are looking at is what you will get rather than a
+  flattering portrait of it. The preview is generated small on demand rather
+  than loading the full image into Settings.
 - The start page is the only surface that gets this. It is not chrome and
   nothing on it reports state, which is exactly why colour is free there and
   fixed everywhere else.

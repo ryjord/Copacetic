@@ -39,6 +39,29 @@ export function readWallpaper(): string | null {
   }
 }
 
+/** Wide enough to judge a picture by, small enough not to weigh Settings down. */
+const PREVIEW_WIDTH = 480;
+
+/**
+ * A small version, for showing what is set without loading the whole thing.
+ *
+ * Generated on demand rather than stored: it is a fraction of a millisecond
+ * from an image already on disk, and a second file to keep in step with the
+ * first is a second file to get wrong.
+ */
+export function readWallpaperPreview(): string | null {
+  const file = wallpaperPath();
+  if (!existsSync(file)) return null;
+  try {
+    const image = nativeImage.createFromPath(file);
+    if (image.isEmpty()) return null;
+    const preview = image.getSize().width > PREVIEW_WIDTH ? image.resize({ width: PREVIEW_WIDTH }) : image;
+    return `data:image/jpeg;base64,${preview.toJPEG(75).toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Ask for an image and keep a copy.
  *

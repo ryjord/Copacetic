@@ -104,6 +104,8 @@ export interface CopaceticApi {
   wallpaper: {
     /** The image as a data URL, or null. Fetched on demand, never pushed. */
     get(): Promise<string | null>;
+    /** A small version, for showing what is set without the whole image. */
+    preview(): Promise<string | null>;
     /** Opens a picker. Resolves empty on success, or with a message. */
     choose(): Promise<string>;
     clear(): Promise<void>;

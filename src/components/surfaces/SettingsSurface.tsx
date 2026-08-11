@@ -259,9 +259,39 @@ function ShortcutReference({ isMac }: { isMac: boolean }) {
  */
 function WallpaperControl({ hasWallpaper }: { hasWallpaper: boolean }) {
   const [message, setMessage] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
+
+  // Re-fetched whenever one is set or removed, so what is shown here is what
+  // the start page will actually use rather than a stale thumbnail.
+  useEffect(() => {
+    if (!hasWallpaper) return;
+    let cancelled = false;
+    void ask((api) => api.wallpaper.preview(), null).then((image) => {
+      if (!cancelled) setPreview(image);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasWallpaper]);
+
+  const visible = hasWallpaper ? preview : null;
 
   return (
     <div className="mb-3">
+      {visible && (
+        <div className="mb-2 overflow-hidden rounded-panel border border-line">
+          {/*
+            The same reasoning as the start page: a data URL already in memory,
+            in a statically exported page with no image loader.
+          */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={visible} alt="The current start page wallpaper" className="h-28 w-full object-cover" />
+          {/* Shown dimmed exactly as the start page dims it, so the preview is
+              a preview rather than a flattering portrait. */}
+          <div className="relative -mt-28 h-28 w-full bg-base/70" aria-hidden />
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

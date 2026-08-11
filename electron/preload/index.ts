@@ -109,6 +109,7 @@ const api: CopaceticApi = {
   /** Subscriptions. Each returns an unsubscribe function. */
   wallpaper: {
     get: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperGet),
+    preview: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperPreview),
     choose: (): Promise<string> => ipcRenderer.invoke(INVOKE.wallpaperChoose),
     clear: () => ipcRenderer.invoke(INVOKE.wallpaperClear),
   },
