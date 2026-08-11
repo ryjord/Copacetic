@@ -10,6 +10,7 @@ import { ErrorPage } from '@/components/content/ErrorPage';
 import { StartPage } from '@/components/content/StartPage';
 import { getBridge, isRunningInShell, send } from '@/lib/bridge';
 import { useBrowserStore } from '@/store/useBrowserStore';
+import { AuthBanner } from './AuthBanner';
 import { ConnectionPanel } from './ConnectionPanel';
 import { FindBar } from './FindBar';
 import { PermissionBanner } from './PermissionBanner';
@@ -40,6 +41,7 @@ export function Chrome() {
   const activeTab = useBrowserStore((state) => state.activeTab);
   const activeTabId = useBrowserStore((state) => state.activeTabId);
 
+  const authPrompts = useBrowserStore((state) => state.authPrompts);
   const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
   const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
 
@@ -101,7 +103,7 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen]);
+  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length]);
 
   // The panel describes one particular tab, so it must not linger over another.
   useEffect(() => {
@@ -121,6 +123,8 @@ export function Chrome() {
   // --- render --------------------------------------------------------------
 
   const prompt = permissionPrompts.find((candidate) => candidate.tabId === activeTabId) ?? null;
+  // A proxy challenge belongs to no tab, so it is shown whichever tab is open.
+  const authPrompt = authPrompts.find((candidate) => candidate.tabId === activeTabId || candidate.isProxy) ?? null;
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-base">
@@ -135,6 +139,7 @@ export function Chrome() {
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />
 
+      {authPrompt && <AuthBanner key={authPrompt.id} prompt={authPrompt} />}
       {isConnectionPanelOpen && <ConnectionPanel tab={activeTab} />}
       {find.isOpen && <FindBar find={find} />}
       {prompt && <PermissionBanner prompt={prompt} />}

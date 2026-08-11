@@ -197,6 +197,25 @@ export interface PermissionPrompt {
   description: string;
 }
 
+/**
+ * An HTTP authentication challenge waiting on the user.
+ *
+ * Credentials are never stored: there is no password manager yet, and keeping
+ * them anywhere without one would be a promise Copacetic cannot keep.
+ */
+export interface AuthPrompt {
+  id: string;
+  /** Null for a proxy challenge, which belongs to no particular tab. */
+  tabId: TabId | null;
+  isProxy: boolean;
+  /** Host, with the port when it is not the default for the scheme. */
+  host: string;
+  /** The server's own words, sanitised. Shown quoted and attributed. */
+  realm: string;
+  /** `basic`, `digest`, `ntlm`, `negotiate`. */
+  scheme: string;
+}
+
 export type SearchEngineId = 'duckduckgo' | 'google' | 'brave' | 'startpage' | 'bing';
 
 export interface SearchEngine {
@@ -244,6 +263,7 @@ export interface BrowserState {
   downloads: DownloadState[];
   find: FindState;
   permissionPrompts: PermissionPrompt[];
+  authPrompts: AuthPrompt[];
   settings: Settings;
   hasClosedTabs: boolean;
   update: UpdateState;

@@ -66,6 +66,9 @@ export const INVOKE = {
 
   connectionsList: 'connections:list',
 
+  authRespond: 'auth:respond',
+  authCancel: 'auth:cancel',
+
   updatesCheck: 'updates:check',
   updatesInstall: 'updates:install',
   updatesOpenReleases: 'updates:open-releases',

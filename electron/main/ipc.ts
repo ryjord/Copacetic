@@ -133,6 +133,13 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.appGetInfo, () => browser.getAppInfo());
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
 
+  // ------------------------------------------------------------------- auth
+
+  handle(INVOKE.authRespond, (_event, id, username, password) =>
+    browser.respondToAuth(asString(id), asString(username), asString(password)),
+  );
+  handle(INVOKE.authCancel, (_event, id) => browser.cancelAuth(asString(id)));
+
   // ------------------------------------------------------------ connections
 
   handle(INVOKE.connectionsList, (_event, id) => browser.connectionsFor(asString(id)));
