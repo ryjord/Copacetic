@@ -3,13 +3,17 @@
 import { useEffect, useState } from 'react';
 import {
   PERMISSION_LABELS,
+  START_PAGE_WIDGETS,
   type AppInfo,
   type DensityId,
+  type StartPageWidgetId,
   type PermissionKind,
   type Settings,
   type ThemeId,
   type UpdateStatus,
 } from '../../../electron/shared/types';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { IconButton } from '@/components/ui/IconButton';
 import { SHORTCUT_GROUPS, readableAccelerator } from '../../../electron/shared/shortcuts';
 import { SEARCH_ENGINE_OPTIONS } from '../../../electron/shared/url';
 import { Toggle } from '@/components/ui/Toggle';
@@ -197,16 +201,9 @@ export function SettingsSurface() {
                 means the same thing.
               </p>
               <WallpaperControl hasWallpaper={settings.hasWallpaper} />
-              <Toggle
-                label="Show the clock"
-                checked={settings.showStartPageClock}
-                onChange={(showStartPageClock) => update({ showStartPageClock })}
-              />
-              <Toggle
-                label="Show most-visited sites"
-                description="Ranked from how often you actually visit them."
-                checked={settings.showTopSites}
-                onChange={(showTopSites) => update({ showTopSites })}
+              <WidgetManager
+                widgets={settings.startPageWidgets}
+                onChange={(startPageWidgets) => update({ startPageWidgets })}
               />
             </Section>
           </PaneGroup>
@@ -313,6 +310,100 @@ function ShortcutReference({ isMac }: { isMac: boolean }) {
           </dl>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * What the start page is made of, and in what order.
+ *
+ * Reordering is buttons rather than dragging: a move that only works with a
+ * mouse is a move half the point of which is lost, and "down" is unambiguous
+ * in a way that dropping between two things is not.
+ */
+function WidgetManager({
+  widgets,
+  onChange,
+}: {
+  widgets: StartPageWidgetId[];
+  onChange: (next: StartPageWidgetId[]) => void;
+}) {
+  const move = (id: StartPageWidgetId, delta: number) => {
+    const from = widgets.indexOf(id);
+    const to = from + delta;
+    if (from === -1 || to < 0 || to >= widgets.length) return;
+    const next = [...widgets];
+    next.splice(to, 0, ...next.splice(from, 1));
+    onChange(next);
+  };
+
+  const toggle = (id: StartPageWidgetId) =>
+    onChange(
+      widgets.includes(id)
+        ? widgets.filter((entry) => entry !== id)
+        : // Added at the end, where the user can see it arrive.
+          [...widgets, id],
+    );
+
+  const hidden = START_PAGE_WIDGETS.filter((widget) => !widgets.includes(widget.id));
+
+  return (
+    <div className="mt-1">
+      <h3 className="label mb-2">On the start page</h3>
+
+      <ul className="divide-y divide-line rounded-field border border-line">
+        {widgets.map((id, index) => {
+          const widget = START_PAGE_WIDGETS.find((candidate) => candidate.id === id);
+          if (!widget) return null;
+          return (
+            <li key={id} className="flex items-center gap-2 px-3 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12.5px] text-ink">{widget.label}</span>
+                <span className="block text-[11.5px] text-ink-faint">{widget.description}</span>
+              </span>
+              <IconButton label={`Move ${widget.label} up`} onClick={() => move(id, -1)} disabled={index === 0}>
+                <ChevronUp size={14} />
+              </IconButton>
+              <IconButton
+                label={`Move ${widget.label} down`}
+                onClick={() => move(id, 1)}
+                disabled={index === widgets.length - 1}
+              >
+                <ChevronDown size={14} />
+              </IconButton>
+              <button
+                type="button"
+                onClick={() => toggle(id)}
+                className="shrink-0 rounded px-2 py-0.5 text-[11.5px] text-ink-faint transition-colors hover:bg-hover hover:text-ink"
+              >
+                Remove
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {widgets.length === 0 && (
+        <p className="mt-2 text-[12px] text-ink-faint">
+          A start page with nothing on it is allowed, if that is what you want.
+        </p>
+      )}
+
+      {hidden.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-[11.5px] text-ink-faint">Add:</span>
+          {hidden.map((widget) => (
+            <button
+              key={widget.id}
+              type="button"
+              onClick={() => toggle(widget.id)}
+              className="rounded-field border border-line px-2.5 py-1 text-[11.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
+            >
+              {widget.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

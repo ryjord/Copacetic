@@ -27,6 +27,34 @@ jobs:
           fi
           echo "Releasing $pkg"
 
+      # The .deb is built with the repository URL baked in, and it is published
+      # before the apt job runs. If the bucket turns out to be unusable at that
+      # point, the package is already out there pointing at a source that does
+      # not work — which is exactly how 1.1.0 went wrong. So the bucket is
+      # checked before anything is built.
+      - name: Check the package repository is usable
+        if: vars.APT_REPO_URL != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.R2_ACCOUNT_ID }}" ] || [ -z "${{ vars.R2_BUCKET }}" ]; then
+            echo "::error::APT_REPO_URL is set but the bucket is not configured."
+            exit 1
+          fi
+
+          aws s3 ls "s3://${{ vars.R2_BUCKET }}/" \
+            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" > /dev/null
+          echo "  bucket is writable"
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${{ vars.APT_REPO_URL }}/")
+          case "$code" in
+            200|404) echo "  public url answers ($code)" ;;
+            *) echo "::error::${{ vars.APT_REPO_URL }} answered $code; is public access on?"; exit 1 ;;
+          esac
+
   release:
     name: Release (${{ matrix.os }})
     needs: guard
@@ -95,6 +123,9 @@ jobs:
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
           APT_REPO_URL: ${{ vars.APT_REPO_URL }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_KEY: ${{ secrets.R2_ACCESS_KEY_ID }}
         run: |
           if [ -z "$APT_REPO_URL" ]; then
             echo "No APT_REPO_URL variable; no repository is hosted yet."
@@ -103,6 +134,11 @@ jobs:
           fi
           if [ -z "$APT_GPG_PRIVATE_KEY" ]; then
             echo "No APT_GPG_PRIVATE_KEY secret; skipping the apt repository."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$R2_BUCKET" ] || [ -z "$R2_ACCOUNT_ID" ] || [ -z "$R2_KEY" ]; then
+            echo "Bucket credentials are incomplete; skipping rather than half-publishing."
             echo "run=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -123,16 +159,25 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: sudo apt-get update && sudo apt-get install -y apt-utils gnupg
 
-      # The existing branch carries every previously published .deb. Rebuilding
-      # the indexes from scratch each time would strand anyone still on an
-      # older version, so the pool is preserved and added to.
-      - name: Check out the published repository
+      # The bucket carries every previously published .deb. Rebuilding the
+      # indexes from scratch each time would strand anyone still on an older
+      # version, so the existing pool is pulled down and added to.
+      #
+      # Object storage rather than a git branch: GitHub rejects any file over
+      # 100MB and this package is around 150MB, which is not a limit a Debian
+      # package of an Electron app will ever fit inside.
+      - name: Pull the existing pool
         if: steps.gate.outputs.run == 'true'
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: pages
-        continue-on-error: true
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          mkdir -p pages/apt/pool/main
+          aws s3 sync "s3://${{ vars.R2_BUCKET }}/pool" pages/apt/pool \
+            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+            --no-progress
+          ls -l pages/apt/pool/main || true
 
       - name: Collect the new package
         if: steps.gate.outputs.run == 'true'
@@ -146,6 +191,27 @@ jobs:
             --dir pages/apt/pool/main \
             --clobber
           ls -l pages/apt/pool/main
+
+      # apt only needs the versions it might install. Every package kept is
+      # ~150MB against a 10GB budget, so the pool holds the newest few and the
+      # rest are dropped — including from the bucket, via the sync below.
+      - name: Prune the pool to the newest few
+        if: steps.gate.outputs.run == 'true'
+        working-directory: pages/apt/pool/main
+        run: |
+          set -euo pipefail
+          keep=3
+          total=$(ls -1 ./*.deb 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$total" -le "$keep" ]; then
+            echo "$total package(s) in the pool; nothing to prune."
+            exit 0
+          fi
+          # Sorted by version, newest last, so the head of the list is oldest.
+          ls -1 ./*.deb | sort -V | head -n "-$keep" | while read -r old; do
+            echo "  dropping $(basename "$old")"
+            rm -f "$old"
+          done
+          echo "kept: $(ls -1 ./*.deb | tr '\n' ' ')"
 
       - name: Import the signing key
         if: steps.gate.outputs.run == 'true'
@@ -184,17 +250,32 @@ jobs:
 
       - name: Publish
         if: steps.gate.outputs.run == 'true'
-        working-directory: pages
+        working-directory: pages/apt
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         run: |
           set -euo pipefail
-          # Stops GitHub Pages running the tree through Jekyll, which would
-          # drop the dists/ directory for starting with an underscore rule set
-          # and generally mangle a binary archive.
-          touch .nojekyll
-          git init -q -b gh-pages 2>/dev/null || true
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" 2>/dev/null || true
-          git add -A
-          git commit -q -m "apt: publish ${GITHUB_REF_NAME}" || { echo "Nothing changed."; exit 0; }
-          git push -q --force origin HEAD:gh-pages
+          # Packages first, indexes last. An index naming a package that is not
+          # there yet makes every apt update in between fail; the other way
+          # round is merely a few minutes of not being offered the new version.
+          aws s3 sync pool "s3://${{ vars.R2_BUCKET }}/pool" \
+            --endpoint-url "$ENDPOINT" --no-progress --delete \
+            --content-type application/vnd.debian.binary-package
+          aws s3 sync dists "s3://${{ vars.R2_BUCKET }}/dists" \
+            --endpoint-url "$ENDPOINT" --no-progress --cache-control 'no-cache'
+
+      # A repository apt cannot read is the same as no repository, and the only
+      # honest moment to find that out is now rather than from a user.
+      - name: Check apt can read what was just published
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          base="${{ vars.APT_REPO_URL }}"
+          for file in dists/stable/InRelease dists/stable/Release dists/stable/Release.gpg; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$base/$file")
+            echo "  $file -> $code"
+            [ "$code" = "200" ] || { echo "::error::$base/$file answered $code"; exit 1; }
+          done

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { TopSite } from '../../../electron/shared/types';
+import type { Bookmark, TopSite } from '../../../electron/shared/types';
 import { SEARCH_ENGINES } from '../../../electron/shared/url';
 import { Favicon } from '@/components/ui/Favicon';
 import { ask, send } from '@/lib/bridge';
@@ -21,7 +21,7 @@ export function StartPage({ tabId }: { tabId: string }) {
   const minute = useMinuteTick();
 
   useEffect(() => {
-    if (!settings.showTopSites) return;
+    if (!settings.startPageWidgets.includes('topSites')) return;
     let cancelled = false;
     void ask((api) => api.history.topSites(8), []).then((sites) => {
       if (!cancelled) setTopSites(sites);
@@ -29,7 +29,7 @@ export function StartPage({ tabId }: { tabId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [settings.showTopSites]);
+  }, [settings.startPageWidgets]);
 
   // Fetched rather than pushed: the image is measured in megabytes and has no
   // business travelling with every state update.
@@ -77,55 +77,63 @@ export function StartPage({ tabId }: { tabId: string }) {
         </>
       )}
 
-      <div className="relative flex w-full max-w-xl flex-col items-center">
-        {settings.showStartPageClock && (
-          <div className="mb-8 flex flex-col items-center">
-            {/* Blank until mounted: a statically exported page cannot know what
+      <div className="relative flex w-full max-w-xl flex-col items-center gap-8">
+        {settings.startPageWidgets.map((widget) => (
+          <div key={widget} className="w-full">
+            {widget === 'clock' && (
+              <div className="flex flex-col items-center">
+                {/* Blank until mounted: a statically exported page cannot know what
                 time it will be opened, and guessing would make the first paint
                 disagree with the second. */}
-            <span className="font-mono text-[56px] font-light leading-none tracking-tight text-ink tabular-nums">
-              {minute === null ? ' ' : formatClockTime(new Date())}
-            </span>
-            <span className="label mt-3 tracking-[0.42em] text-ink-faint">Copacetic</span>
-          </div>
-        )}
-
-        <form onSubmit={submit} className="w-full">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Search ${engineName}, or type an address`}
-            aria-label="Search or enter address"
-            spellCheck={false}
-            autoComplete="off"
-            className="h-11 w-full rounded-full border border-line bg-raised/70 px-5 text-center font-mono text-[13px] text-ink outline-none backdrop-blur-xl transition-colors placeholder:font-sans placeholder:text-ink-faint focus:border-line-strong focus:bg-raised"
-          />
-        </form>
-
-        {settings.showTopSites && (
-          <div className="mt-10 w-full">
-            {topSites.length > 0 ? (
-              <ul className="grid grid-cols-4 gap-2">
-                {topSites.map((site) => (
-                  <li key={site.host}>
-                    <button
-                      type="button"
-                      onClick={() => send((api) => api.tabs.navigate(tabId, site.url))}
-                      className="flex w-full flex-col items-center gap-2 rounded-panel border border-transparent px-2 py-3 transition-colors hover:border-line hover:bg-raised/60"
-                    >
-                      <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={22} />
-                      <span className="w-full truncate text-center text-[11.5px] text-ink-dim">{site.host}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-center text-[12px] text-ink-faint">
-                Your most-visited sites will collect here. Where do you want to go?
-              </p>
+                <span className="font-mono text-[56px] font-light leading-none tracking-tight text-ink tabular-nums">
+                  {minute === null ? ' ' : formatClockTime(new Date())}
+                </span>
+                <span className="label mt-3 tracking-[0.42em] text-ink-faint">Copacetic</span>
+              </div>
             )}
+
+            {widget === 'search' && (
+              <form onSubmit={submit} className="w-full">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={`Search ${engineName}, or type an address`}
+                  aria-label="Search or enter address"
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="h-11 w-full rounded-full border border-line bg-raised/70 px-5 text-center font-mono text-[13px] text-ink outline-none backdrop-blur-xl transition-colors placeholder:font-sans placeholder:text-ink-faint focus:border-line-strong focus:bg-raised"
+                />
+              </form>
+            )}
+
+            {widget === 'topSites' && (
+              <div className="w-full">
+                {topSites.length > 0 ? (
+                  <ul className="grid grid-cols-4 gap-2">
+                    {topSites.map((site) => (
+                      <li key={site.host}>
+                        <button
+                          type="button"
+                          onClick={() => send((api) => api.tabs.navigate(tabId, site.url))}
+                          className="flex w-full flex-col items-center gap-2 rounded-panel border border-transparent px-2 py-3 transition-colors hover:border-line hover:bg-raised/60"
+                        >
+                          <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={22} />
+                          <span className="w-full truncate text-center text-[11.5px] text-ink-dim">{site.host}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-center text-[12px] text-ink-faint">
+                    Your most-visited sites will collect here. Where do you want to go?
+                  </p>
+                )}
+              </div>
+            )}
+
+            {widget === 'bookmarks' && <BookmarkStrip tabId={tabId} />}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
@@ -148,5 +156,46 @@ function useMinuteTick(): number | null {
     },
     () => Math.floor(Date.now() / 60_000),
     () => null,
+  );
+}
+
+/** The most recent things you saved, as somewhere to start from. */
+function BookmarkStrip({ tabId }: { tabId: string }) {
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void ask((api) => api.bookmarks.list(), []).then((all) => {
+      if (!cancelled) setBookmarks(all.slice(0, 8));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (bookmarks.length === 0) {
+    return (
+      <p className="text-center text-[12px] text-ink-faint">
+        Anything you bookmark with Cmd/Ctrl+D will wait for you here.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="flex flex-wrap justify-center gap-1.5">
+      {bookmarks.map((bookmark) => (
+        <li key={bookmark.id}>
+          <button
+            type="button"
+            onClick={() => send((api) => api.tabs.navigate(tabId, bookmark.url))}
+            title={bookmark.url}
+            className="flex max-w-[180px] items-center gap-2 rounded-full border border-line bg-raised/60 px-3 py-1.5 text-[11.5px] text-ink-dim transition-colors hover:border-line-strong hover:text-ink"
+          >
+            <Favicon dataUrl={null} seed={bookmark.url} size={13} />
+            <span className="truncate">{bookmark.title || bookmark.url}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

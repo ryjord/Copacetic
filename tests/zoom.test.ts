@@ -133,3 +133,53 @@ describe('history paging', () => {
     expect(store.allHistory()).toHaveLength(420);
   });
 });
+
+describe('start page widgets', () => {
+  const writeSettings = async (value: unknown) => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(path.join(process.env.COPA_ZOOM_DIR!, 'settings.json'), JSON.stringify(value));
+    return new BrowserStore();
+  };
+
+  it('defaults to a clock, a search box and most-visited', () => {
+    expect(store.getSettings().startPageWidgets).toEqual(['clock', 'search', 'topSites']);
+  });
+
+  // Someone upgrading has the old booleans and no list. Reading their answers
+  // rather than resetting them is the difference between an upgrade and losing
+  // your setup.
+  it('carries the old booleans over on upgrade', async () => {
+    const migrated = await writeSettings({ showStartPageClock: false, showTopSites: true });
+    expect(migrated.getSettings().startPageWidgets).toEqual(['search', 'topSites']);
+  });
+
+  it('keeps search even when both old toggles were off', async () => {
+    const migrated = await writeSettings({ showStartPageClock: false, showTopSites: false });
+    expect(migrated.getSettings().startPageWidgets).toEqual(['search']);
+  });
+
+  it('prefers an explicit list over the old booleans', async () => {
+    const migrated = await writeSettings({
+      showStartPageClock: true,
+      showTopSites: true,
+      startPageWidgets: ['search'],
+    });
+    expect(migrated.getSettings().startPageWidgets).toEqual(['search']);
+  });
+
+  it('keeps the order it is given, since order is the point', async () => {
+    const reordered = await writeSettings({ startPageWidgets: ['topSites', 'clock', 'search'] });
+    expect(reordered.getSettings().startPageWidgets).toEqual(['topSites', 'clock', 'search']);
+  });
+
+  // settings.json is editable by hand, so it is untrusted input.
+  it('drops widgets it does not know and duplicates', async () => {
+    const cleaned = await writeSettings({ startPageWidgets: ['clock', 'nonsense', 'clock', 'search', 42] });
+    expect(cleaned.getSettings().startPageWidgets).toEqual(['clock', 'search']);
+  });
+
+  it('allows an empty start page', async () => {
+    const empty = await writeSettings({ startPageWidgets: [] });
+    expect(empty.getSettings().startPageWidgets).toEqual([]);
+  });
+});

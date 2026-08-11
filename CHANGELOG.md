@@ -2,6 +2,25 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.6 — 2026-08-11
+
+### Added
+
+- The start page is made of widgets you choose and order: a clock, the search
+  box, most-visited sites, and a new strip of recent bookmarks. Add, remove and
+  move them in Settings.
+- Reordering is buttons rather than dragging, so it works without a mouse and
+  "down" means one thing rather than depending on where you let go.
+- The two start-page toggles this replaces are carried over on upgrade, so an
+  existing setup survives rather than resetting to the default.
+
+### Changed
+
+- Debian packages are published to object storage rather than a git branch, so
+  the `.deb` registers a working apt source again and upgrades arrive with
+  `apt upgrade`. The repository is checked before any installer is built, so a
+  package can never go out pointing at a source that does not work.
+
 ## 1.2.5 — 2026-08-11
 
 Released as one version rather than two: 1.2.4 went out only as a prerelease,
