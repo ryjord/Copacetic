@@ -237,6 +237,16 @@ export type ThemeId = 'deep' | 'slate' | 'ember' | 'moss';
 /** How much room the chrome takes. Only sizing — never colour. */
 export type DensityId = 'comfortable' | 'compact';
 
+/** The pieces the start page can be built from, in the order they appear. */
+export type StartPageWidgetId = 'clock' | 'search' | 'topSites' | 'bookmarks';
+
+export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string; description: string }[] = [
+  { id: 'clock', label: 'Clock', description: 'The time, and not much else.' },
+  { id: 'search', label: 'Search', description: 'A box that searches or takes an address.' },
+  { id: 'topSites', label: 'Most visited', description: 'Ranked from how often you actually go there.' },
+  { id: 'bookmarks', label: 'Bookmarks', description: 'The most recent things you saved.' },
+];
+
 export type ClearRange = 'hour' | 'day' | 'week' | 'all';
 
 export interface Settings {
@@ -247,8 +257,12 @@ export interface Settings {
   httpsFirst: boolean;
   blockTrackers: boolean;
   restoreTabsOnLaunch: boolean;
-  showStartPageClock: boolean;
-  showTopSites: boolean;
+  /**
+   * Which pieces the start page shows, in order. Replaces the pair of
+   * booleans this used to be: once things can be reordered, a list is the
+   * honest shape for it.
+   */
+  startPageWidgets: StartPageWidgetId[];
   /**
    * Ask GitHub whether a newer release exists, on launch and on a long timer.
    * The request carries nothing about the user — it reads a version number —

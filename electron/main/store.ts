@@ -1,5 +1,6 @@
 import type {
   Bookmark,
+  StartPageWidgetId,
   ClearRange,
   HistoryEntry,
   PermissionDecision,
@@ -21,8 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   httpsFirst: true,
   blockTrackers: true,
   restoreTabsOnLaunch: true,
-  showStartPageClock: true,
-  showTopSites: true,
+  startPageWidgets: ['clock', 'search', 'topSites'],
   checkForUpdates: true,
   permissionDecisions: {},
   zoomLevels: {},
@@ -449,8 +449,7 @@ function reviveSettings(raw: unknown): Settings | null {
     httpsFirst: asBoolean(raw.httpsFirst, DEFAULT_SETTINGS.httpsFirst),
     blockTrackers: asBoolean(raw.blockTrackers, DEFAULT_SETTINGS.blockTrackers),
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),
-    showStartPageClock: asBoolean(raw.showStartPageClock, DEFAULT_SETTINGS.showStartPageClock),
-    showTopSites: asBoolean(raw.showTopSites, DEFAULT_SETTINGS.showTopSites),
+    startPageWidgets: reviveStartPageWidgets(raw),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     permissionDecisions: decisions,
     zoomLevels: reviveZoomLevels(raw.zoomLevels),
@@ -471,6 +470,31 @@ function reviveSettings(raw: unknown): Settings | null {
  * IPC was stored unbounded and stayed that way until the next launch, so a
  * zoom factor of 40 survived exactly as long as the session did.
  */
+const WIDGET_IDS: readonly StartPageWidgetId[] = ['clock', 'search', 'topSites', 'bookmarks'];
+
+/**
+ * The widget list, or one derived from the booleans it replaced.
+ *
+ * Someone upgrading has `showStartPageClock` and `showTopSites` in their
+ * settings and no list. Reading their answers rather than resetting them to
+ * the default is the difference between an upgrade and losing your setup.
+ */
+function reviveStartPageWidgets(raw: Record<string, unknown>): StartPageWidgetId[] {
+  if (Array.isArray(raw.startPageWidgets)) {
+    const seen = new Set<StartPageWidgetId>();
+    for (const id of raw.startPageWidgets) {
+      if (typeof id === 'string' && WIDGET_IDS.includes(id as StartPageWidgetId)) seen.add(id as StartPageWidgetId);
+    }
+    return [...seen];
+  }
+
+  const migrated: StartPageWidgetId[] = [];
+  if (asBoolean(raw.showStartPageClock, true)) migrated.push('clock');
+  migrated.push('search');
+  if (asBoolean(raw.showTopSites, true)) migrated.push('topSites');
+  return migrated;
+}
+
 /** Untrusted on-disk input, so every level is bounded like a live one. */
 function reviveZoomLevels(raw: unknown): Record<string, number> {
   if (!isRecord(raw)) return {};

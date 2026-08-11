@@ -221,8 +221,14 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.httpsFirst === 'boolean') patch.httpsFirst = value.httpsFirst;
   if (typeof value.blockTrackers === 'boolean') patch.blockTrackers = value.blockTrackers;
   if (typeof value.restoreTabsOnLaunch === 'boolean') patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
-  if (typeof value.showStartPageClock === 'boolean') patch.showStartPageClock = value.showStartPageClock;
-  if (typeof value.showTopSites === 'boolean') patch.showTopSites = value.showTopSites;
+  if (Array.isArray(value.startPageWidgets)) {
+    const allowed = ['clock', 'search', 'topSites', 'bookmarks'];
+    const seen = new Set<string>();
+    for (const id of value.startPageWidgets) {
+      if (typeof id === 'string' && allowed.includes(id)) seen.add(id);
+    }
+    patch.startPageWidgets = [...seen] as Settings['startPageWidgets'];
+  }
   if (typeof value.sidebarWidth === 'number') patch.sidebarWidth = value.sidebarWidth;
   if (typeof value.defaultZoomFactor === 'number') patch.defaultZoomFactor = value.defaultZoomFactor;
 

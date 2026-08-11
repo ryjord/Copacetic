@@ -78,6 +78,11 @@ a subresource on some other origin asking for a password gives you nothing to
 judge. Nothing is stored, because there is no password manager yet and keeping
 a password somewhere undescribed is not a thing this browser will do.
 
+**A start page you assemble.** A clock, a search box, your most-visited sites
+and your recent bookmarks — pick which of them appear and in what order, and
+put a wallpaper behind them. It is the one surface where colour is free,
+because nothing on it is reporting state.
+
 **Zoom it once.** Zooming a site is remembered for that site, so a page you
 need larger arrives larger every visit. Settings lists everywhere you changed
 it, with a reset each.
