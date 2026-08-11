@@ -2,12 +2,13 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.2.0 — unreleased
+## 1.2.0 — 2026-08-11
 
 Four features that all do the same thing: say something true about the page
 that no mainstream browser will tell you without developer tools.
 
-Going out as `1.2.0-beta.1` first, as 1.1.0 did.
+Released as `1.2.0-beta.1` first, which exercised the pipeline on all three
+platforms before anything reached the stable channel.
 
 ### Added
 
