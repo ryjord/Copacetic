@@ -14,9 +14,11 @@ import type {
   TabId,
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
+import { writeFile } from 'node:fs/promises';
 import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
+import { bookmarksToHtml, historyToJson } from './export';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
@@ -435,6 +437,37 @@ export class Browser {
       await getWebSession().clearCache();
     }
     this.scheduleStatePush();
+  }
+
+  /**
+   * Write bookmarks or history somewhere the user picks. Resolves with an
+   * empty string when it worked, or a sentence explaining why it did not —
+   * the same shape as opening a download, so the chrome can just show it.
+   */
+  async exportData(kind: 'bookmarks' | 'history'): Promise<string> {
+    const now = Date.now();
+    const stamp = new Date(now).toISOString().slice(0, 10);
+    const isBookmarks = kind === 'bookmarks';
+
+    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
+      title: isBookmarks ? 'Export bookmarks' : 'Export history',
+      defaultPath: isBookmarks ? `copacetic-bookmarks-${stamp}.html` : `copacetic-history-${stamp}.json`,
+      filters: isBookmarks
+        ? [{ name: 'Bookmarks', extensions: ['html'] }]
+        : [{ name: 'History', extensions: ['json'] }],
+    });
+    if (canceled || !filePath) return '';
+
+    const contents = isBookmarks
+      ? bookmarksToHtml(this.store.listBookmarks(), now)
+      : historyToJson(this.store.listHistory('', Number.MAX_SAFE_INTEGER), now);
+
+    try {
+      await writeFile(filePath, contents, 'utf8');
+      return '';
+    } catch (error) {
+      return error instanceof Error ? error.message : 'The file could not be written.';
+    }
   }
 
   openDownloadsFolder(): void {

@@ -101,6 +101,10 @@ export interface CopaceticApi {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
   };
+  data: {
+    /** Write bookmarks or history to a file the user chooses. */
+    export(kind: 'bookmarks' | 'history'): Promise<string>;
+  };
   auth: {
     /** Answer a challenge. Credentials go straight to the request, unstored. */
     respond(id: string, username: string, password: string): Promise<void>;

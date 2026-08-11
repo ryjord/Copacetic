@@ -66,6 +66,8 @@ export const INVOKE = {
 
   connectionsList: 'connections:list',
 
+  dataExport: 'data:export',
+
   authRespond: 'auth:respond',
   authCancel: 'auth:cancel',
 

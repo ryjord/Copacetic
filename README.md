@@ -110,7 +110,9 @@ Being straight about the gaps, since the whole project is about not overstating
 things:
 
 - **No sync, no accounts, no cloud.** Everything lives in `userData` on this
-  machine. The one request Copacetic makes on its own behalf is the update
+  machine, and Settings will write your bookmarks and history back out —
+  bookmarks in the format every browser imports, history as plain JSON — so
+  that is a statement you can check rather than take on trust. The one request Copacetic makes on its own behalf is the update
   check, which reads a version number from the GitHub releases API and sends
   nothing about you. It can be turned off in Settings.
 - **No extension support.** Chrome extensions are not loaded.

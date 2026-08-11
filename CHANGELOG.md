@@ -18,6 +18,10 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 - The realm is server-chosen text displayed inside Copacetic's own window, so
   it is stripped of control characters and bidirectional overrides, collapsed
   to one line, capped, and shown quoted and attributed to the site.
+- Settings can export bookmarks and history. Bookmarks are written in the
+  Netscape format every browser imports; history is plain JSON, readable in a
+  text editor. "Everything lives on this machine" is honest but on its own it
+  is also lock-in, and this makes the claim checkable.
 
 ## 1.2.0 — 2026-08-11
 
