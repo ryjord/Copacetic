@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showTopSites: true,
   checkForUpdates: true,
   permissionDecisions: {},
+  zoomLevels: {},
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };
@@ -90,6 +91,32 @@ export class BrowserStore {
       ...current,
       permissionDecisions: { ...current.permissionDecisions, [`${origin}|${kind}`]: decision },
     }));
+  }
+
+  getZoomForOrigin(origin: string): number | null {
+    return this.settingsFile.get().zoomLevels[origin] ?? null;
+  }
+
+  /**
+   * A level equal to the default is forgotten rather than stored: the list in
+   * Settings should be the sites you actually changed, not every site visited.
+   */
+  setZoomForOrigin(origin: string, zoomFactor: number): void {
+    if (!origin) return;
+    this.settingsFile.update((current) => {
+      const levels = { ...current.zoomLevels };
+      if (Math.abs(zoomFactor - current.defaultZoomFactor) < 0.001) delete levels[origin];
+      else levels[origin] = zoomFactor;
+      return { ...current, zoomLevels: levels };
+    });
+  }
+
+  forgetZoomForOrigin(origin: string): void {
+    this.settingsFile.update((current) => {
+      const levels = { ...current.zoomLevels };
+      delete levels[origin];
+      return { ...current, zoomLevels: levels };
+    });
   }
 
   getPermissionDecision(origin: string, kind: string): PermissionDecision | null {
@@ -398,6 +425,7 @@ function reviveSettings(raw: unknown): Settings | null {
     showTopSites: asBoolean(raw.showTopSites, DEFAULT_SETTINGS.showTopSites),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     permissionDecisions: decisions,
+    zoomLevels: reviveZoomLevels(raw.zoomLevels),
     sidebarWidth: asNumber(raw.sidebarWidth, DEFAULT_SETTINGS.sidebarWidth),
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
   });
@@ -410,6 +438,17 @@ function reviveSettings(raw: unknown): Settings | null {
  * IPC was stored unbounded and stayed that way until the next launch, so a
  * zoom factor of 40 survived exactly as long as the session did.
  */
+/** Untrusted on-disk input, so every level is bounded like a live one. */
+function reviveZoomLevels(raw: unknown): Record<string, number> {
+  if (!isRecord(raw)) return {};
+  const levels: Record<string, number> = {};
+  for (const [origin, value] of Object.entries(raw)) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+    levels[origin] = clamp(value, 0.25, 5);
+  }
+  return levels;
+}
+
 export function normaliseSettings(settings: Settings): Settings {
   return {
     ...settings,

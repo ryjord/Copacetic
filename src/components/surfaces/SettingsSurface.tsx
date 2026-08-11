@@ -80,6 +80,14 @@ export function SettingsSurface() {
           <PermissionList decisions={settings.permissionDecisions} />
         </Section>
 
+        <Section title="Zoom">
+          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+            Zooming a site with <span className="font-mono">Cmd/Ctrl +</span> and <span className="font-mono">-</span>{' '}
+            is remembered for that site, so you only set it once.
+          </p>
+          <ZoomList levels={settings.zoomLevels} />
+        </Section>
+
         <Section title="Start page">
           <div className="mb-3 flex gap-2">
             {THEMES.map((theme) => (
@@ -178,6 +186,38 @@ export function SettingsSurface() {
       </div>
     </SurfaceShell>
   );
+}
+
+/** Sites deliberately zoomed away from the default, and a way back. */
+function ZoomList({ levels }: { levels: Record<string, number> }) {
+  const entries = Object.entries(levels);
+  if (entries.length === 0) {
+    return <p className="text-[12px] text-ink-faint">No site is zoomed away from the default yet.</p>;
+  }
+
+  return (
+    <ul className="divide-y divide-line rounded-field border border-line">
+      {entries.map(([origin, level]) => (
+        <li key={origin} className="flex items-center gap-3 px-3 py-2">
+          <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{origin}</span>
+          <span className="shrink-0 font-mono text-[11.5px] text-ink-faint">{Math.round(level * 100)}%</span>
+          <button
+            type="button"
+            onClick={() => send((api) => api.settings.update({ zoomLevels: withoutOrigin(levels, origin) }))}
+            className="shrink-0 rounded px-2 py-0.5 text-[11.5px] text-ink-faint transition-colors hover:bg-hover hover:text-ink"
+          >
+            Reset
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function withoutOrigin(levels: Record<string, number>, origin: string): Record<string, number> {
+  const next = { ...levels };
+  delete next[origin];
+  return next;
 }
 
 /**

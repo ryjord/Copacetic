@@ -76,6 +76,10 @@ a subresource on some other origin asking for a password gives you nothing to
 judge. Nothing is stored, because there is no password manager yet and keeping
 a password somewhere undescribed is not a thing this browser will do.
 
+**Zoom it once.** Zooming a site is remembered for that site, so a page you
+need larger arrives larger every visit. Settings lists everywhere you changed
+it, with a reset each.
+
 **The rest of what a browser needs.** Tab drag-reorder, middle-click close,
 audio indicators and per-tab mute, find-in-page with match counts, per-tab zoom,
 session restore, a command palette (`Cmd/Ctrl+K`), native context menus, and a

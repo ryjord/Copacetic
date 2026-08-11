@@ -2,6 +2,26 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.2 — unreleased
+
+### Added
+
+- Zoom is remembered per site. A page you need larger arrives larger every
+  visit rather than needing setting again, and Settings lists everywhere you
+  changed it with a reset each. A level put back to the default is forgotten
+  rather than stored, so the list stays the sites you actually changed.
+
+### Fixed
+
+- Tabs can be reached with a keyboard. The strip is now a proper tablist with
+  a roving tabindex: one tab stop for the whole strip, arrows to move within
+  it, Home and End for the ends, Enter or Space to select and Delete to close.
+  Previously every tab was hard-coded unreachable, so there was no way to
+  focus, activate or close one without a mouse.
+- Focus follows the selection when arrowing through tabs, and does not move
+  when a tab is selected by click or by `Cmd/Ctrl+1`–`9` — those should leave
+  focus in the page or the address bar where it was.
+
 ## 1.2.1 — 2026-08-11
 
 Two things that were missing rather than broken: sites that ask you to sign in

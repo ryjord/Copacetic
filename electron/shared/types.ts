@@ -248,6 +248,11 @@ export interface Settings {
   checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
+  /**
+   * Per-origin zoom, remembered because a site that needs zooming needs it
+   * every time. Only origins deliberately set away from the default are kept.
+   */
+  zoomLevels: Record<string, number>;
   sidebarWidth: number;
   defaultZoomFactor: number;
 }

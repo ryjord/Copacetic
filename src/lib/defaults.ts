@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   showTopSites: true,
   checkForUpdates: true,
   permissionDecisions: {},
+  zoomLevels: {},
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };
