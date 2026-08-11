@@ -2,7 +2,10 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.2.1 — unreleased
+## 1.2.1 — 2026-08-11
+
+Two things that were missing rather than broken: sites that ask you to sign in
+could not be used at all, and your own data could not be taken back out.
 
 ### Added
 
