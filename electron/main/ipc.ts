@@ -28,6 +28,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.tabCreate, (_event, url, activate) =>
     browser.tabs.create(asString(url) || undefined, { activate: activate !== false }),
   );
+  handle(INVOKE.tabCreateHush, () => browser.newHushTab());
   handle(INVOKE.tabClose, (_event, id) => browser.tabs.close(asString(id)));
   handle(INVOKE.tabActivate, (_event, id) => browser.tabs.activate(asString(id)));
   handle(INVOKE.tabMove, (_event, id, index) => browser.tabs.move(asString(id), asInteger(index)));

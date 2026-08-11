@@ -15,7 +15,7 @@ import {
 import type { ContentBlocker } from './blocker';
 import { certificateFor } from './certificates';
 import { describeNetError, isAbortError } from './net-errors';
-import { WEB_PARTITION, type SecurityDelegate, getWebSession, guardTabWebContents } from './security';
+import { HUSH_PARTITION, WEB_PARTITION, type SecurityDelegate, getWebSession, guardTabWebContents } from './security';
 import type { BrowserStore } from './store';
 
 /** Chrome insets in CSS pixels, measured by the renderer. */
@@ -29,6 +29,8 @@ export interface ContentInsets {
 interface TabRecord {
   id: TabId;
   view: WebContentsView;
+  /** Nothing this tab does is written to disk — see HUSH_PARTITION. */
+  isHush: boolean;
   /** True while the tab shows Copacetic's own start page instead of a site. */
   isStartPage: boolean;
   url: string;
@@ -119,7 +121,10 @@ export class TabManager {
 
     for (const id of this.order) {
       const tab = this.tabs.get(id);
-      if (!tab || tab.isStartPage) continue;
+      // A Hush tab is excluded rather than merely not reopened: the session
+      // file is on disk, so listing its URL there would be the one place the
+      // tab left a trace.
+      if (!tab || tab.isStartPage || tab.isHush) continue;
       if (id === this.activeId) activeIndex = urls.length;
       urls.push(tab.url);
     }
@@ -150,6 +155,7 @@ export class TabManager {
       loadMs: tab.loadMs,
       zoomFactor: tab.zoomFactor,
       isStartPage: tab.isStartPage,
+      isHush: tab.isHush,
       isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
     };
   }
@@ -296,7 +302,7 @@ export class TabManager {
 
   create(
     requestedUrl: string = START_PAGE_URL,
-    options: { activate?: boolean; index?: number; openerWebContentsId?: number } = {},
+    options: { activate?: boolean; index?: number; openerWebContentsId?: number; hush?: boolean } = {},
   ): TabId {
     // Last line of defence. Callers are expected to have already decided the
     // URL is allowed, but this is the single place every tab is born, so
@@ -317,7 +323,7 @@ export class TabManager {
         webviewTag: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
-        partition: WEB_PARTITION,
+        partition: options.hush ? HUSH_PARTITION : WEB_PARTITION,
         spellcheck: true,
         safeDialogs: true,
       },
@@ -329,6 +335,7 @@ export class TabManager {
     const tab: TabRecord = {
       id,
       view,
+      isHush: options.hush === true,
       isStartPage,
       url: isStartPage ? START_PAGE_URL : rawUrl,
       title: '',
@@ -381,7 +388,7 @@ export class TabManager {
     if (!tab) return;
 
     const index = this.order.indexOf(id);
-    if (!tab.isStartPage) {
+    if (!tab.isStartPage && !tab.isHush) {
       this.closedTabs.unshift({ url: tab.url, title: tab.title, index });
       this.closedTabs.length = Math.min(this.closedTabs.length, MAX_REOPENABLE);
     }
@@ -687,14 +694,16 @@ export class TabManager {
     contents.on('page-title-updated', (_event, title) => {
       tab.title = title;
       if (!tab.isStartPage && !tab.error && tab.url.startsWith('http')) {
-        this.store.recordVisit(tab.url, title);
+        // The whole point of a Hush tab: no record of where it went.
+        if (!tab.isHush) this.store.recordVisit(tab.url, title);
       }
       changed();
     });
 
     contents.on('page-favicon-updated', (_event, favicons) => {
       const [faviconUrl] = favicons;
-      if (faviconUrl) void this.cacheFavicon(tab, faviconUrl);
+      // A cached favicon is a list of sites visited, stored by another name.
+      if (faviconUrl && !tab.isHush) void this.cacheFavicon(tab, faviconUrl);
     });
 
     contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {

@@ -96,6 +96,8 @@ export interface TabState {
   zoomFactor: number;
   /** True for a tab parked on the start page, which has no backing view. */
   isStartPage: boolean;
+  /** A Hush tab: nothing it does is written to this machine. */
+  isHush: boolean;
   isBookmarked: boolean;
 }
 

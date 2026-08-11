@@ -27,6 +27,7 @@ import type {
 const api: CopaceticApi = {
   tabs: {
     create: (url?: string, activate = true): Promise<TabId> => ipcRenderer.invoke(INVOKE.tabCreate, url, activate),
+    createHush: () => ipcRenderer.invoke(INVOKE.tabCreateHush),
     close: (id: TabId) => ipcRenderer.invoke(INVOKE.tabClose, id),
     activate: (id: TabId) => ipcRenderer.invoke(INVOKE.tabActivate, id),
     move: (id: TabId, index: number) => ipcRenderer.invoke(INVOKE.tabMove, id, index),

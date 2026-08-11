@@ -1,5 +1,6 @@
 'use client';
 
+import { EyeOff } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Bookmark, TopSite } from '../../../electron/shared/types';
 import { SEARCH_ENGINES } from '../../../electron/shared/url';
@@ -13,7 +14,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
  * furniture; the row of places you genuinely go, ranked from real visit counts,
  * is the part that does the work.
  */
-export function StartPage({ tabId }: { tabId: string }) {
+export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: boolean }) {
   const settings = useBrowserStore((state) => state.settings);
   const [query, setQuery] = useState('');
   const [topSites, setTopSites] = useState<TopSite[]>([]);
@@ -78,6 +79,8 @@ export function StartPage({ tabId }: { tabId: string }) {
       )}
 
       <div className="relative flex w-full max-w-xl flex-col items-center gap-8">
+        {isHush && <HushNotice />}
+
         {settings.startPageWidgets.map((widget) => (
           <div key={widget} className="w-full">
             {widget === 'clock' && (
@@ -197,5 +200,34 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * What a Hush tab actually is, said in full.
+ *
+ * The second paragraph is the one no other browser writes, and it is the whole
+ * reason this is worth shipping. Chrome's incognito is the best-known example
+ * of a browser letting people believe a local-only feature hides them from the
+ * network, and a product arguing about honesty cannot repeat that. Saying what
+ * it does not do is also the only way someone can judge whether it is enough
+ * for what they are about to do.
+ */
+function HushNotice() {
+  return (
+    <section className="w-full rounded-panel border border-line bg-raised/60 px-4 py-3 backdrop-blur-xl">
+      <h2 className="flex items-center gap-2 text-[13px] font-medium text-ink">
+        <EyeOff size={13} className="text-active" aria-hidden />
+        This is a Hush tab
+      </h2>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-dim">
+        Your machine forgets it. No history, no cookies, no cache and no favicons are kept, and nothing from this tab
+        is written to disk at all — not even the list of tabs to reopen.
+      </p>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-faint">
+        It does not make you anonymous. The sites you visit, your network, your employer and your internet provider
+        see exactly what they would see in any other tab.
+      </p>
+    </section>
   );
 }
