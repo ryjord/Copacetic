@@ -2,7 +2,7 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.2.3 — unreleased
+## 1.2.3 — 2026-08-11
 
 Customisation, keyboard access, and two places the interface was quietly
 saying less than it knew.
