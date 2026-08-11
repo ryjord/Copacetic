@@ -12,8 +12,23 @@ import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from './env';
  */
 export const WEB_PARTITION = 'persist:copacetic-web';
 
+/**
+ * The partition a Hush tab uses.
+ *
+ * No `persist:` prefix, which is what makes it real rather than a promise:
+ * Chromium keeps the whole session in memory and drops it when the last
+ * reference goes, so cookies, storage and cache never reach the disk to be
+ * deleted later. A "private" mode that writes and then tidies up is one crash
+ * away from not having tidied up.
+ */
+export const HUSH_PARTITION = 'copacetic-hush';
+
 export function getWebSession(): Session {
   return electronSession.fromPartition(WEB_PARTITION);
+}
+
+export function getHushSession(): Session {
+  return electronSession.fromPartition(HUSH_PARTITION);
 }
 
 export interface SecurityDelegate {

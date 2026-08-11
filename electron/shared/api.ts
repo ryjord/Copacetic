@@ -34,6 +34,8 @@ export type Unsubscribe = () => void;
 export interface CopaceticApi {
   tabs: {
     create(url?: string, activate?: boolean): Promise<TabId>;
+    /** A Hush tab: nothing it does is written to this machine. */
+    createHush(): Promise<void>;
     close(id: TabId): Promise<void>;
     activate(id: TabId): Promise<void>;
     move(id: TabId, index: number): Promise<void>;

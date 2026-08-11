@@ -22,7 +22,13 @@ import { bookmarksToHtml, historyToJson } from './export';
 import { chooseWallpaper, clearWallpaper, hasWallpaper } from './wallpaper';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
-import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
+import {
+  type SecurityDelegate,
+  getHushSession,
+  getWebSession,
+  hardenChromeSession,
+  hardenWebSession,
+} from './security';
 import { BrowserStore } from './store';
 import { type ContentInsets, TabManager } from './tabs';
 import { UpdateManager } from './updates';
@@ -83,6 +89,15 @@ export class Browser {
     hardenWebSession(webSession, this.securityDelegate());
     this.blocker.attach(webSession);
     this.downloads.attach(webSession);
+
+    // A Hush tab is a different session, so every guard has to be installed on
+    // it separately. Forgetting one would mean the tab that promises the most
+    // is the one running with the least protection — no permission handling,
+    // no tracker blocking, no certificate reporting.
+    const hushSession = getHushSession();
+    hardenWebSession(hushSession, this.securityDelegate());
+    this.blocker.attach(hushSession);
+    this.downloads.attach(hushSession);
 
     this.window = createChromeWindow();
     this.tabs = new TabManager(
@@ -343,6 +358,11 @@ export class Browser {
 
   newTab(url: string = START_PAGE_URL): void {
     this.tabs.create(url);
+    this.pushToChrome(PUSH.focusOmnibox);
+  }
+
+  newHushTab(): void {
+    this.tabs.create(START_PAGE_URL, { hush: true });
     this.pushToChrome(PUSH.focusOmnibox);
   }
 

@@ -35,6 +35,7 @@ export function buildApplicationMenu(browser: Browser): Menu {
     label: 'File',
     submenu: [
       { label: 'New tab', accelerator: 'CmdOrCtrl+T', click: () => browser.newTab() },
+      { label: 'New Hush tab', accelerator: 'CmdOrCtrl+Shift+N', click: () => browser.newHushTab() },
       {
         label: 'Reopen closed tab',
         accelerator: 'CmdOrCtrl+Shift+T',

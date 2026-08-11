@@ -161,7 +161,7 @@ export function Chrome() {
         <div inert={surface !== 'none'} className="contents">
           {!isRunningInShell() && <OutsideShellNotice />}
 
-          {isReady && activeTab?.isStartPage && <StartPage tabId={activeTab.id} />}
+          {isReady && activeTab?.isStartPage && <StartPage tabId={activeTab.id} isHush={activeTab.isHush} />}
           {isReady && activeTab?.error && <ErrorPage tabId={activeTab.id} error={activeTab.error} />}
         </div>
 

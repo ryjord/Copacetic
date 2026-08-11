@@ -2,6 +2,35 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.12 — 2026-08-11
+
+### Added
+
+- **Hush tabs.** `Cmd/Ctrl+Shift+N`, or New Hush tab in the menu. Your machine
+  forgets one entirely: no history, no cookies, no cache, no favicons, and
+  nothing written to disk at all — not even the list of tabs to reopen, and it
+  cannot be brought back with reopen-closed.
+- It says outright what it does not do. A Hush tab does not make you anonymous:
+  the sites you visit, your network, your employer and your internet provider
+  see exactly what they would see in any other tab. That sentence is the reason
+  this is worth shipping rather than the thing to bury — believing otherwise is
+  the best-known misunderstanding in any browser, and this one cannot repeat it.
+- Not called incognito or private, because both words promise more than any
+  browser delivers.
+- The tab is marked in the strip, since the whole value depends on knowing
+  which tab you are in.
+
+### Internal
+
+- A Hush tab runs in an in-memory session rather than a persisted one that gets
+  cleaned up afterwards: a mode that writes and then deletes is one crash away
+  from not having deleted. Verified in Electron — after a cookie and a flush,
+  the persistent partition had written 17 files and the Hush one none.
+- Every guard is installed on the Hush session separately. A separate session
+  means the tab promising the most would otherwise run with the least
+  protection: no permission handling, no tracker blocking, no certificate
+  reporting.
+
 ## 1.2.11 — 2026-08-11
 
 ### Fixed

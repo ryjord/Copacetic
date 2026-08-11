@@ -83,6 +83,12 @@ and your recent bookmarks — pick which of them appear and in what order, and
 put a wallpaper behind them. It is the one surface where colour is free,
 because nothing on it is reporting state.
 
+**Hush tabs.** `Cmd/Ctrl+Shift+N` opens a tab your machine forgets: no history,
+no cookies, no cache, no favicons, nothing written to disk. It is not called
+incognito or private, because it does not make you anonymous — the sites you
+visit and your network see you exactly as they otherwise would, and Copacetic
+says so in the tab rather than leaving you to assume otherwise.
+
 **Zoom it once.** Zooming a site is remembered for that site, so a page you
 need larger arrives larger every visit. Settings lists everywhere you changed
 it, with a reset each.

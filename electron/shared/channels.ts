@@ -8,6 +8,7 @@
 
 export const INVOKE = {
   tabCreate: 'tab:create',
+  tabCreateHush: 'tab:create-hush',
   tabClose: 'tab:close',
   tabActivate: 'tab:activate',
   tabMove: 'tab:move',

@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Volume2, VolumeX, X } from 'lucide-react';
+import { EyeOff, Plus, Volume2, VolumeX, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { TabState } from '../../../electron/shared/types';
 import { Favicon } from '@/components/ui/Favicon';
@@ -143,7 +143,13 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
           send((api) => api.tabs.activate(tab.id));
         }
       }}
-      title={tab.isStartPage ? 'New tab' : `${tab.title}\n${tab.url}`}
+      title={
+        tab.isHush
+          ? `Hush tab — not written to this machine\n${tab.isStartPage ? '' : tab.url}`
+          : tab.isStartPage
+            ? 'New tab'
+            : `${tab.title}\n${tab.url}`
+      }
     >
       {tab.isLoading ? (
         <span
@@ -154,6 +160,12 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
         <Favicon dataUrl={tab.faviconDataUrl} seed={tab.url} size={15} />
       )}
 
+      {/*
+        A Hush tab has to be obvious at a glance: the whole value depends on
+        knowing which tab you are in, and mistaking a normal tab for one is the
+        failure that matters.
+      */}
+      {tab.isHush && <EyeOff size={12} className="shrink-0 text-active" aria-label="Hush tab" />}
       <span className={cn('flex-1 truncate text-[12px]', isActive ? 'text-ink' : 'text-ink-dim')}>{title}</span>
 
       {tab.isAudible || tab.isMuted ? (
