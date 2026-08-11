@@ -17,6 +17,7 @@ const MAX_FAVICON_ENTRIES = 600;
 export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'duckduckgo',
   theme: 'deep',
+  density: 'comfortable',
   httpsFirst: true,
   blockTrackers: true,
   restoreTabsOnLaunch: true,
@@ -412,12 +413,14 @@ function reviveSettings(raw: unknown): Settings | null {
   }
   const engine = asString(raw.searchEngine, DEFAULT_SETTINGS.searchEngine);
   const theme = asString(raw.theme, DEFAULT_SETTINGS.theme);
+  const density = asString(raw.density, DEFAULT_SETTINGS.density);
 
   return normaliseSettings({
     searchEngine: engine in SEARCH_ENGINES ? (engine as Settings['searchEngine']) : DEFAULT_SETTINGS.searchEngine,
     theme: (['deep', 'slate', 'ember', 'moss'] as const).includes(theme as Settings['theme'])
       ? (theme as Settings['theme'])
       : DEFAULT_SETTINGS.theme,
+    density: density === 'compact' ? 'compact' : 'comfortable',
     httpsFirst: asBoolean(raw.httpsFirst, DEFAULT_SETTINGS.httpsFirst),
     blockTrackers: asBoolean(raw.blockTrackers, DEFAULT_SETTINGS.blockTrackers),
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),

@@ -10,6 +10,9 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   visit rather than needing setting again, and Settings lists everywhere you
   changed it with a reset each. A level put back to the default is forgotten
   rather than stored, so the list stays the sites you actually changed.
+- An interface density, comfortable or compact, in Settings. It changes sizing
+  only — the tab strip, the address bar and the header — because colour in this
+  interface means state, so a display option must never touch it.
 
 ### Fixed
 

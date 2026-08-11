@@ -228,11 +228,15 @@ export interface SearchEngine {
 
 export type ThemeId = 'deep' | 'slate' | 'ember' | 'moss';
 
+/** How much room the chrome takes. Only sizing — never colour. */
+export type DensityId = 'comfortable' | 'compact';
+
 export type ClearRange = 'hour' | 'day' | 'week' | 'all';
 
 export interface Settings {
   searchEngine: SearchEngineId;
   theme: ThemeId;
+  density: DensityId;
   /** Rewrite `http://` navigations to `https://` and fall back only on failure. */
   httpsFirst: boolean;
   blockTrackers: boolean;

@@ -107,7 +107,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
     <div
       ref={ref}
       className={cn(
-        'no-drag group relative flex h-[30px] min-w-[112px] max-w-[220px] shrink-0 items-center gap-2 rounded-tab px-2.5 transition-[background-color,opacity] duration-150',
+        'no-drag group relative flex h-[var(--chrome-tab-height)] min-w-[var(--chrome-tab-min-width)] max-w-[220px] shrink-0 items-center gap-2 rounded-tab px-2.5 transition-[background-color,opacity] duration-150',
         isActive ? 'bg-raised' : 'hover:bg-raised/55',
         isDragging && 'opacity-40',
         showDropBefore &&

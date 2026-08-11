@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   PERMISSION_LABELS,
   type AppInfo,
+  type DensityId,
   type PermissionKind,
   type Settings,
   type ThemeId,
@@ -15,6 +16,11 @@ import { ask, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { SurfaceShell } from './SurfaceShell';
+
+const DENSITIES: { id: DensityId; label: string }[] = [
+  { id: 'comfortable', label: 'Comfortable' },
+  { id: 'compact', label: 'Compact' },
+];
 
 const THEMES: { id: ThemeId; label: string }[] = [
   { id: 'deep', label: 'Deep' },
@@ -86,6 +92,31 @@ export function SettingsSurface() {
             is remembered for that site, so you only set it once.
           </p>
           <ZoomList levels={settings.zoomLevels} />
+        </Section>
+
+        <Section title="Interface">
+          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+            How much room the chrome takes. This changes sizing only — colour in this interface means state, so
+            nothing here touches it.
+          </p>
+          <div className="flex gap-2">
+            {DENSITIES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => update({ density: option.id })}
+                aria-pressed={settings.density === option.id}
+                className={cn(
+                  'flex-1 rounded-field border px-3 py-2 text-[12.5px] transition-colors',
+                  settings.density === option.id
+                    ? 'border-line-strong bg-hover text-ink'
+                    : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </Section>
 
         <Section title="Start page">
