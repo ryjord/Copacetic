@@ -9,6 +9,7 @@ import {
   isLoopbackHost,
   isNavigableUrl,
   originOf,
+  registrableDomainOf,
   resolveOmniboxInput,
 } from '../shared/url';
 import type { ContentBlocker } from './blocker';
@@ -653,6 +654,10 @@ export class TabManager {
     contents.on('did-start-navigation', (details) => {
       if (!details.isMainFrame) return;
       this.blocker.resetCount(contents.id);
+      // Set before any subresource request is judged, so an exception applies
+      // from the first request of the page rather than the second load.
+      const site = hostOf(details.url);
+      this.blocker.setPageSite(contents.id, registrableDomainOf(site) ?? site);
     });
 
     const commitNavigation = (url: string, isInPage: boolean) => {

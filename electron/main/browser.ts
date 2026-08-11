@@ -72,6 +72,7 @@ export class Browser {
   constructor() {
     this.store = new BrowserStore();
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
+    this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 
@@ -422,6 +423,7 @@ export class Browser {
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
     if (patch.blockTrackers !== undefined) this.blocker.setEnabled(patch.blockTrackers);
+    if (patch.blockerAllowlist !== undefined) this.blocker.setAllowlist(next.blockerAllowlist);
     if (patch.checkForUpdates !== undefined) this.updates.start(patch.checkForUpdates);
     this.scheduleStatePush();
     return next;

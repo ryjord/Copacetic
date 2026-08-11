@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   checkForUpdates: true,
   permissionDecisions: {},
   zoomLevels: {},
+  blockerAllowlist: [],
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };
@@ -452,6 +453,9 @@ function reviveSettings(raw: unknown): Settings | null {
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     permissionDecisions: decisions,
     zoomLevels: reviveZoomLevels(raw.zoomLevels),
+    blockerAllowlist: Array.isArray(raw.blockerAllowlist)
+      ? raw.blockerAllowlist.filter((site): site is string => typeof site === 'string' && site.length > 0)
+      : [],
     sidebarWidth: asNumber(raw.sidebarWidth, DEFAULT_SETTINGS.sidebarWidth),
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
   });

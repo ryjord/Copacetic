@@ -84,6 +84,7 @@ export function SettingsSurface() {
             checked={settings.blockTrackers}
             onChange={(blockTrackers) => update({ blockTrackers })}
           />
+          <AllowlistedSites sites={settings.blockerAllowlist} />
           <PermissionList decisions={settings.permissionDecisions} />
         </Section>
 
@@ -246,6 +247,33 @@ function ShortcutReference({ isMac }: { isMac: boolean }) {
           </dl>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Sites where the user turned blocking off, and a way back. */
+function AllowlistedSites({ sites }: { sites: string[] }) {
+  if (sites.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <h3 className="label mb-2">Trackers allowed on</h3>
+      <ul className="divide-y divide-line rounded-field border border-line">
+        {sites.map((site) => (
+          <li key={site} className="flex items-center gap-3 px-3 py-2">
+            <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{site}</span>
+            <button
+              type="button"
+              onClick={() =>
+                send((api) => api.settings.update({ blockerAllowlist: sites.filter((entry) => entry !== site) }))
+              }
+              className="shrink-0 rounded px-2 py-0.5 text-[11.5px] text-ink-faint transition-colors hover:bg-hover hover:text-ink"
+            >
+              Block again
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

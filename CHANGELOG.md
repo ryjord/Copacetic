@@ -2,6 +2,19 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.4 — unreleased
+
+### Added
+
+- Tracker blocking can be switched off for one site, from the connection panel
+  where the blocked count already is. Blocking occasionally breaks something
+  real — a login routed through an analytics domain, an embed that will not
+  load — and without a per-site answer the only fix was turning blocking off
+  everywhere, which is a far worse trade than the one anyone wanted to make.
+  Allowed sites are listed in Settings with a way back.
+- What was allowed through is still recorded, so the connection log stays
+  honest about a site you chose not to block on.
+
 ## 1.2.3 — 2026-08-11
 
 Customisation, keyboard access, and two places the interface was quietly

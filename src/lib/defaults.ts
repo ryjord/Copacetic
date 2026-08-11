@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   checkForUpdates: true,
   permissionDecisions: {},
   zoomLevels: {},
+  blockerAllowlist: [],
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };

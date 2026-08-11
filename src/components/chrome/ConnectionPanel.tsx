@@ -10,7 +10,7 @@ import {
   type SecurityLevel,
   type TabState,
 } from '../../../electron/shared/types';
-import { originOf } from '../../../electron/shared/url';
+import { hostOf, originOf, registrableDomainOf } from '../../../electron/shared/url';
 import { IconButton } from '@/components/ui/IconButton';
 import { ask, send } from '@/lib/bridge';
 import { useDismissLayer } from '@/lib/dismissLayer';
@@ -86,11 +86,60 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
           briefly showing one tab's hosts under another tab's heading. Cheaper
           to reason about than resetting state on a change.
         */}
+        <TrackerException url={tab.url} blockedCount={tab.blockedCount} />
+
         <SitePermissions url={tab.url} />
 
         <ConnectionLog key={tab.id} tabId={tab.id} />
       </div>
     </section>
+  );
+}
+
+/**
+ * Turning blocking off for one site rather than everywhere.
+ *
+ * Blocking a tracker occasionally breaks something real — a login routed
+ * through an analytics domain, an embed that will not load. Without a per-site
+ * answer the only fix is switching blocking off globally, which is a much
+ * worse trade than the one the user actually wanted to make.
+ */
+function TrackerException({ url, blockedCount }: { url: string; blockedCount: number }) {
+  const settings = useBrowserStore((state) => state.settings);
+  const site = registrableDomainOf(hostOf(url));
+  if (!site || !settings.blockTrackers) return null;
+
+  const allowed = settings.blockerAllowlist.includes(site);
+  const toggle = () => {
+    const next = allowed
+      ? settings.blockerAllowlist.filter((entry) => entry !== site)
+      : [...settings.blockerAllowlist, site];
+    send((api) => api.settings.update({ blockerAllowlist: next }));
+  };
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line pt-3">
+      <p className="min-w-0 flex-1 text-[12px] text-ink-dim">
+        {allowed ? (
+          <>
+            Trackers are <span className="text-caution">allowed</span> on{' '}
+            <span className="font-mono text-ink">{site}</span>.
+          </>
+        ) : (
+          <>
+            Trackers are blocked on <span className="font-mono text-ink">{site}</span>
+            {blockedCount > 0 && <span className="text-ink-faint"> — {blockedCount} stopped on this page</span>}.
+          </>
+        )}
+      </p>
+      <button
+        type="button"
+        onClick={toggle}
+        className="shrink-0 rounded-field border border-line px-2.5 py-1 text-[11.5px] text-ink-dim transition-colors hover:bg-hover hover:text-ink"
+      >
+        {allowed ? 'Block again' : 'Allow on this site'}
+      </button>
+    </div>
   );
 }
 
