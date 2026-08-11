@@ -2,6 +2,22 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.7 — 2026-08-11
+
+### Added
+
+- `sudo apt install copacetic` works on a machine that has never seen it. The
+  signing key and a ready-made source file are published alongside the
+  repository, so adding it is two commands and installing is the third. The
+  fingerprint is published too, because fetching a key over the network and
+  trusting it without checking is not something to recommend.
+
+### Changed
+
+- Settings says the package manager handles updates on a `.deb`, which is now
+  true: the package registers the signed repository and `apt upgrade` carries
+  new versions.
+
 ## 1.2.6 — 2026-08-11
 
 ### Added
