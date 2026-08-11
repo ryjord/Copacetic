@@ -2,6 +2,23 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.9 — 2026-08-11
+
+### Accessibility
+
+- A surface keeps the keyboard inside it. Panels cover the page but the page
+  kept its place in the tab order, so Tab walked out of the open panel into
+  controls nobody could see — nothing looked wrong, focus simply vanished. The
+  page behind is now inert as well, and focus returns where it came from when
+  the panel closes.
+- The address bar announces itself as a combobox with a list attached, and says
+  which suggestion the arrow keys are on. The suggestions were invisible to a
+  screen reader before, which made the arrow keys seem broken rather than
+  absent.
+- A live region reports what happens away from the keyboard: a page starting
+  and finishing loading, a site asking for permission, a download completing.
+  Politely, so it waits for a gap rather than interrupting.
+
 ## 1.2.8 — 2026-08-11
 
 ### Performance
