@@ -2,6 +2,24 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.10 — 2026-08-11
+
+### Internal
+
+- The security model has tests. Permission resolution, the synchronous check
+  that must never prompt, the outright refusal of device access, popups being
+  turned into tabs, the navigation guard, the webview refusal and the chrome
+  document's own guards were all untested — the parts most expensive to get
+  wrong, and the ones where a regression fails open rather than loudly. The
+  code's own comment called the sender check "the belt"; the belt had nothing
+  holding it.
+- `persistence.ts` has tests: the fallback when a file is missing, the
+  quarantine that moves a malformed file aside instead of overwriting it, the
+  atomic write leaving no temporary file behind, and the debounce that keeps a
+  file off the disk until it settles or the app quits.
+- Both were checked by breaking them: making the device handler allow, and
+  letting a page navigate anywhere, each fail the suite.
+
 ## 1.2.9 — 2026-08-11
 
 ### Accessibility
