@@ -2,6 +2,34 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.13 — 2026-08-11
+
+### Fixed
+
+- **Automatic updates never worked.** On Windows and the Linux AppImage the
+  updater was loaded with `const { autoUpdater } = await import(...)`, and
+  because `electron-updater` is CommonJS with exports that cannot be detected
+  statically, that gave `undefined`. The first property set on it threw, inside
+  the try/catch around the check, so it surfaced as an error message rather
+  than a crash — and updates did nothing at all from 1.1.0 until now. Every
+  test passed because they covered which platform gets which behaviour rather
+  than the updater itself.
+
+### Changed
+
+- Electron 41 to 43, which brings Chromium 142 to 150. Chromium currency is a
+  security property in a browser: every fix that lands upstream stays
+  exploitable here until this moves. Checked by re-running the live proofs on
+  the new version — bad certificates still refused, the Hush partition still
+  writes nothing, HTTP authentication still reaches its handler.
+- Dependabot raises a weekly pull request for dependencies and a monthly one
+  for actions, with Electron and the framework packages kept out of the grouped
+  batch so they are read rather than skimmed.
+- CI reports known vulnerabilities as a warning rather than a failure, and
+  keeps the packaged tree when packaging fails — a platform-specific packaging
+  failure otherwise needs that platform to reproduce, which for two of the
+  three is not something anyone here has.
+
 ## 1.2.12 — 2026-08-11
 
 ### Added

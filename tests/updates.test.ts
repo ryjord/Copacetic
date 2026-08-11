@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 // decision under test touches none of them.
 vi.mock('electron', () => ({ app: { isPackaged: false, getVersion: () => '1.1.0' }, net: {}, shell: {} }));
 
-const { describeDelivery } = await import('../electron/main/updates');
+const { describeDelivery, pickAutoUpdater } = await import('../electron/main/updates');
 
 const on = (platform: NodeJS.Platform, extra: { isPackaged?: boolean; isAppImage?: boolean } = {}) =>
   describeDelivery({ platform, isPackaged: true, isAppImage: false, ...extra });
@@ -58,4 +58,39 @@ describe('describeDelivery', () => {
     expect(describeDelivery({ platform: 'linux', isPackaged: true, isAppImage: false }).delivery).toBe('system');
     expect(describeDelivery({ platform: 'win32', isPackaged: true, isAppImage: true }).delivery).toBe('automatic');
   });
+});
+
+/**
+ * Automatic updates did nothing at all from 1.1.0 until this was found.
+ * `electron-updater` is CommonJS, destructuring its namespace gave undefined,
+ * and the first property set on it threw inside the try/catch around the
+ * check — so it surfaced as a message rather than a crash, and every test
+ * passed because they all covered the platform decision instead of the
+ * updater itself.
+ */
+describe('loading the updater', () => {
+  const usable = { autoDownload: false, quitAndInstall() {}, checkForUpdates: async () => ({}) };
+
+  it('finds it on the namespace', () => {
+    expect(pickAutoUpdater({ autoUpdater: usable })).toBe(usable);
+  });
+
+  // The shape that actually applies to electron-updater today.
+  it('finds it on the default export', () => {
+    expect(pickAutoUpdater({ default: { autoUpdater: usable } })).toBe(usable);
+  });
+
+  it('prefers the namespace when both are present', () => {
+    const other = { ...usable };
+    expect(pickAutoUpdater({ autoUpdater: usable, default: { autoUpdater: other } })).toBe(usable);
+  });
+
+  // Throwing is right: it is caught and reported as an update error, which is
+  // true, rather than silently doing nothing.
+  it.each([{}, { default: {} }, { autoUpdater: null }, { autoUpdater: 'nope' }])(
+    'refuses %o rather than handing back something unusable',
+    (shape) => {
+      expect(() => pickAutoUpdater(shape)).toThrow();
+    },
+  );
 });

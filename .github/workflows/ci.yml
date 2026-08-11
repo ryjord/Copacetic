@@ -34,6 +34,12 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
 
+      # Advisory rather than blocking: a new advisory against a transitive
+      # dependency should be visible on the next run, not something that stops
+      # unrelated work until someone triages it.
+      - name: Known vulnerabilities
+        run: npm audit --audit-level=high || echo "::warning::npm audit reported findings above high"
+
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -54,3 +60,15 @@ jobs:
 
       - name: Check the packaged tree assembles
         run: npx electron-builder --dir --publish never
+
+      # Without this a platform-specific packaging failure can only be
+      # reproduced by building locally on that platform, which for two of the
+      # three is not something anyone here can do.
+      - name: Keep the packaged tree for inspection
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-${{ matrix.os }}
+          path: release/**/*
+          retention-days: 5
+          if-no-files-found: ignore

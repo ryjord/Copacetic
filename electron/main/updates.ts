@@ -158,7 +158,7 @@ export class UpdateManager {
   }
 
   private async checkViaUpdater(): Promise<void> {
-    const { autoUpdater } = await import('electron-updater');
+    const autoUpdater = await loadAutoUpdater();
     autoUpdater.autoDownload = true;
     // The app applies it on quit rather than restarting underneath someone.
     autoUpdater.autoInstallOnAppQuit = true;
@@ -183,7 +183,7 @@ export class UpdateManager {
   /** Restart into the downloaded update. Only ever reachable when one is ready. */
   async install(): Promise<void> {
     if (this.status.state !== 'ready' || this.delivery !== 'automatic') return;
-    const { autoUpdater } = await import('electron-updater');
+    const autoUpdater = await loadAutoUpdater();
     autoUpdater.quitAndInstall();
   }
 
@@ -196,6 +196,43 @@ export class UpdateManager {
     this.status = status;
     this.onChanged();
   }
+}
+
+/**
+ * The updater, from whichever shape the import gives back.
+ *
+ * `electron-updater` is CommonJS, and destructuring the namespace of a CJS
+ * module is only reliable when the exports can be detected statically — these
+ * cannot, so `autoUpdater` came back undefined and the first property set on
+ * it threw. That failed inside the try/catch around the check, so it surfaced
+ * as an error message rather than a crash, and automatic updates did nothing
+ * at all from 1.1.0 until this was found.
+ *
+ * Both shapes are handled rather than picking the one that happens to work
+ * today, because which one applies depends on the bundler and the module
+ * detection, and neither is guaranteed to stay put.
+ */
+export function pickAutoUpdater(imported: unknown): AutoUpdaterLike {
+  const namespace = imported as { autoUpdater?: unknown; default?: { autoUpdater?: unknown } };
+  const updater = namespace.autoUpdater ?? namespace.default?.autoUpdater;
+  if (!updater || typeof updater !== 'object') {
+    throw new Error('The updater could not be loaded.');
+  }
+  return updater as AutoUpdaterLike;
+}
+
+/** Only the parts of the updater this file touches. */
+export interface AutoUpdaterLike {
+  autoDownload: boolean;
+  autoInstallOnAppQuit: boolean;
+  removeAllListeners(): void;
+  on(event: string, listener: (...args: never[]) => void): unknown;
+  checkForUpdates(): Promise<unknown>;
+  quitAndInstall(): void;
+}
+
+async function loadAutoUpdater(): Promise<AutoUpdaterLike> {
+  return pickAutoUpdater(await import('electron-updater'));
 }
 
 function stripV(value: string): string {
