@@ -13,6 +13,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 import { AuthBanner } from './AuthBanner';
 import { ConnectionPanel } from './ConnectionPanel';
 import { FindBar } from './FindBar';
+import { LiveAnnouncer } from './LiveAnnouncer';
 import { PermissionBanner } from './PermissionBanner';
 import { TabStrip } from './TabStrip';
 import { Toolbar } from './Toolbar';
@@ -149,11 +150,20 @@ export function Chrome() {
       {find.isOpen && <FindBar find={find} />}
       {prompt && <PermissionBanner prompt={prompt} />}
 
-      <main ref={contentRef} className="relative min-h-0 flex-1 bg-void">
-        {!isRunningInShell() && <OutsideShellNotice />}
+      <LiveAnnouncer />
 
-        {isReady && activeTab?.isStartPage && <StartPage tabId={activeTab.id} />}
-        {isReady && activeTab?.error && <ErrorPage tabId={activeTab.id} error={activeTab.error} />}
+      <main ref={contentRef} className="relative min-h-0 flex-1 bg-void">
+        {/*
+          Hidden behind a surface, so it must leave the tab order too. Without
+          this, Tab walks out of the open panel and into controls nobody can
+          see — nothing looks wrong, focus simply vanishes.
+        */}
+        <div inert={surface !== 'none'} className="contents">
+          {!isRunningInShell() && <OutsideShellNotice />}
+
+          {isReady && activeTab?.isStartPage && <StartPage tabId={activeTab.id} />}
+          {isReady && activeTab?.error && <ErrorPage tabId={activeTab.id} error={activeTab.error} />}
+        </div>
 
         {surface === 'settings' && <SettingsSurface />}
         {surface === 'history' && <HistorySurface />}

@@ -171,6 +171,15 @@ export function Omnibox({ tab }: OmniboxProps) {
             autoComplete="off"
             autoCorrect="off"
             aria-label="Address and search"
+            // Announced as what it is: a text field with a list attached, and
+            // a way to say which item the arrow keys are currently on. Without
+            // this the suggestions are invisible to a screen reader, which
+            // makes the arrow keys look broken rather than absent.
+            role="combobox"
+            aria-expanded={visibleSuggestions.length > 0}
+            aria-controls="omnibox-suggestions"
+            aria-autocomplete="list"
+            aria-activedescendant={visibleSuggestions.length > 0 ? `omnibox-suggestion-${highlighted}` : undefined}
             placeholder={`Search with ${engineName}, or type an address`}
             className="h-full w-full bg-transparent font-mono text-[12px] tracking-tight text-ink outline-none placeholder:font-sans placeholder:tracking-normal placeholder:text-ink-faint"
             onChange={(event) => setDraft(event.target.value)}
@@ -260,13 +269,15 @@ function SuggestionList({
       // typed — see the note where `reservedRows` is derived.
       className="animate-fade mt-1.5 overflow-hidden rounded-panel border border-line bg-raised shadow-[0_18px_40px_-12px_rgb(0_0_0/0.75)]"
       style={{ minHeight: reservedRows * SUGGESTION_ROW_PX }}
+      id="omnibox-suggestions"
       role="listbox"
+      aria-label="Suggestions"
     >
       {suggestions.map((suggestion, index) => {
         const Icon = SUGGESTION_ICONS[suggestion.kind];
         const isActive = index === highlighted;
         return (
-          <li key={suggestion.id} role="option" aria-selected={isActive}>
+          <li key={suggestion.id} id={`omnibox-suggestion-${index}`} role="option" aria-selected={isActive}>
             <button
               type="button"
               onMouseEnter={() => onHover(index)}
