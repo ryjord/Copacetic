@@ -2,6 +2,27 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.8 — 2026-08-11
+
+### Performance
+
+- A state push no longer re-renders the whole interface. The main process sends
+  the entire browser state on every change, freshly deserialised, so every part
+  of it was a new object even when nothing about it differed — and selectors
+  compare by reference. One download's byte counter was re-rendering every tab,
+  the settings panel and the connection panel, several times a second, on the
+  thread that also handles typing. Each slice is now compared with the one it
+  replaces and keeps its reference when they match, per tab as well as per
+  slice, so one tab finishing loading re-renders one tab.
+- Download progress is reported on the speed-sample interval rather than every
+  time Chromium fires an event. The sample was already throttled; the state
+  push it triggered was not. A status change — pausing, resuming, an
+  interruption — is still reported instantly, because that should never look
+  like it did nothing.
+- The bookmarks surface draws 200 rows at a time and says how many it is
+  showing. It was the one list in the interface with no ceiling: history is
+  paged and downloads are capped, but bookmarks only ever grow.
+
 ## 1.2.7 — 2026-08-11
 
 ### Added
