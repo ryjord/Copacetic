@@ -197,12 +197,27 @@ function asClearRange(value: unknown): ClearRange {
 }
 
 /** Only keys the settings schema actually declares survive the trip. */
-function asSettingsPatch(value: unknown): Partial<Settings> {
+/**
+ * Everything the renderer is allowed to change, checked one field at a time.
+ *
+ * A whitelist is right — the renderer must not write arbitrary keys into
+ * settings — but one that silently drops what it does not recognise fails in
+ * the worst way: the control moves, nothing happens, and it looks like it
+ * worked. Four features shipped broken exactly that way, so a test asserts
+ * this covers every field of `Settings` bar the ones below.
+ *
+ * `hasWallpaper` is deliberately refused: it is derived from whether the file
+ * exists, so accepting it would let the interface claim a wallpaper that is
+ * not there.
+ */
+export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (!isRecord(value)) return {};
   const patch: Partial<Settings> = {};
 
   if (typeof value.searchEngine === 'string') patch.searchEngine = value.searchEngine as Settings['searchEngine'];
   if (typeof value.theme === 'string') patch.theme = value.theme as Settings['theme'];
+  if (value.density === 'comfortable' || value.density === 'compact') patch.density = value.density;
+  if (typeof value.checkForUpdates === 'boolean') patch.checkForUpdates = value.checkForUpdates;
   if (typeof value.httpsFirst === 'boolean') patch.httpsFirst = value.httpsFirst;
   if (typeof value.blockTrackers === 'boolean') patch.blockTrackers = value.blockTrackers;
   if (typeof value.restoreTabsOnLaunch === 'boolean') patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
@@ -211,5 +226,30 @@ function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.sidebarWidth === 'number') patch.sidebarWidth = value.sidebarWidth;
   if (typeof value.defaultZoomFactor === 'number') patch.defaultZoomFactor = value.defaultZoomFactor;
 
+  if (isRecord(value.permissionDecisions)) {
+    const decisions: Settings['permissionDecisions'] = {};
+    for (const [key, decision] of Object.entries(value.permissionDecisions)) {
+      if (decision === 'allow' || decision === 'deny') decisions[key] = decision;
+    }
+    patch.permissionDecisions = decisions;
+  }
+
+  if (isRecord(value.zoomLevels)) {
+    const levels: Settings['zoomLevels'] = {};
+    for (const [origin, level] of Object.entries(value.zoomLevels)) {
+      if (typeof level === 'number' && Number.isFinite(level)) levels[origin] = level;
+    }
+    patch.zoomLevels = levels;
+  }
+
+  if (Array.isArray(value.blockerAllowlist)) {
+    patch.blockerAllowlist = value.blockerAllowlist.filter(
+      (site): site is string => typeof site === 'string' && site.length > 0,
+    );
+  }
+
   return patch;
 }
+
+/** Refused on purpose, so the coverage test has something to check against. */
+export const SETTINGS_NOT_PATCHABLE: readonly string[] = ['hasWallpaper'];

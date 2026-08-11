@@ -2,10 +2,37 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.2.4 — unreleased
+## 1.2.5 — unreleased
+
+Released as one version rather than two: 1.2.4 went out only as a prerelease,
+and the settings fix below is what makes its tracker allowlist work at all.
+
+### Fixed
+
+- Several settings did nothing. The IPC handler validates an incoming settings
+  patch against a whitelist, which is right, but it silently dropped any field
+  not on it — so the control moved, the change was discarded, and it looked
+  like it had worked. Compact density, the update-check toggle, the tracker
+  allowlist and resetting a site's zoom were all affected. The update-check
+  toggle had been inert since 1.1.0.
+- A test now asserts the whitelist covers every field of `Settings` except the
+  ones deliberately refused, so a setting added without being made changeable
+  fails the build rather than shipping as a control that does nothing.
 
 ### Added
 
+- Settings is grouped into sections behind a rail — Appearance, Search,
+  Privacy, Behaviour, Your data, Keyboard, Updates and About — rather than one
+  page that grew every release. One pane shows at a time, so looking for one
+  thing means reading one pane.
+- An About section that answers what people actually ask: whether Copacetic
+  tracks you, whether it phones home, what the address bar sends, where your
+  data is, why a site might look broken, why Netflix will not play, why there
+  are no extensions, and whether passwords are stored.
+- A plain disclaimer in the same place: Chromium does the rendering and the
+  certificate validation, the project has not been security audited, the builds
+  are not code-signed, and there is no warranty. All of it was already true and
+  already written in the README — this puts it where someone might read it.
 - Tracker blocking can be switched off for one site, from the connection panel
   where the blocked count already is. Blocking occasionally breaks something
   real — a login routed through an analytics domain, an embed that will not

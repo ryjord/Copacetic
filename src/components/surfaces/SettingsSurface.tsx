@@ -23,6 +23,30 @@ const DENSITIES: { id: DensityId; label: string }[] = [
   { id: 'compact', label: 'Compact' },
 ];
 
+/**
+ * Settings used to be one long scroll. Grouping it means a person looking for
+ * one thing reads one pane rather than everything, and it leaves room for the
+ * sections that answer questions rather than change behaviour.
+ */
+type PaneId = 'appearance' | 'search' | 'privacy' | 'behaviour' | 'data' | 'keyboard' | 'updates' | 'about';
+
+const PANES: { id: PaneId; label: string }[] = [
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'search', label: 'Search' },
+  { id: 'privacy', label: 'Privacy' },
+  { id: 'behaviour', label: 'Behaviour' },
+  { id: 'data', label: 'Your data' },
+  { id: 'keyboard', label: 'Keyboard' },
+  { id: 'updates', label: 'Updates' },
+  { id: 'about', label: 'About' },
+];
+
+/** Renders its children only when its pane is the one being shown. */
+function PaneGroup({ id, active, children }: { id: PaneId; active: PaneId; children: React.ReactNode }) {
+  if (id !== active) return null;
+  return <div>{children}</div>;
+}
+
 const THEMES: { id: ThemeId; label: string }[] = [
   { id: 'deep', label: 'Deep' },
   { id: 'slate', label: 'Slate' },
@@ -40,187 +64,228 @@ export function SettingsSurface() {
 
   const update = (patch: Partial<Settings>) => send((api) => api.settings.update(patch));
 
+  const [pane, setPane] = useState<PaneId>('appearance');
+
   return (
     <SurfaceShell title="Settings" subtitle="Everything here is stored on this machine only.">
-      <div className="mx-auto w-full max-w-2xl px-6 py-6">
-        <Section title="Search">
-          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
-            Typing something that is not an address sends it here. Copacetic never contacts a search engine for
-            suggestions as you type — the list under the address bar comes from your own history.
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {SEARCH_ENGINE_OPTIONS.map((engine) => (
-              <button
-                key={engine.id}
-                type="button"
-                onClick={() => update({ searchEngine: engine.id })}
-                className={cn(
-                  'rounded-field border px-3 py-2 text-left text-[12.5px] transition-colors',
-                  settings.searchEngine === engine.id
-                    ? 'border-line-strong bg-hover text-ink'
-                    : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
-                )}
-              >
-                {engine.name}
-              </button>
+      <div className="mx-auto flex w-full max-w-4xl gap-6 px-6 py-6">
+        <nav aria-label="Settings sections" className="w-40 shrink-0">
+          <ul className="sticky top-0 flex flex-col gap-0.5">
+            {PANES.map((option) => (
+              <li key={option.id}>
+                <button
+                  type="button"
+                  onClick={() => setPane(option.id)}
+                  aria-current={pane === option.id ? 'page' : undefined}
+                  className={cn(
+                    'w-full rounded-field px-2.5 py-1.5 text-left text-[12.5px] transition-colors',
+                    pane === option.id ? 'bg-hover text-ink' : 'text-ink-dim hover:bg-raised hover:text-ink',
+                  )}
+                >
+                  {option.label}
+                </button>
+              </li>
             ))}
-          </div>
-        </Section>
+          </ul>
+        </nav>
 
-        <Section title="Privacy">
-          <Toggle
-            label="Upgrade addresses to HTTPS"
-            description="Type example.com and Copacetic tries the encrypted version first. Loopback addresses are left alone."
-            checked={settings.httpsFirst}
-            onChange={(httpsFirst) => update({ httpsFirst })}
-          />
-          <Toggle
-            label="Block known trackers"
-            description={
-              info
-                ? `Blocks requests to ${info.blockerRuleCount} domains that exist only to follow you between sites. The count in the address bar is the real number blocked on the current page.`
-                : 'Blocks requests to domains that exist only to follow you between sites.'
-            }
-            checked={settings.blockTrackers}
-            onChange={(blockTrackers) => update({ blockTrackers })}
-          />
-          <AllowlistedSites sites={settings.blockerAllowlist} />
-          <PermissionList decisions={settings.permissionDecisions} />
-        </Section>
+        <div className="min-w-0 flex-1">
+          <PaneGroup id="search" active={pane}>
+            <Section title="Search">
+              <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+                Typing something that is not an address sends it here. Copacetic never contacts a search engine for
+                suggestions as you type — the list under the address bar comes from your own history.
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {SEARCH_ENGINE_OPTIONS.map((engine) => (
+                  <button
+                    key={engine.id}
+                    type="button"
+                    onClick={() => update({ searchEngine: engine.id })}
+                    className={cn(
+                      'rounded-field border px-3 py-2 text-left text-[12.5px] transition-colors',
+                      settings.searchEngine === engine.id
+                        ? 'border-line-strong bg-hover text-ink'
+                        : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
+                    )}
+                  >
+                    {engine.name}
+                  </button>
+                ))}
+              </div>
+            </Section>
+          </PaneGroup>
 
-        <Section title="Zoom">
-          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
-            Zooming a site with <span className="font-mono">Cmd/Ctrl +</span> and <span className="font-mono">-</span>{' '}
-            is remembered for that site, so you only set it once.
-          </p>
-          <ZoomList levels={settings.zoomLevels} />
-        </Section>
+          <PaneGroup id="privacy" active={pane}>
+            <Section title="Privacy">
+              <Toggle
+                label="Upgrade addresses to HTTPS"
+                description="Type example.com and Copacetic tries the encrypted version first. Loopback addresses are left alone."
+                checked={settings.httpsFirst}
+                onChange={(httpsFirst) => update({ httpsFirst })}
+              />
+              <Toggle
+                label="Block known trackers"
+                description={
+                  info
+                    ? `Blocks requests to ${info.blockerRuleCount} domains that exist only to follow you between sites. The count in the address bar is the real number blocked on the current page.`
+                    : 'Blocks requests to domains that exist only to follow you between sites.'
+                }
+                checked={settings.blockTrackers}
+                onChange={(blockTrackers) => update({ blockTrackers })}
+              />
+              <AllowlistedSites sites={settings.blockerAllowlist} />
+              <PermissionList decisions={settings.permissionDecisions} />
+            </Section>
 
-        <Section title="Interface">
-          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
-            How much room the chrome takes. This changes sizing only — colour in this interface means state, so
-            nothing here touches it.
-          </p>
-          <div className="flex gap-2">
-            {DENSITIES.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => update({ density: option.id })}
-                aria-pressed={settings.density === option.id}
-                className={cn(
-                  'flex-1 rounded-field border px-3 py-2 text-[12.5px] transition-colors',
-                  settings.density === option.id
-                    ? 'border-line-strong bg-hover text-ink'
-                    : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </Section>
+            <Section title="Zoom">
+              <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+                Zooming a site with <span className="font-mono">Cmd/Ctrl +</span> and{' '}
+                <span className="font-mono">-</span> is remembered for that site, so you only set it once.
+              </p>
+              <ZoomList levels={settings.zoomLevels} />
+            </Section>
+          </PaneGroup>
 
-        <Section title="Start page">
-          <div className="mb-3 flex gap-2">
-            {THEMES.map((theme) => (
-              <button
-                key={theme.id}
-                type="button"
-                onClick={() => update({ theme: theme.id })}
-                aria-pressed={settings.theme === theme.id}
-                className={cn(
-                  'flex-1 rounded-field border px-3 py-2 text-[12.5px] transition-colors',
-                  settings.theme === theme.id
-                    ? 'border-line-strong bg-hover text-ink'
-                    : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
-                )}
-              >
-                {theme.label}
-              </button>
-            ))}
-          </div>
-          <p className="mb-1 text-[12px] leading-relaxed text-ink-faint">
-            The atmosphere only tints the start page. The rest of the interface stays monochrome so colour always
-            means the same thing.
-          </p>
-          <WallpaperControl hasWallpaper={settings.hasWallpaper} />
-          <Toggle
-            label="Show the clock"
-            checked={settings.showStartPageClock}
-            onChange={(showStartPageClock) => update({ showStartPageClock })}
-          />
-          <Toggle
-            label="Show most-visited sites"
-            description="Ranked from how often you actually visit them."
-            checked={settings.showTopSites}
-            onChange={(showTopSites) => update({ showTopSites })}
-          />
-        </Section>
+          <PaneGroup id="appearance" active={pane}>
+            <Section title="Interface">
+              <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+                How much room the chrome takes. This changes sizing only — colour in this interface means state, so
+                nothing here touches it.
+              </p>
+              <div className="flex gap-2">
+                {DENSITIES.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => update({ density: option.id })}
+                    aria-pressed={settings.density === option.id}
+                    className={cn(
+                      'flex-1 rounded-field border px-3 py-2 text-[12.5px] transition-colors',
+                      settings.density === option.id
+                        ? 'border-line-strong bg-hover text-ink'
+                        : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </Section>
 
-        <Section title="On launch">
-          <Toggle
-            label="Reopen the tabs I had open"
-            checked={settings.restoreTabsOnLaunch}
-            onChange={(restoreTabsOnLaunch) => update({ restoreTabsOnLaunch })}
-          />
-        </Section>
+            <Section title="Start page">
+              <div className="mb-3 flex gap-2">
+                {THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => update({ theme: theme.id })}
+                    aria-pressed={settings.theme === theme.id}
+                    className={cn(
+                      'flex-1 rounded-field border px-3 py-2 text-[12.5px] transition-colors',
+                      settings.theme === theme.id
+                        ? 'border-line-strong bg-hover text-ink'
+                        : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
+                    )}
+                  >
+                    {theme.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mb-1 text-[12px] leading-relaxed text-ink-faint">
+                The atmosphere only tints the start page. The rest of the interface stays monochrome so colour always
+                means the same thing.
+              </p>
+              <WallpaperControl hasWallpaper={settings.hasWallpaper} />
+              <Toggle
+                label="Show the clock"
+                checked={settings.showStartPageClock}
+                onChange={(showStartPageClock) => update({ showStartPageClock })}
+              />
+              <Toggle
+                label="Show most-visited sites"
+                description="Ranked from how often you actually visit them."
+                checked={settings.showTopSites}
+                onChange={(showTopSites) => update({ showTopSites })}
+              />
+            </Section>
+          </PaneGroup>
 
-        <Section title="Browsing data">
-          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
-            History older than 90 days is dropped automatically. Clearing everything also empties cookies, site
-            storage and the cache.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { range: 'hour', label: 'Last hour' },
-                { range: 'day', label: 'Last 24 hours' },
-                { range: 'week', label: 'Last 7 days' },
-                { range: 'all', label: 'Everything' },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.range}
-                type="button"
-                onClick={() => send((api) => api.history.clear(option.range))}
-                className={cn(
-                  'rounded-field border border-line px-3 py-1.5 text-[12.5px] transition-colors hover:bg-raised',
-                  option.range === 'all' ? 'text-alert hover:border-alert/40' : 'text-ink-dim hover:text-ink',
-                )}
-              >
-                Clear {option.label.toLowerCase()}
-              </button>
-            ))}
-          </div>
-        </Section>
+          <PaneGroup id="behaviour" active={pane}>
+            <Section title="On launch">
+              <Toggle
+                label="Reopen the tabs I had open"
+                checked={settings.restoreTabsOnLaunch}
+                onChange={(restoreTabsOnLaunch) => update({ restoreTabsOnLaunch })}
+              />
+            </Section>
+          </PaneGroup>
 
-        <Section title="Your data">
-          <ExportPanel />
-        </Section>
+          <PaneGroup id="data" active={pane}>
+            <Section title="Browsing data">
+              <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+                History older than 90 days is dropped automatically. Clearing everything also empties cookies, site
+                storage and the cache.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { range: 'hour', label: 'Last hour' },
+                    { range: 'day', label: 'Last 24 hours' },
+                    { range: 'week', label: 'Last 7 days' },
+                    { range: 'all', label: 'Everything' },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.range}
+                    type="button"
+                    onClick={() => send((api) => api.history.clear(option.range))}
+                    className={cn(
+                      'rounded-field border border-line px-3 py-1.5 text-[12.5px] transition-colors hover:bg-raised',
+                      option.range === 'all' ? 'text-alert hover:border-alert/40' : 'text-ink-dim hover:text-ink',
+                    )}
+                  >
+                    Clear {option.label.toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </Section>
 
-        <Section title="Keyboard">
-          <ShortcutReference isMac={info?.platform === 'darwin'} />
-        </Section>
+            <Section title="Your data">
+              <ExportPanel />
+            </Section>
+          </PaneGroup>
 
-        <Section title="Updates">
-          <UpdatePanel />
-        </Section>
+          <PaneGroup id="keyboard" active={pane}>
+            <Section title="Keyboard">
+              <ShortcutReference isMac={info?.platform === 'darwin'} />
+            </Section>
+          </PaneGroup>
 
-        {info && (
-          <Section title="About">
-            <dl className="space-y-1.5 font-mono text-[11.5px]">
-              <InfoRow label="Copacetic" value={info.version} />
-              <InfoRow label="Electron" value={info.electronVersion} />
-              <InfoRow label="Chromium" value={info.chromeVersion} />
-              <InfoRow label="Platform" value={info.platform} />
-            </dl>
-            <p className="mt-4 text-[12px] leading-relaxed text-ink-faint">
-              Copacetic renders pages with Chromium. It is a browser interface, not a browser engine — the rendering,
-              networking and sandboxing are Chromium&apos;s.
-            </p>
-          </Section>
-        )}
+          <PaneGroup id="updates" active={pane}>
+            <Section title="Updates">
+              <UpdatePanel />
+            </Section>
+          </PaneGroup>
+
+          <PaneGroup id="about" active={pane}>
+            {info && (
+              <Section title="About">
+                <dl className="space-y-1.5 font-mono text-[11.5px]">
+                  <InfoRow label="Copacetic" value={info.version} />
+                  <InfoRow label="Electron" value={info.electronVersion} />
+                  <InfoRow label="Chromium" value={info.chromeVersion} />
+                  <InfoRow label="Platform" value={info.platform} />
+                </dl>
+                <p className="mt-4 text-[12px] leading-relaxed text-ink-faint">
+                  Copacetic renders pages with Chromium. It is a browser interface, not a browser engine — the
+                  rendering, networking and sandboxing are Chromium&apos;s.
+                </p>
+              </Section>
+            )}
+            <FaqAndPrivacy />
+          </PaneGroup>
+        </div>
       </div>
     </SurfaceShell>
   );
@@ -318,6 +383,98 @@ function WallpaperControl({ hasWallpaper }: { hasWallpaper: boolean }) {
         slightly so the clock and search field stay readable.
       </p>
       {message && <p className="mt-1 text-[12px] text-alert">{message}</p>}
+    </div>
+  );
+}
+
+/**
+ * The answers to what people actually ask, kept where they will be asked.
+ *
+ * Almost all of this was already true and already written down — in a README
+ * nobody opens while browsing. Saying it in the app is the difference between
+ * a claim and something a person can check.
+ */
+function FaqAndPrivacy() {
+  return (
+    <>
+      <Section title="What Copacetic sends">
+        <dl className="space-y-3">
+          <Answer question="Does Copacetic track me?">
+            No. There is no analytics, no telemetry, no crash reporting and no account. Nothing about how you use the
+            browser is recorded anywhere but on this machine.
+          </Answer>
+          <Answer question="Does it phone home?">
+            Once, if you let it: the update check asks GitHub for the latest version number. It sends a version and
+            nothing else, and you can turn it off in Updates. That is the only request Copacetic makes on its own
+            behalf — everything else on the network is a page you asked for.
+          </Answer>
+          <Answer question="What about the address bar?">
+            Suggestions come from your own history and bookmarks, ranked in the main process on this machine. No
+            keystroke is sent anywhere as you type. Pressing Enter on something that is not an address sends it to
+            your chosen search engine, and nothing before that.
+          </Answer>
+          <Answer question="Where is my data?">
+            Plain JSON files in Copacetic&apos;s folder in your user profile, which you can read in any text editor.
+            History older than 90 days is dropped on launch. Your data can be exported from this panel, and clearing
+            it here removes it for real.
+          </Answer>
+        </dl>
+      </Section>
+
+      <Section title="What it does not do">
+        <dl className="space-y-3">
+          <Answer question="Why do some sites look broken?">
+            Copacetic blocks around 120 domains that exist only to follow people between sites. Occasionally one of
+            them is load-bearing for a login or an embed. The connection panel shows exactly what was blocked on the
+            page, and lets you allow it on that site alone rather than everywhere.
+          </Answer>
+          <Answer question="Why will Netflix not play?">
+            DRM is not bundled. Playing protected video needs Widevine, which is a closed component under a separate
+            licence, and shipping it would sit badly with a browser whose argument is that you can see what it does.
+          </Answer>
+          <Answer question="Can I install extensions?">
+            No. Extensions need an API that reaches into pages and the browser itself, which is the opposite of the
+            sandboxing Copacetic relies on. It is a deliberate no rather than a missing feature.
+          </Answer>
+          <Answer question="Does it remember passwords?">
+            No. There is no password manager yet, so sign-in details are used for the request that asked for them and
+            kept nowhere. When there is one, it will say so here.
+          </Answer>
+        </dl>
+      </Section>
+
+      <Section title="Honestly">
+        <div className="space-y-2.5 text-[12px] leading-relaxed text-ink-dim">
+          <p>
+            Copacetic renders pages with Chromium. The rendering, networking, sandboxing and certificate validation
+            are Chromium&apos;s work, not Copacetic&apos;s — what Copacetic adds is the interface around them and a
+            set of decisions about what a browser should do on your behalf.
+          </p>
+          <p>
+            <span className="text-ink">It has not been security audited.</span> It is a personal project built to a
+            high standard, which is not the same thing as one that has been through review. The security model is
+            described in full in the project&apos;s README, including the parts that are weaker than you might hope.
+          </p>
+          <p>
+            <span className="text-ink">The builds are not code-signed.</span> That means your operating system will
+            warn about them, and on macOS Copacetic cannot install its own updates. Signing costs money that has not
+            been spent yet; it is a decision rather than an oversight.
+          </p>
+          <p>
+            It comes with no warranty. If something here matters to you and it turns out to be wrong, the code is open
+            and the issue tracker is the right place to say so.
+          </p>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+function Answer({ question, children }: { question: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-[12.5px] font-medium text-ink">{question}</dt>
+      <dd className="mt-0.5 text-[12px] leading-relaxed text-ink-dim">{children}</dd>
     </div>
   );
 }
