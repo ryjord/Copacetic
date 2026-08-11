@@ -6,7 +6,7 @@ import type {
   BrowserState,
   ClearRange,
   DownloadId,
-  HistoryEntry,
+  HistoryPage,
   PermissionDecision,
   PermissionKind,
   Settings,
@@ -57,7 +57,7 @@ export interface CopaceticApi {
     suggest(query: string): Promise<Suggestion[]>;
   };
   history: {
-    list(query?: string): Promise<HistoryEntry[]>;
+    list(query?: string, offset?: number): Promise<HistoryPage>;
     remove(id: string): Promise<void>;
     clear(range: ClearRange): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;

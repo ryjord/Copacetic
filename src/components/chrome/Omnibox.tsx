@@ -155,7 +155,7 @@ export function Omnibox({ tab }: OmniboxProps) {
     <div className="no-drag relative flex-1">
       <div
         className={cn(
-          'flex h-8 items-center gap-2 rounded-field border px-2 transition-colors duration-150',
+          'flex h-[var(--chrome-field-height)] items-center gap-2 rounded-field border px-2 transition-colors duration-150',
           isEditing
             ? 'border-line-strong bg-sunken'
             : 'border-transparent bg-raised hover:border-line hover:bg-hover',

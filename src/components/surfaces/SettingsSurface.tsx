@@ -4,17 +4,24 @@ import { useEffect, useState } from 'react';
 import {
   PERMISSION_LABELS,
   type AppInfo,
+  type DensityId,
   type PermissionKind,
   type Settings,
   type ThemeId,
   type UpdateStatus,
 } from '../../../electron/shared/types';
+import { SHORTCUT_GROUPS, readableAccelerator } from '../../../electron/shared/shortcuts';
 import { SEARCH_ENGINE_OPTIONS } from '../../../electron/shared/url';
 import { Toggle } from '@/components/ui/Toggle';
 import { ask, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { SurfaceShell } from './SurfaceShell';
+
+const DENSITIES: { id: DensityId; label: string }[] = [
+  { id: 'comfortable', label: 'Comfortable' },
+  { id: 'compact', label: 'Compact' },
+];
 
 const THEMES: { id: ThemeId; label: string }[] = [
   { id: 'deep', label: 'Deep' },
@@ -78,6 +85,39 @@ export function SettingsSurface() {
             onChange={(blockTrackers) => update({ blockTrackers })}
           />
           <PermissionList decisions={settings.permissionDecisions} />
+        </Section>
+
+        <Section title="Zoom">
+          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+            Zooming a site with <span className="font-mono">Cmd/Ctrl +</span> and <span className="font-mono">-</span>{' '}
+            is remembered for that site, so you only set it once.
+          </p>
+          <ZoomList levels={settings.zoomLevels} />
+        </Section>
+
+        <Section title="Interface">
+          <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
+            How much room the chrome takes. This changes sizing only — colour in this interface means state, so
+            nothing here touches it.
+          </p>
+          <div className="flex gap-2">
+            {DENSITIES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => update({ density: option.id })}
+                aria-pressed={settings.density === option.id}
+                className={cn(
+                  'flex-1 rounded-field border px-3 py-2 text-[12.5px] transition-colors',
+                  settings.density === option.id
+                    ? 'border-line-strong bg-hover text-ink'
+                    : 'border-line text-ink-dim hover:bg-raised hover:text-ink',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </Section>
 
         <Section title="Start page">
@@ -157,6 +197,10 @@ export function SettingsSurface() {
           <ExportPanel />
         </Section>
 
+        <Section title="Keyboard">
+          <ShortcutReference isMac={info?.platform === 'darwin'} />
+        </Section>
+
         <Section title="Updates">
           <UpdatePanel />
         </Section>
@@ -178,6 +222,64 @@ export function SettingsSurface() {
       </div>
     </SurfaceShell>
   );
+}
+
+/**
+ * Every shortcut, read from the same list a test checks against the menu, so
+ * this cannot quietly become wrong when a binding changes.
+ */
+function ShortcutReference({ isMac }: { isMac: boolean }) {
+  return (
+    <div className="space-y-4">
+      {SHORTCUT_GROUPS.map((group) => (
+        <div key={group.title}>
+          <h3 className="label mb-1.5">{group.title}</h3>
+          <dl className="divide-y divide-line rounded-field border border-line">
+            {group.shortcuts.map((shortcut) => (
+              <div key={shortcut.accelerator} className="flex items-center justify-between gap-4 px-3 py-1.5">
+                <dt className="min-w-0 flex-1 truncate text-[12px] text-ink-dim">{shortcut.description}</dt>
+                <dd className="shrink-0 font-mono text-[11.5px] text-ink-faint">
+                  {readableAccelerator(shortcut.accelerator, isMac)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Sites deliberately zoomed away from the default, and a way back. */
+function ZoomList({ levels }: { levels: Record<string, number> }) {
+  const entries = Object.entries(levels);
+  if (entries.length === 0) {
+    return <p className="text-[12px] text-ink-faint">No site is zoomed away from the default yet.</p>;
+  }
+
+  return (
+    <ul className="divide-y divide-line rounded-field border border-line">
+      {entries.map(([origin, level]) => (
+        <li key={origin} className="flex items-center gap-3 px-3 py-2">
+          <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{origin}</span>
+          <span className="shrink-0 font-mono text-[11.5px] text-ink-faint">{Math.round(level * 100)}%</span>
+          <button
+            type="button"
+            onClick={() => send((api) => api.settings.update({ zoomLevels: withoutOrigin(levels, origin) }))}
+            className="shrink-0 rounded px-2 py-0.5 text-[11.5px] text-ink-faint transition-colors hover:bg-hover hover:text-ink"
+          >
+            Reset
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function withoutOrigin(levels: Record<string, number>, origin: string): Record<string, number> {
+  const next = { ...levels };
+  delete next[origin];
+  return next;
 }
 
 /**

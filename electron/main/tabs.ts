@@ -8,6 +8,7 @@ import {
   isFetchableFavicon,
   isLoopbackHost,
   isNavigableUrl,
+  originOf,
   resolveOmniboxInput,
 } from '../shared/url';
 import type { ContentBlocker } from './blocker';
@@ -556,6 +557,12 @@ export class TabManager {
     if (!tab || !contents) return;
     tab.zoomFactor = Math.min(5, Math.max(0.25, zoomFactor));
     contents.setZoomFactor(tab.zoomFactor);
+
+    // Remembered against the origin: a site that needs zooming needs it every
+    // visit, and setting it again on every visit is the kind of small friction
+    // that makes a browser tiring to use.
+    if (!tab.isStartPage) this.store.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
+
     this.onChanged();
   }
 
@@ -656,6 +663,11 @@ export class TabManager {
       if (!isInPage) {
         tab.title = fallbackTitleFor(url);
         tab.faviconDataUrl = this.store.getFavicon(url);
+      }
+      // A stored level for this origin wins over whatever the tab was showing,
+      // so following a link to a site you zoomed once arrives zoomed.
+      if (!isInPage) {
+        tab.zoomFactor = this.store.getZoomForOrigin(originOf(url)) ?? this.store.getSettings().defaultZoomFactor;
       }
       contents.setZoomFactor(tab.zoomFactor);
       this.applyVisibility();

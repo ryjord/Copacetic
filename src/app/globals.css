@@ -47,6 +47,24 @@
   --ambient-near: #123043;
   --ambient-far: #1b2a4a;
 }
+/*
+ * How much room the chrome takes. Sizing only — density never touches colour,
+ * because colour in this interface means state and nothing else.
+ */
+:root {
+  --chrome-header-height: 38px;
+  --chrome-tab-height: 30px;
+  --chrome-field-height: 32px;
+  --chrome-tab-min-width: 112px;
+}
+
+:root[data-density='compact'] {
+  --chrome-header-height: 32px;
+  --chrome-tab-height: 25px;
+  --chrome-field-height: 27px;
+  --chrome-tab-min-width: 88px;
+}
+
 :root[data-theme='slate'] {
   --ambient-near: #1e2730;
   --ambient-far: #2a3440;

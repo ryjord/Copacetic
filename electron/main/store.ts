@@ -17,6 +17,7 @@ const MAX_FAVICON_ENTRIES = 600;
 export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'duckduckgo',
   theme: 'deep',
+  density: 'comfortable',
   httpsFirst: true,
   blockTrackers: true,
   restoreTabsOnLaunch: true,
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showTopSites: true,
   checkForUpdates: true,
   permissionDecisions: {},
+  zoomLevels: {},
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };
@@ -31,6 +33,12 @@ export const DEFAULT_SETTINGS: Settings = {
 interface FaviconRecord {
   dataUrl: string;
   updatedAt: number;
+}
+
+export interface HistoryPage {
+  entries: HistoryEntry[];
+  /** Every entry matching the query, not just the ones in this page. */
+  total: number;
 }
 
 export interface SessionSnapshot {
@@ -92,6 +100,32 @@ export class BrowserStore {
     }));
   }
 
+  getZoomForOrigin(origin: string): number | null {
+    return this.settingsFile.get().zoomLevels[origin] ?? null;
+  }
+
+  /**
+   * A level equal to the default is forgotten rather than stored: the list in
+   * Settings should be the sites you actually changed, not every site visited.
+   */
+  setZoomForOrigin(origin: string, zoomFactor: number): void {
+    if (!origin) return;
+    this.settingsFile.update((current) => {
+      const levels = { ...current.zoomLevels };
+      if (Math.abs(zoomFactor - current.defaultZoomFactor) < 0.001) delete levels[origin];
+      else levels[origin] = zoomFactor;
+      return { ...current, zoomLevels: levels };
+    });
+  }
+
+  forgetZoomForOrigin(origin: string): void {
+    this.settingsFile.update((current) => {
+      const levels = { ...current.zoomLevels };
+      delete levels[origin];
+      return { ...current, zoomLevels: levels };
+    });
+  }
+
   getPermissionDecision(origin: string, kind: string): PermissionDecision | null {
     return this.settingsFile.get().permissionDecisions[`${origin}|${kind}`] ?? null;
   }
@@ -124,13 +158,30 @@ export class BrowserStore {
     });
   }
 
-  listHistory(query = '', limit = 300): HistoryEntry[] {
+  /**
+   * A page of history, and how many entries there are in total.
+   *
+   * The total matters: capping at some number and saying nothing meant a
+   * search could never reach a match past the cap, with no hint that anything
+   * had been left out. Better to show the page and admit its size.
+   */
+  listHistory(query = '', limit = 300, offset = 0): HistoryPage {
+    const matches = this.matchingHistory(query);
+    return { entries: matches.slice(offset, offset + limit), total: matches.length };
+  }
+
+  private matchingHistory(query: string): HistoryEntry[] {
     const entries = this.historyFile.get();
-    if (!query.trim()) return entries.slice(0, limit);
     const needle = query.trim().toLowerCase();
-    return entries
-      .filter((entry) => entry.url.toLowerCase().includes(needle) || entry.title.toLowerCase().includes(needle))
-      .slice(0, limit);
+    if (!needle) return entries;
+    return entries.filter(
+      (entry) => entry.url.toLowerCase().includes(needle) || entry.title.toLowerCase().includes(needle),
+    );
+  }
+
+  /** Everything matching, for the export, which must never be a partial one. */
+  allHistory(): HistoryEntry[] {
+    return this.historyFile.get();
   }
 
   removeHistory(id: string): void {
@@ -385,12 +436,14 @@ function reviveSettings(raw: unknown): Settings | null {
   }
   const engine = asString(raw.searchEngine, DEFAULT_SETTINGS.searchEngine);
   const theme = asString(raw.theme, DEFAULT_SETTINGS.theme);
+  const density = asString(raw.density, DEFAULT_SETTINGS.density);
 
   return normaliseSettings({
     searchEngine: engine in SEARCH_ENGINES ? (engine as Settings['searchEngine']) : DEFAULT_SETTINGS.searchEngine,
     theme: (['deep', 'slate', 'ember', 'moss'] as const).includes(theme as Settings['theme'])
       ? (theme as Settings['theme'])
       : DEFAULT_SETTINGS.theme,
+    density: density === 'compact' ? 'compact' : 'comfortable',
     httpsFirst: asBoolean(raw.httpsFirst, DEFAULT_SETTINGS.httpsFirst),
     blockTrackers: asBoolean(raw.blockTrackers, DEFAULT_SETTINGS.blockTrackers),
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),
@@ -398,6 +451,7 @@ function reviveSettings(raw: unknown): Settings | null {
     showTopSites: asBoolean(raw.showTopSites, DEFAULT_SETTINGS.showTopSites),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     permissionDecisions: decisions,
+    zoomLevels: reviveZoomLevels(raw.zoomLevels),
     sidebarWidth: asNumber(raw.sidebarWidth, DEFAULT_SETTINGS.sidebarWidth),
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
   });
@@ -410,6 +464,17 @@ function reviveSettings(raw: unknown): Settings | null {
  * IPC was stored unbounded and stayed that way until the next launch, so a
  * zoom factor of 40 survived exactly as long as the session did.
  */
+/** Untrusted on-disk input, so every level is bounded like a live one. */
+function reviveZoomLevels(raw: unknown): Record<string, number> {
+  if (!isRecord(raw)) return {};
+  const levels: Record<string, number> = {};
+  for (const [origin, value] of Object.entries(raw)) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+    levels[origin] = clamp(value, 0.25, 5);
+  }
+  return levels;
+}
+
 export function normaliseSettings(settings: Settings): Settings {
   return {
     ...settings,

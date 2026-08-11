@@ -2,6 +2,41 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.3 — unreleased
+
+Customisation, keyboard access, and two places the interface was quietly
+saying less than it knew.
+
+### Added
+
+- Zoom is remembered per site. A page you need larger arrives larger every
+  visit rather than needing setting again, and Settings lists everywhere you
+  changed it with a reset each. A level put back to the default is forgotten
+  rather than stored, so the list stays the sites you actually changed.
+- An interface density, comfortable or compact, in Settings. It changes sizing
+  only — the tab strip, the address bar and the header — because colour in this
+  interface means state, so a display option must never touch it.
+
+- A keyboard reference in Settings, listing every shortcut. It reads from the
+  same list a test checks against the menu, so a binding that changes without
+  the reference being updated fails the build rather than quietly leaving the
+  reference wrong.
+
+### Fixed
+
+- History no longer stops at 300 entries without saying so. It shows how many
+  it is displaying out of how many match, with a button for the rest. A search
+  could previously never reach a match past the cap, and nothing indicated
+  anything had been left out.
+- Tabs can be reached with a keyboard. The strip is now a proper tablist with
+  a roving tabindex: one tab stop for the whole strip, arrows to move within
+  it, Home and End for the ends, Enter or Space to select and Delete to close.
+  Previously every tab was hard-coded unreachable, so there was no way to
+  focus, activate or close one without a mouse.
+- Focus follows the selection when arrowing through tabs, and does not move
+  when a tab is selected by click or by `Cmd/Ctrl+1`–`9` — those should leave
+  focus in the page or the address bar where it was.
+
 ## 1.2.1 — 2026-08-11
 
 Two things that were missing rather than broken: sites that ask you to sign in

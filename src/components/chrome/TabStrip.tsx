@@ -1,7 +1,7 @@
 'use client';
 
 import { Plus, Volume2, VolumeX, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TabState } from '../../../electron/shared/types';
 import { Favicon } from '@/components/ui/Favicon';
 import { IconButton } from '@/components/ui/IconButton';
@@ -25,7 +25,34 @@ export function TabStrip({ tabs, activeTabId }: TabStripProps) {
   };
 
   return (
-    <div ref={stripRef} className="hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+    <div
+      ref={stripRef}
+      role="tablist"
+      aria-label="Open tabs"
+      // Roving tabindex: one stop for the whole strip, then arrows to move
+      // within it. Every tab being individually tabbable would mean thirty
+      // stops between the strip and the address bar.
+      onKeyDown={(event) => {
+        const current = tabs.findIndex((tab) => tab.id === activeTabId);
+        if (current === -1) return;
+
+        const go = (index: number) => {
+          event.preventDefault();
+          const next = tabs[(index + tabs.length) % tabs.length];
+          if (next) send((api) => api.tabs.activate(next.id));
+        };
+
+        if (event.key === 'ArrowRight') go(current + 1);
+        else if (event.key === 'ArrowLeft') go(current - 1);
+        else if (event.key === 'Home') go(0);
+        else if (event.key === 'End') go(tabs.length - 1);
+        else if (event.key === 'Delete' || event.key === 'Backspace') {
+          event.preventDefault();
+          send((api) => api.tabs.close(tabs[current]!.id));
+        }
+      }}
+      className="hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+    >
       {tabs.map((tab, index) => (
         <Tab
           key={tab.id}
@@ -63,11 +90,24 @@ interface TabProps {
 
 function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd, onDragOver, onDrop }: TabProps) {
   const title = tab.isStartPage ? 'New tab' : tab.title;
+  const ref = useRef<HTMLDivElement>(null);
+
+  // With a roving tabindex the previously selected tab stops being a tab stop
+  // the moment selection moves, so focus has to move with it or it is lost to
+  // the document. Only when focus was already in the strip: arrowing through
+  // tabs should follow the keyboard, but clicking a tab or pressing Cmd+2 must
+  // not yank focus out of the page or the address bar.
+  useEffect(() => {
+    const element = ref.current;
+    if (!isActive || !element || element === document.activeElement) return;
+    if (element.parentElement?.contains(document.activeElement)) element.focus();
+  }, [isActive]);
 
   return (
     <div
+      ref={ref}
       className={cn(
-        'no-drag group relative flex h-[30px] min-w-[112px] max-w-[220px] shrink-0 items-center gap-2 rounded-tab px-2.5 transition-[background-color,opacity] duration-150',
+        'no-drag group relative flex h-[var(--chrome-tab-height)] min-w-[var(--chrome-tab-min-width)] max-w-[220px] shrink-0 items-center gap-2 rounded-tab px-2.5 transition-[background-color,opacity] duration-150',
         isActive ? 'bg-raised' : 'hover:bg-raised/55',
         isDragging && 'opacity-40',
         showDropBefore &&
@@ -95,7 +135,14 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       }}
       role="tab"
       aria-selected={isActive}
-      tabIndex={-1}
+      // Only the selected tab is a tab stop; the rest are reached with arrows.
+      tabIndex={isActive ? 0 : -1}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          send((api) => api.tabs.activate(tab.id));
+        }
+      }}
       title={tab.isStartPage ? 'New tab' : `${tab.title}\n${tab.url}`}
     >
       {tab.isLoading ? (

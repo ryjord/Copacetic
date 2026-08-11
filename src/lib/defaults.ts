@@ -8,6 +8,7 @@ import type { Settings } from '../../electron/shared/types';
 export const DEFAULT_SETTINGS_SHAPE: Settings = {
   searchEngine: 'duckduckgo',
   theme: 'deep',
+  density: 'comfortable',
   httpsFirst: true,
   blockTrackers: true,
   restoreTabsOnLaunch: true,
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   showTopSites: true,
   checkForUpdates: true,
   permissionDecisions: {},
+  zoomLevels: {},
   sidebarWidth: 300,
   defaultZoomFactor: 1,
 };

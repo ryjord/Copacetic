@@ -125,6 +125,12 @@ export interface HistoryEntry {
   visitCount: number;
 }
 
+export interface HistoryPage {
+  entries: HistoryEntry[];
+  /** Every entry matching the query, not only those in this page. */
+  total: number;
+}
+
 export interface Bookmark {
   id: string;
   url: string;
@@ -228,11 +234,15 @@ export interface SearchEngine {
 
 export type ThemeId = 'deep' | 'slate' | 'ember' | 'moss';
 
+/** How much room the chrome takes. Only sizing — never colour. */
+export type DensityId = 'comfortable' | 'compact';
+
 export type ClearRange = 'hour' | 'day' | 'week' | 'all';
 
 export interface Settings {
   searchEngine: SearchEngineId;
   theme: ThemeId;
+  density: DensityId;
   /** Rewrite `http://` navigations to `https://` and fall back only on failure. */
   httpsFirst: boolean;
   blockTrackers: boolean;
@@ -248,6 +258,11 @@ export interface Settings {
   checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
+  /**
+   * Per-origin zoom, remembered because a site that needs zooming needs it
+   * every time. Only origins deliberately set away from the default are kept.
+   */
+  zoomLevels: Record<string, number>;
   sidebarWidth: number;
   defaultZoomFactor: number;
 }

@@ -42,6 +42,7 @@ export function Chrome() {
   const activeTabId = useBrowserStore((state) => state.activeTabId);
 
   const authPrompts = useBrowserStore((state) => state.authPrompts);
+  const density = useBrowserStore((state) => state.settings.density);
   const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
   const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
 
@@ -120,6 +121,10 @@ export function Chrome() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.dataset.density = density;
+  }, [density]);
+
   // --- render --------------------------------------------------------------
 
   const prompt = permissionPrompts.find((candidate) => candidate.tabId === activeTabId) ?? null;
@@ -128,7 +133,7 @@ export function Chrome() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-base">
-      <header className="drag-region flex h-[38px] shrink-0 items-center gap-1 px-2.5 pt-1.5">
+      <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 px-2.5 pt-1.5">
         {/* Room for the macOS traffic lights, which sit inside this strip. */}
         {isMac() && <div className="w-[68px] shrink-0" aria-hidden />}
         <TabStrip tabs={tabs} activeTabId={activeTabId} />

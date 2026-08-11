@@ -2,13 +2,15 @@
 
 import { Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import type { ClearRange, HistoryEntry } from '../../../electron/shared/types';
+import type { ClearRange, HistoryEntry, HistoryPage } from '../../../electron/shared/types';
 import { Favicon } from '@/components/ui/Favicon';
 import { IconButton } from '@/components/ui/IconButton';
 import { ask, send } from '@/lib/bridge';
 import { formatDateHeading, formatRelativeTime } from '@/lib/format';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { EmptyState, SurfaceShell } from './SurfaceShell';
+
+const EMPTY_PAGE: HistoryPage = { entries: [], total: 0 };
 
 const CLEAR_OPTIONS: { value: ClearRange; label: string }[] = [
   { value: 'hour', label: 'Last hour' },
@@ -22,15 +24,32 @@ export function HistorySurface() {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const [query, setQuery] = useState('');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const refresh = useCallback(async (search: string) => {
-    setEntries(await ask((api) => api.history.list(search), []));
+    const page = await ask((api) => api.history.list(search), EMPTY_PAGE);
+    setEntries(page.entries);
+    setTotal(page.total);
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => void refresh(query), 120);
     return () => clearTimeout(timer);
   }, [query, refresh]);
+
+  // Paging rather than one enormous list: the surface stays responsive, and
+  // the count below says plainly how much is not on screen. Silently stopping
+  // at a few hundred meant a search could never reach a match past the cap.
+  const loadMore = () => {
+    setLoadingMore(true);
+    void ask((api) => api.history.list(query, entries.length), EMPTY_PAGE)
+      .then((page) => {
+        setEntries((current) => [...current, ...page.entries]);
+        setTotal(page.total);
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   const open = (url: string) => {
     if (!activeTabId) return;
@@ -101,6 +120,24 @@ export function HistorySurface() {
               </ul>
             </section>
           ))}
+
+          <div className="flex flex-col items-center gap-2 px-6 pt-4">
+            <p className="text-[11.5px] text-ink-faint">
+              {entries.length === total
+                ? `${total} ${total === 1 ? 'entry' : 'entries'}`
+                : `Showing ${entries.length} of ${total}`}
+            </p>
+            {entries.length < total && (
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-50"
+              >
+                {loadingMore ? 'Loading…' : 'Show more'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </SurfaceShell>
