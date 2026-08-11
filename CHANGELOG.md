@@ -2,6 +2,19 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.11 — 2026-08-11
+
+### Fixed
+
+- The build no longer depends on Google being reachable. Fonts were fetched
+  from Google Fonts at build time, so a failed request failed the build — which
+  is how 1.2.10 shipped without its Linux packages, leaving AppImage update
+  checks with no file to read. The font files are committed and served from the
+  app itself, which is 84KB and removes the last thing in a browser about who
+  your machine talks to that needed Google's permission to compile.
+- 1.2.10's Linux installers are published here instead. Its macOS and Windows
+  builds were unaffected.
+
 ## 1.2.10 — 2026-08-11
 
 ### Internal
