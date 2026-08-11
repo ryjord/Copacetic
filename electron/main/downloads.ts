@@ -31,6 +31,8 @@ interface LiveDownload {
   item: DownloadItem;
   lastSampleAt: number;
   lastSampleBytes: number;
+  /** So a pause or an interruption is reported the instant it happens. */
+  lastStatus: DownloadStatus;
 }
 
 export class DownloadManager {
@@ -69,7 +71,7 @@ export class DownloadManager {
       const savePath = uniqueSavePath(directory, sanitiseFilename(item.getFilename()));
       item.setSavePath(savePath);
 
-      this.live.set(id, { item, lastSampleAt: Date.now(), lastSampleBytes: 0 });
+      this.live.set(id, { item, lastSampleAt: Date.now(), lastSampleBytes: 0, lastStatus: 'progressing' });
       this.upsert({
         id,
         filename: path.basename(savePath),
@@ -90,8 +92,21 @@ export class DownloadManager {
 
         const now = Date.now();
         const received = item.getReceivedBytes();
+        const status = state === 'interrupted' ? 'interrupted' : item.isPaused() ? 'paused' : 'progressing';
+        const sampleDue = now - live.lastSampleAt >= SPEED_SAMPLE_MS;
+
+        // Chromium fires `updated` far faster than anyone can read, and each
+        // one used to push the whole browser state to the renderer. The speed
+        // sample was already throttled; the push it caused was not. A byte
+        // count nobody can perceive changing is not worth a render, so the
+        // renderer hears about progress on the sample interval — and
+        // immediately whenever the status itself changes, since pausing should
+        // never look like it did nothing.
+        const statusChanged = status !== live.lastStatus;
+        if (!sampleDue && !statusChanged) return;
+
         let bytesPerSecond: number | null = null;
-        if (now - live.lastSampleAt >= SPEED_SAMPLE_MS) {
+        if (sampleDue) {
           bytesPerSecond = Math.max(
             0,
             ((received - live.lastSampleBytes) * 1000) / Math.max(1, now - live.lastSampleAt),
@@ -99,12 +114,13 @@ export class DownloadManager {
           live.lastSampleAt = now;
           live.lastSampleBytes = received;
         }
+        live.lastStatus = status;
 
         this.patch(id, (entry) => ({
           ...entry,
           receivedBytes: received,
           totalBytes: item.getTotalBytes(),
-          status: state === 'interrupted' ? 'interrupted' : item.isPaused() ? 'paused' : 'progressing',
+          status,
           bytesPerSecond: bytesPerSecond ?? entry.bytesPerSecond,
         }));
       });

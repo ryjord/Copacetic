@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import type { ChromeSurface } from '../../electron/shared/channels';
 import type { BrowserState, Settings, TabState } from '../../electron/shared/types';
 import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { keepIfSame, stabiliseState } from '@/lib/stableState';
 
 interface BrowserStoreState extends BrowserState {
   /** False until the first snapshot arrives, so nothing renders half-built. */
@@ -74,12 +75,23 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   isConnectionPanelOpen: false,
   connectionPanelOpenedAt: null,
 
-  applyState: (next) => {
+  applyState: (incoming) => {
+    const current = get();
+    // The main process sends the whole state on every change, freshly
+    // deserialised, so everything is a new object even when nothing differs.
+    // Selectors compare by reference, so without this a download's byte
+    // counter re-renders every tab several times a second.
+    const next = stabiliseState(current, incoming);
+
     const byId = new Map(next.tabs.map((tab) => [tab.id, tab]));
-    const orderedTabs = next.tabOrder.flatMap((id) => {
-      const tab = byId.get(id);
-      return tab ? [tab] : [];
-    });
+    const orderedTabs = keepIfSame(
+      current.orderedTabs,
+      next.tabOrder.flatMap((id) => {
+        const tab = byId.get(id);
+        return tab ? [tab] : [];
+      }),
+    );
+
     set({
       ...next,
       orderedTabs,
