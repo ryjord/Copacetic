@@ -4,6 +4,9 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ## 1.2.5 — unreleased
 
+Released as one version rather than two: 1.2.4 went out only as a prerelease,
+and the settings fix below is what makes its tracker allowlist work at all.
+
 ### Fixed
 
 - Several settings did nothing. The IPC handler validates an incoming settings
@@ -30,11 +33,6 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   certificate validation, the project has not been security audited, the builds
   are not code-signed, and there is no warranty. All of it was already true and
   already written in the README — this puts it where someone might read it.
-
-## 1.2.4 — unreleased
-
-### Added
-
 - Tracker blocking can be switched off for one site, from the connection panel
   where the blocked count already is. Blocking occasionally breaks something
   real — a login routed through an analytics domain, an embed that will not
