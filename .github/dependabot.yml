@@ -1,0 +1,32 @@
+# Chromium currency is a security property in a browser, not hygiene: every
+# fix that lands upstream stays exploitable here until Electron is bumped. A
+# weekly pull request is the difference between updating on a schedule and
+# updating when someone remembers.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One pull request for the ordinary churn, so the noise stays in a single
+      # place and the ones worth reading stand alone.
+      routine:
+        patterns: ['*']
+        exclude-patterns: ['electron', 'electron-builder', 'electron-updater', 'next', 'react', 'react-dom']
+        update-types: [minor, patch]
+    labels: [dependencies]
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+    commit-message:
+      prefix: ci
