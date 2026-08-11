@@ -2,7 +2,7 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.2.3 — unreleased
+## 1.2.3 — 2026-08-11
 
 Customisation, keyboard access, and two places the interface was quietly
 saying less than it knew.
@@ -123,7 +123,7 @@ doing any chain analysis of its own.
 
 The apt work itself is finished and correct — signing, indexes, the install
 script — and is gated behind an `APT_REPO_URL` variable until the packages have
-somewhere to live. See `docs/apt-repository.md`.
+somewhere to live.
 
 ## 1.1.0 — 2026-08-10
 

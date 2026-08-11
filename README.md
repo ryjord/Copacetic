@@ -201,8 +201,7 @@ The `.deb` never updates itself, because the file belongs to `dpkg`. The
 intended answer is an apt repository, which is built and signed already — but
 it needs somewhere to live that will accept a 150 MB package, and that is not
 yet set up. Until it is, the `.deb` installs without touching your apt
-configuration at all and new versions are a manual download. See
-[docs/apt-repository.md](docs/apt-repository.md).
+configuration at all and new versions are a manual download.
 
 If you want updates handled for you on Linux today, use the `.AppImage`, which
 updates itself in place.
