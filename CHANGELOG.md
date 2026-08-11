@@ -4,6 +4,11 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ## 1.2.0 — unreleased
 
+Four features that all do the same thing: say something true about the page
+that no mainstream browser will tell you without developer tools.
+
+Going out as `1.2.0-beta.1` first, as 1.1.0 did.
+
 ### Added
 
 - The connection badge shows who issued the certificate and when it expires,
