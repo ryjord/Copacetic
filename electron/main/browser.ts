@@ -5,6 +5,7 @@ import type {
   AppInfo,
   BrowserState,
   ClearRange,
+  ConnectionEntry,
   PermissionDecision,
   PermissionKind,
   PermissionPrompt,
@@ -13,6 +14,7 @@ import type {
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
 import { ContentBlocker } from './blocker';
+import { forgetCertificates } from './certificates';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
@@ -343,6 +345,9 @@ export class Browser {
   async clearBrowsingData(range: ClearRange): Promise<void> {
     this.store.clearHistory(range);
     if (range === 'all') {
+      // Certificate summaries are browsing data too: they name every host
+      // visited this session.
+      forgetCertificates();
       await getWebSession().clearStorageData();
       await getWebSession().clearCache();
     }
@@ -366,6 +371,12 @@ export class Browser {
   async openExternal(url: string): Promise<void> {
     if (!url.startsWith('https://')) return;
     await shell.openExternal(url);
+  }
+
+  /** Every host a tab has contacted since its last page load. */
+  connectionsFor(tabId: TabId): ConnectionEntry[] {
+    const webContentsId = this.tabs.webContentsIdFor(tabId);
+    return webContentsId === undefined ? [] : this.blocker.connectionsFor(webContentsId);
   }
 
   setContentInsets(insets: ContentInsets): void {

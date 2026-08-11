@@ -1,6 +1,7 @@
 import type { ChromeSurface } from './channels';
 import type {
   AppInfo,
+  ConnectionEntry,
   Bookmark,
   BrowserState,
   ClearRange,
@@ -99,6 +100,10 @@ export interface CopaceticApi {
   app: {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
+  };
+  connections: {
+    /** Every host the tab has contacted since its last page load. */
+    list(id: TabId): Promise<ConnectionEntry[]>;
   };
   updates: {
     /** Ask now, rather than waiting for the periodic check. */

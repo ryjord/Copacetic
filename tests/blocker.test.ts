@@ -128,3 +128,97 @@ describe('ContentBlocker, fully-qualified hostnames', () => {
     expect(ask('https://example.com./app.js')).toBe(false);
   });
 });
+
+describe('the connection log', () => {
+  let blocker: ContentBlocker;
+  let fake: ReturnType<typeof fakeSession>;
+
+  beforeEach(() => {
+    blocker = new ContentBlocker(true);
+    fake = fakeSession();
+    blocker.attach(fake.session as never);
+  });
+
+  const ask = (url: string, resourceType = 'script', webContentsId: number | undefined = 7) =>
+    fake.request({ url, resourceType, webContentsId });
+
+  it('records hosts that were allowed through, not only blocked ones', () => {
+    ask('https://example.com/app.js');
+    ask('https://cdn.example.net/lib.js');
+    ask('https://www.google-analytics.com/collect');
+
+    const hosts = blocker.connectionsFor(7).map((entry) => entry.host);
+    expect(hosts).toContain('example.com');
+    expect(hosts).toContain('cdn.example.net');
+    expect(hosts).toContain('www.google-analytics.com');
+  });
+
+  it('counts repeat requests to the same host', () => {
+    ask('https://example.com/a.js');
+    ask('https://example.com/b.js');
+    ask('https://example.com/c.js');
+
+    expect(blocker.connectionsFor(7)).toContainEqual(
+      expect.objectContaining({ host: 'example.com', requests: 3, blocked: 0 }),
+    );
+  });
+
+  it('separates what was blocked from what merely was a tracker', () => {
+    ask('https://www.google-analytics.com/collect');
+    // Top-level navigation to a tracker is deliberately never blocked.
+    ask('https://www.google-analytics.com/page', 'mainFrame');
+
+    const entry = blocker.connectionsFor(7).find((candidate) => candidate.host === 'www.google-analytics.com');
+    expect(entry).toMatchObject({ requests: 2, blocked: 1, isTracker: true });
+  });
+
+  it('still records hosts when blocking is switched off', () => {
+    blocker.setEnabled(false);
+    ask('https://www.google-analytics.com/collect');
+
+    expect(blocker.connectionsFor(7)).toContainEqual(
+      expect.objectContaining({ host: 'www.google-analytics.com', blocked: 0, isTracker: true }),
+    );
+  });
+
+  it('puts blocked hosts first, then the busiest', () => {
+    ask('https://quiet.example.com/a.js');
+    ask('https://busy.example.com/a.js');
+    ask('https://busy.example.com/b.js');
+    ask('https://doubleclick.net/pixel.gif');
+
+    expect(blocker.connectionsFor(7).map((entry) => entry.host)).toEqual([
+      'doubleclick.net',
+      'busy.example.com',
+      'quiet.example.com',
+    ]);
+  });
+
+  // The previous page's hosts say nothing about this one.
+  it('starts a fresh log on a new page load', () => {
+    ask('https://example.com/a.js');
+    blocker.resetCount(7);
+
+    expect(blocker.connectionsFor(7)).toEqual([]);
+  });
+
+  it('forgets everything when the tab closes', () => {
+    ask('https://example.com/a.js');
+    blocker.forget(7);
+
+    expect(blocker.connectionsFor(7)).toEqual([]);
+  });
+
+  it('keeps tabs separate', () => {
+    ask('https://one.example.com/a.js', 'script', 7);
+    ask('https://two.example.com/a.js', 'script', 9);
+
+    expect(blocker.connectionsFor(7).map((e) => e.host)).toEqual(['one.example.com']);
+    expect(blocker.connectionsFor(9).map((e) => e.host)).toEqual(['two.example.com']);
+  });
+
+  it('is bounded, so endless subdomains cannot grow it without limit', () => {
+    for (let i = 0; i < 400; i += 1) ask(`https://sub${i}.example.com/a.js`);
+    expect(blocker.connectionsFor(7).length).toBeLessThanOrEqual(250);
+  });
+});

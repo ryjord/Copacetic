@@ -1,6 +1,7 @@
 import { type Session, type WebContents, session as electronSession, shell } from 'electron';
 import type { PermissionDecision, PermissionKind } from '../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../shared/url';
+import { observeCertificates } from './certificates';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from './env';
 
 /**
@@ -116,6 +117,11 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
     if (!prompted || !requestingOrigin) return false;
     return delegate.getStoredDecision(requestingOrigin, prompted.kind) === 'allow';
   });
+
+  // Record what Chromium decided about each certificate, so the connection
+  // badge can say who issued it and when it expires. This observes only — see
+  // certificates.ts for why that distinction is load-bearing.
+  observeCertificates(session);
 
   session.setDevicePermissionHandler(() => false);
   session.setBluetoothPairingHandler((_details, callback) => callback({ confirmed: false }));

@@ -2,7 +2,53 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.1.1 — unreleased
+## 1.2.0 — unreleased
+
+Four features that all do the same thing: say something true about the page
+that no mainstream browser will tell you without developer tools.
+
+Going out as `1.2.0-beta.1` first, as 1.1.0 did.
+
+### Added
+
+- The connection badge shows who issued the certificate and when it expires,
+  on any encrypted page. An expiry within a fortnight is shown in amber, which
+  is the only new colour: it is state a user has no other way to see.
+- Only a certificate Chromium accepted is ever described. Reporting the issuer
+  of one it rejected would make a failed connection look informative.
+- The panel says when a certificate chains to a root installed on this machine
+  rather than one the system shipped with. That is what TLS interception looks
+  like — a company proxy, antivirus, or a debugging tool reading the
+  connection — and every mainstream browser shows the same padlock for it as
+  for an ordinary connection.
+- The connection panel lists every host the page contacted, how many requests
+  each received, and how many were blocked — including hosts that were allowed
+  through, and including trackers when blocking is switched off. The blocked
+  count says what was stopped; this says what was not.
+- The connection panel lists what the current site has already been allowed or
+  refused to do, with a reset for each. Those decisions were always stored and
+  always honoured — they were just listed in Settings, away from the site they
+  apply to, which is not where anyone looks.
+- The address bar uses the full IANA Public Suffix List instead of a
+  hand-written list of about forty suffixes. `user.github.io`,
+  `thing.s3.amazonaws.com` and `example.pvt.k12.ma.us` are now read correctly,
+  and two projects sharing a host no longer look like the same site. Verified
+  against the conformance suite published with the list — all 78 cases.
+
+### Fixed
+
+- The connection detail is visible again on any page that actually loads. It
+  was an absolutely positioned popover hanging over the content area, and a
+  native view always paints above the renderer's HTML, so it was hidden behind
+  the page on every real site. It only ever looked right on the start page,
+  which has no view to hide it. It is now part of the chrome column, like the
+  address-bar suggestions and the find bar, and the page is pushed down.
+
+Certificate reporting closes a gap the README named itself. Its scope is
+unchanged and still honest: Copacetic reports Chromium's judgement rather than
+doing any chain analysis of its own.
+
+## 1.1.1 — 2026-08-10
 
 ### Fixed
 

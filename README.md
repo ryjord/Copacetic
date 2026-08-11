@@ -30,11 +30,28 @@ place colour appears is the one place worth looking.
 you click it. It renders the URL structurally, with the registrable domain at
 full contrast and everything else dimmed, in a monospace face. So
 `paypal.com.attacker.net/login` reads as **attacker.net** — which is the point.
+Which part counts as the domain comes from the full IANA Public Suffix List, so
+`user.github.io` and `example.pvt.k12.ma.us` are read correctly rather than
+approximated, and two projects sharing a host never look like the same site.
 
 **Honest connection reporting.** Click the badge in the address bar for the real
-scheme, the host, the measured load time, and how many tracker requests were
-blocked on this page. When Copacetic cannot describe a connection, it says so
-rather than guessing.
+scheme, the host, the measured load time, how many tracker requests were blocked
+on this page, and — on an encrypted connection — who issued the certificate and
+when it expires. An expiry inside a fortnight is the one thing there that turns
+amber, because it is state you cannot see any other way. When Copacetic cannot
+describe a connection, it says so rather than guessing.
+
+**It tells you when something is reading your connection.** If a site's
+certificate chains to a root installed on this machine rather than one your
+system shipped with — a company proxy, antivirus, or a debugging tool
+intercepting TLS — the panel says so. Every mainstream browser shows the same
+padlock in that situation as in any other.
+
+**Every host a page contacted, not just the blocked ones.** The connection panel
+lists each host the page actually talked to, how many requests went to it, and
+which were stopped. The blocked count tells you what was prevented; this tells
+you what was allowed, which is the half no mainstream browser shows without
+opening developer tools.
 
 **Tracker blocking that does not break pages.** A curated list of ~120 domains
 that exist only to follow people between sites. Not an EasyList engine — a
@@ -90,11 +107,10 @@ things:
   nothing about you. It can be turned off in Settings.
 - **No extension support.** Chrome extensions are not loaded.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
-- **Certificate inspection is Chromium's.** Copacetic reports whether Chromium
-  validated the certificate; it does not do its own chain analysis.
-- **The public-suffix handling in the address bar is a heuristic**, not the full
-  IANA list. It only affects which part of the host is emphasised, never a
-  security decision.
+- **Certificate inspection is Chromium's.** The badge reports the issuer and
+  expiry of the certificate Chromium accepted; it does no chain analysis of its
+  own, and a certificate Chromium rejected is never described at all — a failed
+  connection must not be dressed up as an informative one.
 - **Not audited.** A personal project built to a high standard, not a browser
   that has been through security review.
 

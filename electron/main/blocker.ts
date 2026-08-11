@@ -1,4 +1,5 @@
 import type { Session } from 'electron';
+import type { ConnectionEntry } from '../shared/types';
 
 /**
  * A small, curated list of domains that exist only to track people across
@@ -145,11 +146,16 @@ const TRACKER_DOMAINS: readonly string[] = [
 /** Resource kinds that are never worth blocking, whatever the domain. */
 const ALWAYS_ALLOWED_RESOURCES = new Set(['mainFrame']);
 
+/** A page can name endless subdomains; the log must not grow without limit. */
+const MAX_HOSTS_PER_TAB = 250;
+
 export class ContentBlocker {
   private readonly blocked = new Set(TRACKER_DOMAINS);
   private enabled: boolean;
   /** Per-tab counters, keyed by the webContents id of the tab's view. */
   private readonly counts = new Map<number, number>();
+  /** Every host each tab has contacted this page load, keyed the same way. */
+  private readonly hosts = new Map<number, Map<string, ConnectionEntry>>();
   private onCountChanged: ((webContentsId: number, count: number) => void) | null = null;
 
   constructor(enabled: boolean) {
@@ -177,6 +183,9 @@ export class ContentBlocker {
   }
 
   resetCount(webContentsId: number): void {
+    // A new page load starts a new log: the previous page's hosts say nothing
+    // about this one.
+    this.hosts.delete(webContentsId);
     if (this.counts.get(webContentsId)) {
       this.counts.set(webContentsId, 0);
       this.onCountChanged?.(webContentsId, 0);
@@ -185,15 +194,11 @@ export class ContentBlocker {
 
   forget(webContentsId: number): void {
     this.counts.delete(webContentsId);
+    this.hosts.delete(webContentsId);
   }
 
   attach(session: Session): void {
     session.webRequest.onBeforeRequest((details, callback) => {
-      if (!this.enabled || ALWAYS_ALLOWED_RESOURCES.has(details.resourceType)) {
-        callback({ cancel: false });
-        return;
-      }
-
       let hostname: string;
       try {
         hostname = new URL(details.url).hostname.toLowerCase();
@@ -202,18 +207,66 @@ export class ContentBlocker {
         return;
       }
 
-      if (!this.matches(hostname)) {
+      // Top-level navigation is never blocked, so a tracker domain stays
+      // visitable on purpose.
+      const isTracker = this.matches(hostname);
+      const shouldBlock = this.enabled && isTracker && !ALWAYS_ALLOWED_RESOURCES.has(details.resourceType);
+
+      // Recorded whether or not it was blocked, and whether or not blocking is
+      // even switched on. The count of what was stopped is only half the truth;
+      // the other half is everything that was allowed through, which no
+      // mainstream browser shows without opening developer tools.
+      const id = details.webContentsId;
+      if (typeof id === 'number') this.record(id, hostname, isTracker, shouldBlock);
+
+      if (!shouldBlock) {
         callback({ cancel: false });
         return;
       }
 
-      const id = details.webContentsId;
       if (typeof id === 'number') {
         const next = (this.counts.get(id) ?? 0) + 1;
         this.counts.set(id, next);
         this.onCountChanged?.(id, next);
       }
       callback({ cancel: true });
+    });
+  }
+
+  /** Bounded so a page making requests to endless subdomains cannot grow it. */
+  private record(webContentsId: number, host: string, isTracker: boolean, wasBlocked: boolean): void {
+    let hosts = this.hosts.get(webContentsId);
+    if (!hosts) {
+      hosts = new Map();
+      this.hosts.set(webContentsId, hosts);
+    }
+
+    const existing = hosts.get(host);
+    if (existing) {
+      existing.requests += 1;
+      if (wasBlocked) existing.blocked += 1;
+      return;
+    }
+
+    if (hosts.size >= MAX_HOSTS_PER_TAB) return;
+    hosts.set(host, { host, requests: 1, blocked: wasBlocked ? 1 : 0, isTracker });
+  }
+
+  /**
+   * Every host this tab has contacted, blocked first and then by volume.
+   *
+   * Blocked entries lead because they are the ones worth reading: a page that
+   * tried thirty times to reach a tracker says something the raw ordering
+   * would bury.
+   */
+  connectionsFor(webContentsId: number): ConnectionEntry[] {
+    const hosts = this.hosts.get(webContentsId);
+    if (!hosts) return [];
+
+    return [...hosts.values()].sort((a, b) => {
+      if (a.blocked !== b.blocked) return b.blocked - a.blocked;
+      if (a.requests !== b.requests) return b.requests - a.requests;
+      return a.host.localeCompare(b.host);
     });
   }
 

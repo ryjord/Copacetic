@@ -64,6 +64,8 @@ export const INVOKE = {
   appGetInfo: 'app:get-info',
   appOpenExternal: 'app:open-external',
 
+  connectionsList: 'connections:list',
+
   updatesCheck: 'updates:check',
   updatesInstall: 'updates:install',
   updatesOpenReleases: 'updates:open-releases',

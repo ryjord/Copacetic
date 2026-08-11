@@ -17,6 +17,45 @@ export type DownloadId = string;
  */
 export type SecurityLevel = 'secure' | 'insecure' | 'internal' | 'unknown';
 
+/**
+ * What Chromium validated, reported rather than re-derived.
+ *
+ * Copacetic does no chain analysis of its own — it says what Chromium
+ * accepted, which is the honest scope of what a browser interface can claim.
+ */
+export interface CertificateSummary {
+  /** Who issued it, e.g. `Let's Encrypt`. */
+  issuer: string;
+  /** Who it was issued to. */
+  subject: string;
+  /** Milliseconds since the epoch. */
+  validFrom: number;
+  validTo: number;
+  fingerprint: string;
+  /**
+   * False when the chain ends at a root installed on this machine rather than
+   * one shipped with the system. That is what TLS interception looks like — a
+   * corporate proxy, antivirus, or a debugging tool reading the connection —
+   * and it is invisible in every mainstream browser's padlock.
+   */
+  isIssuedByKnownRoot: boolean;
+}
+
+/**
+ * One host a page has contacted, and what happened to those requests.
+ *
+ * The blocked count on the badge says what was stopped. This says what was
+ * allowed through as well, which is the half no mainstream browser shows
+ * without opening developer tools.
+ */
+export interface ConnectionEntry {
+  host: string;
+  requests: number;
+  blocked: number;
+  /** True when the host is on the bundled tracker list. */
+  isTracker: boolean;
+}
+
 export interface SecurityState {
   level: SecurityLevel;
   /** Scheme without the trailing colon, e.g. `https`. */
@@ -24,6 +63,8 @@ export interface SecurityState {
   host: string;
   /** One plain sentence shown in the connection popover. */
   detail: string;
+  /** Present only for an https page whose certificate Chromium accepted. */
+  certificate: CertificateSummary | null;
 }
 
 export interface PageError {
@@ -133,6 +174,19 @@ export type PermissionKind =
   | 'openExternal';
 
 export type PermissionDecision = 'allow' | 'deny';
+
+/** What each permission means, in the words a person would use. */
+export const PERMISSION_LABELS: Record<PermissionKind, string> = {
+  geolocation: 'Know your location',
+  notifications: 'Send you notifications',
+  media: 'Use your camera and microphone',
+  'clipboard-read': 'Read your clipboard',
+  'display-capture': 'Record your screen',
+  midi: 'Use your MIDI devices',
+  pointerLock: 'Lock your pointer',
+  fullscreen: 'Go fullscreen',
+  openExternal: 'Open another application',
+};
 
 export interface PermissionPrompt {
   id: string;
