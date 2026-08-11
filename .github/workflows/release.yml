@@ -13,7 +13,7 @@ jobs:
     name: Check the tag matches package.json
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Nothing else enforces this, and a mismatch ships installers whose
       # version disagrees with the tag people downloaded them from.
@@ -64,7 +64,7 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
