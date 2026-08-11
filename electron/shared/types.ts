@@ -263,6 +263,18 @@ export interface Settings {
    * every time. Only origins deliberately set away from the default are kept.
    */
   zoomLevels: Record<string, number>;
+  /**
+   * Sites where tracker blocking is switched off, by registrable domain.
+   * A per-site exception beats turning blocking off everywhere because one
+   * site broke.
+   */
+  blockerAllowlist: string[];
+  /**
+   * Whether a start-page wallpaper is set. The image itself is fetched on
+   * demand rather than pushed: a couple of megabytes has no business riding
+   * along with every state update.
+   */
+  hasWallpaper: boolean;
   sidebarWidth: number;
   defaultZoomFactor: number;
 }

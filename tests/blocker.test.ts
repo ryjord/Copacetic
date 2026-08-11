@@ -222,3 +222,59 @@ describe('the connection log', () => {
     expect(blocker.connectionsFor(7).length).toBeLessThanOrEqual(250);
   });
 });
+
+describe('per-site exceptions', () => {
+  let blocker: ContentBlocker;
+  let fake: ReturnType<typeof fakeSession>;
+
+  beforeEach(() => {
+    blocker = new ContentBlocker(true);
+    fake = fakeSession();
+    blocker.attach(fake.session as never);
+    blocker.setPageSite(7, 'example.com');
+  });
+
+  const ask = (url: string, webContentsId = 7) => fake.request({ url, resourceType: 'script', webContentsId });
+
+  it('blocks a tracker on a site with no exception', () => {
+    expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
+  });
+
+  it('stops blocking on a site the user allowed', () => {
+    blocker.setAllowlist(['example.com']);
+    expect(ask('https://doubleclick.net/pixel.gif')).toBe(false);
+  });
+
+  // The exception is about the page you are on, not the tracker itself.
+  it('does not carry the exception to another site', () => {
+    blocker.setAllowlist(['example.com']);
+    blocker.setPageSite(9, 'other.com');
+    expect(ask('https://doubleclick.net/pixel.gif', 9)).toBe(true);
+  });
+
+  it('still records what was allowed through, so the log stays honest', () => {
+    blocker.setAllowlist(['example.com']);
+    ask('https://doubleclick.net/pixel.gif');
+
+    expect(blocker.connectionsFor(7)).toContainEqual(
+      expect.objectContaining({ host: 'doubleclick.net', isTracker: true, blocked: 0 }),
+    );
+  });
+
+  it('can be taken back', () => {
+    blocker.setAllowlist(['example.com']);
+    blocker.setAllowlist([]);
+    expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
+  });
+
+  it('blocks normally when the page site is unknown', () => {
+    blocker.setAllowlist(['example.com']);
+    blocker.setPageSite(7, '');
+    expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
+  });
+
+  it('forgets the page site when the tab closes', () => {
+    blocker.forget(7);
+    expect(blocker.isAllowedOn('example.com')).toBe(false);
+  });
+});

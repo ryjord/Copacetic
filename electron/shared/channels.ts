@@ -68,6 +68,11 @@ export const INVOKE = {
 
   dataExport: 'data:export',
 
+  wallpaperGet: 'wallpaper:get',
+  wallpaperPreview: 'wallpaper:preview',
+  wallpaperChoose: 'wallpaper:choose',
+  wallpaperClear: 'wallpaper:clear',
+
   authRespond: 'auth:respond',
   authCancel: 'auth:cancel',
 

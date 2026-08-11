@@ -156,6 +156,10 @@ export class ContentBlocker {
   private readonly counts = new Map<number, number>();
   /** Every host each tab has contacted this page load, keyed the same way. */
   private readonly hosts = new Map<number, Map<string, ConnectionEntry>>();
+  /** The site each tab is on, so a per-site exception can be honoured. */
+  private readonly pageHosts = new Map<number, string>();
+  /** Sites the user has chosen to stop blocking on, by registrable domain. */
+  private allowed = new Set<string>();
   private onCountChanged: ((webContentsId: number, count: number) => void) | null = null;
 
   constructor(enabled: boolean) {
@@ -164,6 +168,28 @@ export class ContentBlocker {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
+  }
+
+  /**
+   * Sites where blocking is switched off, by registrable domain.
+   *
+   * Blocking a tracker sometimes breaks a page — a login that goes through an
+   * analytics domain, an embed that will not load. Making the exception
+   * per-site keeps the global answer honest instead of pushing people to turn
+   * blocking off everywhere because one site misbehaved.
+   */
+  setAllowlist(sites: readonly string[]): void {
+    this.allowed = new Set(sites);
+  }
+
+  /** Told on navigation, so a request can be judged against the page it is for. */
+  setPageSite(webContentsId: number, site: string): void {
+    if (site) this.pageHosts.set(webContentsId, site);
+    else this.pageHosts.delete(webContentsId);
+  }
+
+  isAllowedOn(site: string): boolean {
+    return this.allowed.has(site);
   }
 
   isEnabled(): boolean {
@@ -195,6 +221,7 @@ export class ContentBlocker {
   forget(webContentsId: number): void {
     this.counts.delete(webContentsId);
     this.hosts.delete(webContentsId);
+    this.pageHosts.delete(webContentsId);
   }
 
   attach(session: Session): void {
@@ -210,13 +237,18 @@ export class ContentBlocker {
       // Top-level navigation is never blocked, so a tracker domain stays
       // visitable on purpose.
       const isTracker = this.matches(hostname);
-      const shouldBlock = this.enabled && isTracker && !ALWAYS_ALLOWED_RESOURCES.has(details.resourceType);
+      const id = details.webContentsId;
+      // An exception applies to the site being browsed, not the host being
+      // requested: "allow trackers on this site", not "trust this tracker".
+      const pageSite = typeof id === 'number' ? (this.pageHosts.get(id) ?? '') : '';
+      const exempt = pageSite !== '' && this.allowed.has(pageSite);
+
+      const shouldBlock = this.enabled && isTracker && !exempt && !ALWAYS_ALLOWED_RESOURCES.has(details.resourceType);
 
       // Recorded whether or not it was blocked, and whether or not blocking is
       // even switched on. The count of what was stopped is only half the truth;
       // the other half is everything that was allowed through, which no
       // mainstream browser shows without opening developer tools.
-      const id = details.webContentsId;
       if (typeof id === 'number') this.record(id, hostname, isTracker, shouldBlock);
 
       if (!shouldBlock) {

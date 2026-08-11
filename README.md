@@ -57,7 +57,9 @@ opening developer tools.
 that exist only to follow people between sites. Not an EasyList engine — a
 short, honest list, and the count you see is the real number of blocked
 requests, not an estimate. Top-level navigation is never blocked, so you can
-still visit a tracker domain deliberately.
+still visit a tracker domain deliberately. If blocking breaks a particular
+site, you can allow it there from the connection panel rather than turning
+blocking off everywhere.
 
 **Local-only suggestions.** As you type, the list under the address bar is
 ranked from your own history and bookmarks, in the main process. No keystroke is

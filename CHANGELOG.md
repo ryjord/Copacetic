@@ -2,6 +2,30 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.4 — unreleased
+
+### Added
+
+- Tracker blocking can be switched off for one site, from the connection panel
+  where the blocked count already is. Blocking occasionally breaks something
+  real — a login routed through an analytics domain, an embed that will not
+  load — and without a per-site answer the only fix was turning blocking off
+  everywhere, which is a far worse trade than the one anyone wanted to make.
+  Allowed sites are listed in Settings with a way back.
+- What was allowed through is still recorded, so the connection log stays
+  honest about a site you chose not to block on.
+- A wallpaper for the start page. The image is copied into your profile and
+  resized on the way in, so moving the original later does not blank it and a
+  large photograph does not become a large read on every new tab. The start
+  page dims it so the clock and search field stay readable.
+- Settings shows a preview of the wallpaper, dimmed exactly as the start page
+  dims it, so what you are looking at is what you will get rather than a
+  flattering portrait of it. The preview is generated small on demand rather
+  than loading the full image into Settings.
+- The start page is the only surface that gets this. It is not chrome and
+  nothing on it reports state, which is exactly why colour is free there and
+  fixed everywhere else.
+
 ## 1.2.3 — 2026-08-11
 
 Customisation, keyboard access, and two places the interface was quietly

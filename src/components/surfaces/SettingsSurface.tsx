@@ -84,6 +84,7 @@ export function SettingsSurface() {
             checked={settings.blockTrackers}
             onChange={(blockTrackers) => update({ blockTrackers })}
           />
+          <AllowlistedSites sites={settings.blockerAllowlist} />
           <PermissionList decisions={settings.permissionDecisions} />
         </Section>
 
@@ -143,6 +144,7 @@ export function SettingsSurface() {
             The atmosphere only tints the start page. The rest of the interface stays monochrome so colour always
             means the same thing.
           </p>
+          <WallpaperControl hasWallpaper={settings.hasWallpaper} />
           <Toggle
             label="Show the clock"
             checked={settings.showStartPageClock}
@@ -246,6 +248,103 @@ function ShortcutReference({ isMac }: { isMac: boolean }) {
           </dl>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The start page is the one surface where colour is free — it is not chrome
+ * and nothing on it reports state — so a picture belongs here and nowhere
+ * else in the interface.
+ */
+function WallpaperControl({ hasWallpaper }: { hasWallpaper: boolean }) {
+  const [message, setMessage] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
+
+  // Re-fetched whenever one is set or removed, so what is shown here is what
+  // the start page will actually use rather than a stale thumbnail.
+  useEffect(() => {
+    if (!hasWallpaper) return;
+    let cancelled = false;
+    void ask((api) => api.wallpaper.preview(), null).then((image) => {
+      if (!cancelled) setPreview(image);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasWallpaper]);
+
+  const visible = hasWallpaper ? preview : null;
+
+  return (
+    <div className="mb-3">
+      {visible && (
+        <div className="mb-2 overflow-hidden rounded-panel border border-line">
+          {/*
+            The same reasoning as the start page: a data URL already in memory,
+            in a statically exported page with no image loader.
+          */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={visible} alt="The current start page wallpaper" className="h-28 w-full object-cover" />
+          {/* Shown dimmed exactly as the start page dims it, so the preview is
+              a preview rather than a flattering portrait. */}
+          <div className="relative -mt-28 h-28 w-full bg-base/70" aria-hidden />
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setMessage('');
+            void ask((api) => api.wallpaper.choose(), '').then(setMessage);
+          }}
+          className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
+        >
+          {hasWallpaper ? 'Change wallpaper' : 'Choose a wallpaper'}
+        </button>
+        {hasWallpaper && (
+          <button
+            type="button"
+            onClick={() => send((api) => api.wallpaper.clear())}
+            className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-faint transition-colors hover:bg-raised hover:text-ink"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-faint">
+        Copied into your profile and resized, so moving the original later does not blank it. The start page dims it
+        slightly so the clock and search field stay readable.
+      </p>
+      {message && <p className="mt-1 text-[12px] text-alert">{message}</p>}
+    </div>
+  );
+}
+
+/** Sites where the user turned blocking off, and a way back. */
+function AllowlistedSites({ sites }: { sites: string[] }) {
+  if (sites.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <h3 className="label mb-2">Trackers allowed on</h3>
+      <ul className="divide-y divide-line rounded-field border border-line">
+        {sites.map((site) => (
+          <li key={site} className="flex items-center gap-3 px-3 py-2">
+            <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{site}</span>
+            <button
+              type="button"
+              onClick={() =>
+                send((api) => api.settings.update({ blockerAllowlist: sites.filter((entry) => entry !== site) }))
+              }
+              className="shrink-0 rounded px-2 py-0.5 text-[11.5px] text-ink-faint transition-colors hover:bg-hover hover:text-ink"
+            >
+              Block again
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

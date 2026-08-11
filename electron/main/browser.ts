@@ -19,6 +19,7 @@ import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
+import { chooseWallpaper, clearWallpaper, hasWallpaper } from './wallpaper';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { type SecurityDelegate, getWebSession, hardenChromeSession, hardenWebSession } from './security';
@@ -72,6 +73,7 @@ export class Browser {
   constructor() {
     this.store = new BrowserStore();
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
+    this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 
@@ -134,7 +136,7 @@ export class Browser {
       find: this.tabs.getFindState(),
       permissionPrompts: [...this.pendingPermissions.values()].map((pending) => pending.prompt),
       authPrompts: [...this.pendingAuth.values()].map((pending) => pending.prompt),
-      settings: this.store.getSettings(),
+      settings: { ...this.store.getSettings(), hasWallpaper: hasWallpaper() },
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
     };
@@ -422,6 +424,7 @@ export class Browser {
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
     if (patch.blockTrackers !== undefined) this.blocker.setEnabled(patch.blockTrackers);
+    if (patch.blockerAllowlist !== undefined) this.blocker.setAllowlist(next.blockerAllowlist);
     if (patch.checkForUpdates !== undefined) this.updates.start(patch.checkForUpdates);
     this.scheduleStatePush();
     return next;
@@ -468,6 +471,18 @@ export class Browser {
     } catch (error) {
       return error instanceof Error ? error.message : 'The file could not be written.';
     }
+  }
+
+  /** Resolves empty on success, or with a sentence for the user. */
+  async chooseWallpaper(): Promise<string> {
+    const error = await chooseWallpaper(this.window);
+    this.scheduleStatePush();
+    return error;
+  }
+
+  clearWallpaper(): void {
+    clearWallpaper();
+    this.scheduleStatePush();
   }
 
   openDownloadsFolder(): void {
