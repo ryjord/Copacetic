@@ -2,6 +2,23 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.2.5 — unreleased
+
+### Added
+
+- Settings is grouped into sections behind a rail — Appearance, Search,
+  Privacy, Behaviour, Your data, Keyboard, Updates and About — rather than one
+  page that grew every release. One pane shows at a time, so looking for one
+  thing means reading one pane.
+- An About section that answers what people actually ask: whether Copacetic
+  tracks you, whether it phones home, what the address bar sends, where your
+  data is, why a site might look broken, why Netflix will not play, why there
+  are no extensions, and whether passwords are stored.
+- A plain disclaimer in the same place: Chromium does the rendering and the
+  certificate validation, the project has not been security audited, the builds
+  are not code-signed, and there is no warranty. All of it was already true and
+  already written in the README — this puts it where someone might read it.
+
 ## 1.2.4 — unreleased
 
 ### Added
