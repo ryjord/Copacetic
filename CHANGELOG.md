@@ -4,6 +4,18 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ## 1.2.5 — unreleased
 
+### Fixed
+
+- Several settings did nothing. The IPC handler validates an incoming settings
+  patch against a whitelist, which is right, but it silently dropped any field
+  not on it — so the control moved, the change was discarded, and it looked
+  like it had worked. Compact density, the update-check toggle, the tracker
+  allowlist and resetting a site's zoom were all affected. The update-check
+  toggle had been inert since 1.1.0.
+- A test now asserts the whitelist covers every field of `Settings` except the
+  ones deliberately refused, so a setting added without being made changeable
+  fails the build rather than shipping as a control that does nothing.
+
 ### Added
 
 - Settings is grouped into sections behind a rail — Appearance, Search,
