@@ -19,6 +19,17 @@ updates:
       # the first matching group wins.
       react:
         patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      # Same reason, one layer out: the plugin declares a peer range on vite, so
+      # a major on either is only installable alongside the other.
+      vite:
+        patterns: ['vite', '@vitejs/*']
+    ignore:
+      # @types/node describes the APIs of a Node it is versioned against, and
+      # types ahead of the runtime let code compile against functions that will
+      # not exist when it runs — a failure typecheck cannot see. Pinned to the
+      # major we build on; raise this deliberately when that moves.
+      - dependency-name: '@types/node'
+        versions: ['>=25']
       # One pull request for the ordinary churn, so the noise stays in a single
       # place and the ones worth reading stand alone.
       routine:
