@@ -1,141 +1,39 @@
 {
-  "name": "copacetic",
-  "productName": "Copacetic",
-  "version": "1.2.13",
-  "description": "A calm, honest browser that shows you the true state of every page.",
-  "author": {
-    "name": "Riley Jordan",
-    "email": "rileyjordan21@hotmail.com"
-  },
+  "name": "electron-updater",
+  "version": "6.8.9",
+  "description": "Cross platform updater for electron applications",
+  "main": "out/main.js",
+  "author": "Vladimir Krivosheev",
   "license": "MIT",
-  "private": true,
-  "main": "dist/electron/main/index.js",
-  "scripts": {
-    "dev": "cross-env NODE_ENV=development concurrently -k -n next,main,preload,electron -c cyan,magenta,yellow,green \"next dev --port 3000\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"npm run build:preload -- --watch\" \"wait-on http://localhost:3000 dist/electron/main/index.js dist/electron/preload/index.js && electron .\"",
-    "dev:renderer": "next dev --port 3000",
-    "build": "npm run build:renderer && npm run build:main",
-    "build:renderer": "next build",
-    "build:main": "tsc -p tsconfig.electron.json && npm run build:preload",
-    "build:preload": "esbuild electron/preload/index.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outfile=dist/electron/preload/index.js",
-    "start": "cross-env NODE_ENV=production electron .",
-    "package": "npm run build && electron-builder --publish never",
-    "package:dir": "npm run build && electron-builder --dir --publish never",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test",
-    "generate:psl": "node scripts/generate-public-suffix-list.mjs"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/electron-userland/electron-builder.git",
+    "directory": "packages/electron-updater"
   },
+  "homepage": "https://github.com/electron-userland/electron-builder",
+  "files": [
+    "out"
+  ],
   "dependencies": {
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "electron-updater": "^6.8.9",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.6",
-    "radix-ui": "^1.4.3",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.8"
+    "fs-extra": "^10.1.0",
+    "js-yaml": "^4.1.0",
+    "lazy-val": "^1.0.5",
+    "lodash.escaperegexp": "^4.1.2",
+    "lodash.isequal": "^4.5.0",
+    "semver": "~7.7.3",
+    "tiny-typed-emitter": "^2.1.0",
+    "builder-util-runtime": "9.7.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.1",
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/react": "^16.3.0",
-    "@types/node": "^24.13.3",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^5.0.4",
-    "babel-plugin-react-compiler": "1.0.0",
-    "concurrently": "^9.2.1",
-    "cross-env": "^10.1.0",
-    "electron": "^43.3.0",
-    "electron-builder": "^25.1.8",
-    "esbuild": "^0.28.1",
-    "eslint": "^9",
-    "eslint-config-next": "^16.3.0",
-    "jsdom": "^26.1.0",
-    "postcss": "^8.5.26",
-    "prettier": "^3.4.2",
-    "tailwindcss": "^4.2.1",
-    "typescript": "^5",
-    "vitest": "^3.2.4",
-    "wait-on": "^9.0.4"
+    "@types/fs-extra": "9.0.13",
+    "@types/js-yaml": "4.0.3",
+    "@types/lodash.escaperegexp": "4.1.6",
+    "@types/lodash.isequal": "4.5.5",
+    "@types/semver": "7.7.1",
+    "electron": "39.8.5"
   },
-  "engines": {
-    "node": ">=20.9"
-  },
-  "build": {
-    "appId": "uk.co.ryjord.copacetic",
-    "productName": "Copacetic",
-    "copyright": "Copyright © 2026 Riley Jordan",
-    "publish": {
-      "provider": "github",
-      "owner": "ryjord",
-      "repo": "Copacetic",
-      "releaseType": "release"
-    },
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
-    "files": [
-      "dist/electron/**/*",
-      "out/**/*",
-      "package.json"
-    ],
-    "asar": true,
-    "mac": {
-      "category": "public.app-category.productivity",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Network"
-    },
-    "deb": {
-      "afterInstall": "build/deb/after-install.sh",
-      "afterRemove": "build/deb/after-remove.sh"
-    },
-    "extraResources": [
-      {
-        "from": "build/keyring",
-        "to": ".",
-        "filter": [
-          "copacetic-archive-keyring.gpg",
-          "copacetic-apt-source"
-        ]
-      }
-    ]
+  "typings": "./out/main.d.ts",
+  "publishConfig": {
+    "tag": "next"
   }
 }
