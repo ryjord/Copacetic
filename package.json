@@ -37,8 +37,8 @@
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.8"
   },
@@ -72,7 +72,7 @@
   "build": {
     "appId": "uk.co.ryjord.copacetic",
     "productName": "Copacetic",
-    "copyright": "Copyright \u00a9 2026 Riley Jordan",
+    "copyright": "Copyright © 2026 Riley Jordan",
     "publish": {
       "provider": "github",
       "owner": "ryjord",
