@@ -65,6 +65,38 @@ export function PasswordsPane() {
         {message && <p className="mt-2 text-[12px] text-alert">{message}</p>}
       </Section>
 
+      <Section title="Taking them with you">
+        <Note>
+          The file is written in the format Chrome, Firefox and 1Password all read. It is{' '}
+          <span className="text-caution">plain text, with every password readable in any editor</span> — that is what
+          makes it portable, and why it belongs somewhere you would put a password rather than your downloads folder.
+        </Note>
+        <div className="flex flex-wrap gap-2">
+          <OutlineButton
+            onClick={() => {
+              setMessage('');
+              void ask((api) => api.vault.exportAll(), '').then((result) => {
+                setMessage(result);
+                refresh();
+              });
+            }}
+          >
+            Export passwords
+          </OutlineButton>
+          <OutlineButton
+            onClick={() => {
+              setMessage('');
+              void ask((api) => api.vault.importFile(), '').then((result) => {
+                setMessage(result);
+                refresh();
+              });
+            }}
+          >
+            Import from a file
+          </OutlineButton>
+        </div>
+      </Section>
+
       <Section title="Saved">
         {vault.entries.length === 0 ? (
           <p className="text-[12px] text-ink-faint">No passwords saved yet.</p>

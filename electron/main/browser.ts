@@ -17,11 +17,12 @@ import type {
   TabId,
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
+import { credentialsFromCsv, credentialsToCsv } from '../shared/credential-csv';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { chooseWallpaper, clearWallpaper, hasWallpaper } from './wallpaper';
 import { DownloadManager } from './downloads';
@@ -513,6 +514,81 @@ export class Browser {
   }
 
   // Write bookmarks or history somewhere the user picks.
+  /**
+   * Writes the passwords out in the format every other manager reads. The file
+   * is plain text by necessity — that is what makes it portable — so the
+   * warning is in the interface before the dialog opens, not buried after it.
+   */
+  async exportVault(): Promise<string> {
+    const { credentials, unreadable } = this.vault.exportAll();
+    if (credentials.length === 0) {
+      return unreadable > 0
+        ? `None of your ${unreadable} saved passwords could be decrypted on this machine, so there was nothing to write.`
+        : 'There are no saved passwords to export.';
+    }
+
+    const stamp = new Date(Date.now()).toISOString().slice(0, 10);
+    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
+      title: 'Export passwords',
+      defaultPath: `copacetic-passwords-${stamp}.csv`,
+      filters: [{ name: 'Passwords', extensions: ['csv'] }],
+    });
+    if (canceled || !filePath) {
+      return '';
+    }
+
+    try {
+      await writeFile(filePath, credentialsToCsv(credentials), 'utf8');
+    } catch (error) {
+      return error instanceof Error ? error.message : 'The file could not be written.';
+    }
+
+    // A short count has to be explained, or it reads as everything.
+    return unreadable > 0
+      ? `Wrote ${credentials.length}. ${unreadable} could not be decrypted on this machine and were left out.`
+      : '';
+  }
+
+  /** Reads a file another manager wrote, and says exactly what came of it. */
+  async importVault(): Promise<string> {
+    const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
+      title: 'Import passwords',
+      properties: ['openFile'],
+      filters: [{ name: 'Passwords', extensions: ['csv'] }],
+    });
+
+    const source = filePaths[0];
+    if (canceled || !source) {
+      return '';
+    }
+
+    let text = '';
+    try {
+      text = await readFile(source, 'utf8');
+    } catch (error) {
+      return error instanceof Error ? error.message : 'The file could not be read.';
+    }
+
+    const { credentials, skipped: unusable } = credentialsFromCsv(text);
+    if (credentials.length === 0) {
+      return 'No passwords were found in that file. It needs a header row naming a url and a password column.';
+    }
+
+    const { added, updated, skipped } = this.vault.importMany(credentials);
+    const parts = [];
+    if (added > 0) {
+      parts.push(`added ${added}`);
+    }
+    if (updated > 0) {
+      parts.push(`updated ${updated}`);
+    }
+    const ignored = skipped + unusable;
+    if (ignored > 0) {
+      parts.push(`ignored ${ignored} that had no site or no password`);
+    }
+    return parts.length > 0 ? `Imported: ${parts.join(', ')}.` : 'Nothing in that file could be imported.';
+  }
+
   async exportData(kind: ExportKind): Promise<string> {
     const now = Date.now();
     const stamp = new Date(now).toISOString().slice(0, 10);

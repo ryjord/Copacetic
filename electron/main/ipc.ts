@@ -3,7 +3,7 @@ import { readWallpaper, readWallpaperPreview } from './wallpaper';
 import { INVOKE } from '../shared/channels';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../shared/types';
 import type { Browser } from './browser';
-import { showTabContextMenu } from './context-menu';
+import { showNewTabMenu, showTabContextMenu } from './context-menu';
 import { HISTORY_PAGE_SIZE } from './store';
 
 /** Every handler is registered through `handle`, which drops any message that did not come from the chrome window's own top-level frame. */
@@ -36,6 +36,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.tabReopenClosed, () => browser.reopenClosedTab());
   handle(INVOKE.tabSetZoom, (_event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
   handle(INVOKE.tabOpenContextMenu, (_event, id) => showTabContextMenu(browser, asString(id)));
+  handle(INVOKE.tabOpenNewTabMenu, () => showNewTabMenu(browser));
 
   // ----------------------------------------------------------------- chrome
 
@@ -162,6 +163,8 @@ export function registerIpcHandlers(browser: Browser): void {
   });
   handle(INVOKE.vaultRemove, (_event, id) => browser.vault.remove(asString(id)));
   handle(INVOKE.vaultReveal, (_event, id) => browser.vault.reveal(asString(id)));
+  handle(INVOKE.vaultExport, () => browser.exportVault());
+  handle(INVOKE.vaultImport, () => browser.importVault());
 
   handle(INVOKE.wallpaperGet, () => readWallpaper());
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());

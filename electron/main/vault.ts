@@ -1,4 +1,5 @@
 import { newId } from './persistence';
+import type { CsvCredential } from '../shared/credential-csv';
 import type { VaultEntry, VaultState } from '../shared/types';
 
 /** The OS keychain, behind an interface so the rules above it can be tested without one. */
@@ -166,6 +167,61 @@ export class Vault {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Everything that can be decrypted, and a count of what cannot. A password
+   * that will not decrypt cannot be written to a file, and leaving it out
+   * quietly is how someone believes they took everything with them.
+   */
+  exportAll(): { credentials: CsvCredential[]; unreadable: number } {
+    const credentials: CsvCredential[] = [];
+    let unreadable = 0;
+
+    for (const entry of this.storage.get().entries) {
+      const password = this.reveal(entry.id);
+      if (password === null) {
+        unreadable += 1;
+        continue;
+      }
+      credentials.push({ origin: entry.origin, username: entry.username, password });
+    }
+
+    return { credentials, unreadable };
+  }
+
+  /** A site and username already here has its password replaced rather than duplicated. */
+  importMany(credentials: readonly CsvCredential[]): { added: number; updated: number; skipped: number } {
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const credential of credentials) {
+      const existing = this.storage
+        .get()
+        .entries.find(
+          (entry) => entry.origin === credential.origin.trim() && entry.username === credential.username.trim(),
+        );
+
+      if (existing) {
+        const failure = this.update(existing.id, { password: credential.password });
+        if (failure) {
+          skipped += 1;
+        } else {
+          updated += 1;
+        }
+        continue;
+      }
+
+      const result = this.add(credential);
+      if ('error' in result) {
+        skipped += 1;
+      } else {
+        added += 1;
+      }
+    }
+
+    return { added, updated, skipped };
   }
 
   private canRead(entry: StoredEntry): boolean {

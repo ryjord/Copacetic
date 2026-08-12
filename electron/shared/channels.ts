@@ -16,6 +16,7 @@ export const INVOKE = {
   tabReopenClosed: 'tab:reopen-closed',
   tabSetZoom: 'tab:set-zoom',
   tabOpenContextMenu: 'tab:open-context-menu',
+  tabOpenNewTabMenu: 'tab:open-new-tab-menu',
 
   chromeSetContentBounds: 'chrome:set-content-bounds',
   chromeSetOverlayVisible: 'chrome:set-overlay-visible',
@@ -68,6 +69,8 @@ export const INVOKE = {
   vaultUpdate: 'vault:update',
   vaultRemove: 'vault:remove',
   vaultReveal: 'vault:reveal',
+  vaultExport: 'vault:export',
+  vaultImport: 'vault:import',
 
   wallpaperGet: 'wallpaper:get',
   wallpaperPreview: 'wallpaper:preview',

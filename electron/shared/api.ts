@@ -47,6 +47,8 @@ export interface CopaceticApi {
     reopenClosed(): Promise<void>;
     setZoom(id: TabId, zoomFactor: number): Promise<void>;
     openContextMenu(id: TabId): Promise<void>;
+    /** The menu behind the caret beside the new-tab button. */
+    openNewTabMenu(): Promise<void>;
   };
   chrome: {
     setContentInsets(insets: ContentInsetsInput): Promise<void>;
@@ -111,6 +113,10 @@ export interface CopaceticApi {
     remove(id: string): Promise<void>;
     /** One password, by id, only when asked. Never part of the listed state. */
     reveal(id: string): Promise<string | null>;
+    /** Writes a plain-text CSV where the user chooses. Resolves empty, or with what to tell them. */
+    exportAll(): Promise<string>;
+    /** Reads a CSV another manager wrote. Resolves with a summary of what came of it. */
+    importFile(): Promise<string>;
   };
 
   wallpaper: {

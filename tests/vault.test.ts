@@ -280,3 +280,97 @@ describe('reading the file back off disk', () => {
     expect(reviveVaultFile({ version: 1, entries: [entry] })?.entries).toHaveLength(0);
   });
 });
+
+/**
+ * "Everything lives on this machine" is honest, and on its own it is also
+ * lock-in. Getting it back out is what makes the claim something a person can
+ * act on rather than take on trust.
+ */
+describe('taking it all with you', () => {
+  it('hands back every password it can read', () => {
+    const vault = new Vault(keychain(), storage(), now);
+    vault.add({ origin: 'https://a.test', username: 'one', password: 'first' });
+    vault.add({ origin: 'https://b.test', username: 'two', password: 'second' });
+
+    const exported = vault.exportAll();
+    expect(exported.credentials).toEqual([
+      { origin: 'https://a.test', username: 'one', password: 'first' },
+      { origin: 'https://b.test', username: 'two', password: 'second' },
+    ]);
+    expect(exported.unreadable).toBe(0);
+  });
+
+  // Leaving it out quietly is how someone believes they took everything.
+  it('counts what it could not decrypt rather than dropping it silently', () => {
+    const store = storage({
+      version: 1,
+      entries: [
+        {
+          id: 'a',
+          origin: 'https://a.test',
+          username: 'one',
+          secret: Buffer.from('sealed:first').toString('base64'),
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+    const exported = new Vault(keychain({ unreadable: new Set(['sealed:first']) }), store, now).exportAll();
+    expect(exported.credentials).toEqual([]);
+    expect(exported.unreadable).toBe(1);
+  });
+
+  it('exports nothing rather than failing when there is no keychain', () => {
+    const exported = new Vault(keychain({ available: false }), storage(), now).exportAll();
+    expect(exported.credentials).toEqual([]);
+  });
+});
+
+describe('bringing passwords in', () => {
+  it('adds ones it has never seen', () => {
+    const vault = new Vault(keychain(), storage(), now);
+    const result = vault.importMany([
+      { origin: 'https://a.test', username: 'one', password: 'first' },
+      { origin: 'https://b.test', username: 'two', password: 'second' },
+    ]);
+    expect(result).toEqual({ added: 2, updated: 0, skipped: 0 });
+    expect(vault.state().entries).toHaveLength(2);
+  });
+
+  // Importing the same file twice should not leave two of everything.
+  it('replaces the password on a site and username it already has', () => {
+    const vault = new Vault(keychain(), storage(), now);
+    vault.add({ origin: 'https://a.test', username: 'one', password: 'old' });
+
+    const result = vault.importMany([{ origin: 'https://a.test', username: 'one', password: 'new' }]);
+    expect(result).toEqual({ added: 0, updated: 1, skipped: 0 });
+    expect(vault.state().entries).toHaveLength(1);
+    expect(vault.reveal(vault.state().entries[0]?.id ?? '')).toBe('new');
+  });
+
+  it('treats a different username on the same site as a separate account', () => {
+    const vault = new Vault(keychain(), storage(), now);
+    vault.add({ origin: 'https://a.test', username: 'one', password: 'first' });
+    expect(vault.importMany([{ origin: 'https://a.test', username: 'two', password: 'second' }]).added).toBe(1);
+    expect(vault.state().entries).toHaveLength(2);
+  });
+
+  it('counts rows it refused rather than reporting them as imported', () => {
+    const vault = new Vault(keychain(), storage(), now);
+    const result = vault.importMany([
+      { origin: 'https://a.test', username: 'one', password: 'first' },
+      { origin: '', username: 'two', password: 'second' },
+      { origin: 'https://c.test', username: 'three', password: '' },
+    ]);
+    expect(result).toEqual({ added: 1, updated: 0, skipped: 2 });
+  });
+
+  it('imports nothing at all when there is no keychain', () => {
+    const store = storage();
+    const result = new Vault(keychain({ available: false }), store, now).importMany([
+      { origin: 'https://a.test', username: 'one', password: 'first' },
+    ]);
+    expect(result.added).toBe(0);
+    expect(store.written().entries).toHaveLength(0);
+  });
+});

@@ -37,6 +37,7 @@ const api: CopaceticApi = {
     reopenClosed: () => ipcRenderer.invoke(INVOKE.tabReopenClosed),
     setZoom: (id: TabId, zoomFactor: number) => ipcRenderer.invoke(INVOKE.tabSetZoom, id, zoomFactor),
     openContextMenu: (id: TabId) => ipcRenderer.invoke(INVOKE.tabOpenContextMenu, id),
+    openNewTabMenu: () => ipcRenderer.invoke(INVOKE.tabOpenNewTabMenu),
   },
 
   chrome: {
@@ -110,6 +111,8 @@ const api: CopaceticApi = {
     update: (id: string, changes: Partial<VaultInput>) => ipcRenderer.invoke(INVOKE.vaultUpdate, id, changes),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.vaultRemove, id),
     reveal: (id: string) => ipcRenderer.invoke(INVOKE.vaultReveal, id),
+    exportAll: () => ipcRenderer.invoke(INVOKE.vaultExport),
+    importFile: () => ipcRenderer.invoke(INVOKE.vaultImport),
   },
 
   wallpaper: {
