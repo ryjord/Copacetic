@@ -71,6 +71,7 @@ export const INVOKE = {
   vaultReveal: 'vault:reveal',
   vaultExport: 'vault:export',
   vaultImport: 'vault:import',
+  vaultGenerate: 'vault:generate',
 
   wallpaperGet: 'wallpaper:get',
   wallpaperPreview: 'wallpaper:preview',

@@ -117,6 +117,8 @@ export interface CopaceticApi {
     exportAll(): Promise<string>;
     /** Reads a CSV another manager wrote. Resolves with a summary of what came of it. */
     importFile(): Promise<string>;
+    /** A generated password. Made in the main process, where the random source is. */
+    generate(length: number): Promise<string>;
   };
 
   wallpaper: {

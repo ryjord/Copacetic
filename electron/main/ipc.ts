@@ -1,6 +1,8 @@
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { readWallpaper, readWallpaperPreview } from './wallpaper';
+import { randomBytes } from 'node:crypto';
 import { INVOKE } from '../shared/channels';
+import { DEFAULT_RECIPE, generatePassword } from '../shared/password-generator';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../shared/types';
 import type { Browser } from './browser';
 import { showNewTabMenu, showTabContextMenu } from './context-menu';
@@ -165,6 +167,12 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.vaultReveal, (_event, id) => browser.vault.reveal(asString(id)));
   handle(INVOKE.vaultExport, () => browser.exportVault());
   handle(INVOKE.vaultImport, () => browser.importVault());
+  handle(INVOKE.vaultGenerate, (_event, length) =>
+    generatePassword(
+      { ...DEFAULT_RECIPE, length: Number(length) || DEFAULT_RECIPE.length },
+      (count) => new Uint8Array(randomBytes(count)),
+    ),
+  );
 
   handle(INVOKE.wallpaperGet, () => readWallpaper());
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());

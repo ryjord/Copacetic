@@ -158,6 +158,7 @@ function AddPassword({ onSaved, onError }: { onSaved: () => void; onError: (mess
   const [origin, setOrigin] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [revealNew, setRevealNew] = useState(false);
 
   const save = () => {
     void ask((api) => api.vault.add({ origin, username, password }), { error: 'Nothing was saved.' }).then(
@@ -179,9 +180,29 @@ function AddPassword({ onSaved, onError }: { onSaved: () => void; onError: (mess
       <Field label="Site" value={origin} onChange={setOrigin} placeholder="https://example.com" />
       <Field label="Username" value={username} onChange={setUsername} placeholder="you@example.com" />
       <Field label="Password" value={password} onChange={setPassword} type="password" />
-      <OutlineButton onClick={save} disabled={!origin.trim() || !password}>
-        Save password
-      </OutlineButton>
+      <div className="flex flex-wrap gap-2">
+        <OutlineButton onClick={save} disabled={!origin.trim() || !password}>
+          Save password
+        </OutlineButton>
+        {/* Generated where the random source is, and shown rather than hidden — you cannot check what you cannot see. */}
+        <OutlineButton
+          onClick={() => {
+            void ask((api) => api.vault.generate(20), '').then((generated) => {
+              if (generated) {
+                setPassword(generated);
+                setRevealNew(true);
+              }
+            });
+          }}
+        >
+          Generate one
+        </OutlineButton>
+      </div>
+      {revealNew && password && (
+        <p className="font-mono text-[12px] text-ink-dim">
+          {password} <span className="text-ink-faint">— save it before you leave this page.</span>
+        </p>
+      )}
     </div>
   );
 }

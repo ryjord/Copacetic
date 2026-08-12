@@ -113,6 +113,7 @@ const api: CopaceticApi = {
     reveal: (id: string) => ipcRenderer.invoke(INVOKE.vaultReveal, id),
     exportAll: () => ipcRenderer.invoke(INVOKE.vaultExport),
     importFile: () => ipcRenderer.invoke(INVOKE.vaultImport),
+    generate: (length: number) => ipcRenderer.invoke(INVOKE.vaultGenerate, length),
   },
 
   wallpaper: {
