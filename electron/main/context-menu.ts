@@ -1,5 +1,6 @@
 import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
 import type { TabId } from '../shared/types';
+import { sanitiseChromeText } from '../shared/chrome-text';
 import { isPageNavigableUrl } from '../shared/url';
 import type { Browser } from './browser';
 
@@ -66,7 +67,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
         push({ label: 'No spelling suggestions', enabled: false });
       }
       push({
-        label: `Add “${params.misspelledWord}” to dictionary`,
+        label: addToDictionaryLabel(params.misspelledWord),
         click: () => browser.tabs.addToDictionary(tabId, params.misspelledWord),
       });
       separate();
@@ -75,7 +76,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     const selection = params.selectionText.trim();
     push({ role: 'copy' });
     push({
-      label: `Search for “${truncate(selection, 32)}”`,
+      label: searchSelectionLabel(selection),
       click: () => browser.tabs.create(browser.searchUrlFor(selection), { activate: true }),
     });
     separate();
@@ -135,7 +136,14 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
   Menu.buildFromTemplate(items).popup({ window: browser.window });
 }
 
-function truncate(value: string, max: number): string {
-  const collapsed = value.replace(/\s+/g, ' ');
-  return collapsed.length <= max ? collapsed : `${collapsed.slice(0, max - 1)}…`;
+const MAX_MENU_TEXT = 32;
+
+/** The searched-for text is the page's, so it is sanitised like any other page string. */
+export function searchSelectionLabel(selection: string): string {
+  return `Search for “${sanitiseChromeText(selection, MAX_MENU_TEXT)}”`;
+}
+
+/** So is the misspelled word, which arrives straight out of the page's own input. */
+export function addToDictionaryLabel(word: string): string {
+  return `Add “${sanitiseChromeText(word, MAX_MENU_TEXT)}” to dictionary`;
 }

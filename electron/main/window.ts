@@ -4,7 +4,14 @@ import { PersistedFile, asBoolean, asNumber, isRecord } from './persistence';
 import { devIconPath, isDevelopment, preloadPath } from './env';
 import { guardChromeWebContents } from './security';
 
-interface WindowBounds {
+export interface WorkArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface WindowBounds {
   width: number;
   height: number;
   x: number | null;
@@ -21,7 +28,10 @@ export const CHROME_BACKGROUND = '#0b0f14';
 
 export function createChromeWindow(): BrowserWindow {
   const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, 600);
-  const saved = clampToVisibleDisplay(boundsFile.get());
+  const saved = clampToVisibleDisplay(
+    boundsFile.get(),
+    screen.getAllDisplays().map((display) => display.workArea),
+  );
 
   const window = new BrowserWindow({
     width: saved.width,
@@ -85,21 +95,16 @@ export function createChromeWindow(): BrowserWindow {
   return window;
 }
 
-// A window restored onto a display that no longer exists is invisible and unrecoverable without editing config by hand.
-function clampToVisibleDisplay(bounds: WindowBounds): WindowBounds {
-  if (bounds.x === null || bounds.y === null) {
+/** A window restored onto a display that no longer exists is invisible and unrecoverable without editing config by hand. */
+export function clampToVisibleDisplay(bounds: WindowBounds, workAreas: readonly WorkArea[]): WindowBounds {
+  const { x, y, width, height } = bounds;
+  if (x === null || y === null) {
     return bounds;
   }
 
-  const isOnSomeDisplay = screen.getAllDisplays().some((display) => {
-    const area = display.workArea;
-    return (
-      bounds.x! < area.x + area.width &&
-      bounds.x! + bounds.width > area.x &&
-      bounds.y! < area.y + area.height &&
-      bounds.y! + bounds.height > area.y
-    );
-  });
+  const isOnSomeDisplay = workAreas.some(
+    (area) => x < area.x + area.width && x + width > area.x && y < area.y + area.height && y + height > area.y,
+  );
 
   return isOnSomeDisplay ? bounds : { ...bounds, x: null, y: null };
 }
