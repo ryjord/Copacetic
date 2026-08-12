@@ -238,6 +238,18 @@ export interface VaultLock {
   detail: string;
 }
 
+export interface VaultFacts {
+  /** The real path on this machine, so it can be gone and looked at. */
+  filePath: string;
+  /** False when there is no keychain, in which case nothing can be saved at all. */
+  hasKeychain: boolean;
+  /** True only where Copacetic can ask the operating system who you are. */
+  canAskWhoYouAre: boolean;
+  /** Unsigned builds are why an update can cost the keychain entry on macOS. */
+  isSigned: boolean;
+  entryCount: number;
+}
+
 export interface VaultInput {
   origin: string;
   username: string;

@@ -117,6 +117,7 @@ const api: CopaceticApi = {
     lockState: () => ipcRenderer.invoke(INVOKE.vaultLockState),
     unlock: () => ipcRenderer.invoke(INVOKE.vaultUnlock),
     lock: () => ipcRenderer.invoke(INVOKE.vaultLock),
+    facts: () => ipcRenderer.invoke(INVOKE.vaultFacts),
   },
 
   wallpaper: {

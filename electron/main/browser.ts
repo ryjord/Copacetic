@@ -8,6 +8,7 @@ import {
   systemPreferences,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { PUSH, type ChromeSurface } from '../shared/channels';
 import { PersistedFile } from './persistence';
 import { sanitiseChromeText } from '../shared/chrome-text';
@@ -23,6 +24,7 @@ import type {
   PermissionPrompt,
   Settings,
   TabId,
+  VaultFacts,
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -547,6 +549,18 @@ export class Browser {
    * is plain text by necessity — that is what makes it portable — so the
    * warning is in the interface before the dialog opens, not buried after it.
    */
+  /** Everything the honesty page claims, read from where it actually is rather than written out. */
+  vaultFacts(): VaultFacts {
+    return {
+      filePath: path.join(app.getPath('userData'), 'vault.json'),
+      hasKeychain: safeStorage.isEncryptionAvailable(),
+      canAskWhoYouAre: unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false) !== 'none',
+      // No certificate is bought, so this is false everywhere until one is.
+      isSigned: false,
+      entryCount: this.vault.state().entries.length,
+    };
+  }
+
   vaultLock(): { isUnlocked: boolean; method: ReturnType<typeof unlockMethodFor>; detail: string } {
     const method = unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false);
     return { isUnlocked: isUnlocked(this.lockState, Date.now()), method, detail: describeLock(method) };

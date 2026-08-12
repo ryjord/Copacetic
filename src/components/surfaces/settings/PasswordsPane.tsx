@@ -2,27 +2,44 @@
 import { useCallback, useEffect, useState } from 'react';
 
 // Components
-import { Note, OutlineButton, RowAction, RowList, RowValue, Section } from '@/components/surfaces/settings/controls';
+import {
+  Answer,
+  Note,
+  OutlineButton,
+  RowAction,
+  RowList,
+  RowValue,
+  Section,
+} from '@/components/surfaces/settings/controls';
 
 // Utils
 import { ask, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
-import type { VaultLock, VaultState } from '../../../../electron/shared/types';
+import type { VaultFacts, VaultLock, VaultState } from '../../../../electron/shared/types';
 
 const NOTHING_SAVED: VaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };
 const OPEN: VaultLock = { isUnlocked: true, method: 'none', detail: '' };
+const NO_FACTS: VaultFacts = {
+  filePath: '',
+  hasKeychain: false,
+  canAskWhoYouAre: false,
+  isSigned: false,
+  entryCount: 0,
+};
 
 export function PasswordsPane() {
   const [vault, setVault] = useState<VaultState>(NOTHING_SAVED);
   const [message, setMessage] = useState('');
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [lockState, setLockState] = useState<VaultLock>(OPEN);
+  const [facts, setFacts] = useState<VaultFacts>(NO_FACTS);
 
   const refresh = useCallback(() => {
     void ask((api) => api.vault.list(), NOTHING_SAVED).then(setVault);
     void ask((api) => api.vault.lockState(), OPEN).then(setLockState);
+    void ask((api) => api.vault.facts(), NO_FACTS).then(setFacts);
   }, []);
 
   useEffect(refresh, [refresh]);
@@ -74,6 +91,8 @@ export function PasswordsPane() {
         )}
         {message && <p className="mt-2 text-[12px] text-alert">{message}</p>}
       </Section>
+
+      <WhatThisDoesNotDo facts={facts} />
 
       <Section title="Taking them with you">
         <Note>
@@ -138,6 +157,54 @@ export function PasswordsPane() {
         )}
       </Section>
     </>
+  );
+}
+
+/**
+ * Every claim here is read from where the thing actually is rather than written
+ * out, because a sentence about a file path is only worth having if it is the
+ * path. The rest is the list of things a password manager is usually quiet
+ * about.
+ */
+function WhatThisDoesNotDo({ facts }: { facts: VaultFacts }) {
+  return (
+    <Section title="What this does not protect you from">
+      <dl className="space-y-3">
+        <Answer question="Where are my passwords?">
+          Encrypted, one at a time, in this file:{' '}
+          <span className="break-all font-mono text-[11.5px] text-ink">{facts.filePath || 'not yet known'}</span>. Go
+          and look — you will find the sites and usernames readable and the passwords not.
+        </Answer>
+        <Answer question="What is actually protecting them?">
+          A key your operating system holds
+          {facts.hasKeychain ? '' : ' — which this machine does not have, so nothing can be saved here at all'}. That
+          is real protection against someone reading the file, and none at all against software running as you: it can
+          ask the keychain for the same key. No password manager on any platform is different, and most do not say so.
+        </Answer>
+        <Answer question="Does locking help?">
+          {facts.canAskWhoYouAre
+            ? 'It stops someone at your screen, once Touch ID has confirmed it is you. It does not protect the file.'
+            : 'This machine cannot check who you are, so unlocking is one click. It stops someone reading over your shoulder and nothing else.'}
+        </Answer>
+        {!facts.isSigned && (
+          <Answer question="Could an update lose them?">
+            On macOS, yes — and this is the honest reason. These builds are not code-signed, so the system can treat
+            an updated Copacetic as a different application and refuse it the keychain entry. Your entries are not
+            deleted and this panel will say exactly that if it happens, but the passwords would be unreadable.
+            Exporting a copy somewhere safe is the answer until a certificate is bought.
+          </Answer>
+        )}
+        <Answer question="Does it fill passwords in for me?">
+          No, and it will not. Watching what you type into a page means running Copacetic&apos;s code inside that
+          page, and this browser ships without any — a guarantee worth more than the convenience. You add passwords
+          here and copy them out yourself.
+        </Answer>
+        <Answer question="Does anything leave this machine?">
+          No. There is no account, no syncing and no server to sync with. The only copy that ever leaves is one you
+          export yourself, and that file is plain text.
+        </Answer>
+      </dl>
+    </Section>
   );
 }
 

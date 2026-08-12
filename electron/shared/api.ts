@@ -14,6 +14,7 @@ import type {
   Suggestion,
   TabId,
   TopSite,
+  VaultFacts,
   VaultInput,
   VaultLock,
   VaultState,
@@ -125,6 +126,8 @@ export interface CopaceticApi {
     /** Resolves empty when unlocked, or with what to tell the user. */
     unlock(): Promise<string>;
     lock(): Promise<void>;
+    /** Where the file is and what is actually protecting it. */
+    facts(): Promise<VaultFacts>;
   };
 
   wallpaper: {
