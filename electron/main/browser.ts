@@ -7,6 +7,7 @@ import type {
   BrowserState,
   ClearRange,
   ConnectionEntry,
+  ExportKind,
   PermissionDecision,
   PermissionKind,
   PermissionPrompt,
@@ -467,7 +468,7 @@ export class Browser {
    * empty string when it worked, or a sentence explaining why it did not —
    * the same shape as opening a download, so the chrome can just show it.
    */
-  async exportData(kind: 'bookmarks' | 'history'): Promise<string> {
+  async exportData(kind: ExportKind): Promise<string> {
     const now = Date.now();
     const stamp = new Date(now).toISOString().slice(0, 10);
     const isBookmarks = kind === 'bookmarks';

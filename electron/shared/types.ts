@@ -251,6 +251,8 @@ export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string
 
 export type ClearRange = 'hour' | 'day' | 'week' | 'all';
 
+export type ExportKind = 'bookmarks' | 'history';
+
 export interface Settings {
   searchEngine: SearchEngineId;
   theme: ThemeId;

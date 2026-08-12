@@ -1,11 +1,12 @@
 import type { ChromeSurface } from './channels';
 import type {
   AppInfo,
-  ConnectionEntry,
   Bookmark,
   BrowserState,
   ClearRange,
+  ConnectionEntry,
   DownloadId,
+  ExportKind,
   HistoryPage,
   PermissionDecision,
   PermissionKind,
@@ -114,7 +115,7 @@ export interface CopaceticApi {
   };
   data: {
     /** Write bookmarks or history to a file the user chooses. */
-    export(kind: 'bookmarks' | 'history'): Promise<string>;
+    export(kind: ExportKind): Promise<string>;
   };
   auth: {
     /** Answer a challenge. Credentials go straight to the request, unstored. */

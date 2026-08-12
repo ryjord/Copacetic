@@ -3,11 +3,12 @@ import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
 import type {
   AppInfo,
-  ConnectionEntry,
   Bookmark,
   BrowserState,
   ClearRange,
+  ConnectionEntry,
   DownloadId,
+  ExportKind,
   HistoryPage,
   PermissionDecision,
   PermissionKind,
@@ -116,7 +117,7 @@ const api: CopaceticApi = {
   },
 
   data: {
-    export: (kind: 'bookmarks' | 'history'): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
+    export: (kind: ExportKind): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
   },
 
   auth: {
