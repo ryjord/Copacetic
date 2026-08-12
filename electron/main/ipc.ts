@@ -163,6 +163,8 @@ export function registerIpcHandlers(browser: Browser): void {
   });
   handle(INVOKE.vaultRemove, (_event, id) => browser.vault.remove(asString(id)));
   handle(INVOKE.vaultReveal, (_event, id) => browser.vault.reveal(asString(id)));
+  handle(INVOKE.vaultExport, () => browser.exportVault());
+  handle(INVOKE.vaultImport, () => browser.importVault());
 
   handle(INVOKE.wallpaperGet, () => readWallpaper());
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());

@@ -111,6 +111,8 @@ const api: CopaceticApi = {
     update: (id: string, changes: Partial<VaultInput>) => ipcRenderer.invoke(INVOKE.vaultUpdate, id, changes),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.vaultRemove, id),
     reveal: (id: string) => ipcRenderer.invoke(INVOKE.vaultReveal, id),
+    exportAll: () => ipcRenderer.invoke(INVOKE.vaultExport),
+    importFile: () => ipcRenderer.invoke(INVOKE.vaultImport),
   },
 
   wallpaper: {

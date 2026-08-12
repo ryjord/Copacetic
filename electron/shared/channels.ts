@@ -69,6 +69,8 @@ export const INVOKE = {
   vaultUpdate: 'vault:update',
   vaultRemove: 'vault:remove',
   vaultReveal: 'vault:reveal',
+  vaultExport: 'vault:export',
+  vaultImport: 'vault:import',
 
   wallpaperGet: 'wallpaper:get',
   wallpaperPreview: 'wallpaper:preview',

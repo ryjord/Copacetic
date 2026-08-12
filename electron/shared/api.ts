@@ -113,6 +113,10 @@ export interface CopaceticApi {
     remove(id: string): Promise<void>;
     /** One password, by id, only when asked. Never part of the listed state. */
     reveal(id: string): Promise<string | null>;
+    /** Writes a plain-text CSV where the user chooses. Resolves empty, or with what to tell them. */
+    exportAll(): Promise<string>;
+    /** Reads a CSV another manager wrote. Resolves with a summary of what came of it. */
+    importFile(): Promise<string>;
   };
 
   wallpaper: {
