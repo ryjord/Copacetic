@@ -49,9 +49,11 @@ export function AboutPane({ info }: SettingsPaneProps) {
       <Section title="What it does not do">
         <dl className="space-y-3">
           <Answer question="Why do some sites look broken?">
-            Copacetic blocks around 120 domains that exist only to follow people between sites. Occasionally one of
-            them is load-bearing for a login or an embed. The connection panel shows exactly what was blocked on the
-            page, and lets you allow it on that site alone rather than everywhere.
+            {/* Counted from the list itself: a number written out here goes stale silently. */}
+            Copacetic blocks {info ? `${info.blockerRuleCount} domains` : 'a list of domains'} that exist only to
+            follow people between sites. Occasionally one of them is load-bearing for a login or an embed. The
+            connection panel shows exactly what was blocked on the page, and lets you allow it on that site alone
+            rather than everywhere.
           </Answer>
           <Answer question="Why will Netflix not play?">
             DRM is not bundled. Playing protected video needs Widevine, which is a closed component under a separate

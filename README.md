@@ -53,7 +53,7 @@ which were stopped. The blocked count tells you what was prevented; this tells
 you what was allowed, which is the half no mainstream browser shows without
 opening developer tools.
 
-**Tracker blocking that does not break pages.** A curated list of ~120 domains
+**Tracker blocking that does not break pages.** A curated list of 122 domains
 that exist only to follow people between sites. Not an EasyList engine — a
 short, honest list, and the count you see is the real number of blocked
 requests, not an estimate. Top-level navigation is never blocked, so you can
