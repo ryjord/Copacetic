@@ -47,6 +47,8 @@ export interface CopaceticApi {
     reopenClosed(): Promise<void>;
     setZoom(id: TabId, zoomFactor: number): Promise<void>;
     openContextMenu(id: TabId): Promise<void>;
+    /** The menu behind the caret beside the new-tab button. */
+    openNewTabMenu(): Promise<void>;
   };
   chrome: {
     setContentInsets(insets: ContentInsetsInput): Promise<void>;

@@ -104,6 +104,12 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
 
   const items: MenuItemConstructorOptions[] = [
     { label: 'New tab to the right', click: () => browser.tabs.create(undefined, { activate: true }) },
+    { label: 'New Hush tab', click: () => browser.newHushTab() },
+    {
+      label: 'Reopen closed tab',
+      enabled: browser.tabs.hasClosedTabs(),
+      click: () => browser.reopenClosedTab(),
+    },
     { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
     { label: 'Reload', click: () => browser.tabs.reload(tabId) },
     { type: 'separator' },
@@ -146,4 +152,24 @@ export function searchSelectionLabel(selection: string): string {
 /** So is the misspelled word, which arrives straight out of the page's own input. */
 export function addToDictionaryLabel(word: string): string {
   return `Add “${sanitiseChromeText(word, MAX_MENU_TEXT)}” to dictionary`;
+}
+
+/**
+ * Behind the caret beside the new-tab button. A native menu rather than markup:
+ * a WebContentsView paints above the chrome's HTML, so a dropdown over the page
+ * area would be drawn underneath the page.
+ */
+export function showNewTabMenu(browser: Browser): void {
+  const items: MenuItemConstructorOptions[] = [
+    { label: 'New tab', click: () => browser.newTab() },
+    { label: 'New Hush tab', click: () => browser.newHushTab() },
+    { type: 'separator' },
+    {
+      label: 'Reopen closed tab',
+      enabled: browser.tabs.hasClosedTabs(),
+      click: () => browser.reopenClosedTab(),
+    },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
 }

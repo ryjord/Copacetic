@@ -16,6 +16,7 @@ export const INVOKE = {
   tabReopenClosed: 'tab:reopen-closed',
   tabSetZoom: 'tab:set-zoom',
   tabOpenContextMenu: 'tab:open-context-menu',
+  tabOpenNewTabMenu: 'tab:open-new-tab-menu',
 
   chromeSetContentBounds: 'chrome:set-content-bounds',
   chromeSetOverlayVisible: 'chrome:set-overlay-visible',

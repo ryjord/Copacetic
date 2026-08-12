@@ -1,6 +1,6 @@
 'use client';
 
-import { EyeOff, Plus, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronDown, EyeOff, Plus, Volume2, VolumeX, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { TabState } from '../../../electron/shared/types';
 import { Favicon } from '@/components/ui/Favicon';
@@ -82,6 +82,10 @@ export function TabStrip({ tabs, activeTabId }: TabStripProps) {
 
       <IconButton label="New tab" size="sm" className="ml-0.5" onClick={() => send((api) => api.tabs.create())}>
         <Plus size={14} />
+      </IconButton>
+      {/* A Hush tab was reachable by shortcut or menu bar only, which is no use to someone using a mouse. */}
+      <IconButton label="More ways to open a tab" size="sm" onClick={() => send((api) => api.tabs.openNewTabMenu())}>
+        <ChevronDown size={12} />
       </IconButton>
     </div>
   );

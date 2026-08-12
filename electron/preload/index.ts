@@ -37,6 +37,7 @@ const api: CopaceticApi = {
     reopenClosed: () => ipcRenderer.invoke(INVOKE.tabReopenClosed),
     setZoom: (id: TabId, zoomFactor: number) => ipcRenderer.invoke(INVOKE.tabSetZoom, id, zoomFactor),
     openContextMenu: (id: TabId) => ipcRenderer.invoke(INVOKE.tabOpenContextMenu, id),
+    openNewTabMenu: () => ipcRenderer.invoke(INVOKE.tabOpenNewTabMenu),
   },
 
   chrome: {
