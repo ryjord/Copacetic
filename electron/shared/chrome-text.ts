@@ -21,3 +21,15 @@ export function sanitiseChromeText(value: string, maxLength: number): string {
   }
   return `${cleaned.slice(0, maxLength - 1)}…`;
 }
+
+const MAX_MENU_TEXT = 32;
+
+/** The searched-for text is the page's, so it is sanitised like any other page string. */
+export function searchSelectionLabel(selection: string): string {
+  return `Search for “${sanitiseChromeText(selection, MAX_MENU_TEXT)}”`;
+}
+
+/** So is the misspelled word, which arrives straight out of the page's own input. */
+export function addToDictionaryLabel(word: string): string {
+  return `Add “${sanitiseChromeText(word, MAX_MENU_TEXT)}” to dictionary`;
+}

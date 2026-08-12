@@ -1,6 +1,6 @@
 import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
 import type { TabId } from '../shared/types';
-import { sanitiseChromeText } from '../shared/chrome-text';
+import { addToDictionaryLabel, searchSelectionLabel } from '../shared/chrome-text';
 import { isPageNavigableUrl } from '../shared/url';
 import type { Browser } from './browser';
 
@@ -140,18 +140,6 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
-}
-
-const MAX_MENU_TEXT = 32;
-
-/** The searched-for text is the page's, so it is sanitised like any other page string. */
-export function searchSelectionLabel(selection: string): string {
-  return `Search for “${sanitiseChromeText(selection, MAX_MENU_TEXT)}”`;
-}
-
-/** So is the misspelled word, which arrives straight out of the page's own input. */
-export function addToDictionaryLabel(word: string): string {
-  return `Add “${sanitiseChromeText(word, MAX_MENU_TEXT)}” to dictionary`;
 }
 
 /**
