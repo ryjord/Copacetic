@@ -41,3 +41,7 @@ docs/*.md
 AGENTS.md
 CLAUDE.md
 .claude/
+
+# Throwaway Electron probe scripts, run from the repo root so their requires resolve.
+*check.cjs
+probe.cjs
