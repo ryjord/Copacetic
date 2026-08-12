@@ -167,6 +167,9 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.vaultReveal, (_event, id) => browser.vault.reveal(asString(id)));
   handle(INVOKE.vaultExport, () => browser.exportVault());
   handle(INVOKE.vaultImport, () => browser.importVault());
+  handle(INVOKE.vaultLockState, () => browser.vaultLock());
+  handle(INVOKE.vaultUnlock, () => browser.unlockVault());
+  handle(INVOKE.vaultLock, () => browser.lockVault());
   handle(INVOKE.vaultGenerate, (_event, length) =>
     generatePassword(
       { ...DEFAULT_RECIPE, length: Number(length) || DEFAULT_RECIPE.length },

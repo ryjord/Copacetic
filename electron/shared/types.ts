@@ -230,6 +230,14 @@ export interface VaultEntry {
   isReadable: boolean;
 }
 
+export interface VaultLock {
+  isUnlocked: boolean;
+  /** `touch-id`, or `none` where the platform gives Electron nothing to ask with. */
+  method: 'touch-id' | 'none';
+  /** What locking is worth on this machine, in the words shown to the user. */
+  detail: string;
+}
+
 export interface VaultInput {
   origin: string;
   username: string;

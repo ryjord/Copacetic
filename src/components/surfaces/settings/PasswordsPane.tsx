@@ -9,17 +9,20 @@ import { ask, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
-import type { VaultState } from '../../../../electron/shared/types';
+import type { VaultLock, VaultState } from '../../../../electron/shared/types';
 
 const NOTHING_SAVED: VaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };
+const OPEN: VaultLock = { isUnlocked: true, method: 'none', detail: '' };
 
 export function PasswordsPane() {
   const [vault, setVault] = useState<VaultState>(NOTHING_SAVED);
   const [message, setMessage] = useState('');
   const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [lockState, setLockState] = useState<VaultLock>(OPEN);
 
   const refresh = useCallback(() => {
     void ask((api) => api.vault.list(), NOTHING_SAVED).then(setVault);
+    void ask((api) => api.vault.lockState(), OPEN).then(setLockState);
   }, []);
 
   useEffect(refresh, [refresh]);
@@ -52,6 +55,13 @@ export function PasswordsPane() {
         </Note>
 
         <VaultCondition vault={vault} />
+        <LockCondition
+          lock={lockState}
+          onChange={(result) => {
+            setMessage(result);
+            refresh();
+          }}
+        />
 
         {vault.availability !== 'unavailable' && (
           <AddPassword
@@ -113,7 +123,7 @@ export function PasswordsPane() {
                   <span className="shrink-0 font-mono text-[11.5px] text-ink">{revealed[entry.id] || '—'}</span>
                 )}
 
-                {entry.isReadable ? (
+                {entry.isReadable && lockState.isUnlocked ? (
                   <RowAction
                     label={revealed[entry.id] === undefined ? 'Show' : 'Hide'}
                     onClick={() => reveal(entry.id)}
@@ -128,6 +138,40 @@ export function PasswordsPane() {
         )}
       </Section>
     </>
+  );
+}
+
+/**
+ * What locking is worth on this machine, said before it is offered rather than
+ * after. On a platform Electron cannot ask for identity on, unlocking is one
+ * click, and calling that security would be the claim this browser exists not
+ * to make.
+ */
+function LockCondition({ lock, onChange }: { lock: VaultLock; onChange: (message: string) => void }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <span className={cn('label', lock.isUnlocked ? 'text-ink-dim' : 'text-caution')}>
+        {lock.isUnlocked ? 'Unlocked' : 'Locked'}
+      </span>
+      {lock.isUnlocked ? (
+        <OutlineButton
+          onClick={() => {
+            void ask((api) => api.vault.lock(), undefined).then(() => onChange(''));
+          }}
+        >
+          Lock now
+        </OutlineButton>
+      ) : (
+        <OutlineButton
+          onClick={() => {
+            void ask((api) => api.vault.unlock(), '').then(onChange);
+          }}
+        >
+          {lock.method === 'touch-id' ? 'Unlock with Touch ID' : 'Unlock'}
+        </OutlineButton>
+      )}
+      <span className="w-full text-[12px] leading-relaxed text-ink-faint">{lock.detail}</span>
+    </div>
   );
 }
 

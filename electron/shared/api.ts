@@ -15,6 +15,7 @@ import type {
   TabId,
   TopSite,
   VaultInput,
+  VaultLock,
   VaultState,
 } from './types';
 
@@ -119,6 +120,11 @@ export interface CopaceticApi {
     importFile(): Promise<string>;
     /** A generated password. Made in the main process, where the random source is. */
     generate(length: number): Promise<string>;
+    /** Whether the vault is open, and what this machine can ask to open it. */
+    lockState(): Promise<VaultLock>;
+    /** Resolves empty when unlocked, or with what to tell the user. */
+    unlock(): Promise<string>;
+    lock(): Promise<void>;
   };
 
   wallpaper: {

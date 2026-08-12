@@ -44,6 +44,11 @@ export class Vault {
     private readonly secrets: SecretStore,
     private readonly storage: VaultStorage,
     private readonly now: () => number = Date.now,
+    /**
+     * Enforced here rather than in the interface. A lock the renderer honours
+     * and the vault does not is decoration.
+     */
+    private readonly isUnlocked: () => boolean = () => true,
   ) {}
 
   state(): VaultState {
@@ -158,6 +163,9 @@ export class Vault {
 
   /** The only way a password leaves this process, one at a time and only when asked. */
   reveal(id: string): string | null {
+    if (!this.isUnlocked()) {
+      return null;
+    }
     const entry = this.storage.get().entries.find((candidate) => candidate.id === id);
     if (!entry || !this.secrets.isAvailable()) {
       return null;
@@ -175,6 +183,10 @@ export class Vault {
    * quietly is how someone believes they took everything with them.
    */
   exportAll(): { credentials: CsvCredential[]; unreadable: number } {
+    // The largest reveal there is, so it is behind the same lock.
+    if (!this.isUnlocked()) {
+      return { credentials: [], unreadable: this.storage.get().entries.length };
+    }
     const credentials: CsvCredential[] = [];
     let unreadable = 0;
 
@@ -224,6 +236,7 @@ export class Vault {
     return { added, updated, skipped };
   }
 
+  /** Whether the secret decrypts, which is a different question from whether the vault is unlocked. */
   private canRead(entry: StoredEntry): boolean {
     try {
       this.secrets.decrypt(Buffer.from(entry.secret, 'base64'));
