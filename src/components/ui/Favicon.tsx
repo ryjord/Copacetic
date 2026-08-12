@@ -10,12 +10,7 @@ interface FaviconProps {
   className?: string;
 }
 
-/**
- * Site icons only ever arrive as data URLs fetched by the main process, so the
- * chrome never makes a network request of its own. When a site has no icon we
- * draw a monogram rather than a generic globe: at tab-strip size, one distinct
- * letter is easier to pick out of a row than eight identical globes.
- */
+/** Site icons only ever arrive as data URLs fetched by the main process, so the chrome never makes a network request of its own. */
 export function Favicon({ dataUrl, seed, size = 15, className }: FaviconProps) {
   if (dataUrl) {
     return (

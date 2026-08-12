@@ -19,15 +19,7 @@ import { TabStrip } from './TabStrip';
 import { Toolbar } from './Toolbar';
 import { WindowControls } from './WindowControls';
 
-/**
- * The browser shell.
- *
- * Everything above `contentRef` is chrome the renderer draws. Everything
- * inside it belongs to the main process, which parks a `WebContentsView`
- * exactly over that rectangle. The renderer's only job there is to report how
- * big the hole is and to draw Copacetic's own pages — start and error — when
- * there is no site to show.
- */
+/** The browser shell. */
 export function Chrome() {
   const applyState = useBrowserStore((state) => state.applyState);
   const setSurface = useBrowserStore((state) => state.setSurface);
@@ -175,10 +167,7 @@ export function Chrome() {
   );
 }
 
-/**
- * A single hairline under the toolbar. It is the only ambient motion in the
- * chrome, so a moving page is unmistakable without anything else animating.
- */
+// A single hairline under the toolbar.
 function LoadingLine({ isLoading }: { isLoading: boolean }) {
   return (
     <div className="relative h-px w-full shrink-0 overflow-hidden bg-line" aria-hidden>

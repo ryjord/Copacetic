@@ -4,15 +4,9 @@ import { INVOKE } from '../shared/channels';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../shared/types';
 import type { Browser } from './browser';
 import { showTabContextMenu } from './context-menu';
+import { HISTORY_PAGE_SIZE } from './store';
 
-/**
- * Every handler is registered through `handle`, which drops any message that
- * did not come from the chrome window's own top-level frame.
- *
- * Page content is loaded with no preload script and cannot reach `ipcRenderer`
- * at all, so this is belt and braces — but it is the belt that stops a future
- * change to webPreferences from quietly opening the whole surface up.
- */
+/** Every handler is registered through `handle`, which drops any message that did not come from the chrome window's own top-level frame. */
 export function registerIpcHandlers(browser: Browser): void {
   const handle = <T>(channel: string, handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => T) => {
     ipcMain.handle(channel, (event, ...args) => {
@@ -64,7 +58,7 @@ export function registerIpcHandlers(browser: Browser): void {
   // ---------------------------------------------------------------- history
 
   handle(INVOKE.historyList, (_event, query, offset) =>
-    browser.store.listHistory(asString(query), 300, Math.max(0, Number(offset) || 0)),
+    browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, Math.max(0, Number(offset) || 0)),
   );
   handle(INVOKE.historyRemove, (_event, id) => {
     browser.store.removeHistory(asString(id));
@@ -198,19 +192,7 @@ function asClearRange(value: unknown): ClearRange {
 }
 
 /** Only keys the settings schema actually declares survive the trip. */
-/**
- * Everything the renderer is allowed to change, checked one field at a time.
- *
- * A whitelist is right — the renderer must not write arbitrary keys into
- * settings — but one that silently drops what it does not recognise fails in
- * the worst way: the control moves, nothing happens, and it looks like it
- * worked. Four features shipped broken exactly that way, so a test asserts
- * this covers every field of `Settings` bar the ones below.
- *
- * `hasWallpaper` is deliberately refused: it is derived from whether the file
- * exists, so accepting it would let the interface claim a wallpaper that is
- * not there.
- */
+/** Everything the renderer is allowed to change, checked one field at a time. */
 export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (!isRecord(value)) return {};
   const patch: Partial<Settings> = {};

@@ -3,18 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
-/**
- * The running commentary a screen reader would otherwise miss entirely.
- *
- * Almost everything that happens in a browser happens somewhere other than
- * where the keyboard is: a page finishes loading, a site asks for the camera,
- * a download completes. Sighted users catch these from the corner of an eye.
- * With nothing announced, the only signal is that the page under you has
- * silently become a different page.
- *
- * Deliberately terse and polite: an announcement that interrupts what someone
- * is reading to say a download finished is worse than one that waits.
- */
+/** The running commentary a screen reader would otherwise miss entirely. */
 export function LiveAnnouncer() {
   const activeTab = useBrowserStore((state) => state.activeTab);
   const downloads = useBrowserStore((state) => state.downloads);

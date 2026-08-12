@@ -4,25 +4,10 @@ import type { SearchEngine, SearchEngineId } from './types';
 export const INTERNAL_SCHEME = 'copacetic';
 export const START_PAGE_URL = `${INTERNAL_SCHEME}://start`;
 
-/**
- * Schemes a tab is allowed to load when the *user* asks for it — typing an
- * address, restoring a session, opening a bookmark.
- *
- * `data:`, `blob:`, `javascript:` and `filesystem:` are absent on purpose:
- * top-level navigation to them is a long-standing phishing and XSS vector, and
- * Chromium blocks most of it already. Copacetic blocks all of it, everywhere.
- */
+/** Schemes a tab is allowed to load when the *user* asks for it — typing an address, restoring a session, opening a bookmark. */
 export const NAVIGABLE_SCHEMES = new Set(['http:', 'https:', 'file:', `${INTERNAL_SCHEME}:`, 'about:']);
 
-/**
- * Schemes a *page* is allowed to drive a tab to.
- *
- * `file:` is deliberately absent here while being present above. Typing
- * `file:///…` is a thing a user can mean; `window.open('file:///Users/you/')`
- * from a hostile page is not. Without the split, page code could render a
- * listing of the user's home directory in a new tab, or probe for well-known
- * local paths, with no prompt and no gesture beyond the one that opened it.
- */
+/** Schemes a *page* is allowed to drive a tab to. */
 export const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 const SEARCH_ENGINE_LIST: SearchEngine[] = [
@@ -88,21 +73,12 @@ export function isInternalUrl(value: string): boolean {
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 const HOST_WITH_PORT = /^([a-z0-9-]+(\.[a-z0-9-]+)*|\[[0-9a-f:]+\])(:\d{1,5})?$/i;
 
-/**
- * Hosts that resolve without a dot and should never be treated as a search.
- */
+// Hosts that resolve without a dot and should never be treated as a search.
 const DOTLESS_HOSTS = new Set(['localhost']);
 
 export type OmniboxResolution = { type: 'url'; target: string } | { type: 'search'; target: string; query: string };
 
-/**
- * Turn whatever the user typed into something we can actually navigate to.
- *
- * The bias is towards searching. Guessing "url" when the user meant "search"
- * produces a DNS error page and loses their query; guessing "search" when they
- * meant a URL costs one extra keystroke. Only inputs that are unambiguously
- * addresses take the URL path.
- */
+/** Turn whatever the user typed into something we can actually navigate to. */
 export function resolveOmniboxInput(
   rawInput: string,
   engineId: SearchEngineId,
@@ -178,15 +154,7 @@ export function isLoopbackHost(host: string): boolean {
   return bare === 'localhost' || bare === '127.0.0.1' || bare === '::1' || bare.endsWith('.localhost');
 }
 
-/**
- * Hosts that only exist inside the user's own network.
- *
- * This is the set the main process must not be talked into contacting on a
- * page's behalf. A remote page naming `169.254.169.254` or `192.168.1.1` is
- * asking for a request only the browser can usefully make — with the user's
- * cookies, from inside their network — which is exactly the request it should
- * not get.
- */
+/** Hosts that only exist inside the user's own network. */
 export function isPrivateHost(host: string): boolean {
   const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
   if (bare === '' || isLoopbackHost(bare)) return true;
@@ -212,12 +180,7 @@ export function isPrivateHost(host: string): boolean {
   return false;
 }
 
-/**
- * Rules are stored punycoded, because a URL always reports its hostname that
- * way. An internationalised host typed by hand is converted so both forms
- * resolve to the same answer; the conversion is skipped entirely for the
- * ordinary all-ASCII case, which is every host the browser itself produces.
- */
+// Rules are stored punycoded, because a URL always reports its hostname that way.
 function toAsciiHost(host: string): string {
   const lower = host.toLowerCase();
   if (!/[^\u0000-\u007f]/.test(lower)) return lower;
@@ -228,20 +191,7 @@ function toAsciiHost(host: string): string {
   }
 }
 
-/**
- * How many labels of `host` form its public suffix.
- *
- * Implements the algorithm from publicsuffix.org: an exception rule wins
- * outright, otherwise the rule matching the most labels prevails, and a host
- * matching nothing is treated as if the rule were `*` — one label.
- *
- * This decides which part of an address the omnibox renders at full contrast,
- * which is the anti-spoofing surface of the whole interface. The heuristic it
- * replaced hand-listed about forty suffixes and got everything else wrong:
- * `example.pvt.k12.ma.us` read as `ma.us`, and every private suffix — the
- * `github.io` and `vercel.app` sort — read as though two unrelated projects
- * were the same site.
- */
+/** How many labels of `host` form its public suffix. */
 export function publicSuffixLabelCount(host: string): number {
   const labels = host.split('.');
   let prevailing = 0;
@@ -269,11 +219,7 @@ export function publicSuffixLabelCount(host: string): number {
   return prevailing || 1;
 }
 
-/**
- * The registrable domain — the public suffix plus the one label a person
- * actually registered. Null when the host *is* a public suffix, since nobody
- * owns `co.uk` and pretending otherwise would be a lie in the address bar.
- */
+/** The registrable domain — the public suffix plus the one label a person actually registered. */
 export function registrableDomainOf(host: string): string | null {
   const bare = toAsciiHost(host).replace(/\.$/, '');
   if (!bare || bare.startsWith('.') || bare.includes('..')) return null;
@@ -285,16 +231,7 @@ export function registrableDomainOf(host: string): string | null {
   return labels.slice(labels.length - suffixLabels - 1).join('.');
 }
 
-/**
- * Whether the main process should fetch a favicon a page asked for.
- *
- * Cross-origin is allowed: plenty of sites serve their icon from a CDN, and a
- * page can already load any public image itself, so refusing would break real
- * sites without taking away a capability. What is refused is a page on the
- * public internet naming a host that only exists inside the user's network.
- * That request is not one the page could usefully make on its own, and the
- * main process would be making it with the user's cookies attached.
- */
+/** Whether the main process should fetch a favicon a page asked for. */
 export function isFetchableFavicon(pageUrl: string, faviconUrl: string): boolean {
   let favicon: URL;
   try {
@@ -325,13 +262,7 @@ export interface DisplayUrlParts {
   isInternal: boolean;
 }
 
-/**
- * Split a URL for the omnibox so the registrable domain can be the only part
- * rendered at full contrast.
- *
- * This is the anti-spoofing surface: `paypal.com.attacker.tld/login` must read
- * as `attacker.tld`, not as PayPal.
- */
+/** Split a URL for the omnibox so the registrable domain can be the only part rendered at full contrast. */
 export function splitUrlForDisplay(value: string): DisplayUrlParts | null {
   let url: URL;
   try {

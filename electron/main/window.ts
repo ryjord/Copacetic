@@ -81,10 +81,7 @@ export function createChromeWindow(): BrowserWindow {
   return window;
 }
 
-/**
- * A window restored onto a display that no longer exists is invisible and
- * unrecoverable without editing config by hand.
- */
+// A window restored onto a display that no longer exists is invisible and unrecoverable without editing config by hand.
 function clampToVisibleDisplay(bounds: WindowBounds): WindowBounds {
   if (bounds.x === null || bounds.y === null) return bounds;
 

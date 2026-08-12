@@ -18,13 +18,7 @@ import type {
   TopSite,
 } from '../shared/types';
 
-/**
- * The complete surface the chrome renderer can reach.
- *
- * Nothing here forwards a caller-supplied channel name: every function names
- * its own channel from the shared contract, so the renderer cannot address a
- * channel that was not deliberately exposed.
- */
+// The complete surface the chrome renderer can reach.
 const api: CopaceticApi = {
   tabs: {
     create: (url?: string, activate = true): Promise<TabId> => ipcRenderer.invoke(INVOKE.tabCreate, url, activate),

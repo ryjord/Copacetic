@@ -3,12 +3,7 @@ import type { TabId } from '../shared/types';
 import { isPageNavigableUrl } from '../shared/url';
 import type { Browser } from './browser';
 
-/**
- * The menu shown when someone right-clicks inside a page.
- *
- * Items appear only when they would do something. A menu of greyed-out entries
- * makes a user read the whole list to find the two that apply.
- */
+/** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
   const items: MenuItemConstructorOptions[] = [];
   const push = (item: MenuItemConstructorOptions) => items.push(item);

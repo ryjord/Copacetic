@@ -1,28 +1,12 @@
-/**
- * Domain types shared by the main process, the preload bridge and the renderer.
- *
- * Everything here must stay structured-clone safe: it crosses the IPC boundary
- * verbatim. No class instances, no functions, no `undefined` in arrays.
- */
+/** Domain types shared by the main process, the preload bridge and the renderer. */
 
 export type TabId = string;
 export type DownloadId = string;
 
-/**
- * How much Copacetic can honestly say about the connection behind a tab.
- *
- * `unknown` is deliberate and load-bearing: the chrome renders it as "not yet
- * verified" rather than guessing. A browser that overstates connection safety
- * is worse than one that admits it does not know.
- */
+/** How much Copacetic can honestly say about the connection behind a tab. */
 export type SecurityLevel = 'secure' | 'insecure' | 'internal' | 'unknown';
 
-/**
- * What Chromium validated, reported rather than re-derived.
- *
- * Copacetic does no chain analysis of its own — it says what Chromium
- * accepted, which is the honest scope of what a browser interface can claim.
- */
+/** What Chromium validated, reported rather than re-derived. */
 export interface CertificateSummary {
   /** Who issued it, e.g. `Let's Encrypt`. */
   issuer: string;
@@ -32,22 +16,11 @@ export interface CertificateSummary {
   validFrom: number;
   validTo: number;
   fingerprint: string;
-  /**
-   * False when the chain ends at a root installed on this machine rather than
-   * one shipped with the system. That is what TLS interception looks like — a
-   * corporate proxy, antivirus, or a debugging tool reading the connection —
-   * and it is invisible in every mainstream browser's padlock.
-   */
+  // False when the chain ends at a root installed on this machine rather than one shipped with the system.
   isIssuedByKnownRoot: boolean;
 }
 
-/**
- * One host a page has contacted, and what happened to those requests.
- *
- * The blocked count on the badge says what was stopped. This says what was
- * allowed through as well, which is the half no mainstream browser shows
- * without opening developer tools.
- */
+/** One host a page has contacted, and what happened to those requests. */
 export interface ConnectionEntry {
   host: string;
   requests: number;
@@ -205,12 +178,7 @@ export interface PermissionPrompt {
   description: string;
 }
 
-/**
- * An HTTP authentication challenge waiting on the user.
- *
- * Credentials are never stored: there is no password manager yet, and keeping
- * them anywhere without one would be a promise Copacetic cannot keep.
- */
+/** An HTTP authentication challenge waiting on the user. */
 export interface AuthPrompt {
   id: string;
   /** Null for a proxy challenge, which belongs to no particular tab. */
@@ -261,46 +229,23 @@ export interface Settings {
   httpsFirst: boolean;
   blockTrackers: boolean;
   restoreTabsOnLaunch: boolean;
-  /**
-   * Which pieces the start page shows, in order. Replaces the pair of
-   * booleans this used to be: once things can be reordered, a list is the
-   * honest shape for it.
-   */
+  // Which pieces the start page shows, in order.
   startPageWidgets: StartPageWidgetId[];
-  /**
-   * Ask GitHub whether a newer release exists, on launch and on a long timer.
-   * The request carries nothing about the user — it reads a version number —
-   * but it is still the only routine network call the browser makes on its own
-   * behalf, so it is a setting rather than an assumption.
-   */
+  // Ask GitHub whether a newer release exists, on launch and on a long timer.
   checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
-  /**
-   * Per-origin zoom, remembered because a site that needs zooming needs it
-   * every time. Only origins deliberately set away from the default are kept.
-   */
+  // Per-origin zoom, remembered because a site that needs zooming needs it every time.
   zoomLevels: Record<string, number>;
-  /**
-   * Sites where tracker blocking is switched off, by registrable domain.
-   * A per-site exception beats turning blocking off everywhere because one
-   * site broke.
-   */
+  // Sites where tracker blocking is switched off, by registrable domain.
   blockerAllowlist: string[];
-  /**
-   * Whether a start-page wallpaper is set. The image itself is fetched on
-   * demand rather than pushed: a couple of megabytes has no business riding
-   * along with every state update.
-   */
+  // Whether a start-page wallpaper is set.
   hasWallpaper: boolean;
   sidebarWidth: number;
   defaultZoomFactor: number;
 }
 
-/**
- * The single snapshot the main process pushes to the chrome renderer.
- * Large collections (history, bookmarks) are fetched on demand instead.
- */
+/** The single snapshot the main process pushes to the chrome renderer. */
 export interface BrowserState {
   tabs: TabState[];
   tabOrder: TabId[];
@@ -314,15 +259,7 @@ export interface BrowserState {
   update: UpdateState;
 }
 
-/**
- * Where an update comes from on this build.
- *
- * - `automatic` — the app downloads and installs it itself.
- * - `system` — the OS package manager does it, from Copacetic's apt
- *   repository, which the `.deb` registers when it installs.
- * - `manual` — nothing can install it, so the user has to download it.
- * - `unsupported` — a development build, with nothing to update.
- */
+/** Where an update comes from on this build. */
 export type UpdateDelivery = 'automatic' | 'system' | 'manual' | 'unsupported';
 
 export type UpdateStatus =

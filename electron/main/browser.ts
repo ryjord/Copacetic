@@ -37,15 +37,7 @@ import { createChromeWindow } from './window';
 
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
 
-/**
- * Schemes that are never passed to `shell.openExternal`, whatever the user
- * answers to the confirmation dialog.
- *
- * These are the ones the security model already refuses to navigate to. A
- * dialog is not a meaningful defence for them: nobody can evaluate a truncated
- * `javascript:` payload, and `file:` would let a page nominate any local path
- * for whichever application claims it.
- */
+// Schemes that are never passed to `shell.openExternal`, whatever the user answers to the confirmation dialog.
 const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
 
 interface PendingAuth {
@@ -58,12 +50,7 @@ interface PendingPermission {
   resolve: (decision: PermissionDecision) => void;
 }
 
-/**
- * Owns every long-lived piece of the browser and exposes the verbs that menus,
- * shortcuts and IPC all call into. Keeping the verbs in one place means a menu
- * item and its keyboard shortcut can never drift apart from the button in the
- * chrome that does the same thing.
- */
+/** Owns every long-lived piece of the browser and exposes the verbs that menus, shortcuts and IPC all call into. */
 export class Browser {
   readonly window: BrowserWindow;
   readonly store: BrowserStore;
@@ -158,10 +145,7 @@ export class Browser {
     };
   }
 
-  /**
-   * Navigation fires many events in quick succession. Coalescing them into one
-   * push per tick keeps the chrome from re-rendering a dozen times per load.
-   */
+  // Navigation fires many events in quick succession.
   scheduleStatePush(): void {
     if (this.pushQueued || this.isQuitting) return;
     this.pushQueued = true;
@@ -248,16 +232,7 @@ export class Browser {
     };
   }
 
-  /**
-   * HTTP Basic, Digest and friends. Without this, intranets, routers, NAS
-   * boxes and plenty of dev servers simply fail to load — the challenge goes
-   * unanswered and the request is refused.
-   *
-   * Credentials are handed straight to the request that asked for them and
-   * kept nowhere. Storing them would need a password manager, and there is not
-   * one yet; a browser that quietly kept passwords somewhere it had not
-   * described would be exactly the thing this project argues against.
-   */
+  // HTTP Basic, Digest and friends.
   private attachAuthHandler(): void {
     app.on('login', (event, webContents, details, authInfo, callback) => {
       // Only challenges a person can actually evaluate. A subresource buried in
@@ -323,11 +298,7 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  /**
-   * A prompt outlives its tab in two ways if nothing does this: the page's
-   * permission promise never settles, and the chrome keeps rendering a banner
-   * for a tab that is no longer there. Closing the tab is an answer — deny.
-   */
+  // A prompt outlives its tab in two ways if nothing does this: the page's permission promise never settles, and the chrome keeps rendering a banner for a tab that is no longer there.
   private dropPermissionsForTab(tabId: TabId): void {
     let dropped = false;
     for (const [id, pending] of this.pendingPermissions) {
@@ -463,11 +434,7 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  /**
-   * Write bookmarks or history somewhere the user picks. Resolves with an
-   * empty string when it worked, or a sentence explaining why it did not —
-   * the same shape as opening a download, so the chrome can just show it.
-   */
+  // Write bookmarks or history somewhere the user picks.
   async exportData(kind: ExportKind): Promise<string> {
     const now = Date.now();
     const stamp = new Date(now).toISOString().slice(0, 10);

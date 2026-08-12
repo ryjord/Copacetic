@@ -14,11 +14,7 @@ interface Command {
   run: () => void;
 }
 
-/**
- * One keystroke to reach anything, and a place to discover the shortcut for it.
- * Every entry does exactly what the equivalent menu item does — they call the
- * same commands in the main process.
- */
+/** One keystroke to reach anything, and a place to discover the shortcut for it. */
 export function CommandPalette() {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);

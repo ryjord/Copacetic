@@ -5,11 +5,7 @@ import type { PermissionPrompt } from '../../../electron/shared/types';
 import { send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
-/**
- * Sites ask for capabilities through this, and only this. Everything Copacetic
- * does not explicitly prompt for is denied in the main process without ever
- * reaching the user — a prompt nobody can evaluate is worse than a quiet no.
- */
+/** Sites ask for capabilities through this, and only this. */
 export function PermissionBanner({ prompt }: { prompt: PermissionPrompt }) {
   const [remember, setRemember] = useState(true);
   const host = hostFrom(prompt.origin);

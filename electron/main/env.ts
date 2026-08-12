@@ -26,13 +26,7 @@ export function preloadPath(): string {
   return path.join(__dirname, '..', 'preload', 'index.js');
 }
 
-/**
- * The source icon, used only when running unpackaged.
- *
- * A packaged build gets its icon from the bundle that electron-builder
- * produces, so this exists purely so `npm run dev` shows Copacetic in the dock
- * and task switcher rather than the generic Electron atom.
- */
+/** The source icon, used only when running unpackaged. */
 export function devIconPath(): string {
   return path.join(app.getAppPath(), 'build', 'icon.png');
 }

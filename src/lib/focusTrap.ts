@@ -2,15 +2,7 @@
 
 import { useEffect, type RefObject } from 'react';
 
-/**
- * Keeping the keyboard inside a panel that covers the page.
- *
- * A surface hides the page visually, but the page keeps its place in the tab
- * order — so Tab walks out of the open panel and into controls nobody can see.
- * Nothing looks wrong; focus simply disappears, which is worse than an obvious
- * fault because the only clue is that pressing Tab stops doing anything
- * visible.
- */
+// Keeping the keyboard inside a panel that covers the page.
 
 const FOCUSABLE = [
   'a[href]',
@@ -34,11 +26,7 @@ function focusableWithin(container: HTMLElement): HTMLElement[] {
   );
 }
 
-/**
- * Traps Tab within `ref` while `isActive`, and puts focus back where it was on
- * the way out — leaving someone's focus stranded on a panel that no longer
- * exists is its own small failure.
- */
+/** Traps Tab within `ref` while `isActive`, and puts focus back where it was on the way out — leaving someone's focus stranded on a panel that no longer exists is its own small failure. */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, isActive: boolean): void {
   useEffect(() => {
     const container = ref.current;

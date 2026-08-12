@@ -250,12 +250,7 @@ export class TabManager {
     this.applyBounds();
   }
 
-  /**
-   * Overlays are chrome surfaces that cover the whole content area. Because a
-   * WebContentsView is a native child that always paints above the chrome's
-   * HTML, the only way for an overlay to sit on top is for the view to step
-   * aside while it is open.
-   */
+  // Overlays are chrome surfaces that cover the whole content area.
   setOverlayVisible(visible: boolean): void {
     if (this.overlayVisible === visible) return;
     this.overlayVisible = visible;
@@ -272,16 +267,7 @@ export class TabManager {
     };
   }
 
-  /**
-   * Only the tab the user is looking at is resized here.
-   *
-   * `setBounds` forces a relayout of the page inside the view, and the chrome
-   * reports new insets whenever its own height changes — which the address bar
-   * suggestion list does on almost every keystroke. Sizing every tab meant one
-   * character typed relaid out every open page at once. Background views are
-   * sized when they are created and again when they are activated, which is
-   * the only time their size can matter.
-   */
+  // Only the tab the user is looking at is resized here.
   private applyBounds(): void {
     if (this.isDisposed || this.window.isDestroyed()) return;
     const active = this.activeId ? this.tabs.get(this.activeId) : null;
@@ -605,12 +591,7 @@ export class TabManager {
     this.runFind(contents, this.find.query, { forward, isNewSession: false });
   }
 
-  /**
-   * Electron's `findNext` option reads backwards from its name: it means
-   * "this request starts a new finding session", so it is true for the first
-   * request and false for every follow-up. Passing it the other way round
-   * finds nothing at all, because the follow-up has no session to continue.
-   */
+  // Electron's `findNext` option reads backwards from its name: it means "this request starts a new finding session", so it is true for the first request and false for every follow-up.
   private runFind(contents: WebContents, query: string, options: { forward: boolean; isNewSession: boolean }): void {
     contents.findInPage(query, {
       forward: options.forward,
@@ -761,13 +742,7 @@ export class TabManager {
     this.contextMenuHandler = handler;
   }
 
-  /**
-   * Fetch the favicon in the web session and hand the chrome a data URL.
-   *
-   * Letting the chrome renderer load `<img src="https://site/favicon.ico">`
-   * would leak a request to every site in the tab strip and every history row,
-   * from a document that is otherwise forbidden from touching the network.
-   */
+  // Fetch the favicon in the web session and hand the chrome a data URL.
   private async cacheFavicon(tab: TabRecord, faviconUrl: string): Promise<void> {
     if (tab.pendingFaviconUrl === faviconUrl) return;
     tab.pendingFaviconUrl = faviconUrl;

@@ -12,19 +12,7 @@ const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string
   unknown: { icon: HelpCircle, className: 'text-ink-faint', word: 'Unknown' },
 };
 
-/**
- * The one badge in the chrome that is allowed to be coloured, because it is the
- * only one reporting something the user cannot otherwise see.
- *
- * The browser this replaced showed a hardcoded "SECURE" label on every page,
- * including plain http. That is worse than showing nothing, so this reads the
- * real scheme and says "Not secure" when that is the truth.
- *
- * The detail it opens is `ConnectionPanel`, which is rendered as part of the
- * chrome column rather than here as a popover. A native view always paints
- * above the renderer's HTML, so a popover hanging below the toolbar would be
- * hidden behind the page on every site that actually loaded one.
- */
+/** The one badge in the chrome that is allowed to be coloured, because it is the only one reporting something the user cannot otherwise see. */
 export function ConnectionBadge({ tab }: { tab: TabState | null }) {
   const isOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
   const togglePanel = useBrowserStore((state) => state.toggleConnectionPanel);

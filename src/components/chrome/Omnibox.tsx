@@ -14,15 +14,7 @@ interface OmniboxProps {
   tab: TabState | null;
 }
 
-/**
- * The address bar, and the one place in Copacetic where boldness is spent.
- *
- * Unfocused it is not a text field at all: it renders the address
- * semantically, so the registrable domain — the only part that tells you where
- * you actually are — is the only part at full contrast. Focused it becomes a
- * plain input, and the suggestion list below it is real chrome rather than a
- * floating popover, so the page is pushed down instead of covered.
- */
+/** The address bar, and the one place in Copacetic where boldness is spent. */
 export function Omnibox({ tab }: OmniboxProps) {
   const settings = useBrowserStore((state) => state.settings);
   const focusToken = useBrowserStore((state) => state.omniboxFocusToken);
@@ -215,12 +207,7 @@ export function Omnibox({ tab }: OmniboxProps) {
   );
 }
 
-/**
- * The address, rendered as structure rather than as a string.
- *
- * `paypal.com.example.net/login` must read as `example.net`, so everything
- * outside the registrable domain is dimmed — that is the whole point.
- */
+// The address, rendered as structure rather than as a string.
 function AddressDisplay({ url, engineName }: { url: string; engineName: string }) {
   const parts = useMemo(() => (url ? splitUrlForDisplay(url) : null), [url]);
 

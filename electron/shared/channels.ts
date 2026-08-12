@@ -1,10 +1,4 @@
-/**
- * The complete list of IPC channels.
- *
- * The preload bridge only ever forwards names from this file, and the main
- * process only ever registers names from this file. Anything else is dropped,
- * so a compromised renderer cannot reach a channel that was never declared.
- */
+/** The complete list of IPC channels. */
 
 export const INVOKE = {
   tabCreate: 'tab:create',

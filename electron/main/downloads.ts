@@ -11,20 +11,12 @@ const MAX_REMEMBERED = 200;
 /** Control characters, which can truncate the name a file manager displays. */
 const CONTROL_CHARACTERS = new RegExp('[\\u0000-\\u001f\\u007f]', 'g');
 
-/**
- * Bidirectional overrides and marks. These are the classic trick for making a
- * filename ending `[U+202E]gpj.exe` render as `...exe.jpg` in a download list.
- */
+// Bidirectional overrides and marks.
 const BIDI_OVERRIDES = new RegExp('[\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]', 'g');
 
 const RESERVED_PATH_CHARACTERS = /[/\\:*?"<>|]/g;
 
-/**
- * Windows treats these as device names rather than files, in any directory and
- * with any extension. Writing to one does not create `CON.txt`; it talks to the
- * console device, and the download either hangs or fails in a way no user can
- * interpret.
- */
+// Windows treats these as device names rather than files, in any directory and with any extension.
 const WINDOWS_DEVICE_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
 
 interface LiveDownload {
@@ -220,10 +212,7 @@ export class DownloadManager {
   }
 }
 
-/**
- * Strip anything that could let a filename escape the downloads directory or
- * masquerade as a different file type. The server controls this string.
- */
+/** Strip anything that could let a filename escape the downloads directory or masquerade as a different file type. */
 export function sanitiseFilename(filename: string): string {
   const cleaned = path
     .basename(filename)

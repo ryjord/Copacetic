@@ -2,14 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-/**
- * One Escape closes one thing.
- *
- * Every overlay used to attach its own `keydown` listener to the document, so
- * a connection popover open on top of a surface got both handlers on a single
- * press and two layers disappeared at once. Registering here instead means the
- * most recently opened layer is the only one that answers.
- */
+// One Escape closes one thing.
 type DismissHandler = () => void;
 
 const layers: DismissHandler[] = [];

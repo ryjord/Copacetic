@@ -1,13 +1,6 @@
 import type { CopaceticApi } from '../../electron/shared/api';
 
-/**
- * Access to the preload bridge.
- *
- * The chrome is a Next app, so it can also be opened at localhost:3000 in an
- * ordinary browser while working on layout. In that case `window.copacetic` is
- * missing, and every call resolves to a harmless empty value rather than
- * throwing — the interface renders, it just cannot drive a real tab.
- */
+/** Access to the preload bridge. */
 export function getBridge(): CopaceticApi | null {
   if (typeof window === 'undefined') return null;
   return window.copacetic ?? null;

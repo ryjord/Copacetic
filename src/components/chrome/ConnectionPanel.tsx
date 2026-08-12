@@ -25,15 +25,7 @@ const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string
   unknown: { icon: HelpCircle, className: 'text-ink-faint', word: 'Unknown' },
 };
 
-/**
- * Everything Copacetic can honestly say about the current connection.
- *
- * This is part of the chrome column rather than a popover floating over the
- * page, for the same reason the address-bar suggestions and the find bar are:
- * a native view always paints above the renderer's HTML, so anything
- * overlapping the content area is simply invisible. The page is pushed down to
- * make room instead.
- */
+/** Everything Copacetic can honestly say about the current connection. */
 export function ConnectionPanel({ tab }: { tab: TabState | null }) {
   const closePanel = useBrowserStore((state) => state.closeConnectionPanel);
   // Stamped by the action that opened the panel. Reading the clock is a side
@@ -96,14 +88,7 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
   );
 }
 
-/**
- * Turning blocking off for one site rather than everywhere.
- *
- * Blocking a tracker occasionally breaks something real — a login routed
- * through an analytics domain, an embed that will not load. Without a per-site
- * answer the only fix is switching blocking off globally, which is a much
- * worse trade than the one the user actually wanted to make.
- */
+// Turning blocking off for one site rather than everywhere.
 function TrackerException({ url, blockedCount }: { url: string; blockedCount: number }) {
   const settings = useBrowserStore((state) => state.settings);
   const site = registrableDomainOf(hostOf(url));
@@ -143,14 +128,7 @@ function TrackerException({ url, blockedCount }: { url: string; blockedCount: nu
   );
 }
 
-/**
- * What this site has already been allowed, or refused, to do.
- *
- * These decisions were always stored and always honoured; they were just
- * listed in Settings, away from the site they apply to. A permission you
- * granted six months ago is only meaningful if you can see it while you are
- * on the site it belongs to.
- */
+// What this site has already been allowed, or refused, to do.
 function SitePermissions({ url }: { url: string }) {
   const decisions = useBrowserStore((state) => state.settings.permissionDecisions);
   const origin = originOf(url);
@@ -197,14 +175,7 @@ function SitePermissions({ url }: { url: string }) {
   );
 }
 
-/**
- * Every host the page has actually talked to.
- *
- * The blocked count says what was stopped. This is the other half: what was
- * allowed through. No mainstream browser shows that without opening developer
- * tools, and it is the most direct answer this product can give to "what is
- * this page doing behind my back".
- */
+// Every host the page has actually talked to.
 function ConnectionLog({ tabId }: { tabId: string }) {
   const [entries, setEntries] = useState<ConnectionEntry[] | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -269,14 +240,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
   );
 }
 
-/**
- * What Chromium validated, reported rather than re-derived.
- *
- * The wording stays inside the claim the README makes: who issued it and when
- * it stops being valid, not a verdict Copacetic has not earned. Expiry is the
- * one field allowed colour, because a certificate days from expiring is state
- * a user cannot see any other way.
- */
+// What Chromium validated, reported rather than re-derived.
 function CertificateRows({ certificate, now }: { certificate: CertificateSummary; now: number | null }) {
   const daysLeft = now === null ? null : Math.floor((certificate.validTo - now) / 86_400_000);
   const expiringSoon = daysLeft !== null && daysLeft <= 14;

@@ -1,16 +1,7 @@
 import type { Session } from 'electron';
 import type { ConnectionEntry } from '../shared/types';
 
-/**
- * A small, curated list of domains that exist only to track people across
- * sites. Blocking these is safe: none of them render content a page needs.
- *
- * This is deliberately not a full EasyList implementation. Shipping a 100k-rule
- * filter engine would mean maintaining a filter engine, and a short honest list
- * that never breaks a page is more useful than a long one that sometimes does.
- * The count shown in the chrome is the real number of blocked requests, not an
- * estimate.
- */
+// A small, curated list of domains that exist only to track people across sites.
 const TRACKER_DOMAINS: readonly string[] = [
   // Analytics
   'google-analytics.com',
@@ -170,14 +161,7 @@ export class ContentBlocker {
     this.enabled = enabled;
   }
 
-  /**
-   * Sites where blocking is switched off, by registrable domain.
-   *
-   * Blocking a tracker sometimes breaks a page — a login that goes through an
-   * analytics domain, an embed that will not load. Making the exception
-   * per-site keeps the global answer honest instead of pushing people to turn
-   * blocking off everywhere because one site misbehaved.
-   */
+  // Sites where blocking is switched off, by registrable domain.
   setAllowlist(sites: readonly string[]): void {
     this.allowed = new Set(sites);
   }
@@ -284,13 +268,7 @@ export class ContentBlocker {
     hosts.set(host, { host, requests: 1, blocked: wasBlocked ? 1 : 0, isTracker });
   }
 
-  /**
-   * Every host this tab has contacted, blocked first and then by volume.
-   *
-   * Blocked entries lead because they are the ones worth reading: a page that
-   * tried thirty times to reach a tracker says something the raw ordering
-   * would bury.
-   */
+  // Every host this tab has contacted, blocked first and then by volume.
   connectionsFor(webContentsId: number): ConnectionEntry[] {
     const hosts = this.hosts.get(webContentsId);
     if (!hosts) return [];

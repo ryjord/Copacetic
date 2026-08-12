@@ -1,13 +1,4 @@
-/**
- * Semver comparison, only as much as this app needs.
- *
- * Used to decide whether a GitHub release is newer than the running build on
- * the platforms that cannot install an update themselves. Getting the
- * prerelease rule right matters: `1.2.0-beta.1` must read as *older* than
- * `1.2.0`, or a beta tester would be told to downgrade on every check.
- *
- * See VERSIONING.md for what each position means.
- */
+// Semver comparison, only as much as this app needs.
 
 interface Parsed {
   release: number[];

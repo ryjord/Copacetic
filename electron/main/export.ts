@@ -1,14 +1,6 @@
 import type { Bookmark, HistoryEntry } from '../shared/types';
 
-/**
- * Getting your own data back out.
- *
- * "Everything lives on this machine" is honest, but on its own it is also
- * lock-in: data nobody else can read is only yours in a narrow sense. An
- * export in a format every other browser already imports is what turns that
- * claim into something a person can act on, and it is the cheapest way to show
- * the files hold nothing surprising.
- */
+// Getting your own data back out.
 
 /** Netscape bookmark format — what every browser's importer expects. */
 export function bookmarksToHtml(bookmarks: readonly Bookmark[], exportedAt: number): string {
@@ -36,10 +28,7 @@ ${rows}
 `;
 }
 
-/**
- * History as JSON rather than the Netscape format, which has no place for a
- * visit count. Plain enough to read in any text editor, which is the point.
- */
+/** History as JSON rather than the Netscape format, which has no place for a visit count. */
 export function historyToJson(entries: readonly HistoryEntry[], exportedAt: number): string {
   return `${JSON.stringify(
     {
@@ -57,11 +46,7 @@ export function historyToJson(entries: readonly HistoryEntry[], exportedAt: numb
   )}\n`;
 }
 
-/**
- * A title is page-controlled text being written into an HTML file that the
- * user will open, and that other browsers will parse. Escaping it is what
- * stops a bookmark title closing the anchor and writing markup of its own.
- */
+// A title is page-controlled text being written into an HTML file that the user will open, and that other browsers will parse.
 function escapeText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

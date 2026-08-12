@@ -24,10 +24,7 @@ export interface DeliveryInputs {
   isAppImage: boolean;
 }
 
-/**
- * The whole platform decision, as a pure function so it can be tested for every
- * combination rather than only the one this machine happens to be.
- */
+/** The whole platform decision, as a pure function so it can be tested for every combination rather than only the one this machine happens to be. */
 export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryInputs): DeliveryDescription {
   if (!isPackaged) {
     return { delivery: 'unsupported', manualReason: 'This is a development build, so there is nothing to update.' };
@@ -57,15 +54,7 @@ export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryI
   return { delivery: 'automatic', manualReason: null };
 }
 
-/**
- * Keeps the app honest about whether it is out of date.
- *
- * Two different jobs, split by what the platform actually allows. Where an
- * update can be installed, electron-updater downloads it and it applies on
- * quit. Where it cannot, the only useful thing is to say so plainly and offer
- * the download page — a silent "you're up to date" on a build that can never
- * update itself would be a lie.
- */
+/** Keeps the app honest about whether it is out of date. */
 export class UpdateManager {
   private status: UpdateStatus = { state: 'idle' };
   private lastCheckedAt: number | null = null;
@@ -127,13 +116,7 @@ export class UpdateManager {
     }
   }
 
-  /**
-   * Ask GitHub for the latest tag and compare it ourselves.
-   *
-   * Deliberately the plain releases API rather than anything that identifies
-   * the caller: the request sends a version number and a user agent, and
-   * nothing else, which is what the Settings copy promises.
-   */
+  // Ask GitHub for the latest tag and compare it ourselves.
   private async checkViaGitHub(): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -198,20 +181,7 @@ export class UpdateManager {
   }
 }
 
-/**
- * The updater, from whichever shape the import gives back.
- *
- * `electron-updater` is CommonJS, and destructuring the namespace of a CJS
- * module is only reliable when the exports can be detected statically — these
- * cannot, so `autoUpdater` came back undefined and the first property set on
- * it threw. That failed inside the try/catch around the check, so it surfaced
- * as an error message rather than a crash, and automatic updates did nothing
- * at all from 1.1.0 until this was found.
- *
- * Both shapes are handled rather than picking the one that happens to work
- * today, because which one applies depends on the bundler and the module
- * detection, and neither is guaranteed to stay put.
- */
+/** The updater, from whichever shape the import gives back. */
 export function pickAutoUpdater(imported: unknown): AutoUpdaterLike {
   const namespace = imported as { autoUpdater?: unknown; default?: { autoUpdater?: unknown } };
   const updater = namespace.autoUpdater ?? namespace.default?.autoUpdater;

@@ -15,13 +15,7 @@ interface SurfaceShellProps {
   children: ReactNode;
 }
 
-/**
- * The frame shared by every full-area panel.
- *
- * A surface covers the page, so the main process hides the tab's view while
- * one is open — see `Chrome`. That is what makes these opaque rather than
- * translucent: there is nothing behind them to show through.
- */
+/** The frame shared by every full-area panel. */
 export function SurfaceShell({ title, subtitle, actions, children }: SurfaceShellProps) {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const panelRef = useRef<HTMLElement>(null);

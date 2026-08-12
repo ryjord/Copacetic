@@ -15,6 +15,9 @@ const MAX_HISTORY_ENTRIES = 10_000;
 const MAX_HISTORY_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_FAVICON_ENTRIES = 600;
 
+/** One page of history, shared so the caller and the default cannot drift apart. */
+export const HISTORY_PAGE_SIZE = 300;
+
 export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'duckduckgo',
   theme: 'deep',
@@ -106,10 +109,7 @@ export class BrowserStore {
     return this.settingsFile.get().zoomLevels[origin] ?? null;
   }
 
-  /**
-   * A level equal to the default is forgotten rather than stored: the list in
-   * Settings should be the sites you actually changed, not every site visited.
-   */
+  // A level equal to the default is forgotten rather than stored: the list in Settings should be the sites you actually changed, not every site visited.
   setZoomForOrigin(origin: string, zoomFactor: number): void {
     if (!origin) return;
     this.settingsFile.update((current) => {
@@ -160,14 +160,8 @@ export class BrowserStore {
     });
   }
 
-  /**
-   * A page of history, and how many entries there are in total.
-   *
-   * The total matters: capping at some number and saying nothing meant a
-   * search could never reach a match past the cap, with no hint that anything
-   * had been left out. Better to show the page and admit its size.
-   */
-  listHistory(query = '', limit = 300, offset = 0): HistoryPage {
+  // A page of history, and how many entries there are in total.
+  listHistory(query = '', limit = HISTORY_PAGE_SIZE, offset = 0): HistoryPage {
     const matches = this.matchingHistory(query);
     return { entries: matches.slice(offset, offset + limit), total: matches.length };
   }
@@ -292,14 +286,7 @@ export class BrowserStore {
 
   // --------------------------------------------------------------- omnibox
 
-  /**
-   * Rank local history and bookmarks against what the user has typed so far.
-   *
-   * Deliberately local-only: no keystroke leaves the machine to fetch remote
-   * suggestions. The trade-off is that a brand-new query gets no autocomplete
-   * until you have visited something matching it, which is the right side of
-   * that trade for a browser that claims to be private.
-   */
+  // Rank local history and bookmarks against what the user has typed so far.
   suggest(rawQuery: string, limit = 8): Suggestion[] {
     const query = rawQuery.trim();
     if (!query) return [];
@@ -362,14 +349,7 @@ export class BrowserStore {
   }
 }
 
-/**
- * The lowercased forms scoring compares against, parsed once per entry.
- *
- * Deriving these inside the scorer meant a `new URL()` for every history entry
- * on every keystroke. At ten thousand entries that measured 152ms per
- * character, synchronously, in the process that also drives the page — which
- * is felt directly as the address bar failing to keep up with typing.
- */
+// The lowercased forms scoring compares against, parsed once per entry.
 interface ScoreFields {
   sourceUrl: string;
   sourceTitle: string;
@@ -463,22 +443,10 @@ function reviveSettings(raw: unknown): Settings | null {
   });
 }
 
-/**
- * Bounds every numeric setting, wherever it came from.
- *
- * Applying this only when reading from disk left a gap: a value pushed over
- * IPC was stored unbounded and stayed that way until the next launch, so a
- * zoom factor of 40 survived exactly as long as the session did.
- */
+// Bounds every numeric setting, wherever it came from.
 const WIDGET_IDS: readonly StartPageWidgetId[] = ['clock', 'search', 'topSites', 'bookmarks'];
 
-/**
- * The widget list, or one derived from the booleans it replaced.
- *
- * Someone upgrading has `showStartPageClock` and `showTopSites` in their
- * settings and no list. Reading their answers rather than resetting them to
- * the default is the difference between an upgrade and losing your setup.
- */
+// The widget list, or one derived from the booleans it replaced.
 function reviveStartPageWidgets(raw: Record<string, unknown>): StartPageWidgetId[] {
   if (Array.isArray(raw.startPageWidgets)) {
     const seen = new Set<StartPageWidgetId>();

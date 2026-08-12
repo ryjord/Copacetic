@@ -3,12 +3,7 @@ import type { Browser } from './browser';
 
 const isMac = process.platform === 'darwin';
 
-/**
- * The application menu is not decoration. On macOS the Edit menu's roles are
- * what make copy, paste and select-all work inside pages at all, and the
- * accelerators here are the only keyboard shortcuts that still fire when a
- * page — not the chrome — holds focus.
- */
+/** The application menu is not decoration. */
 export function buildApplicationMenu(browser: Browser): Menu {
   const template: MenuItemConstructorOptions[] = [];
 

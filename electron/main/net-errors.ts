@@ -1,9 +1,4 @@
-/**
- * Chromium network error codes, translated into something a person can act on.
- *
- * The error page shows the symbolic name too. Hiding it would be friendlier
- * right up until someone needs to search for it.
- */
+// Chromium network error codes, translated into something a person can act on.
 interface NetErrorInfo {
   name: string;
   headline: string;

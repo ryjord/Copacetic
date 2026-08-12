@@ -66,11 +66,7 @@ app.on('will-quit', () => {
   removeIpcHandlers();
 });
 
-/**
- * Unpackaged runs have no bundle for macOS to read an icon out of, so the dock
- * falls back to the Electron atom. Setting it explicitly means development
- * looks like the thing being built.
- */
+// Unpackaged runs have no bundle for macOS to read an icon out of, so the dock falls back to the Electron atom.
 function applyDevelopmentIcon(): void {
   if (!isDevelopment() || process.platform !== 'darwin') return;
   const iconPath = devIconPath();

@@ -3,14 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-/**
- * A single JSON file on disk, written atomically and flushed on a debounce.
- *
- * Browser state changes constantly (every navigation touches history), so
- * writing synchronously on every mutation would stall navigation. Instead
- * mutations update memory immediately and the file catches up shortly after,
- * with a synchronous flush on quit so nothing is lost on exit.
- */
+/** A single JSON file on disk, written atomically and flushed on a debounce. */
 export class PersistedFile<T> {
   private value: T;
   private flushTimer: NodeJS.Timeout | null = null;

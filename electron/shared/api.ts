@@ -26,12 +26,7 @@ export interface ContentInsetsInput {
 /** Cancels a subscription made through `copacetic.on.*`. */
 export type Unsubscribe = () => void;
 
-/**
- * The contract between the chrome renderer and the main process.
- *
- * Declared here — with no Electron import — so the renderer can depend on the
- * shape of the bridge without pulling any main-process types into its build.
- */
+/** The contract between the chrome renderer and the main process. */
 export interface CopaceticApi {
   tabs: {
     create(url?: string, activate?: boolean): Promise<TabId>;

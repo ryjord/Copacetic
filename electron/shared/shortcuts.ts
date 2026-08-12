@@ -1,13 +1,4 @@
-/**
- * Every keyboard shortcut, in one place, so what Settings shows and what the
- * menu actually binds cannot drift apart.
- *
- * The menu is still where accelerators are attached — rewriting it to be
- * generated from this list would be a larger change than it is worth — so a
- * test asserts that every accelerator in `menu.ts` appears here. A shortcut
- * added to the menu and forgotten here fails that test rather than quietly
- * leaving this list wrong.
- */
+/** Every keyboard shortcut, in one place, so what Settings shows and what the menu actually binds cannot drift apart. */
 
 export interface ShortcutGroup {
   title: string;
