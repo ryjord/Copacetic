@@ -1,6 +1,7 @@
 import { type BrowserWindow, app, dialog, session as electronSession, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { PUSH, type ChromeSurface } from '../shared/channels';
+import { sanitiseChromeText } from '../shared/chrome-text';
 import type {
   AppInfo,
   AuthPrompt,
@@ -40,6 +41,20 @@ const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.
 
 // Schemes that are never passed to `shell.openExternal`, whatever the user answers to the confirmation dialog.
 const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
+
+/**
+ * Everything refused for navigation reaches the external-open path too, so
+ * without this the schemes the security model rejects would just be handed to
+ * whichever application the OS associates with them — routing around the
+ * refusal rather than enforcing it.
+ */
+export function mayBeHandedToOs(url: string): boolean {
+  const scheme = safeScheme(url);
+  if (!scheme) {
+    return false;
+  }
+  return !NEVER_HANDED_TO_OS.has(`${scheme}:`);
+}
 
 interface PendingAuth {
   prompt: AuthPrompt;
@@ -219,14 +234,7 @@ export class Browser {
 
       confirmExternalOpen: async (url) => {
         const scheme = safeScheme(url);
-        if (!scheme) {
-          return false;
-        }
-        // Everything refused for navigation lands here, so without this check
-        // the schemes the security model rejects would simply be handed to
-        // whichever application the OS has associated with them — routing
-        // around the refusal rather than enforcing it.
-        if (NEVER_HANDED_TO_OS.has(`${scheme}:`)) {
+        if (!scheme || !mayBeHandedToOs(url)) {
           return false;
         }
         const { response } = await dialog.showMessageBox(this.window, {
@@ -236,7 +244,7 @@ export class Browser {
           cancelId: 1,
           title: 'Leave Copacetic?',
           message: `Open this link in another application?`,
-          detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${truncate(url, 240)}`,
+          detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${sanitiseChromeText(url, 240)}`,
           noLink: true,
         });
         if (response !== 0) {
@@ -611,8 +619,4 @@ function safeScheme(url: string): string | null {
   } catch {
     return null;
   }
-}
-
-function truncate(value: string, max: number): string {
-  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
