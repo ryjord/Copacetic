@@ -18,10 +18,14 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   const minute = useMinuteTick();
 
   useEffect(() => {
-    if (!settings.startPageWidgets.includes('topSites')) return;
+    if (!settings.startPageWidgets.includes('topSites')) {
+      return;
+    }
     let cancelled = false;
     void ask((api) => api.history.topSites(8), []).then((sites) => {
-      if (!cancelled) setTopSites(sites);
+      if (!cancelled) {
+        setTopSites(sites);
+      }
     });
     return () => {
       cancelled = true;
@@ -31,10 +35,14 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   // Fetched rather than pushed: the image is measured in megabytes and has no
   // business travelling with every state update.
   useEffect(() => {
-    if (!settings.hasWallpaper) return;
+    if (!settings.hasWallpaper) {
+      return;
+    }
     let cancelled = false;
     void ask((api) => api.wallpaper.get(), null).then((image) => {
-      if (!cancelled) setFetched(image);
+      if (!cancelled) {
+        setFetched(image);
+      }
     });
     return () => {
       cancelled = true;
@@ -49,7 +57,9 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim()) {
+      return;
+    }
     send((api) => api.tabs.navigate(tabId, query));
   };
 
@@ -157,7 +167,9 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
   useEffect(() => {
     let cancelled = false;
     void ask((api) => api.bookmarks.list(), []).then((all) => {
-      if (!cancelled) setBookmarks(all.slice(0, 8));
+      if (!cancelled) {
+        setBookmarks(all.slice(0, 8));
+      }
     });
     return () => {
       cancelled = true;

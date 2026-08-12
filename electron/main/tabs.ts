@@ -1,30 +1,31 @@
 import { type BrowserWindow, type ContextMenuParams, WebContentsView, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
-import type { CertificateSummary, FindState, PageError, SecurityState, TabId, TabState } from '../shared/types';
+import type { FindState, PageError, TabId, TabState } from '../shared/types';
 import {
   START_PAGE_URL,
   fallbackTitleFor,
   hostOf,
-  isFetchableFavicon,
-  isLoopbackHost,
   isNavigableUrl,
   originOf,
   registrableDomainOf,
   resolveOmniboxInput,
 } from '../shared/url';
 import type { ContentBlocker } from './blocker';
+import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
+import { fetchFaviconDataUrl } from './tab-favicon';
+import {
+  DEFAULT_INSETS,
+  type ContentBounds,
+  type ContentInsets,
+  contentBoundsWithin,
+  normaliseInsets,
+  shouldTabBeVisible,
+} from './tab-layout';
+import { describeSecurity } from './tab-security';
 import { certificateFor } from './certificates';
 import { describeNetError, isAbortError } from './net-errors';
 import { HUSH_PARTITION, WEB_PARTITION, type SecurityDelegate, getWebSession, guardTabWebContents } from './security';
 import type { BrowserStore } from './store';
-
-/** Chrome insets in CSS pixels, measured by the renderer. */
-export interface ContentInsets {
-  top: number;
-  left: number;
-  right: number;
-  bottom: number;
-}
 
 interface TabRecord {
   id: TabId;
@@ -53,8 +54,6 @@ interface ClosedTab {
 }
 
 const MAX_REOPENABLE = 12;
-const MAX_FAVICON_BYTES = 200 * 1024;
-const DEFAULT_INSETS: ContentInsets = { top: 88, left: 0, right: 0, bottom: 0 };
 
 export class TabManager {
   private readonly tabs = new Map<TabId, TabRecord>();
@@ -63,7 +62,7 @@ export class TabManager {
   private insets: ContentInsets = DEFAULT_INSETS;
   private overlayVisible = false;
   private readonly closedTabs: ClosedTab[] = [];
-  private find: FindState = { isOpen: false, query: '', activeMatch: 0, totalMatches: 0, matchCase: false };
+  private find: FindState = CLOSED_FIND;
   private isDisposed = false;
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
 
@@ -78,7 +77,9 @@ export class TabManager {
   ) {
     this.window.on('resize', () => this.applyBounds());
     this.blocker.onCount((webContentsId) => {
-      if (this.findByWebContentsId(webContentsId)) this.onChanged();
+      if (this.findByWebContentsId(webContentsId)) {
+        this.onChanged();
+      }
     });
   }
 
@@ -124,8 +125,12 @@ export class TabManager {
       // A Hush tab is excluded rather than merely not reopened: the session
       // file is on disk, so listing its URL there would be the one place the
       // tab left a trace.
-      if (!tab || tab.isStartPage || tab.isHush) continue;
-      if (id === this.activeId) activeIndex = urls.length;
+      if (!tab || tab.isStartPage || tab.isHush) {
+        continue;
+      }
+      if (id === this.activeId) {
+        activeIndex = urls.length;
+      }
       urls.push(tab.url);
     }
 
@@ -162,7 +167,9 @@ export class TabManager {
 
   private findByWebContentsId(webContentsId: number): TabRecord | null {
     for (const tab of this.tabs.values()) {
-      if (!tab.view.webContents.isDestroyed() && tab.view.webContents.id === webContentsId) return tab;
+      if (!tab.view.webContents.isDestroyed() && tab.view.webContents.id === webContentsId) {
+        return tab;
+      }
     }
     return null;
   }
@@ -173,7 +180,9 @@ export class TabManager {
 
   urlFor(id: TabId): string | null {
     const tab = this.tabs.get(id);
-    if (!tab || tab.isStartPage) return null;
+    if (!tab || tab.isStartPage) {
+      return null;
+    }
     return tab.url;
   }
 
@@ -203,18 +212,28 @@ export class TabManager {
   }
 
   addToDictionary(id: TabId, word: string): void {
-    if (!word) return;
+    if (!word) {
+      return;
+    }
     this.contentsFor(id)?.session.addWordToSpellCheckerDictionary(word);
   }
 
   closeOthers(id: TabId): void {
-    for (const other of [...this.order]) if (other !== id) this.close(other);
+    for (const other of [...this.order]) {
+      if (other !== id) {
+        this.close(other);
+      }
+    }
   }
 
   closeToTheRight(id: TabId): void {
     const index = this.order.indexOf(id);
-    if (index === -1) return;
-    for (const other of this.order.slice(index + 1)) this.close(other);
+    if (index === -1) {
+      return;
+    }
+    for (const other of this.order.slice(index + 1)) {
+      this.close(other);
+    }
   }
 
   /** Ask the network stack to download a URL rather than render it. */
@@ -225,9 +244,14 @@ export class TabManager {
 
   toggleDevTools(id: TabId): void {
     const contents = this.contentsFor(id);
-    if (!contents) return;
-    if (contents.isDevToolsOpened()) contents.closeDevTools();
-    else contents.openDevTools({ mode: 'detach' });
+    if (!contents) {
+      return;
+    }
+    if (contents.isDevToolsOpened()) {
+      contents.closeDevTools();
+    } else {
+      contents.openDevTools({ mode: 'detach' });
+    }
   }
 
   print(id: TabId): void {
@@ -241,46 +265,49 @@ export class TabManager {
   // ------------------------------------------------------------------ layout
 
   setContentInsets(insets: ContentInsets): void {
-    this.insets = {
-      top: Math.max(0, Math.round(insets.top)),
-      left: Math.max(0, Math.round(insets.left)),
-      right: Math.max(0, Math.round(insets.right)),
-      bottom: Math.max(0, Math.round(insets.bottom)),
-    };
+    this.insets = normaliseInsets(insets);
     this.applyBounds();
   }
 
   // Overlays are chrome surfaces that cover the whole content area.
   setOverlayVisible(visible: boolean): void {
-    if (this.overlayVisible === visible) return;
+    if (this.overlayVisible === visible) {
+      return;
+    }
     this.overlayVisible = visible;
     this.applyVisibility();
   }
 
-  private currentBounds(): { x: number; y: number; width: number; height: number } {
+  private currentBounds(): ContentBounds {
     const [width, height] = this.window.getContentSize();
-    return {
-      x: this.insets.left,
-      y: this.insets.top,
-      width: Math.max(0, (width ?? 0) - this.insets.left - this.insets.right),
-      height: Math.max(0, (height ?? 0) - this.insets.top - this.insets.bottom),
-    };
+    return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets);
   }
 
   // Only the tab the user is looking at is resized here.
   private applyBounds(): void {
-    if (this.isDisposed || this.window.isDestroyed()) return;
+    if (this.isDisposed || this.window.isDestroyed()) {
+      return;
+    }
     const active = this.activeId ? this.tabs.get(this.activeId) : null;
-    if (!active || active.view.webContents.isDestroyed()) return;
+    if (!active || active.view.webContents.isDestroyed()) {
+      return;
+    }
     active.view.setBounds(this.currentBounds());
   }
 
   private applyVisibility(): void {
-    if (this.isDisposed) return;
+    if (this.isDisposed) {
+      return;
+    }
     for (const [id, tab] of this.tabs) {
-      if (tab.view.webContents.isDestroyed()) continue;
-      const shouldShow = id === this.activeId && !this.overlayVisible && !tab.isStartPage && tab.error === null;
-      tab.view.setVisible(shouldShow);
+      if (tab.view.webContents.isDestroyed()) {
+        continue;
+      }
+      const isVisible = shouldTabBeVisible(
+        { isActive: id === this.activeId, isStartPage: tab.isStartPage, hasError: tab.error !== null },
+        this.overlayVisible,
+      );
+      tab.view.setVisible(isVisible);
     }
   }
 
@@ -362,16 +389,22 @@ export class TabManager {
 
   /** New tabs opened by a page land immediately after the tab that opened them. */
   private insertionIndexFor(openerWebContentsId?: number): number {
-    if (typeof openerWebContentsId !== 'number') return this.order.length;
+    if (typeof openerWebContentsId !== 'number') {
+      return this.order.length;
+    }
     const opener = this.findByWebContentsId(openerWebContentsId);
-    if (!opener) return this.order.length;
+    if (!opener) {
+      return this.order.length;
+    }
     const openerIndex = this.order.indexOf(opener.id);
     return openerIndex === -1 ? this.order.length : openerIndex + 1;
   }
 
   close(id: TabId): void {
     const tab = this.tabs.get(id);
-    if (!tab) return;
+    if (!tab) {
+      return;
+    }
 
     const index = this.order.indexOf(id);
     if (!tab.isStartPage && !tab.isHush) {
@@ -389,7 +422,9 @@ export class TabManager {
       // fall back to the left when the closed tab was last.
       const next = this.order[Math.min(index, this.order.length - 1)] ?? null;
       this.activeId = null;
-      if (next) this.activate(next);
+      if (next) {
+        this.activate(next);
+      }
     }
 
     // A browser with no tabs has no way back. Always leave one.
@@ -408,25 +443,35 @@ export class TabManager {
       this.blocker.forget(contents.id);
       contents.stop();
     }
-    if (!this.window.isDestroyed()) this.window.contentView.removeChildView(tab.view);
-    if (!contents.isDestroyed()) contents.close();
+    if (!this.window.isDestroyed()) {
+      this.window.contentView.removeChildView(tab.view);
+    }
+    if (!contents.isDestroyed()) {
+      contents.close();
+    }
   }
 
   reopenClosed(): void {
     const restored = this.closedTabs.shift();
-    if (!restored) return;
+    if (!restored) {
+      return;
+    }
     this.create(restored.url, { index: restored.index, activate: true });
   }
 
   duplicate(id: TabId): void {
     const tab = this.tabs.get(id);
-    if (!tab || tab.isStartPage) return;
+    if (!tab || tab.isStartPage) {
+      return;
+    }
     this.create(tab.url, { index: this.order.indexOf(id) + 1, activate: true });
   }
 
   activate(id: TabId): void {
     if (!this.tabs.has(id) || this.activeId === id) {
-      if (this.activeId === id) this.focusActive();
+      if (this.activeId === id) {
+        this.focusActive();
+      }
       return;
     }
     this.activeId = id;
@@ -439,16 +484,24 @@ export class TabManager {
 
   private focusActive(): void {
     const tab = this.activeTab();
-    if (!tab || tab.isStartPage || tab.error) return;
+    if (!tab || tab.isStartPage || tab.error) {
+      return;
+    }
     const contents = tab.view.webContents;
-    if (!contents.isDestroyed()) contents.focus();
+    if (!contents.isDestroyed()) {
+      contents.focus();
+    }
   }
 
   move(id: TabId, toIndex: number): void {
     const from = this.order.indexOf(id);
-    if (from === -1) return;
+    if (from === -1) {
+      return;
+    }
     const clamped = Math.min(Math.max(0, toIndex), this.order.length - 1);
-    if (from === clamped) return;
+    if (from === clamped) {
+      return;
+    }
     this.order.splice(from, 1);
     this.order.splice(clamped, 0, id);
     this.onChanged();
@@ -463,7 +516,9 @@ export class TabManager {
   /** Accepts either a URL or raw omnibox text. */
   navigate(id: TabId, input: string): void {
     const tab = this.tabs.get(id);
-    if (!tab) return;
+    if (!tab) {
+      return;
+    }
 
     if (input === START_PAGE_URL) {
       tab.isStartPage = true;
@@ -472,7 +527,9 @@ export class TabManager {
       tab.error = null;
       tab.faviconDataUrl = null;
       tab.isLoading = false;
-      if (!tab.view.webContents.isDestroyed()) tab.view.webContents.loadURL('about:blank').catch(() => {});
+      if (!tab.view.webContents.isDestroyed()) {
+        tab.view.webContents.loadURL('about:blank').catch(() => {});
+      }
       this.applyVisibility();
       this.onChanged();
       return;
@@ -480,13 +537,17 @@ export class TabManager {
 
     const settings = this.store.getSettings();
     const resolution = resolveOmniboxInput(input, settings.searchEngine, { httpsFirst: settings.httpsFirst });
-    if (!resolution) return;
+    if (!resolution) {
+      return;
+    }
     void this.loadUrl(tab, resolution.target);
   }
 
   private async loadUrl(tab: TabRecord, url: string): Promise<void> {
     const contents = tab.view.webContents;
-    if (contents.isDestroyed()) return;
+    if (contents.isDestroyed()) {
+      return;
+    }
 
     tab.isStartPage = false;
     tab.error = null;
@@ -503,33 +564,46 @@ export class TabManager {
     } catch (error) {
       // `loadURL` rejects on the same failures `did-fail-load` reports, which
       // has already recorded a richer error. Swallow the duplicate.
-      if (process.env.COPACETIC_DEBUG) console.error('[tabs] loadURL rejected', url, error);
+      if (process.env.COPACETIC_DEBUG) {
+        console.error('[tabs] loadURL rejected', url, error);
+      }
     }
   }
 
   goBack(id: TabId): void {
     const contents = this.contentsFor(id);
-    if (contents?.navigationHistory.canGoBack()) contents.navigationHistory.goBack();
+    if (contents?.navigationHistory.canGoBack()) {
+      contents.navigationHistory.goBack();
+    }
   }
 
   goForward(id: TabId): void {
     const contents = this.contentsFor(id);
-    if (contents?.navigationHistory.canGoForward()) contents.navigationHistory.goForward();
+    if (contents?.navigationHistory.canGoForward()) {
+      contents.navigationHistory.goForward();
+    }
   }
 
   reload(id: TabId, bypassCache = false): void {
     const tab = this.tabs.get(id);
-    if (!tab) return;
+    if (!tab) {
+      return;
+    }
     if (tab.isStartPage) {
       this.onChanged();
       return;
     }
     const contents = tab.view.webContents;
-    if (contents.isDestroyed()) return;
+    if (contents.isDestroyed()) {
+      return;
+    }
     tab.error = null;
     this.applyVisibility();
-    if (bypassCache) contents.reloadIgnoringCache();
-    else contents.reload();
+    if (bypassCache) {
+      contents.reloadIgnoringCache();
+    } else {
+      contents.reload();
+    }
   }
 
   stop(id: TabId): void {
@@ -539,7 +613,9 @@ export class TabManager {
   setMuted(id: TabId, muted: boolean): void {
     const tab = this.tabs.get(id);
     const contents = this.contentsFor(id);
-    if (!tab || !contents) return;
+    if (!tab || !contents) {
+      return;
+    }
     tab.isMuted = muted;
     contents.setAudioMuted(muted);
     this.onChanged();
@@ -548,21 +624,27 @@ export class TabManager {
   setZoom(id: TabId, zoomFactor: number): void {
     const tab = this.tabs.get(id);
     const contents = this.contentsFor(id);
-    if (!tab || !contents) return;
+    if (!tab || !contents) {
+      return;
+    }
     tab.zoomFactor = Math.min(5, Math.max(0.25, zoomFactor));
     contents.setZoomFactor(tab.zoomFactor);
 
     // Remembered against the origin: a site that needs zooming needs it every
     // visit, and setting it again on every visit is the kind of small friction
     // that makes a browser tiring to use.
-    if (!tab.isStartPage) this.store.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
+    if (!tab.isStartPage) {
+      this.store.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
+    }
 
     this.onChanged();
   }
 
   private contentsFor(id: TabId): WebContents | null {
     const tab = this.tabs.get(id);
-    if (!tab || tab.view.webContents.isDestroyed()) return null;
+    if (!tab || tab.view.webContents.isDestroyed()) {
+      return null;
+    }
     return tab.view.webContents;
   }
 
@@ -570,11 +652,10 @@ export class TabManager {
 
   /** Begin a new search. Every keystroke in the find bar lands here. */
   startFind(query: string): void {
-    this.find = { ...this.find, isOpen: true, query };
+    this.find = findForQuery(this.find, query);
 
     const contents = this.activeId ? this.contentsFor(this.activeId) : null;
     if (!contents || !query) {
-      if (!query) this.find = { ...this.find, activeMatch: 0, totalMatches: 0 };
       contents?.stopFindInPage('clearSelection');
       this.onChanged();
       return;
@@ -587,7 +668,9 @@ export class TabManager {
   /** Step through the matches of the search already running. */
   findNext(forward: boolean): void {
     const contents = this.activeId ? this.contentsFor(this.activeId) : null;
-    if (!contents || !this.find.query) return;
+    if (!contents || !this.find.query) {
+      return;
+    }
     this.runFind(contents, this.find.query, { forward, isNewSession: false });
   }
 
@@ -601,20 +684,27 @@ export class TabManager {
   }
 
   setFindMatchCase(matchCase: boolean): void {
-    this.find = { ...this.find, matchCase };
-    if (this.find.query) this.startFind(this.find.query);
-    else this.onChanged();
+    this.find = findWithMatchCase(this.find, matchCase);
+    if (this.find.query) {
+      this.startFind(this.find.query);
+    } else {
+      this.onChanged();
+    }
   }
 
   stopFind(): void {
-    if (!this.find.isOpen && !this.find.query) return;
-    if (this.activeId) this.contentsFor(this.activeId)?.stopFindInPage('clearSelection');
-    this.find = { isOpen: false, query: '', activeMatch: 0, totalMatches: 0, matchCase: this.find.matchCase };
+    if (!this.find.isOpen && !this.find.query) {
+      return;
+    }
+    if (this.activeId) {
+      this.contentsFor(this.activeId)?.stopFindInPage('clearSelection');
+    }
+    this.find = closedFind(this.find);
     this.onChanged();
   }
 
   openFind(): void {
-    this.find = { ...this.find, isOpen: true };
+    this.find = openedFind(this.find);
     this.onChanged();
   }
 
@@ -640,7 +730,9 @@ export class TabManager {
     });
 
     contents.on('did-start-navigation', (details) => {
-      if (!details.isMainFrame) return;
+      if (!details.isMainFrame) {
+        return;
+      }
       this.blocker.resetCount(contents.id);
       // Set before any subresource request is judged, so an exception applies
       // from the first request of the page rather than the second load.
@@ -649,7 +741,9 @@ export class TabManager {
     });
 
     const commitNavigation = (url: string, isInPage: boolean) => {
-      if (url === 'about:blank') return;
+      if (url === 'about:blank') {
+        return;
+      }
       tab.url = url;
       tab.isStartPage = false;
       tab.error = null;
@@ -669,14 +763,18 @@ export class TabManager {
 
     contents.on('did-navigate', (_event, url) => commitNavigation(url, false));
     contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
-      if (isMainFrame) commitNavigation(url, true);
+      if (isMainFrame) {
+        commitNavigation(url, true);
+      }
     });
 
     contents.on('page-title-updated', (_event, title) => {
       tab.title = title;
       if (!tab.isStartPage && !tab.error && tab.url.startsWith('http')) {
         // The whole point of a Hush tab: no record of where it went.
-        if (!tab.isHush) this.store.recordVisit(tab.url, title);
+        if (!tab.isHush) {
+          this.store.recordVisit(tab.url, title);
+        }
       }
       changed();
     });
@@ -684,11 +782,15 @@ export class TabManager {
     contents.on('page-favicon-updated', (_event, favicons) => {
       const [faviconUrl] = favicons;
       // A cached favicon is a list of sites visited, stored by another name.
-      if (faviconUrl && !tab.isHush) void this.cacheFavicon(tab, faviconUrl);
+      if (faviconUrl && !tab.isHush) {
+        void this.cacheFavicon(tab, faviconUrl);
+      }
     });
 
     contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-      if (!isMainFrame || isAbortError(errorCode)) return;
+      if (!isMainFrame || isAbortError(errorCode)) {
+        return;
+      }
       const info = describeNetError(errorCode, errorDescription);
       tab.isLoading = false;
       tab.error = {
@@ -718,11 +820,7 @@ export class TabManager {
     });
 
     contents.on('found-in-page', (_event, result) => {
-      this.find = {
-        ...this.find,
-        activeMatch: result.activeMatchOrdinal ?? 0,
-        totalMatches: result.matches ?? 0,
-      };
+      this.find = findWithMatches(this.find, result.activeMatchOrdinal ?? 0, result.matches ?? 0);
       changed();
     });
 
@@ -744,7 +842,9 @@ export class TabManager {
 
   // Fetch the favicon in the web session and hand the chrome a data URL.
   private async cacheFavicon(tab: TabRecord, faviconUrl: string): Promise<void> {
-    if (tab.pendingFaviconUrl === faviconUrl) return;
+    if (tab.pendingFaviconUrl === faviconUrl) {
+      return;
+    }
     tab.pendingFaviconUrl = faviconUrl;
 
     const cached = this.store.getFavicon(tab.url);
@@ -753,126 +853,27 @@ export class TabManager {
       this.onChanged();
     }
 
-    // The page chooses this URL, and the fetch below runs in the web session
-    // with whatever cookies the user already holds for the host. Without an
-    // origin check that is an authenticated request to anywhere the page
-    // names — a cloud metadata endpoint, an intranet admin panel, a loopback
-    // dev server — triggered by a `<link rel="icon">` the user never sees.
-    if (!isFetchableFavicon(tab.url, faviconUrl)) return;
-
-    try {
-      const response = await getWebSession().fetch(faviconUrl, { bypassCustomProtocolHandlers: true });
-      if (!response.ok) return;
-
-      const contentType = response.headers.get('content-type') ?? 'image/png';
-      if (!contentType.startsWith('image/')) return;
-
-      // Check the advertised length before buffering: reading the body first
-      // would let a hostile response exhaust main-process memory regardless of
-      // the cap applied afterwards.
-      const declaredLength = Number(response.headers.get('content-length') ?? '0');
-      if (declaredLength > MAX_FAVICON_BYTES) return;
-
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.byteLength === 0 || buffer.byteLength > MAX_FAVICON_BYTES) return;
-
-      const dataUrl = `data:${contentType.split(';')[0]};base64,${buffer.toString('base64')}`;
-      this.store.setFavicon(tab.url, dataUrl);
-      tab.faviconDataUrl = dataUrl;
-      this.onChanged();
-    } catch {
-      // A missing favicon is not worth surfacing; the chrome falls back to a
-      // generated monogram.
+    const dataUrl = await fetchFaviconDataUrl(tab.url, faviconUrl, (url, options) =>
+      getWebSession().fetch(url, options),
+    );
+    if (!dataUrl) {
+      return;
     }
+
+    this.store.setFavicon(tab.url, dataUrl);
+    tab.faviconDataUrl = dataUrl;
+    this.onChanged();
   }
 
   // --------------------------------------------------------------- teardown
 
   dispose(): void {
     this.isDisposed = true;
-    for (const tab of this.tabs.values()) this.destroyTab(tab);
+    for (const tab of this.tabs.values()) {
+      this.destroyTab(tab);
+    }
     this.tabs.clear();
     this.order = [];
     this.activeId = null;
   }
-}
-
-export function describeSecurity(url: string, certificate: CertificateSummary | null = null): SecurityState {
-  let parsed: URL | null = null;
-  try {
-    parsed = new URL(url);
-  } catch {
-    parsed = null;
-  }
-
-  if (!parsed || url === START_PAGE_URL) {
-    return {
-      level: 'internal',
-      scheme: 'copacetic',
-      host: 'start',
-      detail: 'A Copacetic page. Nothing here touches the network.',
-      certificate: null,
-    };
-  }
-
-  const scheme = parsed.protocol.replace(/:$/, '');
-  const host = parsed.hostname;
-
-  if (scheme === 'copacetic' || scheme === 'about') {
-    return {
-      level: 'internal',
-      scheme,
-      host,
-      detail: 'A Copacetic page. Nothing here touches the network.',
-      certificate: null,
-    };
-  }
-
-  if (scheme === 'file') {
-    return {
-      level: 'internal',
-      scheme,
-      host: hostOf(url) || 'local file',
-      detail: 'A file on this machine. It was never sent over a network.',
-      certificate: null,
-    };
-  }
-
-  if (scheme === 'https') {
-    return {
-      level: 'secure',
-      scheme,
-      host,
-      detail: 'Encrypted. Chromium checked this site’s certificate against your system’s trusted authorities.',
-      certificate,
-    };
-  }
-
-  if (scheme === 'http' && isLoopbackHost(host)) {
-    return {
-      level: 'secure',
-      scheme,
-      host,
-      detail: 'Loopback connection. This traffic never leaves your machine.',
-      certificate: null,
-    };
-  }
-
-  if (scheme === 'http') {
-    return {
-      level: 'insecure',
-      scheme,
-      host,
-      detail: 'Not encrypted. Anyone on this network can read this page and change it before you see it.',
-      certificate: null,
-    };
-  }
-
-  return {
-    level: 'unknown',
-    scheme,
-    host,
-    detail: 'Copacetic cannot describe this connection.',
-    certificate: null,
-  };
 }

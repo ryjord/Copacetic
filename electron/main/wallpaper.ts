@@ -20,7 +20,9 @@ export function hasWallpaper(): boolean {
 /** Read back as a data URL because the chrome's CSP is `img-src 'self' data:` — it cannot load a file from disk, and widening that for a decoration would be a poor trade. */
 export function readWallpaper(): string | null {
   const file = wallpaperPath();
-  if (!existsSync(file)) return null;
+  if (!existsSync(file)) {
+    return null;
+  }
   try {
     return `data:image/jpeg;base64,${readFileSync(file).toString('base64')}`;
   } catch {
@@ -34,10 +36,14 @@ const PREVIEW_WIDTH = 480;
 /** A small version, for showing what is set without loading the whole thing. */
 export function readWallpaperPreview(): string | null {
   const file = wallpaperPath();
-  if (!existsSync(file)) return null;
+  if (!existsSync(file)) {
+    return null;
+  }
   try {
     const image = nativeImage.createFromPath(file);
-    if (image.isEmpty()) return null;
+    if (image.isEmpty()) {
+      return null;
+    }
     const preview = image.getSize().width > PREVIEW_WIDTH ? image.resize({ width: PREVIEW_WIDTH }) : image;
     return `data:image/jpeg;base64,${preview.toJPEG(75).toString('base64')}`;
   } catch {
@@ -54,17 +60,25 @@ export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
   });
 
   const source = filePaths[0];
-  if (canceled || !source) return '';
+  if (canceled || !source) {
+    return '';
+  }
 
   try {
     let image = nativeImage.createFromPath(source);
-    if (image.isEmpty()) return 'That file could not be read as an image.';
+    if (image.isEmpty()) {
+      return 'That file could not be read as an image.';
+    }
 
     const { width } = image.getSize();
-    if (width > MAX_WIDTH) image = image.resize({ width: MAX_WIDTH, quality: 'good' });
+    if (width > MAX_WIDTH) {
+      image = image.resize({ width: MAX_WIDTH, quality: 'good' });
+    }
 
     const encoded = image.toJPEG(JPEG_QUALITY);
-    if (encoded.length === 0) return 'That image could not be converted.';
+    if (encoded.length === 0) {
+      return 'That image could not be converted.';
+    }
 
     writeFileSync(wallpaperPath(), encoded);
     return '';

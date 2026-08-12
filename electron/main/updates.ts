@@ -87,7 +87,9 @@ export class UpdateManager {
   /** Called once the window exists, and whenever the setting is turned on. */
   start(enabled: boolean): void {
     this.stop();
-    if (!enabled || this.delivery === 'unsupported') return;
+    if (!enabled || this.delivery === 'unsupported') {
+      return;
+    }
 
     // Not on the very first tick: launch is busy enough without a network call.
     this.timer = setInterval(() => void this.check(), CHECK_INTERVAL_MS);
@@ -95,18 +97,25 @@ export class UpdateManager {
   }
 
   stop(): void {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
     this.timer = null;
   }
 
   async check(): Promise<void> {
-    if (this.inFlight || this.delivery === 'unsupported') return;
+    if (this.inFlight || this.delivery === 'unsupported') {
+      return;
+    }
     this.inFlight = true;
     this.setStatus({ state: 'checking' });
 
     try {
-      if (this.delivery === 'automatic') await this.checkViaUpdater();
-      else await this.checkViaGitHub();
+      if (this.delivery === 'automatic') {
+        await this.checkViaUpdater();
+      } else {
+        await this.checkViaGitHub();
+      }
     } catch (error) {
       this.setStatus({ state: 'error', message: messageFor(error) });
     } finally {
@@ -126,11 +135,15 @@ export class UpdateManager {
         signal: controller.signal,
         headers: { accept: 'application/vnd.github+json', 'user-agent': `Copacetic/${app.getVersion()}` },
       });
-      if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`GitHub answered ${response.status}`);
+      }
 
       const payload: unknown = await response.json();
       const tag = readTag(payload);
-      if (!tag) throw new Error('That release has no version tag.');
+      if (!tag) {
+        throw new Error('That release has no version tag.');
+      }
 
       this.setStatus(
         isNewerVersion(tag, app.getVersion()) ? { state: 'available', version: stripV(tag) } : { state: 'current' },
@@ -165,7 +178,9 @@ export class UpdateManager {
 
   /** Restart into the downloaded update. Only ever reachable when one is ready. */
   async install(): Promise<void> {
-    if (this.status.state !== 'ready' || this.delivery !== 'automatic') return;
+    if (this.status.state !== 'ready' || this.delivery !== 'automatic') {
+      return;
+    }
     const autoUpdater = await loadAutoUpdater();
     autoUpdater.quitAndInstall();
   }
@@ -210,13 +225,19 @@ function stripV(value: string): string {
 }
 
 function readTag(payload: unknown): string | null {
-  if (typeof payload !== 'object' || payload === null) return null;
+  if (typeof payload !== 'object' || payload === null) {
+    return null;
+  }
   const tag = (payload as { tag_name?: unknown }).tag_name;
   return typeof tag === 'string' && tag.length > 0 ? tag : null;
 }
 
 function messageFor(error: unknown): string {
-  if (error instanceof Error && error.name === 'AbortError') return 'The check timed out.';
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error && error.name === 'AbortError') {
+    return 'The check timed out.';
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
   return 'The check failed.';
 }

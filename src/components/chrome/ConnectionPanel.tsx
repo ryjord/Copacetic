@@ -34,7 +34,9 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
 
   useDismissLayer(true, closePanel);
 
-  if (!tab) return null;
+  if (!tab) {
+    return null;
+  }
 
   const style = LEVEL_STYLES[tab.security.level];
   const Icon = style.icon;
@@ -92,7 +94,9 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
 function TrackerException({ url, blockedCount }: { url: string; blockedCount: number }) {
   const settings = useBrowserStore((state) => state.settings);
   const site = registrableDomainOf(hostOf(url));
-  if (!site || !settings.blockTrackers) return null;
+  if (!site || !settings.blockTrackers) {
+    return null;
+  }
 
   const allowed = settings.blockerAllowlist.includes(site);
   const toggle = () => {
@@ -132,7 +136,9 @@ function TrackerException({ url, blockedCount }: { url: string; blockedCount: nu
 function SitePermissions({ url }: { url: string }) {
   const decisions = useBrowserStore((state) => state.settings.permissionDecisions);
   const origin = originOf(url);
-  if (!origin) return null;
+  if (!origin) {
+    return null;
+  }
 
   const granted = Object.entries(decisions)
     .map(([key, decision]) => {
@@ -183,14 +189,18 @@ function ConnectionLog({ tabId }: { tabId: string }) {
   useEffect(() => {
     let cancelled = false;
     void ask((api) => api.connections.list(tabId), []).then((result) => {
-      if (!cancelled) setEntries(result);
+      if (!cancelled) {
+        setEntries(result);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [tabId]);
 
-  if (entries === null) return null;
+  if (entries === null) {
+    return null;
+  }
 
   if (entries.length === 0) {
     return (
@@ -279,12 +289,22 @@ function CertificateRows({ certificate, now }: { certificate: CertificateSummary
 }
 
 export function formatExpiry(validTo: number, daysLeft: number | null): string {
-  if (!validTo) return 'Unknown';
+  if (!validTo) {
+    return 'Unknown';
+  }
   const date = new Date(validTo).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-  if (daysLeft === null) return date;
-  if (daysLeft < 0) return `${date} — expired`;
-  if (daysLeft === 0) return `${date} — today`;
-  if (daysLeft <= 90) return `${date} — ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+  if (daysLeft === null) {
+    return date;
+  }
+  if (daysLeft < 0) {
+    return `${date} — expired`;
+  }
+  if (daysLeft === 0) {
+    return `${date} — today`;
+  }
+  if (daysLeft <= 90) {
+    return `${date} — ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+  }
   return date;
 }
 

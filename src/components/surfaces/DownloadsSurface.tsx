@@ -62,9 +62,13 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
             onClick={() =>
               void (async () => {
                 const api = window.copacetic;
-                if (!api) return;
+                if (!api) {
+                  return;
+                }
                 const message = await api.downloads.openFile(download.id);
-                if (message) onNotice(message);
+                if (message) {
+                  onNotice(message);
+                }
               })()
             }
             className={cn(
@@ -171,15 +175,23 @@ function detailLine(download: DownloadState): string {
         : formatBytes(download.receivedBytes),
     );
     const rate = formatRate(download.bytesPerSecond);
-    if (rate && download.status === 'progressing') parts.push(rate);
+    if (rate && download.status === 'progressing') {
+      parts.push(rate);
+    }
     const eta = formatEta(download.receivedBytes, download.totalBytes, download.bytesPerSecond);
-    if (eta && download.status === 'progressing') parts.push(eta);
+    if (eta && download.status === 'progressing') {
+      parts.push(eta);
+    }
   } else {
     parts.push(formatBytes(download.receivedBytes));
-    if (download.completedAt) parts.push(formatRelativeTime(download.completedAt));
+    if (download.completedAt) {
+      parts.push(formatRelativeTime(download.completedAt));
+    }
   }
 
-  if (download.status === 'completed' && !download.fileExists) parts.push('no longer at that path');
+  if (download.status === 'completed' && !download.fileExists) {
+    parts.push('no longer at that path');
+  }
 
   return parts.join(' · ');
 }

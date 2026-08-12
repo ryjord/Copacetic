@@ -29,11 +29,15 @@ function remember(
   verificationResult: string,
   isIssuedByKnownRoot: boolean,
 ): void {
-  if (!hostname || !certificate) return;
+  if (!hostname || !certificate) {
+    return;
+  }
   // Only describe a certificate Chromium actually accepted. Reporting the
   // issuer of a rejected certificate would dress up a failed connection as an
   // informative one.
-  if (verificationResult !== 'net::OK') return;
+  if (verificationResult !== 'net::OK') {
+    return;
+  }
 
   const key = hostname.toLowerCase();
   // Delete before setting so a refreshed entry moves to the back of the
@@ -42,7 +46,9 @@ function remember(
   seen.delete(key);
   if (seen.size >= MAX_REMEMBERED) {
     const oldest = seen.keys().next();
-    if (!oldest.done) seen.delete(oldest.value);
+    if (!oldest.done) {
+      seen.delete(oldest.value);
+    }
   }
   seen.set(key, summariseCertificate(certificate, isIssuedByKnownRoot));
 }

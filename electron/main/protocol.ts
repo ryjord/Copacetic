@@ -47,16 +47,24 @@ export function handleAppProtocol(): void {
 
   protocol.handle(APP_SCHEME, async (request) => {
     const url = new URL(request.url);
-    if (url.hostname !== APP_HOST) return new Response('Not found', { status: 404 });
+    if (url.hostname !== APP_HOST) {
+      return new Response('Not found', { status: 404 });
+    }
 
     const pathname = safeDecode(url.pathname);
-    if (pathname === null) return new Response('Bad request', { status: 400 });
+    if (pathname === null) {
+      return new Response('Bad request', { status: 400 });
+    }
 
     const filePath = resolveWithinRoot(root, pathname);
-    if (!filePath) return new Response('Forbidden', { status: 403 });
+    if (!filePath) {
+      return new Response('Forbidden', { status: 403 });
+    }
 
     const resolved = await resolveFile(filePath, root);
-    if (!resolved) return new Response('Not found', { status: 404 });
+    if (!resolved) {
+      return new Response('Not found', { status: 404 });
+    }
 
     const contentType = MIME_TYPES[path.extname(resolved).toLowerCase()] ?? 'application/octet-stream';
     const body = Readable.toWeb(createReadStream(resolved)) as ReadableStream;
@@ -95,10 +103,14 @@ export function resolveWithinRoot(root: string, pathname: string): string | null
 async function resolveFile(candidate: string, root: string): Promise<string | null> {
   const attempts = [candidate, `${candidate}.html`, path.join(candidate, 'index.html')];
   for (const attempt of attempts) {
-    if (!resolveWithinRoot(root, path.relative(root, attempt).split(path.sep).join('/'))) continue;
+    if (!resolveWithinRoot(root, path.relative(root, attempt).split(path.sep).join('/'))) {
+      continue;
+    }
     try {
       const stats = await stat(attempt);
-      if (stats.isFile()) return attempt;
+      if (stats.isFile()) {
+        return attempt;
+      }
     } catch {
       // Try the next shape.
     }
@@ -108,7 +120,9 @@ async function resolveFile(candidate: string, root: string): Promise<string | nu
   try {
     const fallback = path.join(root, 'index.html');
     const stats = await stat(fallback);
-    if (stats.isFile()) return fallback;
+    if (stats.isFile()) {
+      return fallback;
+    }
   } catch {
     /* nothing to serve */
   }

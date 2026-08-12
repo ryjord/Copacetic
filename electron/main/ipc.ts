@@ -40,7 +40,9 @@ export function registerIpcHandlers(browser: Browser): void {
   // ----------------------------------------------------------------- chrome
 
   handle(INVOKE.chromeSetContentBounds, (_event, insets) => {
-    if (!isRecord(insets)) return;
+    if (!isRecord(insets)) {
+      return;
+    }
     browser.setContentInsets({
       top: asNumber(insets.top, 0),
       left: asNumber(insets.left, 0),
@@ -121,8 +123,11 @@ export function registerIpcHandlers(browser: Browser): void {
 
   handle(INVOKE.windowMinimize, () => browser.window.minimize());
   handle(INVOKE.windowToggleMaximize, () => {
-    if (browser.window.isMaximized()) browser.window.unmaximize();
-    else browser.window.maximize();
+    if (browser.window.isMaximized()) {
+      browser.window.unmaximize();
+    } else {
+      browser.window.maximize();
+    }
   });
   handle(INVOKE.windowClose, () => browser.window.close());
 
@@ -163,7 +168,9 @@ export function registerIpcHandlers(browser: Browser): void {
 }
 
 export function removeIpcHandlers(): void {
-  for (const channel of Object.values(INVOKE)) ipcMain.removeHandler(channel);
+  for (const channel of Object.values(INVOKE)) {
+    ipcMain.removeHandler(channel);
+  }
 }
 
 // ---------------------------------------------------------------- coercion
@@ -194,31 +201,55 @@ function asClearRange(value: unknown): ClearRange {
 /** Only keys the settings schema actually declares survive the trip. */
 /** Everything the renderer is allowed to change, checked one field at a time. */
 export function asSettingsPatch(value: unknown): Partial<Settings> {
-  if (!isRecord(value)) return {};
+  if (!isRecord(value)) {
+    return {};
+  }
   const patch: Partial<Settings> = {};
 
-  if (typeof value.searchEngine === 'string') patch.searchEngine = value.searchEngine as Settings['searchEngine'];
-  if (typeof value.theme === 'string') patch.theme = value.theme as Settings['theme'];
-  if (value.density === 'comfortable' || value.density === 'compact') patch.density = value.density;
-  if (typeof value.checkForUpdates === 'boolean') patch.checkForUpdates = value.checkForUpdates;
-  if (typeof value.httpsFirst === 'boolean') patch.httpsFirst = value.httpsFirst;
-  if (typeof value.blockTrackers === 'boolean') patch.blockTrackers = value.blockTrackers;
-  if (typeof value.restoreTabsOnLaunch === 'boolean') patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
+  if (typeof value.searchEngine === 'string') {
+    patch.searchEngine = value.searchEngine as Settings['searchEngine'];
+  }
+  if (typeof value.theme === 'string') {
+    patch.theme = value.theme as Settings['theme'];
+  }
+  if (value.density === 'comfortable' || value.density === 'compact') {
+    patch.density = value.density;
+  }
+  if (typeof value.checkForUpdates === 'boolean') {
+    patch.checkForUpdates = value.checkForUpdates;
+  }
+  if (typeof value.httpsFirst === 'boolean') {
+    patch.httpsFirst = value.httpsFirst;
+  }
+  if (typeof value.blockTrackers === 'boolean') {
+    patch.blockTrackers = value.blockTrackers;
+  }
+  if (typeof value.restoreTabsOnLaunch === 'boolean') {
+    patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
+  }
   if (Array.isArray(value.startPageWidgets)) {
     const allowed = ['clock', 'search', 'topSites', 'bookmarks'];
     const seen = new Set<string>();
     for (const id of value.startPageWidgets) {
-      if (typeof id === 'string' && allowed.includes(id)) seen.add(id);
+      if (typeof id === 'string' && allowed.includes(id)) {
+        seen.add(id);
+      }
     }
     patch.startPageWidgets = [...seen] as Settings['startPageWidgets'];
   }
-  if (typeof value.sidebarWidth === 'number') patch.sidebarWidth = value.sidebarWidth;
-  if (typeof value.defaultZoomFactor === 'number') patch.defaultZoomFactor = value.defaultZoomFactor;
+  if (typeof value.sidebarWidth === 'number') {
+    patch.sidebarWidth = value.sidebarWidth;
+  }
+  if (typeof value.defaultZoomFactor === 'number') {
+    patch.defaultZoomFactor = value.defaultZoomFactor;
+  }
 
   if (isRecord(value.permissionDecisions)) {
     const decisions: Settings['permissionDecisions'] = {};
     for (const [key, decision] of Object.entries(value.permissionDecisions)) {
-      if (decision === 'allow' || decision === 'deny') decisions[key] = decision;
+      if (decision === 'allow' || decision === 'deny') {
+        decisions[key] = decision;
+      }
     }
     patch.permissionDecisions = decisions;
   }
@@ -226,7 +257,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (isRecord(value.zoomLevels)) {
     const levels: Settings['zoomLevels'] = {};
     for (const [origin, level] of Object.entries(value.zoomLevels)) {
-      if (typeof level === 'number' && Number.isFinite(level)) levels[origin] = level;
+      if (typeof level === 'number' && Number.isFinite(level)) {
+        levels[origin] = level;
+      }
     }
     patch.zoomLevels = levels;
   }

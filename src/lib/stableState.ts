@@ -4,23 +4,33 @@ import type { BrowserState, TabState } from '../../electron/shared/types';
 
 /** Structural equality for the shapes that cross IPC. */
 export function isSameValue(a: unknown, b: unknown): boolean {
-  if (Object.is(a, b)) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Object.is(a, b)) {
+    return true;
+  }
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+    return false;
+  }
 
   const aIsArray = Array.isArray(a);
-  if (aIsArray !== Array.isArray(b)) return false;
+  if (aIsArray !== Array.isArray(b)) {
+    return false;
+  }
 
   if (aIsArray) {
     const left = a as unknown[];
     const right = b as unknown[];
-    if (left.length !== right.length) return false;
+    if (left.length !== right.length) {
+      return false;
+    }
     return left.every((value, index) => isSameValue(value, right[index]));
   }
 
   const left = a as Record<string, unknown>;
   const right = b as Record<string, unknown>;
   const keys = Object.keys(left);
-  if (keys.length !== Object.keys(right).length) return false;
+  if (keys.length !== Object.keys(right).length) {
+    return false;
+  }
   return keys.every((key) => Object.hasOwn(right, key) && isSameValue(left[key], right[key]));
 }
 
@@ -37,7 +47,9 @@ export function keepTabs(previous: readonly TabState[], next: readonly TabState[
   const tabs = next.map((tab, index) => {
     const before = byId.get(tab.id);
     if (before && isSameValue(before, tab)) {
-      if (previous[index] !== before) anyChanged = true;
+      if (previous[index] !== before) {
+        anyChanged = true;
+      }
       return before;
     }
     anyChanged = true;

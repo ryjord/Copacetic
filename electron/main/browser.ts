@@ -31,7 +31,8 @@ import {
   hardenWebSession,
 } from './security';
 import { BrowserStore } from './store';
-import { type ContentInsets, TabManager } from './tabs';
+import { type ContentInsets } from './tab-layout';
+import { TabManager } from './tabs';
 import { UpdateManager } from './updates';
 import { createChromeWindow } from './window';
 
@@ -109,7 +110,9 @@ export class Browser {
     this.window.show();
     this.restoreTabs();
     this.updates.start(this.store.getSettings().checkForUpdates);
-    if (isDevelopment()) this.window.webContents.openDevTools({ mode: 'detach' });
+    if (isDevelopment()) {
+      this.window.webContents.openDevTools({ mode: 'detach' });
+    }
   }
 
   private restoreTabs(): void {
@@ -124,7 +127,9 @@ export class Browser {
     session.urls.forEach((url, index) => {
       this.tabs.create(url, { activate: index === session.activeIndex });
     });
-    if (this.tabs.tabCount === 0) this.tabs.create(START_PAGE_URL);
+    if (this.tabs.tabCount === 0) {
+      this.tabs.create(START_PAGE_URL);
+    }
   }
 
   // ------------------------------------------------------------------ state
@@ -147,17 +152,23 @@ export class Browser {
 
   // Navigation fires many events in quick succession.
   scheduleStatePush(): void {
-    if (this.pushQueued || this.isQuitting) return;
+    if (this.pushQueued || this.isQuitting) {
+      return;
+    }
     this.pushQueued = true;
     setImmediate(() => {
       this.pushQueued = false;
-      if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) return;
+      if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
+        return;
+      }
       this.window.webContents.send(PUSH.state, this.getState());
     });
   }
 
   private pushToChrome(channel: string, payload?: unknown): void {
-    if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) return;
+    if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
+      return;
+    }
     this.window.webContents.send(channel, payload);
   }
 
@@ -197,7 +208,9 @@ export class Browser {
       openInNewTab: (url, options) => {
         // Page-initiated, so the strict set: `window.open('file:///…')` must
         // not become a tab.
-        if (!isPageNavigableUrl(url)) return;
+        if (!isPageNavigableUrl(url)) {
+          return;
+        }
         this.tabs.create(url, {
           activate: options.activate,
           openerWebContentsId: options.openerWebContentsId,
@@ -206,12 +219,16 @@ export class Browser {
 
       confirmExternalOpen: async (url) => {
         const scheme = safeScheme(url);
-        if (!scheme) return false;
+        if (!scheme) {
+          return false;
+        }
         // Everything refused for navigation lands here, so without this check
         // the schemes the security model rejects would simply be handed to
         // whichever application the OS has associated with them — routing
         // around the refusal rather than enforcing it.
-        if (NEVER_HANDED_TO_OS.has(`${scheme}:`)) return false;
+        if (NEVER_HANDED_TO_OS.has(`${scheme}:`)) {
+          return false;
+        }
         const { response } = await dialog.showMessageBox(this.window, {
           type: 'question',
           buttons: ['Open', 'Cancel'],
@@ -222,7 +239,9 @@ export class Browser {
           detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${truncate(url, 240)}`,
           noLink: true,
         });
-        if (response !== 0) return false;
+        if (response !== 0) {
+          return false;
+        }
         await shell.openExternal(url);
         return true;
       },
@@ -253,13 +272,18 @@ export class Browser {
 
       let settled = false;
       const respond = (username?: string, password?: string) => {
-        if (settled) return;
+        if (settled) {
+          return;
+        }
         settled = true;
         this.pendingAuth.delete(id);
         // Calling back with nothing cancels the challenge, which is what the
         // user asked for when they dismissed the prompt.
-        if (username === undefined) callback();
-        else callback(username, password);
+        if (username === undefined) {
+          callback();
+        } else {
+          callback(username, password);
+        }
         this.scheduleStatePush();
       };
 
@@ -289,7 +313,9 @@ export class Browser {
 
   respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
     const pending = this.pendingPermissions.get(id);
-    if (!pending) return;
+    if (!pending) {
+      return;
+    }
     this.pendingPermissions.delete(id);
     if (remember) {
       this.store.setPermissionDecision(pending.prompt.origin, pending.prompt.kind, decision);
@@ -302,7 +328,9 @@ export class Browser {
   private dropPermissionsForTab(tabId: TabId): void {
     let dropped = false;
     for (const [id, pending] of this.pendingPermissions) {
-      if (pending.prompt.tabId !== tabId) continue;
+      if (pending.prompt.tabId !== tabId) {
+        continue;
+      }
       this.pendingPermissions.delete(id);
       pending.resolve('deny');
       dropped = true;
@@ -311,12 +339,16 @@ export class Browser {
     // Same reasoning for a challenge: closing the tab is an answer, and the
     // request behind it must not be left waiting forever.
     for (const [, pending] of [...this.pendingAuth]) {
-      if (pending.prompt.tabId !== tabId) continue;
+      if (pending.prompt.tabId !== tabId) {
+        continue;
+      }
       pending.respond();
       dropped = true;
     }
 
-    if (dropped) this.scheduleStatePush();
+    if (dropped) {
+      this.scheduleStatePush();
+    }
   }
 
   forgetPermission(origin: string, kind: PermissionKind): void {
@@ -340,7 +372,9 @@ export class Browser {
 
   closeActiveTab(): void {
     const active = this.tabs.getActiveTabId();
-    if (active) this.tabs.close(active);
+    if (active) {
+      this.tabs.close(active);
+    }
   }
 
   reopenClosedTab(): void {
@@ -349,22 +383,30 @@ export class Browser {
 
   cycleTab(offset: number): void {
     const { tabOrder, activeTabId } = this.tabs.snapshot();
-    if (tabOrder.length === 0 || !activeTabId) return;
+    if (tabOrder.length === 0 || !activeTabId) {
+      return;
+    }
     const index = tabOrder.indexOf(activeTabId);
     const next = tabOrder[(index + offset + tabOrder.length) % tabOrder.length];
-    if (next) this.tabs.activate(next);
+    if (next) {
+      this.tabs.activate(next);
+    }
   }
 
   /** `index` is zero-based; `-1` selects the last tab, matching every browser. */
   selectTabAt(index: number): void {
     const { tabOrder } = this.tabs.snapshot();
     const target = index === -1 ? tabOrder[tabOrder.length - 1] : tabOrder[index];
-    if (target) this.tabs.activate(target);
+    if (target) {
+      this.tabs.activate(target);
+    }
   }
 
   withActiveTab(action: (tabId: TabId) => void): void {
     const active = this.tabs.getActiveTabId();
-    if (active) action(active);
+    if (active) {
+      action(active);
+    }
   }
 
   navigateActive(input: string): void {
@@ -378,7 +420,9 @@ export class Browser {
   adjustZoom(direction: 'in' | 'out' | 'reset'): void {
     this.withActiveTab((tabId) => {
       const tab = this.tabs.snapshot().tabs.find((candidate) => candidate.id === tabId);
-      if (!tab) return;
+      if (!tab) {
+        return;
+      }
       if (direction === 'reset') {
         this.tabs.setZoom(tabId, this.store.getSettings().defaultZoomFactor);
         return;
@@ -392,7 +436,9 @@ export class Browser {
   toggleBookmarkForActiveTab(): void {
     const { tabs, activeTabId } = this.tabs.snapshot();
     const tab = tabs.find((candidate) => candidate.id === activeTabId);
-    if (!tab || tab.isStartPage) return;
+    if (!tab || tab.isStartPage) {
+      return;
+    }
     this.store.toggleBookmark(tab.url, tab.title);
     this.scheduleStatePush();
   }
@@ -415,9 +461,15 @@ export class Browser {
 
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
-    if (patch.blockTrackers !== undefined) this.blocker.setEnabled(patch.blockTrackers);
-    if (patch.blockerAllowlist !== undefined) this.blocker.setAllowlist(next.blockerAllowlist);
-    if (patch.checkForUpdates !== undefined) this.updates.start(patch.checkForUpdates);
+    if (patch.blockTrackers !== undefined) {
+      this.blocker.setEnabled(patch.blockTrackers);
+    }
+    if (patch.blockerAllowlist !== undefined) {
+      this.blocker.setAllowlist(next.blockerAllowlist);
+    }
+    if (patch.checkForUpdates !== undefined) {
+      this.updates.start(patch.checkForUpdates);
+    }
     this.scheduleStatePush();
     return next;
   }
@@ -447,7 +499,9 @@ export class Browser {
         ? [{ name: 'Bookmarks', extensions: ['html'] }]
         : [{ name: 'History', extensions: ['json'] }],
     });
-    if (canceled || !filePath) return '';
+    if (canceled || !filePath) {
+      return '';
+    }
 
     const contents = isBookmarks
       ? bookmarksToHtml(this.store.listBookmarks(), now)
@@ -478,7 +532,9 @@ export class Browser {
   }
 
   downloadUrl(url: string): void {
-    if (!isNavigableUrl(url)) return;
+    if (!isNavigableUrl(url)) {
+      return;
+    }
     this.tabs.downloadUrl(url);
   }
 
@@ -488,7 +544,9 @@ export class Browser {
 
   /** Hand a link to the system browser. Only ever https, never a local path. */
   async openExternal(url: string): Promise<void> {
-    if (!url.startsWith('https://')) return;
+    if (!url.startsWith('https://')) {
+      return;
+    }
     await shell.openExternal(url);
   }
 
@@ -509,7 +567,9 @@ export class Browser {
   }
 
   prepareForQuit(): void {
-    if (this.isQuitting) return;
+    if (this.isQuitting) {
+      return;
+    }
     this.isQuitting = true;
     this.saveSession();
     this.downloads.cancelAllInFlight();
@@ -521,9 +581,13 @@ export class Browser {
     this.prepareForQuit();
     this.updates.stop();
     this.tabs.dispose();
-    for (const pending of this.pendingPermissions.values()) pending.resolve('deny');
+    for (const pending of this.pendingPermissions.values()) {
+      pending.resolve('deny');
+    }
     this.pendingPermissions.clear();
-    for (const pending of [...this.pendingAuth.values()]) pending.respond();
+    for (const pending of [...this.pendingAuth.values()]) {
+      pending.respond();
+    }
     this.pendingAuth.clear();
   }
 }

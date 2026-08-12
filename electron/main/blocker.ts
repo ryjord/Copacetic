@@ -168,8 +168,11 @@ export class ContentBlocker {
 
   /** Told on navigation, so a request can be judged against the page it is for. */
   setPageSite(webContentsId: number, site: string): void {
-    if (site) this.pageHosts.set(webContentsId, site);
-    else this.pageHosts.delete(webContentsId);
+    if (site) {
+      this.pageHosts.set(webContentsId, site);
+    } else {
+      this.pageHosts.delete(webContentsId);
+    }
   }
 
   isAllowedOn(site: string): boolean {
@@ -233,7 +236,9 @@ export class ContentBlocker {
       // even switched on. The count of what was stopped is only half the truth;
       // the other half is everything that was allowed through, which no
       // mainstream browser shows without opening developer tools.
-      if (typeof id === 'number') this.record(id, hostname, isTracker, shouldBlock);
+      if (typeof id === 'number') {
+        this.record(id, hostname, isTracker, shouldBlock);
+      }
 
       if (!shouldBlock) {
         callback({ cancel: false });
@@ -260,22 +265,32 @@ export class ContentBlocker {
     const existing = hosts.get(host);
     if (existing) {
       existing.requests += 1;
-      if (wasBlocked) existing.blocked += 1;
+      if (wasBlocked) {
+        existing.blocked += 1;
+      }
       return;
     }
 
-    if (hosts.size >= MAX_HOSTS_PER_TAB) return;
+    if (hosts.size >= MAX_HOSTS_PER_TAB) {
+      return;
+    }
     hosts.set(host, { host, requests: 1, blocked: wasBlocked ? 1 : 0, isTracker });
   }
 
   // Every host this tab has contacted, blocked first and then by volume.
   connectionsFor(webContentsId: number): ConnectionEntry[] {
     const hosts = this.hosts.get(webContentsId);
-    if (!hosts) return [];
+    if (!hosts) {
+      return [];
+    }
 
     return [...hosts.values()].sort((a, b) => {
-      if (a.blocked !== b.blocked) return b.blocked - a.blocked;
-      if (a.requests !== b.requests) return b.requests - a.requests;
+      if (a.blocked !== b.blocked) {
+        return b.blocked - a.blocked;
+      }
+      if (a.requests !== b.requests) {
+        return b.requests - a.requests;
+      }
       return a.host.localeCompare(b.host);
     });
   }
@@ -287,11 +302,15 @@ export class ContentBlocker {
     // alone it is a one-character bypass of the entire list.
     const hostname = rawHostname.replace(/\.+$/, '');
 
-    if (this.blocked.has(hostname)) return true;
+    if (this.blocked.has(hostname)) {
+      return true;
+    }
     let index = hostname.indexOf('.');
     while (index !== -1) {
       const parent = hostname.slice(index + 1);
-      if (this.blocked.has(parent)) return true;
+      if (this.blocked.has(parent)) {
+        return true;
+      }
       index = hostname.indexOf('.', index + 1);
     }
     return false;

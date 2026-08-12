@@ -30,18 +30,25 @@ function focusableWithin(container: HTMLElement): HTMLElement[] {
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, isActive: boolean): void {
   useEffect(() => {
     const container = ref.current;
-    if (!isActive || !container) return;
+    if (!isActive || !container) {
+      return;
+    }
 
     const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     // Focus the first real control, or the panel itself when it has none, so
     // the keyboard starts inside rather than wherever it happened to be.
     const initial = focusableWithin(container)[0];
-    if (initial) initial.focus();
-    else container.focus();
+    if (initial) {
+      initial.focus();
+    } else {
+      container.focus();
+    }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab') return;
+      if (event.key !== 'Tab') {
+        return;
+      }
 
       const focusable = focusableWithin(container);
       if (focusable.length === 0) {
@@ -73,7 +80,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, isActive: boole
       document.removeEventListener('keydown', onKeyDown, true);
       // Only if focus is still inside the panel; if the user has deliberately
       // clicked elsewhere, moving them again would be rude.
-      if (container.contains(document.activeElement)) returnTo?.focus();
+      if (container.contains(document.activeElement)) {
+        returnTo?.focus();
+      }
     };
   }, [ref, isActive]);
 }

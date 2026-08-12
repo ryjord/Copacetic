@@ -17,14 +17,20 @@ export function sanitiseRealm(realm: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
-  if (cleaned.length <= MAX_REALM) return cleaned;
+  if (cleaned.length <= MAX_REALM) {
+    return cleaned;
+  }
   return `${cleaned.slice(0, MAX_REALM - 1)}…`;
 }
 
 /** Whether this challenge is one a person can meaningfully answer. */
 export function isPromptWorthy(input: { isProxy: boolean; challengeUrl: string; tabUrl: string | null }): boolean {
-  if (input.isProxy) return true;
-  if (!input.tabUrl) return false;
+  if (input.isProxy) {
+    return true;
+  }
+  if (!input.tabUrl) {
+    return false;
+  }
 
   const challengeOrigin = originOrNull(input.challengeUrl);
   return challengeOrigin !== null && challengeOrigin === originOrNull(input.tabUrl);

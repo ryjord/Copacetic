@@ -135,7 +135,9 @@ const NET_ERRORS: Record<number, NetErrorInfo> = {
 
 export function describeNetError(code: number, fallbackDescription: string): NetErrorInfo {
   const known = NET_ERRORS[code];
-  if (known) return known;
+  if (known) {
+    return known;
+  }
   return {
     name: `ERR_${Math.abs(code)}`,
     headline: 'This page did not load',

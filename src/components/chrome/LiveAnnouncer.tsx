@@ -32,7 +32,9 @@ export function LiveAnnouncer() {
     }
 
     previous.current = { loading: isLoading, title, completed, prompts };
-    if (next) setMessage(next);
+    if (next) {
+      setMessage(next);
+    }
   }, [activeTab, downloads, permissionPrompts]);
 
   return (

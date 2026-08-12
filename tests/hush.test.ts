@@ -15,8 +15,10 @@ const { HUSH_PARTITION, WEB_PARTITION } = await import('../electron/main/securit
  * `isHush` checks — so these read the source for the checks rather than
  * pretending a unit test can drive Electron's session storage.
  */
-const tabsSource = readFileSync('electron/main/tabs.ts', 'utf8');
-const browserSource = readFileSync('electron/main/browser.ts', 'utf8');
+// Whitespace-collapsed, so reformatting the guard does not read as removing it.
+const collapse = (path: string) => readFileSync(path, 'utf8').replace(/\s+/g, ' ');
+const tabsSource = collapse('electron/main/tabs.ts');
+const browserSource = collapse('electron/main/browser.ts');
 
 describe('the partition is what makes the promise true', () => {
   // Without `persist:` Chromium keeps the entire session in memory and drops
@@ -34,7 +36,7 @@ describe('the partition is what makes the promise true', () => {
 
 describe('nothing a Hush tab does is written down', () => {
   it('does not record a visit in history', () => {
-    expect(tabsSource).toMatch(/if \(!tab\.isHush\) this\.store\.recordVisit/);
+    expect(tabsSource).toMatch(/if \(!tab\.isHush\) \{ this\.store\.recordVisit/);
   });
 
   // A favicon cache is a list of sites visited, stored under another name.
@@ -45,7 +47,7 @@ describe('nothing a Hush tab does is written down', () => {
   // session.json is on disk, so a Hush URL listed there would be the one place
   // the tab left a trace.
   it('is left out of the session snapshot', () => {
-    expect(tabsSource).toMatch(/tab\.isStartPage \|\| tab\.isHush\) continue/);
+    expect(tabsSource).toMatch(/tab\.isStartPage \|\| tab\.isHush\) \{ continue/);
   });
 
   it('cannot be brought back with reopen-closed', () => {

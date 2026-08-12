@@ -8,7 +8,9 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
   const items: MenuItemConstructorOptions[] = [];
   const push = (item: MenuItemConstructorOptions) => items.push(item);
   const separate = () => {
-    if (items.length > 0 && items[items.length - 1]?.type !== 'separator') push({ type: 'separator' });
+    if (items.length > 0 && items[items.length - 1]?.type !== 'separator') {
+      push({ type: 'separator' });
+    }
   };
 
   // Both of these are strings the page controls, so they get the same strict
@@ -119,7 +121,9 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
       label: 'Open in default browser',
       enabled: url !== null && (url.startsWith('http://') || url.startsWith('https://')),
       click: () => {
-        if (url) void shell.openExternal(url);
+        if (url) {
+          void shell.openExternal(url);
+        }
       },
     },
     { type: 'separator' },

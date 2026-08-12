@@ -85,7 +85,9 @@ export function resolveOmniboxInput(
   options: { httpsFirst?: boolean } = {},
 ): OmniboxResolution | null {
   const input = rawInput.trim();
-  if (input.length === 0) return null;
+  if (input.length === 0) {
+    return null;
+  }
 
   const httpsFirst = options.httpsFirst ?? true;
   const search = (): OmniboxResolution => ({
@@ -104,7 +106,9 @@ export function resolveOmniboxInput(
     // An explicit scheme is honoured only if it is one we allow. Anything else
     // (javascript:, data:, mailto: typed by hand) falls through to a search
     // rather than being navigated to.
-    if (!isNavigableUrl(input)) return search();
+    if (!isNavigableUrl(input)) {
+      return search();
+    }
     try {
       const url = new URL(input);
       if (httpsFirst && url.protocol === 'http:' && !isLoopbackHost(url.hostname)) {
@@ -117,7 +121,9 @@ export function resolveOmniboxInput(
   }
 
   // No scheme. Anything with whitespace is prose, not an address.
-  if (/\s/.test(input)) return search();
+  if (/\s/.test(input)) {
+    return search();
+  }
 
   const [hostPart = ''] = input.split(/[/?#]/, 1);
   const bareHost = hostPart.replace(/:\d{1,5}$/, '');
@@ -129,7 +135,9 @@ export function resolveOmniboxInput(
       bareHost.startsWith('[') ||
       (bareHost.includes('.') && !bareHost.endsWith('.') && hasPlausibleTld(bareHost)));
 
-  if (!looksLikeHost) return search();
+  if (!looksLikeHost) {
+    return search();
+  }
 
   // A bare host is always tried over https — that guess is free to make and
   // costs nothing when it is wrong. Loopback is the exception: a local dev
@@ -157,9 +165,13 @@ export function isLoopbackHost(host: string): boolean {
 /** Hosts that only exist inside the user's own network. */
 export function isPrivateHost(host: string): boolean {
   const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
-  if (bare === '' || isLoopbackHost(bare)) return true;
+  if (bare === '' || isLoopbackHost(bare)) {
+    return true;
+  }
   // mDNS and the conventional suffix for internal-only names.
-  if (bare.endsWith('.local') || bare.endsWith('.internal')) return true;
+  if (bare.endsWith('.local') || bare.endsWith('.internal')) {
+    return true;
+  }
 
   if (bare.includes(':')) {
     // IPv6 unique-local (fc00::/7) and link-local (fe80::/10).
@@ -167,23 +179,37 @@ export function isPrivateHost(host: string): boolean {
   }
 
   const octets = bare.split('.');
-  if (octets.length !== 4) return false;
+  if (octets.length !== 4) {
+    return false;
+  }
   const a = Number(octets[0]);
   const b = Number(octets[1]);
-  if (!Number.isInteger(a) || !Number.isInteger(b)) return false;
+  if (!Number.isInteger(a) || !Number.isInteger(b)) {
+    return false;
+  }
 
-  if (a === 0 || a === 10 || a === 127) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
+  if (a === 0 || a === 10 || a === 127) {
+    return true;
+  }
+  if (a === 172 && b >= 16 && b <= 31) {
+    return true;
+  }
+  if (a === 192 && b === 168) {
+    return true;
+  }
   // Link-local, which is also where every cloud metadata endpoint lives.
-  if (a === 169 && b === 254) return true;
+  if (a === 169 && b === 254) {
+    return true;
+  }
   return false;
 }
 
 // Rules are stored punycoded, because a URL always reports its hostname that way.
 function toAsciiHost(host: string): string {
   const lower = host.toLowerCase();
-  if (!/[^\u0000-\u007f]/.test(lower)) return lower;
+  if (!/[^\u0000-\u007f]/.test(lower)) {
+    return lower;
+  }
   try {
     return new URL(`https://${lower}`).hostname;
   } catch {
@@ -202,7 +228,9 @@ export function publicSuffixLabelCount(host: string): number {
 
     // An exception rule wins over everything, and its public suffix is the
     // rule with its leftmost label removed.
-    if (PUBLIC_SUFFIX_EXCEPTIONS.has(candidate)) return ruleLabels - 1;
+    if (PUBLIC_SUFFIX_EXCEPTIONS.has(candidate)) {
+      return ruleLabels - 1;
+    }
 
     if (PUBLIC_SUFFIX_RULES.has(candidate) && ruleLabels > prevailing) {
       prevailing = ruleLabels;
@@ -222,11 +250,15 @@ export function publicSuffixLabelCount(host: string): number {
 /** The registrable domain — the public suffix plus the one label a person actually registered. */
 export function registrableDomainOf(host: string): string | null {
   const bare = toAsciiHost(host).replace(/\.$/, '');
-  if (!bare || bare.startsWith('.') || bare.includes('..')) return null;
+  if (!bare || bare.startsWith('.') || bare.includes('..')) {
+    return null;
+  }
 
   const labels = bare.split('.');
   const suffixLabels = publicSuffixLabelCount(bare);
-  if (labels.length <= suffixLabels) return null;
+  if (labels.length <= suffixLabels) {
+    return null;
+  }
 
   return labels.slice(labels.length - suffixLabels - 1).join('.');
 }
@@ -240,8 +272,12 @@ export function isFetchableFavicon(pageUrl: string, faviconUrl: string): boolean
     return false;
   }
 
-  if (favicon.protocol !== 'https:' && favicon.protocol !== 'http:') return false;
-  if (!isPrivateHost(favicon.hostname)) return true;
+  if (favicon.protocol !== 'https:' && favicon.protocol !== 'http:') {
+    return false;
+  }
+  if (!isPrivateHost(favicon.hostname)) {
+    return true;
+  }
 
   // A local page may point at its own local icon; a remote one may not.
   try {
@@ -329,8 +365,12 @@ export function originOf(value: string): string {
 
 /** A short, human label for a URL — used for tab titles before one arrives. */
 export function fallbackTitleFor(value: string): string {
-  if (value === START_PAGE_URL) return 'New tab';
+  if (value === START_PAGE_URL) {
+    return 'New tab';
+  }
   const host = hostOf(value);
-  if (host) return host.replace(/^www\./, '');
+  if (host) {
+    return host.replace(/^www\./, '');
+  }
   return value;
 }

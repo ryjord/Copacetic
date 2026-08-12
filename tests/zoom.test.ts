@@ -95,7 +95,9 @@ describe('interface density', () => {
 
 describe('history paging', () => {
   const seed = (count: number) => {
-    for (let i = 0; i < count; i += 1) store.recordVisit(`https://site${i}.example/`, `Page ${i}`);
+    for (let i = 0; i < count; i += 1) {
+      store.recordVisit(`https://site${i}.example/`, `Page ${i}`);
+    }
   };
 
   it('reports the total, not just what fits in a page', () => {

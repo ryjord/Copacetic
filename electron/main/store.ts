@@ -111,11 +111,16 @@ export class BrowserStore {
 
   // A level equal to the default is forgotten rather than stored: the list in Settings should be the sites you actually changed, not every site visited.
   setZoomForOrigin(origin: string, zoomFactor: number): void {
-    if (!origin) return;
+    if (!origin) {
+      return;
+    }
     this.settingsFile.update((current) => {
       const levels = { ...current.zoomLevels };
-      if (Math.abs(zoomFactor - current.defaultZoomFactor) < 0.001) delete levels[origin];
-      else levels[origin] = zoomFactor;
+      if (Math.abs(zoomFactor - current.defaultZoomFactor) < 0.001) {
+        delete levels[origin];
+      } else {
+        levels[origin] = zoomFactor;
+      }
       return { ...current, zoomLevels: levels };
     });
   }
@@ -169,7 +174,9 @@ export class BrowserStore {
   private matchingHistory(query: string): HistoryEntry[] {
     const entries = this.historyFile.get();
     const needle = query.trim().toLowerCase();
-    if (!needle) return entries;
+    if (!needle) {
+      return entries;
+    }
     return entries.filter(
       (entry) => entry.url.toLowerCase().includes(needle) || entry.title.toLowerCase().includes(needle),
     );
@@ -209,7 +216,9 @@ export class BrowserStore {
     const byHost = new Map<string, TopSite>();
     for (const entry of this.historyFile.get()) {
       const host = hostOf(entry.url);
-      if (!host) continue;
+      if (!host) {
+        continue;
+      }
       const existing = byHost.get(host);
       if (existing) {
         existing.visitCount += entry.visitCount;
@@ -241,7 +250,9 @@ export class BrowserStore {
     let bookmarked = false;
     this.bookmarksFile.update((bookmarks) => {
       const index = bookmarks.findIndex((bookmark) => bookmark.url === url);
-      if (index !== -1) return bookmarks.filter((_, i) => i !== index);
+      if (index !== -1) {
+        return bookmarks.filter((_, i) => i !== index);
+      }
       bookmarked = true;
       return [{ id: newId(), url, title: title || url, createdAt: Date.now() }, ...bookmarks];
     });
@@ -261,11 +272,15 @@ export class BrowserStore {
 
   setFavicon(url: string, dataUrl: string): void {
     const origin = originOf(url);
-    if (!origin) return;
+    if (!origin) {
+      return;
+    }
     this.faviconsFile.update((current) => {
       const next = { ...current, [origin]: { dataUrl, updatedAt: Date.now() } };
       const keys = Object.keys(next);
-      if (keys.length <= MAX_FAVICON_ENTRIES) return next;
+      if (keys.length <= MAX_FAVICON_ENTRIES) {
+        return next;
+      }
       // Evict least-recently-updated first; a stale favicon is refetched cheaply.
       const keep = keys
         .sort((a, b) => (next[b]?.updatedAt ?? 0) - (next[a]?.updatedAt ?? 0))
@@ -289,7 +304,9 @@ export class BrowserStore {
   // Rank local history and bookmarks against what the user has typed so far.
   suggest(rawQuery: string, limit = 8): Suggestion[] {
     const query = rawQuery.trim();
-    if (!query) return [];
+    if (!query) {
+      return [];
+    }
 
     const settings = this.getSettings();
     const needle = query.toLowerCase();
@@ -298,7 +315,9 @@ export class BrowserStore {
 
     const entries = this.historyFile.get();
     // Entries that fell out of history should not keep their parsed forms alive.
-    if (this.scoreFieldCache.size > entries.length * 2) this.scoreFieldCache.clear();
+    if (this.scoreFieldCache.size > entries.length * 2) {
+      this.scoreFieldCache.clear();
+    }
 
     const scored = entries
       .map((entry) => ({
@@ -342,7 +361,9 @@ export class BrowserStore {
 
     const seen = new Set<string>();
     return [...head, ...scored].filter((suggestion) => {
-      if (seen.has(suggestion.target)) return false;
+      if (seen.has(suggestion.target)) {
+        return false;
+      }
       seen.add(suggestion.target);
       return true;
     });
@@ -362,7 +383,9 @@ function scoreFieldsFor(entry: HistoryEntry, cache: Map<string, ScoreFields>): S
   const cached = cache.get(entry.id);
   // Cheap identity check rather than manual invalidation: a title that changes
   // on a revisit re-derives itself the next time it is scored.
-  if (cached && cached.sourceUrl === entry.url && cached.sourceTitle === entry.title) return cached;
+  if (cached && cached.sourceUrl === entry.url && cached.sourceTitle === entry.title) {
+    return cached;
+  }
 
   const fields: ScoreFields = {
     sourceUrl: entry.url,
@@ -387,12 +410,20 @@ function scoreEntry(
   const { host, title, url } = scoreFieldsFor(entry, cache);
 
   let match = 0;
-  if (host.startsWith(needle)) match = 100;
-  else if (title.startsWith(needle)) match = 70;
-  else if (host.includes(needle)) match = 55;
-  else if (title.includes(needle)) match = 35;
-  else if (url.includes(needle)) match = 20;
-  if (match === 0) return 0;
+  if (host.startsWith(needle)) {
+    match = 100;
+  } else if (title.startsWith(needle)) {
+    match = 70;
+  } else if (host.includes(needle)) {
+    match = 55;
+  } else if (title.includes(needle)) {
+    match = 35;
+  } else if (url.includes(needle)) {
+    match = 20;
+  }
+  if (match === 0) {
+    return 0;
+  }
 
   const ageMs = now - entry.lastVisitedAt;
   const day = 24 * 60 * 60 * 1000;
@@ -409,11 +440,15 @@ function scoreEntry(
 // than crash the browser at launch.
 
 function reviveSettings(raw: unknown): Settings | null {
-  if (!isRecord(raw)) return null;
+  if (!isRecord(raw)) {
+    return null;
+  }
   const decisions: Record<string, PermissionDecision> = {};
   if (isRecord(raw.permissionDecisions)) {
     for (const [key, value] of Object.entries(raw.permissionDecisions)) {
-      if (value === 'allow' || value === 'deny') decisions[key] = value;
+      if (value === 'allow' || value === 'deny') {
+        decisions[key] = value;
+      }
     }
   }
   const engine = asString(raw.searchEngine, DEFAULT_SETTINGS.searchEngine);
@@ -451,24 +486,34 @@ function reviveStartPageWidgets(raw: Record<string, unknown>): StartPageWidgetId
   if (Array.isArray(raw.startPageWidgets)) {
     const seen = new Set<StartPageWidgetId>();
     for (const id of raw.startPageWidgets) {
-      if (typeof id === 'string' && WIDGET_IDS.includes(id as StartPageWidgetId)) seen.add(id as StartPageWidgetId);
+      if (typeof id === 'string' && WIDGET_IDS.includes(id as StartPageWidgetId)) {
+        seen.add(id as StartPageWidgetId);
+      }
     }
     return [...seen];
   }
 
   const migrated: StartPageWidgetId[] = [];
-  if (asBoolean(raw.showStartPageClock, true)) migrated.push('clock');
+  if (asBoolean(raw.showStartPageClock, true)) {
+    migrated.push('clock');
+  }
   migrated.push('search');
-  if (asBoolean(raw.showTopSites, true)) migrated.push('topSites');
+  if (asBoolean(raw.showTopSites, true)) {
+    migrated.push('topSites');
+  }
   return migrated;
 }
 
 /** Untrusted on-disk input, so every level is bounded like a live one. */
 function reviveZoomLevels(raw: unknown): Record<string, number> {
-  if (!isRecord(raw)) return {};
+  if (!isRecord(raw)) {
+    return {};
+  }
   const levels: Record<string, number> = {};
   for (const [origin, value] of Object.entries(raw)) {
-    if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      continue;
+    }
     levels[origin] = clamp(value, 0.25, 5);
   }
   return levels;
@@ -483,11 +528,17 @@ export function normaliseSettings(settings: Settings): Settings {
 }
 
 function reviveHistory(raw: unknown): HistoryEntry[] | null {
-  if (!Array.isArray(raw)) return null;
+  if (!Array.isArray(raw)) {
+    return null;
+  }
   return raw.flatMap((item) => {
-    if (!isRecord(item)) return [];
+    if (!isRecord(item)) {
+      return [];
+    }
     const url = asString(item.url);
-    if (!url) return [];
+    if (!url) {
+      return [];
+    }
     return [
       {
         id: asString(item.id) || newId(),
@@ -501,11 +552,17 @@ function reviveHistory(raw: unknown): HistoryEntry[] | null {
 }
 
 function reviveBookmarks(raw: unknown): Bookmark[] | null {
-  if (!Array.isArray(raw)) return null;
+  if (!Array.isArray(raw)) {
+    return null;
+  }
   return raw.flatMap((item) => {
-    if (!isRecord(item)) return [];
+    if (!isRecord(item)) {
+      return [];
+    }
     const url = asString(item.url);
-    if (!url) return [];
+    if (!url) {
+      return [];
+    }
     return [
       {
         id: asString(item.id) || newId(),
@@ -518,21 +575,29 @@ function reviveBookmarks(raw: unknown): Bookmark[] | null {
 }
 
 function reviveFavicons(raw: unknown): Record<string, FaviconRecord> | null {
-  if (!isRecord(raw)) return null;
+  if (!isRecord(raw)) {
+    return null;
+  }
   const result: Record<string, FaviconRecord> = {};
   for (const [origin, value] of Object.entries(raw)) {
-    if (!isRecord(value)) continue;
+    if (!isRecord(value)) {
+      continue;
+    }
     const dataUrl = asString(value.dataUrl);
     // Only data URLs are ever cached; a remote URL here would mean the chrome
     // renderer makes a network request, which it must never do.
-    if (!dataUrl.startsWith('data:image/')) continue;
+    if (!dataUrl.startsWith('data:image/')) {
+      continue;
+    }
     result[origin] = { dataUrl, updatedAt: asNumber(value.updatedAt, 0) };
   }
   return result;
 }
 
 function reviveSession(raw: unknown): SessionSnapshot | null {
-  if (!isRecord(raw)) return null;
+  if (!isRecord(raw)) {
+    return null;
+  }
   const urls = Array.isArray(raw.urls) ? raw.urls.filter((url): url is string => typeof url === 'string') : [];
   return { urls, activeIndex: clamp(asNumber(raw.activeIndex, 0), 0, Math.max(0, urls.length - 1)) };
 }

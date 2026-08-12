@@ -47,7 +47,11 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
 }
 
 function headlineFor(error: PageError): string {
-  if (error.name.startsWith('RENDERER_')) return 'This page stopped responding';
-  if (error.name.startsWith('ERR_CERT')) return 'Copacetic could not verify this site';
+  if (error.name.startsWith('RENDERER_')) {
+    return 'This page stopped responding';
+  }
+  if (error.name.startsWith('ERR_CERT')) {
+    return 'Copacetic could not verify this site';
+  }
   return 'This page did not load';
 }

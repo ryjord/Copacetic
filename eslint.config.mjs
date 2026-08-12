@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
       ],
+      // A guard clause on the same line as its condition reads as part of it,
+      // and adding a second statement later silently leaves it outside the if.
+      curly: ['error', 'all'],
+      'nonblock-statement-body-position': ['error', 'below'],
+      // `any` defeats every other check in this file.
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
 ]);

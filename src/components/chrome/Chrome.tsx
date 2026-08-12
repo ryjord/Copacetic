@@ -45,7 +45,9 @@ export function Chrome() {
 
   useEffect(() => {
     const api = getBridge();
-    if (!api) return;
+    if (!api) {
+      return;
+    }
 
     void api.chrome.getState().then(applyState);
 
@@ -61,7 +63,9 @@ export function Chrome() {
 
   useLayoutEffect(() => {
     const element = contentRef.current;
-    if (!element || !isRunningInShell()) return;
+    if (!element || !isRunningInShell()) {
+      return;
+    }
 
     let frame = 0;
     let last = '';
@@ -75,7 +79,9 @@ export function Chrome() {
         bottom: Math.round(window.innerHeight - rect.bottom),
       };
       const signature = `${insets.top}|${insets.left}|${insets.right}|${insets.bottom}`;
-      if (signature === last) return;
+      if (signature === last) {
+        return;
+      }
       last = signature;
       send((api) => api.chrome.setContentInsets(insets));
     };
@@ -189,6 +195,8 @@ function OutsideShellNotice() {
 }
 
 function isMac(): boolean {
-  if (typeof navigator === 'undefined') return false;
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
   return navigator.platform.toLowerCase().includes('mac');
 }

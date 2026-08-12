@@ -71,7 +71,9 @@ export function Omnibox({ tab }: OmniboxProps) {
 
   // Focusing is a DOM effect, not state, so it belongs after paint.
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditing) {
+      return;
+    }
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [isEditing]);
@@ -79,12 +81,16 @@ export function Omnibox({ tab }: OmniboxProps) {
   // Suggestions are ranked in the main process, where history lives.
   useEffect(() => {
     const query = draft.trim();
-    if (!isEditing || !query) return;
+    if (!isEditing || !query) {
+      return;
+    }
 
     let cancelled = false;
     const timer = setTimeout(() => {
       void ask((api) => api.omnibox.suggest(query), []).then((result) => {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         setSuggestions(result);
         setHighlighted(0);
       });
@@ -111,12 +117,16 @@ export function Omnibox({ tab }: OmniboxProps) {
   // reserving room for results that never existed.
   const [reservedRows, setReservedRows] = useState(0);
   const targetRows = isEditing ? Math.max(reservedRows, visibleSuggestions.length) : 0;
-  if (targetRows !== reservedRows) setReservedRows(targetRows);
+  if (targetRows !== reservedRows) {
+    setReservedRows(targetRows);
+  }
 
   const commit = useCallback(
     (value: string) => {
       const target = value.trim();
-      if (!target || !tab) return;
+      if (!target || !tab) {
+        return;
+      }
       endEditing();
       send((api) => api.tabs.navigate(tab.id, target));
     },
@@ -130,7 +140,9 @@ export function Omnibox({ tab }: OmniboxProps) {
       return;
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      if (visibleSuggestions.length === 0) return;
+      if (visibleSuggestions.length === 0) {
+        return;
+      }
       event.preventDefault();
       const delta = event.key === 'ArrowDown' ? 1 : -1;
       setHighlighted((current) => (current + delta + visibleSuggestions.length) % visibleSuggestions.length);

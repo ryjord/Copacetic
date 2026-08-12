@@ -105,9 +105,13 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   // Called for synchronous checks (for example `navigator.permissions.query`).
   // It must never prompt, so it answers purely from decisions already stored.
   session.setPermissionCheckHandler((_contents, permission, requestingOrigin) => {
-    if (AUTO_ALLOWED.has(permission)) return true;
+    if (AUTO_ALLOWED.has(permission)) {
+      return true;
+    }
     const prompted = PROMPTED[permission];
-    if (!prompted || !requestingOrigin) return false;
+    if (!prompted || !requestingOrigin) {
+      return false;
+    }
     return delegate.getStoredDecision(requestingOrigin, prompted.kind) === 'allow';
   });
 
@@ -131,10 +135,14 @@ async function resolvePermission(
   permission: string,
   requestingUrl: string,
 ): Promise<boolean> {
-  if (AUTO_ALLOWED.has(permission)) return true;
+  if (AUTO_ALLOWED.has(permission)) {
+    return true;
+  }
 
   const prompted = PROMPTED[permission];
-  if (!prompted) return false;
+  if (!prompted) {
+    return false;
+  }
 
   let origin: string;
   try {
@@ -142,10 +150,14 @@ async function resolvePermission(
   } catch {
     return false;
   }
-  if (!origin || origin === 'null') return false;
+  if (!origin || origin === 'null') {
+    return false;
+  }
 
   const stored = delegate.getStoredDecision(origin, prompted.kind);
-  if (stored) return stored === 'allow';
+  if (stored) {
+    return stored === 'allow';
+  }
 
   const decision = await delegate.requestPermission({
     webContentsId: contents?.id ?? -1,
@@ -181,13 +193,17 @@ export function guardTabWebContents(contents: WebContents, delegate: SecurityDel
   });
 
   contents.on('will-navigate', (event, url) => {
-    if (isNavigable(url)) return;
+    if (isNavigable(url)) {
+      return;
+    }
     event.preventDefault();
     void delegate.confirmExternalOpen(url, contents.id);
   });
 
   contents.on('will-redirect', (event, url) => {
-    if (isNavigable(url)) return;
+    if (isNavigable(url)) {
+      return;
+    }
     event.preventDefault();
   });
 
@@ -197,13 +213,19 @@ export function guardTabWebContents(contents: WebContents, delegate: SecurityDel
 /** Guards for the window that renders Copacetic's own interface. */
 export function guardChromeWebContents(contents: WebContents): void {
   contents.on('will-navigate', (event, url) => {
-    if (isChromeDocument(url)) return;
+    if (isChromeDocument(url)) {
+      return;
+    }
     event.preventDefault();
-    if (url.startsWith('https://') || url.startsWith('http://')) void shell.openExternal(url);
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      void shell.openExternal(url);
+    }
   });
 
   contents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://')) void shell.openExternal(url);
+    if (url.startsWith('https://')) {
+      void shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 
@@ -223,7 +245,9 @@ function hardenAttachedFrames(contents: WebContents): void {
 function isNavigable(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === `${INTERNAL_SCHEME}:`) return true;
+    if (parsed.protocol === `${INTERNAL_SCHEME}:`) {
+      return true;
+    }
     return PAGE_NAVIGABLE_SCHEMES.has(parsed.protocol);
   } catch {
     return false;
@@ -238,7 +262,9 @@ function isChromeDocument(url: string): boolean {
 export function isTransportSecure(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === 'https:') return true;
+    if (parsed.protocol === 'https:') {
+      return true;
+    }
     // Loopback is exempt for the same reason Chromium treats it as a secure
     // context: the traffic never leaves the machine.
     return parsed.protocol === 'http:' && isLoopbackHost(parsed.hostname);

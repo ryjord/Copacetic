@@ -94,7 +94,9 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
     set({ isConnectionPanelOpen: !get().isConnectionPanelOpen, connectionPanelOpenedAt: Date.now() }),
 
   closeConnectionPanel: () => {
-    if (get().isConnectionPanelOpen) set({ isConnectionPanelOpen: false });
+    if (get().isConnectionPanelOpen) {
+      set({ isConnectionPanelOpen: false });
+    }
   },
 }));
 

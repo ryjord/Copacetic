@@ -38,7 +38,9 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
         label={isBusy ? 'Stop loading' : 'Reload'}
         disabled={!canInteract || tab.isStartPage}
         onClick={() => {
-          if (!tab) return;
+          if (!tab) {
+            return;
+          }
           send((api) => (isBusy ? api.tabs.stop(tab.id) : api.tabs.reload(tab.id)));
         }}
       >

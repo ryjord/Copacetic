@@ -53,11 +53,15 @@ export function createChromeWindow(): BrowserWindow {
     },
   });
 
-  if (saved.isMaximized) window.maximize();
+  if (saved.isMaximized) {
+    window.maximize();
+  }
   guardChromeWebContents(window.webContents);
 
   const persist = () => {
-    if (window.isDestroyed() || window.isMinimized() || window.isFullScreen()) return;
+    if (window.isDestroyed() || window.isMinimized() || window.isFullScreen()) {
+      return;
+    }
     const isMaximized = window.isMaximized();
     const [x, y] = window.getPosition();
     const [width, height] = window.getNormalBounds
@@ -83,7 +87,9 @@ export function createChromeWindow(): BrowserWindow {
 
 // A window restored onto a display that no longer exists is invisible and unrecoverable without editing config by hand.
 function clampToVisibleDisplay(bounds: WindowBounds): WindowBounds {
-  if (bounds.x === null || bounds.y === null) return bounds;
+  if (bounds.x === null || bounds.y === null) {
+    return bounds;
+  }
 
   const isOnSomeDisplay = screen.getAllDisplays().some((display) => {
     const area = display.workArea;
@@ -99,7 +105,9 @@ function clampToVisibleDisplay(bounds: WindowBounds): WindowBounds {
 }
 
 function reviveBounds(raw: unknown): WindowBounds | null {
-  if (!isRecord(raw)) return null;
+  if (!isRecord(raw)) {
+    return null;
+  }
   return {
     width: Math.max(MIN_WIDTH, asNumber(raw.width, DEFAULT_BOUNDS.width)),
     height: Math.max(MIN_HEIGHT, asNumber(raw.height, DEFAULT_BOUNDS.height)),

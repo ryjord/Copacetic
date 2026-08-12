@@ -13,7 +13,9 @@ const inside = (relative: string) => path.join(ROOT, relative);
 
 /** The only thing that must always hold: nothing served comes from outside. */
 function isContained(resolved: string | null): boolean {
-  if (resolved === null) return true;
+  if (resolved === null) {
+    return true;
+  }
   return resolved === ROOT || resolved.startsWith(ROOT + path.sep);
 }
 
