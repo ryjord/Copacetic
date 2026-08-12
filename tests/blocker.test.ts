@@ -218,7 +218,9 @@ describe('the connection log', () => {
   });
 
   it('is bounded, so endless subdomains cannot grow it without limit', () => {
-    for (let i = 0; i < 400; i += 1) ask(`https://sub${i}.example.com/a.js`);
+    for (let i = 0; i < 400; i += 1) {
+      ask(`https://sub${i}.example.com/a.js`);
+    }
     expect(blocker.connectionsFor(7).length).toBeLessThanOrEqual(250);
   });
 });

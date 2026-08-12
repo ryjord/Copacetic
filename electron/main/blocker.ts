@@ -1,16 +1,7 @@
 import type { Session } from 'electron';
 import type { ConnectionEntry } from '../shared/types';
 
-/**
- * A small, curated list of domains that exist only to track people across
- * sites. Blocking these is safe: none of them render content a page needs.
- *
- * This is deliberately not a full EasyList implementation. Shipping a 100k-rule
- * filter engine would mean maintaining a filter engine, and a short honest list
- * that never breaks a page is more useful than a long one that sometimes does.
- * The count shown in the chrome is the real number of blocked requests, not an
- * estimate.
- */
+// A small, curated list of domains that exist only to track people across sites.
 const TRACKER_DOMAINS: readonly string[] = [
   // Analytics
   'google-analytics.com',
@@ -170,22 +161,18 @@ export class ContentBlocker {
     this.enabled = enabled;
   }
 
-  /**
-   * Sites where blocking is switched off, by registrable domain.
-   *
-   * Blocking a tracker sometimes breaks a page — a login that goes through an
-   * analytics domain, an embed that will not load. Making the exception
-   * per-site keeps the global answer honest instead of pushing people to turn
-   * blocking off everywhere because one site misbehaved.
-   */
+  // Sites where blocking is switched off, by registrable domain.
   setAllowlist(sites: readonly string[]): void {
     this.allowed = new Set(sites);
   }
 
   /** Told on navigation, so a request can be judged against the page it is for. */
   setPageSite(webContentsId: number, site: string): void {
-    if (site) this.pageHosts.set(webContentsId, site);
-    else this.pageHosts.delete(webContentsId);
+    if (site) {
+      this.pageHosts.set(webContentsId, site);
+    } else {
+      this.pageHosts.delete(webContentsId);
+    }
   }
 
   isAllowedOn(site: string): boolean {
@@ -249,7 +236,9 @@ export class ContentBlocker {
       // even switched on. The count of what was stopped is only half the truth;
       // the other half is everything that was allowed through, which no
       // mainstream browser shows without opening developer tools.
-      if (typeof id === 'number') this.record(id, hostname, isTracker, shouldBlock);
+      if (typeof id === 'number') {
+        this.record(id, hostname, isTracker, shouldBlock);
+      }
 
       if (!shouldBlock) {
         callback({ cancel: false });
@@ -276,28 +265,32 @@ export class ContentBlocker {
     const existing = hosts.get(host);
     if (existing) {
       existing.requests += 1;
-      if (wasBlocked) existing.blocked += 1;
+      if (wasBlocked) {
+        existing.blocked += 1;
+      }
       return;
     }
 
-    if (hosts.size >= MAX_HOSTS_PER_TAB) return;
+    if (hosts.size >= MAX_HOSTS_PER_TAB) {
+      return;
+    }
     hosts.set(host, { host, requests: 1, blocked: wasBlocked ? 1 : 0, isTracker });
   }
 
-  /**
-   * Every host this tab has contacted, blocked first and then by volume.
-   *
-   * Blocked entries lead because they are the ones worth reading: a page that
-   * tried thirty times to reach a tracker says something the raw ordering
-   * would bury.
-   */
+  // Every host this tab has contacted, blocked first and then by volume.
   connectionsFor(webContentsId: number): ConnectionEntry[] {
     const hosts = this.hosts.get(webContentsId);
-    if (!hosts) return [];
+    if (!hosts) {
+      return [];
+    }
 
     return [...hosts.values()].sort((a, b) => {
-      if (a.blocked !== b.blocked) return b.blocked - a.blocked;
-      if (a.requests !== b.requests) return b.requests - a.requests;
+      if (a.blocked !== b.blocked) {
+        return b.blocked - a.blocked;
+      }
+      if (a.requests !== b.requests) {
+        return b.requests - a.requests;
+      }
       return a.host.localeCompare(b.host);
     });
   }
@@ -309,11 +302,15 @@ export class ContentBlocker {
     // alone it is a one-character bypass of the entire list.
     const hostname = rawHostname.replace(/\.+$/, '');
 
-    if (this.blocked.has(hostname)) return true;
+    if (this.blocked.has(hostname)) {
+      return true;
+    }
     let index = hostname.indexOf('.');
     while (index !== -1) {
       const parent = hostname.slice(index + 1);
-      if (this.blocked.has(parent)) return true;
+      if (this.blocked.has(parent)) {
+        return true;
+      }
       index = hostname.indexOf('.', index + 1);
     }
     return false;

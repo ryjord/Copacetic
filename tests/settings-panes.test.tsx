@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { SettingsSurface } from '../src/components/surfaces/SettingsSurface';
+import { SETTINGS_PANES } from '../src/components/surfaces/settings/panes';
 
 vi.mock('@/lib/bridge', () => ({
   send: () => {},
@@ -11,7 +12,9 @@ vi.mock('@/lib/bridge', () => ({
 
 afterEach(cleanup);
 
-const PANES = ['Appearance', 'Search', 'Privacy', 'Behaviour', 'Your data', 'Keyboard', 'Updates', 'About'];
+// Derived from the registry, so a pane added for a new feature is covered here
+// the moment it exists rather than whenever someone remembers this file.
+const PANES = SETTINGS_PANES.map((pane) => pane.label);
 
 describe('settings is grouped rather than one long page', () => {
   it('offers every section in the rail', () => {

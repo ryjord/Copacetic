@@ -14,15 +14,7 @@ interface OmniboxProps {
   tab: TabState | null;
 }
 
-/**
- * The address bar, and the one place in Copacetic where boldness is spent.
- *
- * Unfocused it is not a text field at all: it renders the address
- * semantically, so the registrable domain — the only part that tells you where
- * you actually are — is the only part at full contrast. Focused it becomes a
- * plain input, and the suggestion list below it is real chrome rather than a
- * floating popover, so the page is pushed down instead of covered.
- */
+/** The address bar, and the one place in Copacetic where boldness is spent. */
 export function Omnibox({ tab }: OmniboxProps) {
   const settings = useBrowserStore((state) => state.settings);
   const focusToken = useBrowserStore((state) => state.omniboxFocusToken);
@@ -79,7 +71,9 @@ export function Omnibox({ tab }: OmniboxProps) {
 
   // Focusing is a DOM effect, not state, so it belongs after paint.
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditing) {
+      return;
+    }
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [isEditing]);
@@ -87,12 +81,16 @@ export function Omnibox({ tab }: OmniboxProps) {
   // Suggestions are ranked in the main process, where history lives.
   useEffect(() => {
     const query = draft.trim();
-    if (!isEditing || !query) return;
+    if (!isEditing || !query) {
+      return;
+    }
 
     let cancelled = false;
     const timer = setTimeout(() => {
       void ask((api) => api.omnibox.suggest(query), []).then((result) => {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         setSuggestions(result);
         setHighlighted(0);
       });
@@ -119,12 +117,16 @@ export function Omnibox({ tab }: OmniboxProps) {
   // reserving room for results that never existed.
   const [reservedRows, setReservedRows] = useState(0);
   const targetRows = isEditing ? Math.max(reservedRows, visibleSuggestions.length) : 0;
-  if (targetRows !== reservedRows) setReservedRows(targetRows);
+  if (targetRows !== reservedRows) {
+    setReservedRows(targetRows);
+  }
 
   const commit = useCallback(
     (value: string) => {
       const target = value.trim();
-      if (!target || !tab) return;
+      if (!target || !tab) {
+        return;
+      }
       endEditing();
       send((api) => api.tabs.navigate(tab.id, target));
     },
@@ -138,7 +140,9 @@ export function Omnibox({ tab }: OmniboxProps) {
       return;
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      if (visibleSuggestions.length === 0) return;
+      if (visibleSuggestions.length === 0) {
+        return;
+      }
       event.preventDefault();
       const delta = event.key === 'ArrowDown' ? 1 : -1;
       setHighlighted((current) => (current + delta + visibleSuggestions.length) % visibleSuggestions.length);
@@ -215,12 +219,7 @@ export function Omnibox({ tab }: OmniboxProps) {
   );
 }
 
-/**
- * The address, rendered as structure rather than as a string.
- *
- * `paypal.com.example.net/login` must read as `example.net`, so everything
- * outside the registrable domain is dimmed — that is the whole point.
- */
+// The address, rendered as structure rather than as a string.
 function AddressDisplay({ url, engineName }: { url: string; engineName: string }) {
   const parts = useMemo(() => (url ? splitUrlForDisplay(url) : null), [url]);
 

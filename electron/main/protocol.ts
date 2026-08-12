@@ -25,11 +25,7 @@ const MIME_TYPES: Record<string, string> = {
   '.map': 'application/json; charset=utf-8',
 };
 
-/**
- * Registered before `app.ready` so the scheme behaves like a real origin:
- * it gets its own storage partition, counts as a secure context, and is not
- * exempted from CSP the way `file://` is.
- */
+/** Registered before `app.ready` so the scheme behaves like a real origin: it gets its own storage partition, counts as a secure context, and is not exempted from CSP the way `file://` is. */
 export function registerAppProtocolScheme(): void {
   protocol.registerSchemesAsPrivileged([
     {
@@ -51,16 +47,24 @@ export function handleAppProtocol(): void {
 
   protocol.handle(APP_SCHEME, async (request) => {
     const url = new URL(request.url);
-    if (url.hostname !== APP_HOST) return new Response('Not found', { status: 404 });
+    if (url.hostname !== APP_HOST) {
+      return new Response('Not found', { status: 404 });
+    }
 
     const pathname = safeDecode(url.pathname);
-    if (pathname === null) return new Response('Bad request', { status: 400 });
+    if (pathname === null) {
+      return new Response('Bad request', { status: 400 });
+    }
 
     const filePath = resolveWithinRoot(root, pathname);
-    if (!filePath) return new Response('Forbidden', { status: 403 });
+    if (!filePath) {
+      return new Response('Forbidden', { status: 403 });
+    }
 
     const resolved = await resolveFile(filePath, root);
-    if (!resolved) return new Response('Not found', { status: 404 });
+    if (!resolved) {
+      return new Response('Not found', { status: 404 });
+    }
 
     const contentType = MIME_TYPES[path.extname(resolved).toLowerCase()] ?? 'application/octet-stream';
     const body = Readable.toWeb(createReadStream(resolved)) as ReadableStream;
@@ -77,10 +81,7 @@ export function handleAppProtocol(): void {
   });
 }
 
-/**
- * `decodeURIComponent` throws on a malformed escape like `%ZZ`, which would
- * otherwise reject inside the protocol handler rather than answering.
- */
+// `decodeURIComponent` throws on a malformed escape like `%ZZ`, which would otherwise reject inside the protocol handler rather than answering.
 function safeDecode(pathname: string): string | null {
   try {
     const decoded = decodeURIComponent(pathname);
@@ -91,13 +92,7 @@ function safeDecode(pathname: string): string | null {
   }
 }
 
-/**
- * Join a request path onto the renderer root, refusing anything that escapes
- * it. `..` in a URL path is normally collapsed by the URL parser, but this is
- * the one place a mistake would expose the whole filesystem.
- *
- * Exported for tests: this is the sandbox boundary for the whole app protocol.
- */
+/** Join a request path onto the renderer root, refusing anything that escapes it. */
 export function resolveWithinRoot(root: string, pathname: string): string | null {
   const candidate = path.resolve(root, `.${path.posix.normalize(pathname)}`);
   const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
@@ -108,10 +103,14 @@ export function resolveWithinRoot(root: string, pathname: string): string | null
 async function resolveFile(candidate: string, root: string): Promise<string | null> {
   const attempts = [candidate, `${candidate}.html`, path.join(candidate, 'index.html')];
   for (const attempt of attempts) {
-    if (!resolveWithinRoot(root, path.relative(root, attempt).split(path.sep).join('/'))) continue;
+    if (!resolveWithinRoot(root, path.relative(root, attempt).split(path.sep).join('/'))) {
+      continue;
+    }
     try {
       const stats = await stat(attempt);
-      if (stats.isFile()) return attempt;
+      if (stats.isFile()) {
+        return attempt;
+      }
     } catch {
       // Try the next shape.
     }
@@ -121,7 +120,9 @@ async function resolveFile(candidate: string, root: string): Promise<string | nu
   try {
     const fallback = path.join(root, 'index.html');
     const stats = await stat(fallback);
-    if (stats.isFile()) return fallback;
+    if (stats.isFile()) {
+      return fallback;
+    }
   } catch {
     /* nothing to serve */
   }

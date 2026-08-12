@@ -7,12 +7,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
-/**
- * Find sits in the chrome column rather than floating over the page, because a
- * WebContentsView always paints above the chrome's HTML. Reserving a strip
- * means the page shifts down by 34px instead of hiding the very text you are
- * searching for.
- */
+/** Find sits in the chrome column rather than floating over the page, because a WebContentsView always paints above the chrome's HTML. */
 export function FindBar({ find }: { find: FindState }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(find.query);

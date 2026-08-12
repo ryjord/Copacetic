@@ -1,11 +1,12 @@
 import type { ChromeSurface } from './channels';
 import type {
   AppInfo,
-  ConnectionEntry,
   Bookmark,
   BrowserState,
   ClearRange,
+  ConnectionEntry,
   DownloadId,
+  ExportKind,
   HistoryPage,
   PermissionDecision,
   PermissionKind,
@@ -13,6 +14,8 @@ import type {
   Suggestion,
   TabId,
   TopSite,
+  VaultInput,
+  VaultState,
 } from './types';
 
 export interface ContentInsetsInput {
@@ -25,12 +28,7 @@ export interface ContentInsetsInput {
 /** Cancels a subscription made through `copacetic.on.*`. */
 export type Unsubscribe = () => void;
 
-/**
- * The contract between the chrome renderer and the main process.
- *
- * Declared here — with no Electron import — so the renderer can depend on the
- * shape of the bridge without pulling any main-process types into its build.
- */
+/** The contract between the chrome renderer and the main process. */
 export interface CopaceticApi {
   tabs: {
     create(url?: string, activate?: boolean): Promise<TabId>;
@@ -103,6 +101,18 @@ export interface CopaceticApi {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
   };
+  vault: {
+    /** Fetched when the pane is open rather than pushed: it is not needed to render a page. */
+    list(): Promise<VaultState>;
+    /** Resolves with the new id, or a message explaining why nothing was saved. */
+    add(input: VaultInput): Promise<{ id: string } | { error: string }>;
+    /** Resolves empty on success, or with a message. */
+    update(id: string, changes: Partial<VaultInput>): Promise<string>;
+    remove(id: string): Promise<void>;
+    /** One password, by id, only when asked. Never part of the listed state. */
+    reveal(id: string): Promise<string | null>;
+  };
+
   wallpaper: {
     /** The image as a data URL, or null. Fetched on demand, never pushed. */
     get(): Promise<string | null>;
@@ -114,7 +124,7 @@ export interface CopaceticApi {
   };
   data: {
     /** Write bookmarks or history to a file the user chooses. */
-    export(kind: 'bookmarks' | 'history'): Promise<string>;
+    export(kind: ExportKind): Promise<string>;
   };
   auth: {
     /** Answer a challenge. Credentials go straight to the request, unstored. */

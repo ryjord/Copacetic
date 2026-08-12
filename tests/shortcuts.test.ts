@@ -33,7 +33,9 @@ describe('the shortcut reference matches the menu', () => {
     );
     const bound = new Set(BOUND);
     for (const accelerator of LISTED) {
-      if (extras.has(accelerator) || SHORTCUTS_COVERED_BY_A_RANGE.includes(accelerator)) continue;
+      if (extras.has(accelerator) || SHORTCUTS_COVERED_BY_A_RANGE.includes(accelerator)) {
+        continue;
+      }
       expect(bound.has(accelerator)).toBe(true);
     }
   });

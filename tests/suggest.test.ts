@@ -104,7 +104,9 @@ describe('omnibox suggestions', () => {
 
     store.suggest('s'); // warm the parsed forms
     const start = performance.now();
-    for (const query of ['s', 'si', 'sit', 'site', 'site4']) store.suggest(query);
+    for (const query of ['s', 'si', 'sit', 'site', 'site4']) {
+      store.suggest(query);
+    }
     const perKeystroke = (performance.now() - start) / 5;
 
     // Before the parsed forms were cached this was ~150ms per keystroke, all of

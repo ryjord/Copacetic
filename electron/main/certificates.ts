@@ -1,40 +1,17 @@
 import type { Certificate, Session } from 'electron';
 import type { CertificateSummary } from '../shared/types';
 
-/**
- * Chromium's own verdict, unchanged.
- *
- * This is the only value this file may ever pass to the verify callback.
- * `0` means "accept", and answering that would replace Chromium's certificate
- * validation with a blanket yes — every expired, self-signed and
- * wrong-hostname certificate on the internet would be treated as valid, in a
- * browser whose entire pitch is telling you the truth about the connection.
- *
- * The purpose here is to *observe* what Chromium decided so the interface can
- * describe it. Observing must never become deciding.
- */
+// The only value this may ever return: 0 means accept, which would treat every expired,
+// self-signed and wrong-hostname certificate as valid. Observing must never become deciding.
 const USE_CHROMIUM_VERDICT = -3;
 
-/**
- * Certificates seen this session, so the badge can describe the current page.
- *
- * Keyed by hostname because that is the only identifier the verify request
- * carries — it has no webContents id, so a certificate cannot be tied to the
- * tab that caused it. In practice two tabs on one host see the same
- * certificate; if a host rotated mid-session, the most recently accepted one
- * is what gets described.
- */
+// Certificates seen this session, so the badge can describe the current page.
 const seen = new Map<string, CertificateSummary>();
 
 /** Bounded: a long session touching many hosts should not grow without limit. */
 const MAX_REMEMBERED = 300;
 
-/**
- * Watch certificate verification without influencing it.
- *
- * Electron offers no way to ask "what certificate is this page using?" after
- * the fact, so the only place to see one is as it is verified.
- */
+/** Watch certificate verification without influencing it. */
 export function observeCertificates(session: Session): void {
   session.setCertificateVerifyProc((request, callback) => {
     try {
@@ -52,11 +29,15 @@ function remember(
   verificationResult: string,
   isIssuedByKnownRoot: boolean,
 ): void {
-  if (!hostname || !certificate) return;
+  if (!hostname || !certificate) {
+    return;
+  }
   // Only describe a certificate Chromium actually accepted. Reporting the
   // issuer of a rejected certificate would dress up a failed connection as an
   // informative one.
-  if (verificationResult !== 'net::OK') return;
+  if (verificationResult !== 'net::OK') {
+    return;
+  }
 
   const key = hostname.toLowerCase();
   // Delete before setting so a refreshed entry moves to the back of the
@@ -65,7 +46,9 @@ function remember(
   seen.delete(key);
   if (seen.size >= MAX_REMEMBERED) {
     const oldest = seen.keys().next();
-    if (!oldest.done) seen.delete(oldest.value);
+    if (!oldest.done) {
+      seen.delete(oldest.value);
+    }
   }
   seen.set(key, summariseCertificate(certificate, isIssuedByKnownRoot));
 }
@@ -78,10 +61,7 @@ export function forgetCertificates(): void {
   seen.clear();
 }
 
-/**
- * Electron reports validity in seconds since the epoch; everything else in
- * this codebase works in milliseconds.
- */
+/** Electron reports validity in seconds since the epoch; everything else in this codebase works in milliseconds. */
 export function summariseCertificate(certificate: Certificate, isIssuedByKnownRoot = true): CertificateSummary {
   return {
     issuer: certificate.issuerName || certificate.issuer?.commonName || 'Unknown',

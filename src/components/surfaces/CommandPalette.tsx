@@ -14,11 +14,7 @@ interface Command {
   run: () => void;
 }
 
-/**
- * One keystroke to reach anything, and a place to discover the shortcut for it.
- * Every entry does exactly what the equivalent menu item does — they call the
- * same commands in the main process.
- */
+/** One keystroke to reach anything, and a place to discover the shortcut for it. */
 export function CommandPalette() {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);
@@ -153,7 +149,9 @@ export function CommandPalette() {
     );
 
     for (const tab of tabs) {
-      if (tab.id === activeTab?.id) continue;
+      if (tab.id === activeTab?.id) {
+        continue;
+      }
       list.push({
         id: `switch:${tab.id}`,
         label: `Switch to ${tab.isStartPage ? 'New tab' : tab.title}`,
@@ -170,7 +168,9 @@ export function CommandPalette() {
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return commands;
+    if (!needle) {
+      return commands;
+    }
     return commands.filter((command) => command.label.toLowerCase().includes(needle));
   }, [commands, query]);
 
@@ -189,7 +189,9 @@ export function CommandPalette() {
       return;
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      if (matches.length === 0) return;
+      if (matches.length === 0) {
+        return;
+      }
       event.preventDefault();
       const delta = event.key === 'ArrowDown' ? 1 : -1;
       setHighlighted((current) => (current + delta + matches.length) % matches.length);

@@ -12,12 +12,30 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     groups:
+      # react and react-dom check each other's version when they load and refuse
+      # to run at all when they differ, so a pull request moving one without the
+      # other cannot pass — it is one update, not two, and splitting it produced
+      # two guaranteed-red pull requests. Listed before the routine group because
+      # the first matching group wins.
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      # Same reason, one layer out: the plugin declares a peer range on vite, so
+      # a major on either is only installable alongside the other.
+      vite:
+        patterns: ['vite', '@vitejs/*']
       # One pull request for the ordinary churn, so the noise stays in a single
       # place and the ones worth reading stand alone.
       routine:
         patterns: ['*']
-        exclude-patterns: ['electron', 'electron-builder', 'electron-updater', 'next', 'react', 'react-dom']
+        exclude-patterns: ['electron', 'electron-builder', 'electron-updater', 'next']
         update-types: [minor, patch]
+    ignore:
+      # @types/node describes the APIs of a Node it is versioned against, and
+      # types ahead of the runtime let code compile against functions that will
+      # not exist when it runs — a failure typecheck cannot see. Pinned to the
+      # major we build on; raise this deliberately when that moves.
+      - dependency-name: '@types/node'
+        versions: ['>=25']
     labels: [dependencies]
     commit-message:
       prefix: build

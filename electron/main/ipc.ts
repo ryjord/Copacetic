@@ -4,15 +4,9 @@ import { INVOKE } from '../shared/channels';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../shared/types';
 import type { Browser } from './browser';
 import { showTabContextMenu } from './context-menu';
+import { HISTORY_PAGE_SIZE } from './store';
 
-/**
- * Every handler is registered through `handle`, which drops any message that
- * did not come from the chrome window's own top-level frame.
- *
- * Page content is loaded with no preload script and cannot reach `ipcRenderer`
- * at all, so this is belt and braces — but it is the belt that stops a future
- * change to webPreferences from quietly opening the whole surface up.
- */
+/** Every handler is registered through `handle`, which drops any message that did not come from the chrome window's own top-level frame. */
 export function registerIpcHandlers(browser: Browser): void {
   const handle = <T>(channel: string, handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => T) => {
     ipcMain.handle(channel, (event, ...args) => {
@@ -46,7 +40,9 @@ export function registerIpcHandlers(browser: Browser): void {
   // ----------------------------------------------------------------- chrome
 
   handle(INVOKE.chromeSetContentBounds, (_event, insets) => {
-    if (!isRecord(insets)) return;
+    if (!isRecord(insets)) {
+      return;
+    }
     browser.setContentInsets({
       top: asNumber(insets.top, 0),
       left: asNumber(insets.left, 0),
@@ -64,7 +60,7 @@ export function registerIpcHandlers(browser: Browser): void {
   // ---------------------------------------------------------------- history
 
   handle(INVOKE.historyList, (_event, query, offset) =>
-    browser.store.listHistory(asString(query), 300, Math.max(0, Number(offset) || 0)),
+    browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, Math.max(0, Number(offset) || 0)),
   );
   handle(INVOKE.historyRemove, (_event, id) => {
     browser.store.removeHistory(asString(id));
@@ -127,8 +123,11 @@ export function registerIpcHandlers(browser: Browser): void {
 
   handle(INVOKE.windowMinimize, () => browser.window.minimize());
   handle(INVOKE.windowToggleMaximize, () => {
-    if (browser.window.isMaximized()) browser.window.unmaximize();
-    else browser.window.maximize();
+    if (browser.window.isMaximized()) {
+      browser.window.unmaximize();
+    } else {
+      browser.window.maximize();
+    }
   });
   handle(INVOKE.windowClose, () => browser.window.close());
 
@@ -138,6 +137,31 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
 
   // -------------------------------------------------------------- wallpaper
+
+  // ------------------------------------------------------------------ vault
+
+  // Every field is read back off the payload as a string: the renderer is the
+  // one place a malformed shape can come from, and a password is not a thing to
+  // pass through on trust.
+  handle(INVOKE.vaultList, () => browser.vault.state());
+  handle(INVOKE.vaultAdd, (_event, input) =>
+    browser.vault.add({
+      origin: asString(isRecord(input) ? input.origin : ''),
+      username: asString(isRecord(input) ? input.username : ''),
+      password: asString(isRecord(input) ? input.password : ''),
+    }),
+  );
+  handle(INVOKE.vaultUpdate, (_event, id, changes) => {
+    const patch = isRecord(changes) ? changes : {};
+    const result = browser.vault.update(asString(id), {
+      ...(typeof patch.origin === 'string' ? { origin: patch.origin } : {}),
+      ...(typeof patch.username === 'string' ? { username: patch.username } : {}),
+      ...(typeof patch.password === 'string' ? { password: patch.password } : {}),
+    });
+    return result?.error ?? '';
+  });
+  handle(INVOKE.vaultRemove, (_event, id) => browser.vault.remove(asString(id)));
+  handle(INVOKE.vaultReveal, (_event, id) => browser.vault.reveal(asString(id)));
 
   handle(INVOKE.wallpaperGet, () => readWallpaper());
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());
@@ -169,7 +193,9 @@ export function registerIpcHandlers(browser: Browser): void {
 }
 
 export function removeIpcHandlers(): void {
-  for (const channel of Object.values(INVOKE)) ipcMain.removeHandler(channel);
+  for (const channel of Object.values(INVOKE)) {
+    ipcMain.removeHandler(channel);
+  }
 }
 
 // ---------------------------------------------------------------- coercion
@@ -198,45 +224,57 @@ function asClearRange(value: unknown): ClearRange {
 }
 
 /** Only keys the settings schema actually declares survive the trip. */
-/**
- * Everything the renderer is allowed to change, checked one field at a time.
- *
- * A whitelist is right — the renderer must not write arbitrary keys into
- * settings — but one that silently drops what it does not recognise fails in
- * the worst way: the control moves, nothing happens, and it looks like it
- * worked. Four features shipped broken exactly that way, so a test asserts
- * this covers every field of `Settings` bar the ones below.
- *
- * `hasWallpaper` is deliberately refused: it is derived from whether the file
- * exists, so accepting it would let the interface claim a wallpaper that is
- * not there.
- */
+/** Everything the renderer is allowed to change, checked one field at a time. */
 export function asSettingsPatch(value: unknown): Partial<Settings> {
-  if (!isRecord(value)) return {};
+  if (!isRecord(value)) {
+    return {};
+  }
   const patch: Partial<Settings> = {};
 
-  if (typeof value.searchEngine === 'string') patch.searchEngine = value.searchEngine as Settings['searchEngine'];
-  if (typeof value.theme === 'string') patch.theme = value.theme as Settings['theme'];
-  if (value.density === 'comfortable' || value.density === 'compact') patch.density = value.density;
-  if (typeof value.checkForUpdates === 'boolean') patch.checkForUpdates = value.checkForUpdates;
-  if (typeof value.httpsFirst === 'boolean') patch.httpsFirst = value.httpsFirst;
-  if (typeof value.blockTrackers === 'boolean') patch.blockTrackers = value.blockTrackers;
-  if (typeof value.restoreTabsOnLaunch === 'boolean') patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
+  if (typeof value.searchEngine === 'string') {
+    patch.searchEngine = value.searchEngine as Settings['searchEngine'];
+  }
+  if (typeof value.theme === 'string') {
+    patch.theme = value.theme as Settings['theme'];
+  }
+  if (value.density === 'comfortable' || value.density === 'compact') {
+    patch.density = value.density;
+  }
+  if (typeof value.checkForUpdates === 'boolean') {
+    patch.checkForUpdates = value.checkForUpdates;
+  }
+  if (typeof value.httpsFirst === 'boolean') {
+    patch.httpsFirst = value.httpsFirst;
+  }
+  if (typeof value.blockTrackers === 'boolean') {
+    patch.blockTrackers = value.blockTrackers;
+  }
+  if (typeof value.restoreTabsOnLaunch === 'boolean') {
+    patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
+  }
   if (Array.isArray(value.startPageWidgets)) {
     const allowed = ['clock', 'search', 'topSites', 'bookmarks'];
     const seen = new Set<string>();
     for (const id of value.startPageWidgets) {
-      if (typeof id === 'string' && allowed.includes(id)) seen.add(id);
+      if (typeof id === 'string' && allowed.includes(id)) {
+        seen.add(id);
+      }
     }
     patch.startPageWidgets = [...seen] as Settings['startPageWidgets'];
   }
-  if (typeof value.sidebarWidth === 'number') patch.sidebarWidth = value.sidebarWidth;
-  if (typeof value.defaultZoomFactor === 'number') patch.defaultZoomFactor = value.defaultZoomFactor;
+  if (typeof value.sidebarWidth === 'number') {
+    patch.sidebarWidth = value.sidebarWidth;
+  }
+  if (typeof value.defaultZoomFactor === 'number') {
+    patch.defaultZoomFactor = value.defaultZoomFactor;
+  }
 
   if (isRecord(value.permissionDecisions)) {
     const decisions: Settings['permissionDecisions'] = {};
     for (const [key, decision] of Object.entries(value.permissionDecisions)) {
-      if (decision === 'allow' || decision === 'deny') decisions[key] = decision;
+      if (decision === 'allow' || decision === 'deny') {
+        decisions[key] = decision;
+      }
     }
     patch.permissionDecisions = decisions;
   }
@@ -244,7 +282,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (isRecord(value.zoomLevels)) {
     const levels: Settings['zoomLevels'] = {};
     for (const [origin, level] of Object.entries(value.zoomLevels)) {
-      if (typeof level === 'number' && Number.isFinite(level)) levels[origin] = level;
+      if (typeof level === 'number' && Number.isFinite(level)) {
+        levels[origin] = level;
+      }
     }
     patch.zoomLevels = levels;
   }

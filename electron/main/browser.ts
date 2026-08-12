@@ -1,12 +1,15 @@
-import { type BrowserWindow, app, dialog, session as electronSession, shell } from 'electron';
+import { type BrowserWindow, app, dialog, session as electronSession, safeStorage, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { PUSH, type ChromeSurface } from '../shared/channels';
+import { PersistedFile } from './persistence';
+import { sanitiseChromeText } from '../shared/chrome-text';
 import type {
   AppInfo,
   AuthPrompt,
   BrowserState,
   ClearRange,
   ConnectionEntry,
+  ExportKind,
   PermissionDecision,
   PermissionKind,
   PermissionPrompt,
@@ -19,6 +22,7 @@ import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
+import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { chooseWallpaper, clearWallpaper, hasWallpaper } from './wallpaper';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
@@ -30,22 +34,29 @@ import {
   hardenWebSession,
 } from './security';
 import { BrowserStore } from './store';
-import { type ContentInsets, TabManager } from './tabs';
+import { type ContentInsets } from './tab-layout';
+import { TabManager } from './tabs';
 import { UpdateManager } from './updates';
 import { createChromeWindow } from './window';
 
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
 
-/**
- * Schemes that are never passed to `shell.openExternal`, whatever the user
- * answers to the confirmation dialog.
- *
- * These are the ones the security model already refuses to navigate to. A
- * dialog is not a meaningful defence for them: nobody can evaluate a truncated
- * `javascript:` payload, and `file:` would let a page nominate any local path
- * for whichever application claims it.
- */
+// Schemes that are never passed to `shell.openExternal`, whatever the user answers to the confirmation dialog.
 const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
+
+/**
+ * Everything refused for navigation reaches the external-open path too, so
+ * without this the schemes the security model rejects would just be handed to
+ * whichever application the OS associates with them — routing around the
+ * refusal rather than enforcing it.
+ */
+export function mayBeHandedToOs(url: string): boolean {
+  const scheme = safeScheme(url);
+  if (!scheme) {
+    return false;
+  }
+  return !NEVER_HANDED_TO_OS.has(`${scheme}:`);
+}
 
 interface PendingAuth {
   prompt: AuthPrompt;
@@ -57,15 +68,12 @@ interface PendingPermission {
   resolve: (decision: PermissionDecision) => void;
 }
 
-/**
- * Owns every long-lived piece of the browser and exposes the verbs that menus,
- * shortcuts and IPC all call into. Keeping the verbs in one place means a menu
- * item and its keyboard shortcut can never drift apart from the button in the
- * chrome that does the same thing.
- */
+/** Owns every long-lived piece of the browser and exposes the verbs that menus, shortcuts and IPC all call into. */
 export class Browser {
   readonly window: BrowserWindow;
   readonly store: BrowserStore;
+  readonly vault: Vault;
+  private readonly vaultFile: PersistedFile<VaultFile>;
   readonly blocker: ContentBlocker;
   readonly downloads: DownloadManager;
   readonly tabs: TabManager;
@@ -78,6 +86,20 @@ export class Browser {
 
   constructor() {
     this.store = new BrowserStore();
+    // safeStorage is only reachable after app.ready, which is why the keychain
+    // is asked at each call rather than captured once here.
+    this.vaultFile = new PersistedFile<VaultFile>('vault.json', () => EMPTY_VAULT_FILE, reviveVaultFile);
+    this.vault = new Vault(
+      {
+        isAvailable: () => safeStorage.isEncryptionAvailable(),
+        encrypt: (plainText) => safeStorage.encryptString(plainText),
+        decrypt: (cipherText) => safeStorage.decryptString(cipherText),
+      },
+      {
+        get: () => this.vaultFile.get(),
+        set: (next) => this.vaultFile.set(next),
+      },
+    );
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
@@ -121,7 +143,9 @@ export class Browser {
     this.window.show();
     this.restoreTabs();
     this.updates.start(this.store.getSettings().checkForUpdates);
-    if (isDevelopment()) this.window.webContents.openDevTools({ mode: 'detach' });
+    if (isDevelopment()) {
+      this.window.webContents.openDevTools({ mode: 'detach' });
+    }
   }
 
   private restoreTabs(): void {
@@ -136,7 +160,9 @@ export class Browser {
     session.urls.forEach((url, index) => {
       this.tabs.create(url, { activate: index === session.activeIndex });
     });
-    if (this.tabs.tabCount === 0) this.tabs.create(START_PAGE_URL);
+    if (this.tabs.tabCount === 0) {
+      this.tabs.create(START_PAGE_URL);
+    }
   }
 
   // ------------------------------------------------------------------ state
@@ -157,22 +183,25 @@ export class Browser {
     };
   }
 
-  /**
-   * Navigation fires many events in quick succession. Coalescing them into one
-   * push per tick keeps the chrome from re-rendering a dozen times per load.
-   */
+  // Navigation fires many events in quick succession.
   scheduleStatePush(): void {
-    if (this.pushQueued || this.isQuitting) return;
+    if (this.pushQueued || this.isQuitting) {
+      return;
+    }
     this.pushQueued = true;
     setImmediate(() => {
       this.pushQueued = false;
-      if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) return;
+      if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
+        return;
+      }
       this.window.webContents.send(PUSH.state, this.getState());
     });
   }
 
   private pushToChrome(channel: string, payload?: unknown): void {
-    if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) return;
+    if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
+      return;
+    }
     this.window.webContents.send(channel, payload);
   }
 
@@ -212,7 +241,9 @@ export class Browser {
       openInNewTab: (url, options) => {
         // Page-initiated, so the strict set: `window.open('file:///…')` must
         // not become a tab.
-        if (!isPageNavigableUrl(url)) return;
+        if (!isPageNavigableUrl(url)) {
+          return;
+        }
         this.tabs.create(url, {
           activate: options.activate,
           openerWebContentsId: options.openerWebContentsId,
@@ -221,12 +252,9 @@ export class Browser {
 
       confirmExternalOpen: async (url) => {
         const scheme = safeScheme(url);
-        if (!scheme) return false;
-        // Everything refused for navigation lands here, so without this check
-        // the schemes the security model rejects would simply be handed to
-        // whichever application the OS has associated with them — routing
-        // around the refusal rather than enforcing it.
-        if (NEVER_HANDED_TO_OS.has(`${scheme}:`)) return false;
+        if (!scheme || !mayBeHandedToOs(url)) {
+          return false;
+        }
         const { response } = await dialog.showMessageBox(this.window, {
           type: 'question',
           buttons: ['Open', 'Cancel'],
@@ -234,10 +262,12 @@ export class Browser {
           cancelId: 1,
           title: 'Leave Copacetic?',
           message: `Open this link in another application?`,
-          detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${truncate(url, 240)}`,
+          detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${sanitiseChromeText(url, 240)}`,
           noLink: true,
         });
-        if (response !== 0) return false;
+        if (response !== 0) {
+          return false;
+        }
         await shell.openExternal(url);
         return true;
       },
@@ -247,16 +277,7 @@ export class Browser {
     };
   }
 
-  /**
-   * HTTP Basic, Digest and friends. Without this, intranets, routers, NAS
-   * boxes and plenty of dev servers simply fail to load — the challenge goes
-   * unanswered and the request is refused.
-   *
-   * Credentials are handed straight to the request that asked for them and
-   * kept nowhere. Storing them would need a password manager, and there is not
-   * one yet; a browser that quietly kept passwords somewhere it had not
-   * described would be exactly the thing this project argues against.
-   */
+  // HTTP Basic, Digest and friends.
   private attachAuthHandler(): void {
     app.on('login', (event, webContents, details, authInfo, callback) => {
       // Only challenges a person can actually evaluate. A subresource buried in
@@ -277,13 +298,18 @@ export class Browser {
 
       let settled = false;
       const respond = (username?: string, password?: string) => {
-        if (settled) return;
+        if (settled) {
+          return;
+        }
         settled = true;
         this.pendingAuth.delete(id);
         // Calling back with nothing cancels the challenge, which is what the
         // user asked for when they dismissed the prompt.
-        if (username === undefined) callback();
-        else callback(username, password);
+        if (username === undefined) {
+          callback();
+        } else {
+          callback(username, password);
+        }
         this.scheduleStatePush();
       };
 
@@ -313,7 +339,9 @@ export class Browser {
 
   respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
     const pending = this.pendingPermissions.get(id);
-    if (!pending) return;
+    if (!pending) {
+      return;
+    }
     this.pendingPermissions.delete(id);
     if (remember) {
       this.store.setPermissionDecision(pending.prompt.origin, pending.prompt.kind, decision);
@@ -322,15 +350,13 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  /**
-   * A prompt outlives its tab in two ways if nothing does this: the page's
-   * permission promise never settles, and the chrome keeps rendering a banner
-   * for a tab that is no longer there. Closing the tab is an answer — deny.
-   */
+  // A prompt outlives its tab in two ways if nothing does this: the page's permission promise never settles, and the chrome keeps rendering a banner for a tab that is no longer there.
   private dropPermissionsForTab(tabId: TabId): void {
     let dropped = false;
     for (const [id, pending] of this.pendingPermissions) {
-      if (pending.prompt.tabId !== tabId) continue;
+      if (pending.prompt.tabId !== tabId) {
+        continue;
+      }
       this.pendingPermissions.delete(id);
       pending.resolve('deny');
       dropped = true;
@@ -339,12 +365,16 @@ export class Browser {
     // Same reasoning for a challenge: closing the tab is an answer, and the
     // request behind it must not be left waiting forever.
     for (const [, pending] of [...this.pendingAuth]) {
-      if (pending.prompt.tabId !== tabId) continue;
+      if (pending.prompt.tabId !== tabId) {
+        continue;
+      }
       pending.respond();
       dropped = true;
     }
 
-    if (dropped) this.scheduleStatePush();
+    if (dropped) {
+      this.scheduleStatePush();
+    }
   }
 
   forgetPermission(origin: string, kind: PermissionKind): void {
@@ -368,7 +398,9 @@ export class Browser {
 
   closeActiveTab(): void {
     const active = this.tabs.getActiveTabId();
-    if (active) this.tabs.close(active);
+    if (active) {
+      this.tabs.close(active);
+    }
   }
 
   reopenClosedTab(): void {
@@ -377,22 +409,30 @@ export class Browser {
 
   cycleTab(offset: number): void {
     const { tabOrder, activeTabId } = this.tabs.snapshot();
-    if (tabOrder.length === 0 || !activeTabId) return;
+    if (tabOrder.length === 0 || !activeTabId) {
+      return;
+    }
     const index = tabOrder.indexOf(activeTabId);
     const next = tabOrder[(index + offset + tabOrder.length) % tabOrder.length];
-    if (next) this.tabs.activate(next);
+    if (next) {
+      this.tabs.activate(next);
+    }
   }
 
   /** `index` is zero-based; `-1` selects the last tab, matching every browser. */
   selectTabAt(index: number): void {
     const { tabOrder } = this.tabs.snapshot();
     const target = index === -1 ? tabOrder[tabOrder.length - 1] : tabOrder[index];
-    if (target) this.tabs.activate(target);
+    if (target) {
+      this.tabs.activate(target);
+    }
   }
 
   withActiveTab(action: (tabId: TabId) => void): void {
     const active = this.tabs.getActiveTabId();
-    if (active) action(active);
+    if (active) {
+      action(active);
+    }
   }
 
   navigateActive(input: string): void {
@@ -406,7 +446,9 @@ export class Browser {
   adjustZoom(direction: 'in' | 'out' | 'reset'): void {
     this.withActiveTab((tabId) => {
       const tab = this.tabs.snapshot().tabs.find((candidate) => candidate.id === tabId);
-      if (!tab) return;
+      if (!tab) {
+        return;
+      }
       if (direction === 'reset') {
         this.tabs.setZoom(tabId, this.store.getSettings().defaultZoomFactor);
         return;
@@ -420,7 +462,9 @@ export class Browser {
   toggleBookmarkForActiveTab(): void {
     const { tabs, activeTabId } = this.tabs.snapshot();
     const tab = tabs.find((candidate) => candidate.id === activeTabId);
-    if (!tab || tab.isStartPage) return;
+    if (!tab || tab.isStartPage) {
+      return;
+    }
     this.store.toggleBookmark(tab.url, tab.title);
     this.scheduleStatePush();
   }
@@ -443,9 +487,15 @@ export class Browser {
 
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
-    if (patch.blockTrackers !== undefined) this.blocker.setEnabled(patch.blockTrackers);
-    if (patch.blockerAllowlist !== undefined) this.blocker.setAllowlist(next.blockerAllowlist);
-    if (patch.checkForUpdates !== undefined) this.updates.start(patch.checkForUpdates);
+    if (patch.blockTrackers !== undefined) {
+      this.blocker.setEnabled(patch.blockTrackers);
+    }
+    if (patch.blockerAllowlist !== undefined) {
+      this.blocker.setAllowlist(next.blockerAllowlist);
+    }
+    if (patch.checkForUpdates !== undefined) {
+      this.updates.start(patch.checkForUpdates);
+    }
     this.scheduleStatePush();
     return next;
   }
@@ -462,12 +512,8 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  /**
-   * Write bookmarks or history somewhere the user picks. Resolves with an
-   * empty string when it worked, or a sentence explaining why it did not —
-   * the same shape as opening a download, so the chrome can just show it.
-   */
-  async exportData(kind: 'bookmarks' | 'history'): Promise<string> {
+  // Write bookmarks or history somewhere the user picks.
+  async exportData(kind: ExportKind): Promise<string> {
     const now = Date.now();
     const stamp = new Date(now).toISOString().slice(0, 10);
     const isBookmarks = kind === 'bookmarks';
@@ -479,7 +525,9 @@ export class Browser {
         ? [{ name: 'Bookmarks', extensions: ['html'] }]
         : [{ name: 'History', extensions: ['json'] }],
     });
-    if (canceled || !filePath) return '';
+    if (canceled || !filePath) {
+      return '';
+    }
 
     const contents = isBookmarks
       ? bookmarksToHtml(this.store.listBookmarks(), now)
@@ -510,7 +558,9 @@ export class Browser {
   }
 
   downloadUrl(url: string): void {
-    if (!isNavigableUrl(url)) return;
+    if (!isNavigableUrl(url)) {
+      return;
+    }
     this.tabs.downloadUrl(url);
   }
 
@@ -520,7 +570,9 @@ export class Browser {
 
   /** Hand a link to the system browser. Only ever https, never a local path. */
   async openExternal(url: string): Promise<void> {
-    if (!url.startsWith('https://')) return;
+    if (!url.startsWith('https://')) {
+      return;
+    }
     await shell.openExternal(url);
   }
 
@@ -541,7 +593,10 @@ export class Browser {
   }
 
   prepareForQuit(): void {
-    if (this.isQuitting) return;
+    this.vaultFile.flush();
+    if (this.isQuitting) {
+      return;
+    }
     this.isQuitting = true;
     this.saveSession();
     this.downloads.cancelAllInFlight();
@@ -553,9 +608,13 @@ export class Browser {
     this.prepareForQuit();
     this.updates.stop();
     this.tabs.dispose();
-    for (const pending of this.pendingPermissions.values()) pending.resolve('deny');
+    for (const pending of this.pendingPermissions.values()) {
+      pending.resolve('deny');
+    }
     this.pendingPermissions.clear();
-    for (const pending of [...this.pendingAuth.values()]) pending.respond();
+    for (const pending of [...this.pendingAuth.values()]) {
+      pending.respond();
+    }
     this.pendingAuth.clear();
   }
 }
@@ -579,8 +638,4 @@ function safeScheme(url: string): string | null {
   } catch {
     return null;
   }
-}
-
-function truncate(value: string, max: number): string {
-  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }

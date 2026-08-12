@@ -36,3 +36,12 @@ build/keyring/*
 
 # Working notes stay local; only the screenshot the README renders is tracked.
 docs/*.md
+
+# Agent and assistant instructions stay local, like docs.
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# Throwaway Electron probe scripts, run from the repo root so their requires resolve.
+*check.cjs
+probe.cjs

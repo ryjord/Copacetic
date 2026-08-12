@@ -25,15 +25,7 @@ const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string
   unknown: { icon: HelpCircle, className: 'text-ink-faint', word: 'Unknown' },
 };
 
-/**
- * Everything Copacetic can honestly say about the current connection.
- *
- * This is part of the chrome column rather than a popover floating over the
- * page, for the same reason the address-bar suggestions and the find bar are:
- * a native view always paints above the renderer's HTML, so anything
- * overlapping the content area is simply invisible. The page is pushed down to
- * make room instead.
- */
+/** Everything Copacetic can honestly say about the current connection. */
 export function ConnectionPanel({ tab }: { tab: TabState | null }) {
   const closePanel = useBrowserStore((state) => state.closeConnectionPanel);
   // Stamped by the action that opened the panel. Reading the clock is a side
@@ -42,7 +34,9 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
 
   useDismissLayer(true, closePanel);
 
-  if (!tab) return null;
+  if (!tab) {
+    return null;
+  }
 
   const style = LEVEL_STYLES[tab.security.level];
   const Icon = style.icon;
@@ -96,18 +90,13 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
   );
 }
 
-/**
- * Turning blocking off for one site rather than everywhere.
- *
- * Blocking a tracker occasionally breaks something real — a login routed
- * through an analytics domain, an embed that will not load. Without a per-site
- * answer the only fix is switching blocking off globally, which is a much
- * worse trade than the one the user actually wanted to make.
- */
+// Turning blocking off for one site rather than everywhere.
 function TrackerException({ url, blockedCount }: { url: string; blockedCount: number }) {
   const settings = useBrowserStore((state) => state.settings);
   const site = registrableDomainOf(hostOf(url));
-  if (!site || !settings.blockTrackers) return null;
+  if (!site || !settings.blockTrackers) {
+    return null;
+  }
 
   const allowed = settings.blockerAllowlist.includes(site);
   const toggle = () => {
@@ -143,18 +132,13 @@ function TrackerException({ url, blockedCount }: { url: string; blockedCount: nu
   );
 }
 
-/**
- * What this site has already been allowed, or refused, to do.
- *
- * These decisions were always stored and always honoured; they were just
- * listed in Settings, away from the site they apply to. A permission you
- * granted six months ago is only meaningful if you can see it while you are
- * on the site it belongs to.
- */
+// What this site has already been allowed, or refused, to do.
 function SitePermissions({ url }: { url: string }) {
   const decisions = useBrowserStore((state) => state.settings.permissionDecisions);
   const origin = originOf(url);
-  if (!origin) return null;
+  if (!origin) {
+    return null;
+  }
 
   const granted = Object.entries(decisions)
     .map(([key, decision]) => {
@@ -197,14 +181,7 @@ function SitePermissions({ url }: { url: string }) {
   );
 }
 
-/**
- * Every host the page has actually talked to.
- *
- * The blocked count says what was stopped. This is the other half: what was
- * allowed through. No mainstream browser shows that without opening developer
- * tools, and it is the most direct answer this product can give to "what is
- * this page doing behind my back".
- */
+// Every host the page has actually talked to.
 function ConnectionLog({ tabId }: { tabId: string }) {
   const [entries, setEntries] = useState<ConnectionEntry[] | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -212,14 +189,18 @@ function ConnectionLog({ tabId }: { tabId: string }) {
   useEffect(() => {
     let cancelled = false;
     void ask((api) => api.connections.list(tabId), []).then((result) => {
-      if (!cancelled) setEntries(result);
+      if (!cancelled) {
+        setEntries(result);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [tabId]);
 
-  if (entries === null) return null;
+  if (entries === null) {
+    return null;
+  }
 
   if (entries.length === 0) {
     return (
@@ -269,14 +250,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
   );
 }
 
-/**
- * What Chromium validated, reported rather than re-derived.
- *
- * The wording stays inside the claim the README makes: who issued it and when
- * it stops being valid, not a verdict Copacetic has not earned. Expiry is the
- * one field allowed colour, because a certificate days from expiring is state
- * a user cannot see any other way.
- */
+// What Chromium validated, reported rather than re-derived.
 function CertificateRows({ certificate, now }: { certificate: CertificateSummary; now: number | null }) {
   const daysLeft = now === null ? null : Math.floor((certificate.validTo - now) / 86_400_000);
   const expiringSoon = daysLeft !== null && daysLeft <= 14;
@@ -315,12 +289,22 @@ function CertificateRows({ certificate, now }: { certificate: CertificateSummary
 }
 
 export function formatExpiry(validTo: number, daysLeft: number | null): string {
-  if (!validTo) return 'Unknown';
+  if (!validTo) {
+    return 'Unknown';
+  }
   const date = new Date(validTo).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-  if (daysLeft === null) return date;
-  if (daysLeft < 0) return `${date} — expired`;
-  if (daysLeft === 0) return `${date} — today`;
-  if (daysLeft <= 90) return `${date} — ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+  if (daysLeft === null) {
+    return date;
+  }
+  if (daysLeft < 0) {
+    return `${date} — expired`;
+  }
+  if (daysLeft === 0) {
+    return `${date} — today`;
+  }
+  if (daysLeft <= 90) {
+    return `${date} — ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+  }
   return date;
 }
 

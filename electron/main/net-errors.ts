@@ -1,9 +1,4 @@
-/**
- * Chromium network error codes, translated into something a person can act on.
- *
- * The error page shows the symbolic name too. Hiding it would be friendlier
- * right up until someone needs to search for it.
- */
+// Chromium network error codes, translated into something a person can act on.
 interface NetErrorInfo {
   name: string;
   headline: string;
@@ -140,7 +135,9 @@ const NET_ERRORS: Record<number, NetErrorInfo> = {
 
 export function describeNetError(code: number, fallbackDescription: string): NetErrorInfo {
   const known = NET_ERRORS[code];
-  if (known) return known;
+  if (known) {
+    return known;
+  }
   return {
     name: `ERR_${Math.abs(code)}`,
     headline: 'This page did not load',

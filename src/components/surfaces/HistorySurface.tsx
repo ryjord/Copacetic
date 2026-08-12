@@ -52,7 +52,9 @@ export function HistorySurface() {
   };
 
   const open = (url: string) => {
-    if (!activeTabId) return;
+    if (!activeTabId) {
+      return;
+    }
     send((api) => api.tabs.navigate(activeTabId, url));
     setSurface('none');
   };
@@ -146,7 +148,9 @@ export function HistorySurface() {
 
 async function handleClear(range: ClearRange, done: () => void) {
   const api = window.copacetic;
-  if (!api) return;
+  if (!api) {
+    return;
+  }
   await api.history.clear(range);
   done();
 }
@@ -194,8 +198,11 @@ function groupByDay(entries: HistoryEntry[]): [string, HistoryEntry[]][] {
   for (const entry of entries) {
     const heading = formatDateHeading(entry.lastVisitedAt);
     const bucket = groups.get(heading);
-    if (bucket) bucket.push(entry);
-    else groups.set(heading, [entry]);
+    if (bucket) {
+      bucket.push(entry);
+    } else {
+      groups.set(heading, [entry]);
+    }
   }
   return [...groups.entries()];
 }

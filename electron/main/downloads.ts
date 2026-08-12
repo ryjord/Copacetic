@@ -11,20 +11,12 @@ const MAX_REMEMBERED = 200;
 /** Control characters, which can truncate the name a file manager displays. */
 const CONTROL_CHARACTERS = new RegExp('[\\u0000-\\u001f\\u007f]', 'g');
 
-/**
- * Bidirectional overrides and marks. These are the classic trick for making a
- * filename ending `[U+202E]gpj.exe` render as `...exe.jpg` in a download list.
- */
+// Bidirectional overrides and marks.
 const BIDI_OVERRIDES = new RegExp('[\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]', 'g');
 
 const RESERVED_PATH_CHARACTERS = /[/\\:*?"<>|]/g;
 
-/**
- * Windows treats these as device names rather than files, in any directory and
- * with any extension. Writing to one does not create `CON.txt`; it talks to the
- * console device, and the download either hangs or fails in a way no user can
- * interpret.
- */
+// Windows treats these as device names rather than files, in any directory and with any extension.
 const WINDOWS_DEVICE_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
 
 interface LiveDownload {
@@ -88,7 +80,9 @@ export class DownloadManager {
 
       item.on('updated', (_updatedEvent, state) => {
         const live = this.live.get(id);
-        if (!live) return;
+        if (!live) {
+          return;
+        }
 
         const now = Date.now();
         const received = item.getReceivedBytes();
@@ -103,7 +97,9 @@ export class DownloadManager {
         // immediately whenever the status itself changes, since pausing should
         // never look like it did nothing.
         const statusChanged = status !== live.lastStatus;
-        if (!sampleDue && !statusChanged) return;
+        if (!sampleDue && !statusChanged) {
+          return;
+        }
 
         let bytesPerSecond: number | null = null;
         if (sampleDue) {
@@ -148,7 +144,9 @@ export class DownloadManager {
 
   resume(id: string): void {
     const live = this.live.get(id);
-    if (live?.item.canResume()) live.item.resume();
+    if (live?.item.canResume()) {
+      live.item.resume();
+    }
   }
 
   cancel(id: string): void {
@@ -158,8 +156,12 @@ export class DownloadManager {
   /** Resolves with an empty string on success, or a message to show the user. */
   async openFile(id: string): Promise<string> {
     const entry = this.find(id);
-    if (!entry) return 'That download is no longer listed.';
-    if (entry.status !== 'completed') return 'That download has not finished.';
+    if (!entry) {
+      return 'That download is no longer listed.';
+    }
+    if (entry.status !== 'completed') {
+      return 'That download has not finished.';
+    }
     if (!existsSync(entry.savePath)) {
       this.patch(id, (current) => ({ ...current, fileExists: false }));
       return 'That file is no longer where Copacetic saved it.';
@@ -169,7 +171,9 @@ export class DownloadManager {
 
   revealFile(id: string): void {
     const entry = this.find(id);
-    if (!entry) return;
+    if (!entry) {
+      return;
+    }
     if (!existsSync(entry.savePath)) {
       this.patch(id, (current) => ({ ...current, fileExists: false }));
       return;
@@ -192,7 +196,9 @@ export class DownloadManager {
   }
 
   cancelAllInFlight(): void {
-    for (const live of this.live.values()) live.item.cancel();
+    for (const live of this.live.values()) {
+      live.item.cancel();
+    }
     this.live.clear();
   }
 
@@ -211,19 +217,20 @@ export class DownloadManager {
     let touched = false;
     this.file.update((entries) =>
       entries.map((entry) => {
-        if (entry.id !== id) return entry;
+        if (entry.id !== id) {
+          return entry;
+        }
         touched = true;
         return mutate(entry);
       }),
     );
-    if (touched) this.onChanged();
+    if (touched) {
+      this.onChanged();
+    }
   }
 }
 
-/**
- * Strip anything that could let a filename escape the downloads directory or
- * masquerade as a different file type. The server controls this string.
- */
+/** Strip anything that could let a filename escape the downloads directory or masquerade as a different file type. */
 export function sanitiseFilename(filename: string): string {
   const cleaned = path
     .basename(filename)
@@ -238,7 +245,9 @@ export function sanitiseFilename(filename: string): string {
     .replace(/[. ]+$/, '')
     .trim();
 
-  if (!cleaned) return 'download';
+  if (!cleaned) {
+    return 'download';
+  }
   // Prefixed rather than rejected, so the user still gets the name they expect
   // to see next to the file they just downloaded.
   return WINDOWS_DEVICE_NAMES.test(cleaned) ? `_${cleaned}`.slice(0, 180) : cleaned.slice(0, 180);
@@ -246,24 +255,34 @@ export function sanitiseFilename(filename: string): string {
 
 export function uniqueSavePath(directory: string, filename: string): string {
   const candidate = path.join(directory, filename);
-  if (!existsSync(candidate)) return candidate;
+  if (!existsSync(candidate)) {
+    return candidate;
+  }
 
   const extension = path.extname(filename);
   const stem = path.basename(filename, extension);
   for (let counter = 1; counter < 1000; counter += 1) {
     const next = path.join(directory, `${stem} (${counter})${extension}`);
-    if (!existsSync(next)) return next;
+    if (!existsSync(next)) {
+      return next;
+    }
   }
   return path.join(directory, `${stem} (${Date.now()})${extension}`);
 }
 
 function reviveDownloads(raw: unknown): DownloadState[] | null {
-  if (!Array.isArray(raw)) return null;
+  if (!Array.isArray(raw)) {
+    return null;
+  }
   const allowed: DownloadStatus[] = ['progressing', 'paused', 'completed', 'cancelled', 'interrupted'];
   return raw.flatMap((item) => {
-    if (!isRecord(item)) return [];
+    if (!isRecord(item)) {
+      return [];
+    }
     const savePath = asString(item.savePath);
-    if (!savePath) return [];
+    if (!savePath) {
+      return [];
+    }
     const status = asString(item.status) as DownloadStatus;
     return [
       {

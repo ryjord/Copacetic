@@ -9,11 +9,7 @@ import { ask, send } from '@/lib/bridge';
 import { formatClockTime } from '@/lib/format';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
-/**
- * What a new tab actually offers is a way to get somewhere. The clock is calm
- * furniture; the row of places you genuinely go, ranked from real visit counts,
- * is the part that does the work.
- */
+/** What a new tab actually offers is a way to get somewhere. */
 export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: boolean }) {
   const settings = useBrowserStore((state) => state.settings);
   const [query, setQuery] = useState('');
@@ -22,10 +18,14 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   const minute = useMinuteTick();
 
   useEffect(() => {
-    if (!settings.startPageWidgets.includes('topSites')) return;
+    if (!settings.startPageWidgets.includes('topSites')) {
+      return;
+    }
     let cancelled = false;
     void ask((api) => api.history.topSites(8), []).then((sites) => {
-      if (!cancelled) setTopSites(sites);
+      if (!cancelled) {
+        setTopSites(sites);
+      }
     });
     return () => {
       cancelled = true;
@@ -35,10 +35,14 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   // Fetched rather than pushed: the image is measured in megabytes and has no
   // business travelling with every state update.
   useEffect(() => {
-    if (!settings.hasWallpaper) return;
+    if (!settings.hasWallpaper) {
+      return;
+    }
     let cancelled = false;
     void ask((api) => api.wallpaper.get(), null).then((image) => {
-      if (!cancelled) setFetched(image);
+      if (!cancelled) {
+        setFetched(image);
+      }
     });
     return () => {
       cancelled = true;
@@ -53,7 +57,9 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim()) {
+      return;
+    }
     send((api) => api.tabs.navigate(tabId, query));
   };
 
@@ -142,15 +148,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   );
 }
 
-/**
- * The wall clock is external state, so React should subscribe to it rather than
- * hold a copy. The snapshot is the current minute: it only changes when the
- * displayed time does, so the page re-renders once a minute rather than
- * 60 times for the same string.
- *
- * The server snapshot is null, which renders a blank — a statically exported
- * page cannot know what time it will be opened.
- */
+// The wall clock is external state, so React should subscribe to it rather than hold a copy.
 function useMinuteTick(): number | null {
   return useSyncExternalStore(
     (onChange) => {
@@ -169,7 +167,9 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
   useEffect(() => {
     let cancelled = false;
     void ask((api) => api.bookmarks.list(), []).then((all) => {
-      if (!cancelled) setBookmarks(all.slice(0, 8));
+      if (!cancelled) {
+        setBookmarks(all.slice(0, 8));
+      }
     });
     return () => {
       cancelled = true;
@@ -203,16 +203,7 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
   );
 }
 
-/**
- * What a Hush tab actually is, said in full.
- *
- * The second paragraph is the one no other browser writes, and it is the whole
- * reason this is worth shipping. Chrome's incognito is the best-known example
- * of a browser letting people believe a local-only feature hides them from the
- * network, and a product arguing about honesty cannot repeat that. Saying what
- * it does not do is also the only way someone can judge whether it is enough
- * for what they are about to do.
- */
+// What a Hush tab actually is, said in full.
 function HushNotice() {
   return (
     <section className="w-full rounded-panel border border-line bg-raised/60 px-4 py-3 backdrop-blur-xl">

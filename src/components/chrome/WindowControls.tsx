@@ -3,11 +3,7 @@
 import { Minus, Square, X } from 'lucide-react';
 import { send } from '@/lib/bridge';
 
-/**
- * Only drawn off macOS. On macOS the window is `hiddenInset`, so the system
- * traffic lights are already sitting in the tab strip and drawing our own
- * would duplicate them.
- */
+/** Only drawn off macOS. */
 export function WindowControls() {
   return (
     <div className="no-drag ml-1 flex items-center">

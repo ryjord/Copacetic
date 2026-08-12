@@ -5,16 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AuthPrompt } from '../../../electron/shared/types';
 import { send } from '@/lib/bridge';
 
-/**
- * The prompt for HTTP authentication — the challenge intranets, routers, NAS
- * boxes and plenty of dev servers use, and which Copacetic previously left
- * unanswered so those sites simply failed to load.
- *
- * Nothing is remembered. There is no password manager yet, and quietly keeping
- * a password somewhere undescribed is the sort of thing this browser exists to
- * argue against, so the prompt says so rather than offering a checkbox it
- * cannot honour.
- */
+/** The prompt for HTTP authentication — the challenge intranets, routers, NAS boxes and plenty of dev servers use, and which Copacetic previously left unanswered so those sites simply failed to load. */
 export function AuthBanner({ prompt }: { prompt: AuthPrompt }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

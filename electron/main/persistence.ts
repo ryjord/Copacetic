@@ -3,14 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-/**
- * A single JSON file on disk, written atomically and flushed on a debounce.
- *
- * Browser state changes constantly (every navigation touches history), so
- * writing synchronously on every mutation would stall navigation. Instead
- * mutations update memory immediately and the file catches up shortly after,
- * with a synchronous flush on quit so nothing is lost on exit.
- */
+/** A single JSON file on disk, written atomically and flushed on a debounce. */
 export class PersistedFile<T> {
   private value: T;
   private flushTimer: NodeJS.Timeout | null = null;
@@ -24,13 +17,17 @@ export class PersistedFile<T> {
     private readonly flushDelayMs = 400,
   ) {
     const dir = app.getPath('userData');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
     this.filePath = path.join(dir, filename);
     this.value = this.load();
   }
 
   private load(): T {
-    if (!existsSync(this.filePath)) return this.fallback();
+    if (!existsSync(this.filePath)) {
+      return this.fallback();
+    }
     try {
       const revived = this.revive(JSON.parse(readFileSync(this.filePath, 'utf8')));
       return revived ?? this.fallback();
@@ -63,7 +60,9 @@ export class PersistedFile<T> {
   }
 
   private scheduleFlush(): void {
-    if (this.flushTimer) return;
+    if (this.flushTimer) {
+      return;
+    }
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
       this.flush();
@@ -73,7 +72,9 @@ export class PersistedFile<T> {
 
   /** Write immediately. Called on app quit. */
   flush(): void {
-    if (!this.dirty) return;
+    if (!this.dirty) {
+      return;
+    }
     if (this.flushTimer) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
@@ -86,7 +87,9 @@ export class PersistedFile<T> {
     } catch (error) {
       console.error(`[persistence] failed to write ${path.basename(this.filePath)}`, error);
       try {
-        if (existsSync(tempPath)) unlinkSync(tempPath);
+        if (existsSync(tempPath)) {
+          unlinkSync(tempPath);
+        }
       } catch {
         /* best effort */
       }

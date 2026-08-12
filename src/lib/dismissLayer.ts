@@ -2,14 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-/**
- * One Escape closes one thing.
- *
- * Every overlay used to attach its own `keydown` listener to the document, so
- * a connection popover open on top of a surface got both handlers on a single
- * press and two layers disappeared at once. Registering here instead means the
- * most recently opened layer is the only one that answers.
- */
+// One Escape closes one thing.
 type DismissHandler = () => void;
 
 const layers: DismissHandler[] = [];
@@ -17,23 +10,33 @@ const layers: DismissHandler[] = [];
 function handleKeyDown(event: KeyboardEvent): void {
   // A focused control that has already dealt with Escape — the address bar
   // cancelling an edit — marks the event handled, and keeps its layer open.
-  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  if (event.key !== 'Escape' || event.defaultPrevented) {
+    return;
+  }
 
   const top = layers[layers.length - 1];
-  if (!top) return;
+  if (!top) {
+    return;
+  }
 
   event.preventDefault();
   top();
 }
 
 function pushLayer(dismiss: DismissHandler): () => void {
-  if (layers.length === 0) document.addEventListener('keydown', handleKeyDown);
+  if (layers.length === 0) {
+    document.addEventListener('keydown', handleKeyDown);
+  }
   layers.push(dismiss);
 
   return () => {
     const index = layers.lastIndexOf(dismiss);
-    if (index !== -1) layers.splice(index, 1);
-    if (layers.length === 0) document.removeEventListener('keydown', handleKeyDown);
+    if (index !== -1) {
+      layers.splice(index, 1);
+    }
+    if (layers.length === 0) {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
   };
 }
 
@@ -46,7 +49,9 @@ export function useDismissLayer(isOpen: boolean, dismiss: DismissHandler): void 
   }, [dismiss]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
     return pushLayer(() => latest.current());
   }, [isOpen]);
 }

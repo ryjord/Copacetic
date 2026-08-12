@@ -19,7 +19,9 @@ export function TabStrip({ tabs, activeTabId }: TabStripProps) {
   const stripRef = useRef<HTMLDivElement>(null);
 
   const handleDrop = (index: number) => {
-    if (dragId) send((api) => api.tabs.move(dragId, index));
+    if (dragId) {
+      send((api) => api.tabs.move(dragId, index));
+    }
     setDragId(null);
     setDropIndex(null);
   };
@@ -34,19 +36,27 @@ export function TabStrip({ tabs, activeTabId }: TabStripProps) {
       // stops between the strip and the address bar.
       onKeyDown={(event) => {
         const current = tabs.findIndex((tab) => tab.id === activeTabId);
-        if (current === -1) return;
+        if (current === -1) {
+          return;
+        }
 
         const go = (index: number) => {
           event.preventDefault();
           const next = tabs[(index + tabs.length) % tabs.length];
-          if (next) send((api) => api.tabs.activate(next.id));
+          if (next) {
+            send((api) => api.tabs.activate(next.id));
+          }
         };
 
-        if (event.key === 'ArrowRight') go(current + 1);
-        else if (event.key === 'ArrowLeft') go(current - 1);
-        else if (event.key === 'Home') go(0);
-        else if (event.key === 'End') go(tabs.length - 1);
-        else if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (event.key === 'ArrowRight') {
+          go(current + 1);
+        } else if (event.key === 'ArrowLeft') {
+          go(current - 1);
+        } else if (event.key === 'Home') {
+          go(0);
+        } else if (event.key === 'End') {
+          go(tabs.length - 1);
+        } else if (event.key === 'Delete' || event.key === 'Backspace') {
           event.preventDefault();
           send((api) => api.tabs.close(tabs[current]!.id));
         }
@@ -99,8 +109,12 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
   // not yank focus out of the page or the address bar.
   useEffect(() => {
     const element = ref.current;
-    if (!isActive || !element || element === document.activeElement) return;
-    if (element.parentElement?.contains(document.activeElement)) element.focus();
+    if (!isActive || !element || element === document.activeElement) {
+      return;
+    }
+    if (element.parentElement?.contains(document.activeElement)) {
+      element.focus();
+    }
   }, [isActive]);
 
   return (
@@ -127,7 +141,9 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       onClick={() => send((api) => api.tabs.activate(tab.id))}
       onAuxClick={(event) => {
         // Middle-click closes, as it does in every other browser.
-        if (event.button === 1) send((api) => api.tabs.close(tab.id));
+        if (event.button === 1) {
+          send((api) => api.tabs.close(tab.id));
+        }
       }}
       onContextMenu={(event) => {
         event.preventDefault();

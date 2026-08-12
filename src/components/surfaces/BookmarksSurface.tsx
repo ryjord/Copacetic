@@ -28,7 +28,9 @@ export function BookmarksSurface() {
   useEffect(() => {
     let cancelled = false;
     void ask((api) => api.bookmarks.list(), []).then((list) => {
-      if (!cancelled) setBookmarks(list);
+      if (!cancelled) {
+        setBookmarks(list);
+      }
     });
     return () => {
       cancelled = true;
@@ -74,7 +76,9 @@ export function BookmarksSurface() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!activeTabId) return;
+                    if (!activeTabId) {
+                      return;
+                    }
                     send((api) => api.tabs.navigate(activeTabId, bookmark.url));
                     setSurface('none');
                   }}

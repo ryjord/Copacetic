@@ -4,25 +4,10 @@ import type { SearchEngine, SearchEngineId } from './types';
 export const INTERNAL_SCHEME = 'copacetic';
 export const START_PAGE_URL = `${INTERNAL_SCHEME}://start`;
 
-/**
- * Schemes a tab is allowed to load when the *user* asks for it — typing an
- * address, restoring a session, opening a bookmark.
- *
- * `data:`, `blob:`, `javascript:` and `filesystem:` are absent on purpose:
- * top-level navigation to them is a long-standing phishing and XSS vector, and
- * Chromium blocks most of it already. Copacetic blocks all of it, everywhere.
- */
+/** Schemes a tab is allowed to load when the *user* asks for it — typing an address, restoring a session, opening a bookmark. */
 export const NAVIGABLE_SCHEMES = new Set(['http:', 'https:', 'file:', `${INTERNAL_SCHEME}:`, 'about:']);
 
-/**
- * Schemes a *page* is allowed to drive a tab to.
- *
- * `file:` is deliberately absent here while being present above. Typing
- * `file:///…` is a thing a user can mean; `window.open('file:///Users/you/')`
- * from a hostile page is not. Without the split, page code could render a
- * listing of the user's home directory in a new tab, or probe for well-known
- * local paths, with no prompt and no gesture beyond the one that opened it.
- */
+/** Schemes a *page* is allowed to drive a tab to. */
 export const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 const SEARCH_ENGINE_LIST: SearchEngine[] = [
@@ -88,28 +73,21 @@ export function isInternalUrl(value: string): boolean {
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 const HOST_WITH_PORT = /^([a-z0-9-]+(\.[a-z0-9-]+)*|\[[0-9a-f:]+\])(:\d{1,5})?$/i;
 
-/**
- * Hosts that resolve without a dot and should never be treated as a search.
- */
+// Hosts that resolve without a dot and should never be treated as a search.
 const DOTLESS_HOSTS = new Set(['localhost']);
 
 export type OmniboxResolution = { type: 'url'; target: string } | { type: 'search'; target: string; query: string };
 
-/**
- * Turn whatever the user typed into something we can actually navigate to.
- *
- * The bias is towards searching. Guessing "url" when the user meant "search"
- * produces a DNS error page and loses their query; guessing "search" when they
- * meant a URL costs one extra keystroke. Only inputs that are unambiguously
- * addresses take the URL path.
- */
+/** Turn whatever the user typed into something we can actually navigate to. */
 export function resolveOmniboxInput(
   rawInput: string,
   engineId: SearchEngineId,
   options: { httpsFirst?: boolean } = {},
 ): OmniboxResolution | null {
   const input = rawInput.trim();
-  if (input.length === 0) return null;
+  if (input.length === 0) {
+    return null;
+  }
 
   const httpsFirst = options.httpsFirst ?? true;
   const search = (): OmniboxResolution => ({
@@ -128,7 +106,9 @@ export function resolveOmniboxInput(
     // An explicit scheme is honoured only if it is one we allow. Anything else
     // (javascript:, data:, mailto: typed by hand) falls through to a search
     // rather than being navigated to.
-    if (!isNavigableUrl(input)) return search();
+    if (!isNavigableUrl(input)) {
+      return search();
+    }
     try {
       const url = new URL(input);
       if (httpsFirst && url.protocol === 'http:' && !isLoopbackHost(url.hostname)) {
@@ -141,7 +121,9 @@ export function resolveOmniboxInput(
   }
 
   // No scheme. Anything with whitespace is prose, not an address.
-  if (/\s/.test(input)) return search();
+  if (/\s/.test(input)) {
+    return search();
+  }
 
   const [hostPart = ''] = input.split(/[/?#]/, 1);
   const bareHost = hostPart.replace(/:\d{1,5}$/, '');
@@ -153,7 +135,9 @@ export function resolveOmniboxInput(
       bareHost.startsWith('[') ||
       (bareHost.includes('.') && !bareHost.endsWith('.') && hasPlausibleTld(bareHost)));
 
-  if (!looksLikeHost) return search();
+  if (!looksLikeHost) {
+    return search();
+  }
 
   // A bare host is always tried over https — that guess is free to make and
   // costs nothing when it is wrong. Loopback is the exception: a local dev
@@ -178,20 +162,16 @@ export function isLoopbackHost(host: string): boolean {
   return bare === 'localhost' || bare === '127.0.0.1' || bare === '::1' || bare.endsWith('.localhost');
 }
 
-/**
- * Hosts that only exist inside the user's own network.
- *
- * This is the set the main process must not be talked into contacting on a
- * page's behalf. A remote page naming `169.254.169.254` or `192.168.1.1` is
- * asking for a request only the browser can usefully make — with the user's
- * cookies, from inside their network — which is exactly the request it should
- * not get.
- */
+/** Hosts that only exist inside the user's own network. */
 export function isPrivateHost(host: string): boolean {
   const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
-  if (bare === '' || isLoopbackHost(bare)) return true;
+  if (bare === '' || isLoopbackHost(bare)) {
+    return true;
+  }
   // mDNS and the conventional suffix for internal-only names.
-  if (bare.endsWith('.local') || bare.endsWith('.internal')) return true;
+  if (bare.endsWith('.local') || bare.endsWith('.internal')) {
+    return true;
+  }
 
   if (bare.includes(':')) {
     // IPv6 unique-local (fc00::/7) and link-local (fe80::/10).
@@ -199,28 +179,37 @@ export function isPrivateHost(host: string): boolean {
   }
 
   const octets = bare.split('.');
-  if (octets.length !== 4) return false;
+  if (octets.length !== 4) {
+    return false;
+  }
   const a = Number(octets[0]);
   const b = Number(octets[1]);
-  if (!Number.isInteger(a) || !Number.isInteger(b)) return false;
+  if (!Number.isInteger(a) || !Number.isInteger(b)) {
+    return false;
+  }
 
-  if (a === 0 || a === 10 || a === 127) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
+  if (a === 0 || a === 10 || a === 127) {
+    return true;
+  }
+  if (a === 172 && b >= 16 && b <= 31) {
+    return true;
+  }
+  if (a === 192 && b === 168) {
+    return true;
+  }
   // Link-local, which is also where every cloud metadata endpoint lives.
-  if (a === 169 && b === 254) return true;
+  if (a === 169 && b === 254) {
+    return true;
+  }
   return false;
 }
 
-/**
- * Rules are stored punycoded, because a URL always reports its hostname that
- * way. An internationalised host typed by hand is converted so both forms
- * resolve to the same answer; the conversion is skipped entirely for the
- * ordinary all-ASCII case, which is every host the browser itself produces.
- */
+// Rules are stored punycoded, because a URL always reports its hostname that way.
 function toAsciiHost(host: string): string {
   const lower = host.toLowerCase();
-  if (!/[^\u0000-\u007f]/.test(lower)) return lower;
+  if (!/[^\u0000-\u007f]/.test(lower)) {
+    return lower;
+  }
   try {
     return new URL(`https://${lower}`).hostname;
   } catch {
@@ -228,20 +217,7 @@ function toAsciiHost(host: string): string {
   }
 }
 
-/**
- * How many labels of `host` form its public suffix.
- *
- * Implements the algorithm from publicsuffix.org: an exception rule wins
- * outright, otherwise the rule matching the most labels prevails, and a host
- * matching nothing is treated as if the rule were `*` — one label.
- *
- * This decides which part of an address the omnibox renders at full contrast,
- * which is the anti-spoofing surface of the whole interface. The heuristic it
- * replaced hand-listed about forty suffixes and got everything else wrong:
- * `example.pvt.k12.ma.us` read as `ma.us`, and every private suffix — the
- * `github.io` and `vercel.app` sort — read as though two unrelated projects
- * were the same site.
- */
+/** How many labels of `host` form its public suffix. */
 export function publicSuffixLabelCount(host: string): number {
   const labels = host.split('.');
   let prevailing = 0;
@@ -252,7 +228,9 @@ export function publicSuffixLabelCount(host: string): number {
 
     // An exception rule wins over everything, and its public suffix is the
     // rule with its leftmost label removed.
-    if (PUBLIC_SUFFIX_EXCEPTIONS.has(candidate)) return ruleLabels - 1;
+    if (PUBLIC_SUFFIX_EXCEPTIONS.has(candidate)) {
+      return ruleLabels - 1;
+    }
 
     if (PUBLIC_SUFFIX_RULES.has(candidate) && ruleLabels > prevailing) {
       prevailing = ruleLabels;
@@ -269,32 +247,23 @@ export function publicSuffixLabelCount(host: string): number {
   return prevailing || 1;
 }
 
-/**
- * The registrable domain — the public suffix plus the one label a person
- * actually registered. Null when the host *is* a public suffix, since nobody
- * owns `co.uk` and pretending otherwise would be a lie in the address bar.
- */
+/** The registrable domain — the public suffix plus the one label a person actually registered. */
 export function registrableDomainOf(host: string): string | null {
   const bare = toAsciiHost(host).replace(/\.$/, '');
-  if (!bare || bare.startsWith('.') || bare.includes('..')) return null;
+  if (!bare || bare.startsWith('.') || bare.includes('..')) {
+    return null;
+  }
 
   const labels = bare.split('.');
   const suffixLabels = publicSuffixLabelCount(bare);
-  if (labels.length <= suffixLabels) return null;
+  if (labels.length <= suffixLabels) {
+    return null;
+  }
 
   return labels.slice(labels.length - suffixLabels - 1).join('.');
 }
 
-/**
- * Whether the main process should fetch a favicon a page asked for.
- *
- * Cross-origin is allowed: plenty of sites serve their icon from a CDN, and a
- * page can already load any public image itself, so refusing would break real
- * sites without taking away a capability. What is refused is a page on the
- * public internet naming a host that only exists inside the user's network.
- * That request is not one the page could usefully make on its own, and the
- * main process would be making it with the user's cookies attached.
- */
+/** Whether the main process should fetch a favicon a page asked for. */
 export function isFetchableFavicon(pageUrl: string, faviconUrl: string): boolean {
   let favicon: URL;
   try {
@@ -303,8 +272,12 @@ export function isFetchableFavicon(pageUrl: string, faviconUrl: string): boolean
     return false;
   }
 
-  if (favicon.protocol !== 'https:' && favicon.protocol !== 'http:') return false;
-  if (!isPrivateHost(favicon.hostname)) return true;
+  if (favicon.protocol !== 'https:' && favicon.protocol !== 'http:') {
+    return false;
+  }
+  if (!isPrivateHost(favicon.hostname)) {
+    return true;
+  }
 
   // A local page may point at its own local icon; a remote one may not.
   try {
@@ -325,13 +298,7 @@ export interface DisplayUrlParts {
   isInternal: boolean;
 }
 
-/**
- * Split a URL for the omnibox so the registrable domain can be the only part
- * rendered at full contrast.
- *
- * This is the anti-spoofing surface: `paypal.com.attacker.tld/login` must read
- * as `attacker.tld`, not as PayPal.
- */
+/** Split a URL for the omnibox so the registrable domain can be the only part rendered at full contrast. */
 export function splitUrlForDisplay(value: string): DisplayUrlParts | null {
   let url: URL;
   try {
@@ -398,8 +365,12 @@ export function originOf(value: string): string {
 
 /** A short, human label for a URL — used for tab titles before one arrives. */
 export function fallbackTitleFor(value: string): string {
-  if (value === START_PAGE_URL) return 'New tab';
+  if (value === START_PAGE_URL) {
+    return 'New tab';
+  }
   const host = hostOf(value);
-  if (host) return host.replace(/^www\./, '');
+  if (host) {
+    return host.replace(/^www\./, '');
+  }
   return value;
 }

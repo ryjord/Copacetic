@@ -4,23 +4,10 @@ import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../shar
 import { observeCertificates } from './certificates';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from './env';
 
-/**
- * Web content lives in its own persistent partition, separate from the session
- * that runs Copacetic's own UI. Cookies, storage and service workers belonging
- * to visited sites therefore cannot be reached from the chrome renderer, even
- * if the chrome renderer were compromised.
- */
+/** Web content lives in its own persistent partition, separate from the session that runs Copacetic's own UI. */
 export const WEB_PARTITION = 'persist:copacetic-web';
 
-/**
- * The partition a Hush tab uses.
- *
- * No `persist:` prefix, which is what makes it real rather than a promise:
- * Chromium keeps the whole session in memory and drops it when the last
- * reference goes, so cookies, storage and cache never reach the disk to be
- * deleted later. A "private" mode that writes and then tidies up is one crash
- * away from not having tidied up.
- */
+/** No `persist:` prefix — that is what keeps the whole session in memory and off the disk. */
 export const HUSH_PARTITION = 'copacetic-hush';
 
 export function getWebSession(): Session {
@@ -47,10 +34,7 @@ export interface SecurityDelegate {
   rememberDecision(origin: string, kind: PermissionKind, decision: PermissionDecision): void;
 }
 
-/**
- * Permissions a normal page may use without interrupting the user.
- * All of these already require a user gesture at the Chromium level.
- */
+// Permissions a normal page may use without interrupting the user.
 const AUTO_ALLOWED = new Set(['fullscreen', 'pointerLock', 'clipboard-sanitized-write']);
 
 /** Permissions worth interrupting the user for, with the wording they will read. */
@@ -65,13 +49,7 @@ const PROMPTED: Partial<Record<string, { kind: PermissionKind; description: stri
   openExternal: { kind: 'openExternal', description: 'open another application' },
 };
 
-/**
- * Everything not listed above is denied without asking. Device access
- * (`serial`, `hid`, `usb`), ambient signals (`idle-detection`, `local-fonts`,
- * `window-placement`) and cross-site storage (`storage-access`) have no place
- * in a browser that has not been asked to support them, and a prompt the user
- * cannot evaluate is worse than a quiet no.
- */
+/** Everything not listed above is denied without asking. */
 
 export function hardenChromeSession(session: Session): void {
   session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
@@ -127,9 +105,13 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   // Called for synchronous checks (for example `navigator.permissions.query`).
   // It must never prompt, so it answers purely from decisions already stored.
   session.setPermissionCheckHandler((_contents, permission, requestingOrigin) => {
-    if (AUTO_ALLOWED.has(permission)) return true;
+    if (AUTO_ALLOWED.has(permission)) {
+      return true;
+    }
     const prompted = PROMPTED[permission];
-    if (!prompted || !requestingOrigin) return false;
+    if (!prompted || !requestingOrigin) {
+      return false;
+    }
     return delegate.getStoredDecision(requestingOrigin, prompted.kind) === 'allow';
   });
 
@@ -153,10 +135,14 @@ async function resolvePermission(
   permission: string,
   requestingUrl: string,
 ): Promise<boolean> {
-  if (AUTO_ALLOWED.has(permission)) return true;
+  if (AUTO_ALLOWED.has(permission)) {
+    return true;
+  }
 
   const prompted = PROMPTED[permission];
-  if (!prompted) return false;
+  if (!prompted) {
+    return false;
+  }
 
   let origin: string;
   try {
@@ -164,10 +150,14 @@ async function resolvePermission(
   } catch {
     return false;
   }
-  if (!origin || origin === 'null') return false;
+  if (!origin || origin === 'null') {
+    return false;
+  }
 
   const stored = delegate.getStoredDecision(origin, prompted.kind);
-  if (stored) return stored === 'allow';
+  if (stored) {
+    return stored === 'allow';
+  }
 
   const decision = await delegate.requestPermission({
     webContentsId: contents?.id ?? -1,
@@ -186,12 +176,7 @@ export function stripElectronFromUserAgent(userAgent: string): string {
     .trim();
 }
 
-/**
- * Guards applied to every tab's webContents.
- *
- * The webContents itself is already sandboxed and context-isolated; these rules
- * govern where it is allowed to take the user.
- */
+/** Guards applied to every tab's webContents. */
 export function guardTabWebContents(contents: WebContents, delegate: SecurityDelegate): void {
   contents.setWindowOpenHandler(({ url, disposition }) => {
     if (isNavigable(url)) {
@@ -208,34 +193,39 @@ export function guardTabWebContents(contents: WebContents, delegate: SecurityDel
   });
 
   contents.on('will-navigate', (event, url) => {
-    if (isNavigable(url)) return;
+    if (isNavigable(url)) {
+      return;
+    }
     event.preventDefault();
     void delegate.confirmExternalOpen(url, contents.id);
   });
 
   contents.on('will-redirect', (event, url) => {
-    if (isNavigable(url)) return;
+    if (isNavigable(url)) {
+      return;
+    }
     event.preventDefault();
   });
 
   hardenAttachedFrames(contents);
 }
 
-/**
- * Guards for the window that renders Copacetic's own interface.
- *
- * This webContents has the preload bridge attached, so letting it navigate
- * anywhere would hand that bridge to whatever it navigated to.
- */
+/** Guards for the window that renders Copacetic's own interface. */
 export function guardChromeWebContents(contents: WebContents): void {
   contents.on('will-navigate', (event, url) => {
-    if (isChromeDocument(url)) return;
+    if (isChromeDocument(url)) {
+      return;
+    }
     event.preventDefault();
-    if (url.startsWith('https://') || url.startsWith('http://')) void shell.openExternal(url);
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      void shell.openExternal(url);
+    }
   });
 
   contents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://')) void shell.openExternal(url);
+    if (url.startsWith('https://')) {
+      void shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 
@@ -251,14 +241,13 @@ function hardenAttachedFrames(contents: WebContents): void {
   });
 }
 
-/**
- * Every caller here is reacting to something *page code* did, so this is the
- * strict set — a page cannot reach `file:` even though the user can type it.
- */
+// Every caller here is reacting to something *page code* did, so this is the strict set — a page cannot reach `file:` even though the user can type it.
 function isNavigable(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === `${INTERNAL_SCHEME}:`) return true;
+    if (parsed.protocol === `${INTERNAL_SCHEME}:`) {
+      return true;
+    }
     return PAGE_NAVIGABLE_SCHEMES.has(parsed.protocol);
   } catch {
     return false;
@@ -273,7 +262,9 @@ function isChromeDocument(url: string): boolean {
 export function isTransportSecure(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === 'https:') return true;
+    if (parsed.protocol === 'https:') {
+      return true;
+    }
     // Loopback is exempt for the same reason Chromium treats it as a secure
     // context: the traffic never leaves the machine.
     return parsed.protocol === 'http:' && isLoopbackHost(parsed.hostname);

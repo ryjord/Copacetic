@@ -19,15 +19,7 @@ import { TabStrip } from './TabStrip';
 import { Toolbar } from './Toolbar';
 import { WindowControls } from './WindowControls';
 
-/**
- * The browser shell.
- *
- * Everything above `contentRef` is chrome the renderer draws. Everything
- * inside it belongs to the main process, which parks a `WebContentsView`
- * exactly over that rectangle. The renderer's only job there is to report how
- * big the hole is and to draw Copacetic's own pages — start and error — when
- * there is no site to show.
- */
+/** The browser shell. */
 export function Chrome() {
   const applyState = useBrowserStore((state) => state.applyState);
   const setSurface = useBrowserStore((state) => state.setSurface);
@@ -53,7 +45,9 @@ export function Chrome() {
 
   useEffect(() => {
     const api = getBridge();
-    if (!api) return;
+    if (!api) {
+      return;
+    }
 
     void api.chrome.getState().then(applyState);
 
@@ -69,7 +63,9 @@ export function Chrome() {
 
   useLayoutEffect(() => {
     const element = contentRef.current;
-    if (!element || !isRunningInShell()) return;
+    if (!element || !isRunningInShell()) {
+      return;
+    }
 
     let frame = 0;
     let last = '';
@@ -83,7 +79,9 @@ export function Chrome() {
         bottom: Math.round(window.innerHeight - rect.bottom),
       };
       const signature = `${insets.top}|${insets.left}|${insets.right}|${insets.bottom}`;
-      if (signature === last) return;
+      if (signature === last) {
+        return;
+      }
       last = signature;
       send((api) => api.chrome.setContentInsets(insets));
     };
@@ -175,10 +173,7 @@ export function Chrome() {
   );
 }
 
-/**
- * A single hairline under the toolbar. It is the only ambient motion in the
- * chrome, so a moving page is unmistakable without anything else animating.
- */
+// A single hairline under the toolbar.
 function LoadingLine({ isLoading }: { isLoading: boolean }) {
   return (
     <div className="relative h-px w-full shrink-0 overflow-hidden bg-line" aria-hidden>
@@ -200,6 +195,8 @@ function OutsideShellNotice() {
 }
 
 function isMac(): boolean {
-  if (typeof navigator === 'undefined') return false;
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
   return navigator.platform.toLowerCase().includes('mac');
 }

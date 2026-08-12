@@ -3,11 +3,12 @@ import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
 import type {
   AppInfo,
-  ConnectionEntry,
   Bookmark,
   BrowserState,
   ClearRange,
+  ConnectionEntry,
   DownloadId,
+  ExportKind,
   HistoryPage,
   PermissionDecision,
   PermissionKind,
@@ -15,15 +16,10 @@ import type {
   Suggestion,
   TabId,
   TopSite,
+  VaultInput,
 } from '../shared/types';
 
-/**
- * The complete surface the chrome renderer can reach.
- *
- * Nothing here forwards a caller-supplied channel name: every function names
- * its own channel from the shared contract, so the renderer cannot address a
- * channel that was not deliberately exposed.
- */
+// The complete surface the chrome renderer can reach.
 const api: CopaceticApi = {
   tabs: {
     create: (url?: string, activate = true): Promise<TabId> => ipcRenderer.invoke(INVOKE.tabCreate, url, activate),
@@ -108,6 +104,14 @@ const api: CopaceticApi = {
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */
+  vault: {
+    list: () => ipcRenderer.invoke(INVOKE.vaultList),
+    add: (input: VaultInput) => ipcRenderer.invoke(INVOKE.vaultAdd, input),
+    update: (id: string, changes: Partial<VaultInput>) => ipcRenderer.invoke(INVOKE.vaultUpdate, id, changes),
+    remove: (id: string) => ipcRenderer.invoke(INVOKE.vaultRemove, id),
+    reveal: (id: string) => ipcRenderer.invoke(INVOKE.vaultReveal, id),
+  },
+
   wallpaper: {
     get: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperGet),
     preview: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperPreview),
@@ -116,7 +120,7 @@ const api: CopaceticApi = {
   },
 
   data: {
-    export: (kind: 'bookmarks' | 'history'): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
+    export: (kind: ExportKind): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
   },
 
   auth: {

@@ -4,11 +4,7 @@ import { RotateCw } from 'lucide-react';
 import type { PageError } from '../../../electron/shared/types';
 import { send } from '@/lib/bridge';
 
-/**
- * Error copy states what happened and what to do, and shows the symbolic code
- * so it can be searched for. Certificate failures get a stronger tone, because
- * "try again" is the wrong advice when the certificate is the problem.
- */
+/** Error copy states what happened and what to do, and shows the symbolic code so it can be searched for. */
 export function ErrorPage({ tabId, error }: { tabId: string; error: PageError }) {
   const isCertificateProblem = error.name.startsWith('ERR_CERT');
 
@@ -51,7 +47,11 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
 }
 
 function headlineFor(error: PageError): string {
-  if (error.name.startsWith('RENDERER_')) return 'This page stopped responding';
-  if (error.name.startsWith('ERR_CERT')) return 'Copacetic could not verify this site';
+  if (error.name.startsWith('RENDERER_')) {
+    return 'This page stopped responding';
+  }
+  if (error.name.startsWith('ERR_CERT')) {
+    return 'Copacetic could not verify this site';
+  }
   return 'This page did not load';
 }

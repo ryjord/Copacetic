@@ -2,6 +2,41 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.3.0 — 2026-08-12
+
+### Added
+
+- **A place to keep a password.** Encrypted through the operating system's own
+  keychain — Keychain on macOS, DPAPI on Windows, the secret service on Linux —
+  one entry at a time, so a secret that cannot be read is not all of them. This
+  release is storage only: Copacetic does not look at a page, does not offer to
+  save what you type and does not fill anything in. Those come next, and doing
+  them separately means the storage can be read and reviewed before any of the
+  guessing about forms starts.
+
+  If there is no keychain, or encrypting fails, the entry is refused rather than
+  written in the clear. It is the one failure here that must never be handled
+  gracefully, because a password quietly stored in plain text is worse than one
+  that was never saved and said so.
+
+  Passwords are never part of the state the interface receives. Revealing one is
+  a separate request, by name, one at a time — otherwise every password would
+  sit in the interface's memory for as long as Settings was open.
+
+- **An empty vault and an unreadable one now look different.** They are not the
+  same thing and the difference matters more here than anywhere else in the
+  browser. Because these builds are not code-signed, macOS can treat an updated
+  copy of Copacetic as a different application and refuse it the keychain entry;
+  that is an ordinary consequence of an update, not a hypothetical. When it
+  happens the entries are still listed, still on disk, and Settings says what
+  went wrong. Reporting it as an empty list would tell someone their passwords
+  were gone.
+
+### Changed
+
+- Settings has a Passwords section. The About answer that said there was no
+  password manager has been corrected, since there now is one.
+
 ## 1.2.13 — 2026-08-11
 
 ### Fixed

@@ -9,13 +9,7 @@ import { keepIfSame, stabiliseState } from '@/lib/stableState';
 interface BrowserStoreState extends BrowserState {
   /** False until the first snapshot arrives, so nothing renders half-built. */
   isReady: boolean;
-  /**
-   * Tabs in strip order, derived once per snapshot.
-   *
-   * This has to be stored rather than computed in a selector: zustand compares
-   * selector results by reference, and a selector that builds a fresh array on
-   * every render never settles.
-   */
+  // Tabs in strip order, derived once per snapshot.
   orderedTabs: TabState[];
   activeTab: TabState | null;
 
@@ -23,19 +17,9 @@ interface BrowserStoreState extends BrowserState {
   surface: ChromeSurface;
   /** Incremented to ask the omnibox to take focus and select its contents. */
   omniboxFocusToken: number;
-  /**
-   * Whether the connection panel is open.
-   *
-   * It lives here rather than inside the badge because the panel is rendered
-   * as part of the chrome column, not as a popover: a native view always
-   * paints above the renderer's HTML, so anything overlapping the page area
-   * would simply be hidden behind it.
-   */
+  // Whether the connection panel is open.
   isConnectionPanelOpen: boolean;
-  /**
-   * When the panel was opened, so it can say how long a certificate has left
-   * without reading the clock during render.
-   */
+  // When the panel was opened, so it can say how long a certificate has left without reading the clock during render.
   connectionPanelOpenedAt: number | null;
 
   applyState(next: BrowserState): void;
@@ -110,7 +94,9 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
     set({ isConnectionPanelOpen: !get().isConnectionPanelOpen, connectionPanelOpenedAt: Date.now() }),
 
   closeConnectionPanel: () => {
-    if (get().isConnectionPanelOpen) set({ isConnectionPanelOpen: false });
+    if (get().isConnectionPanelOpen) {
+      set({ isConnectionPanelOpen: false });
+    }
   },
 }));
 
