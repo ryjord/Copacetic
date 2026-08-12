@@ -2,6 +2,36 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.3.1 — 2026-08-12
+
+### Added
+
+- **Your passwords can leave.** Export writes the format Chrome, Firefox,
+  Bitwarden and 1Password all read, and import reads what they write — any
+  column order, any casing. "Everything lives on this machine" is honest and,
+  on its own, also lock-in; being able to take it elsewhere is what makes the
+  claim something you can act on rather than take on trust.
+
+  The file is plain text, with every password readable in any editor. That is
+  what makes it portable, so it is said in the interface before the dialog
+  opens rather than hedged afterwards.
+
+  Counts are reported rather than implied. A password that cannot be decrypted
+  cannot be written to a file, so the export says how many were left out —
+  leaving them out quietly is how someone believes they took everything with
+  them. Import says what it added, what it replaced and what it ignored, and a
+  site and username already saved has its password updated rather than
+  duplicated, so importing the same file twice does not leave two of
+  everything. A file with no recognisable header imports nothing at all, since
+  guessing which column is which would file a username as a password.
+
+- **A Hush tab can be opened with the mouse.** Right-clicking a tab now offers
+  New Hush tab and Reopen closed tab, and a caret beside the new-tab button
+  offers both. Until now it was a keyboard shortcut or the macOS menu bar and
+  nothing else — and off macOS the window has no menu bar at all, which left
+  the feature this browser is named around undiscoverable to anyone using a
+  mouse.
+
 ## 1.3.0 — 2026-08-12
 
 ### Added
