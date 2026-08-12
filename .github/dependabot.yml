@@ -23,6 +23,12 @@ updates:
       # a major on either is only installable alongside the other.
       vite:
         patterns: ['vite', '@vitejs/*']
+      # One pull request for the ordinary churn, so the noise stays in a single
+      # place and the ones worth reading stand alone.
+      routine:
+        patterns: ['*']
+        exclude-patterns: ['electron', 'electron-builder', 'electron-updater', 'next']
+        update-types: [minor, patch]
     ignore:
       # @types/node describes the APIs of a Node it is versioned against, and
       # types ahead of the runtime let code compile against functions that will
@@ -30,12 +36,6 @@ updates:
       # major we build on; raise this deliberately when that moves.
       - dependency-name: '@types/node'
         versions: ['>=25']
-      # One pull request for the ordinary churn, so the noise stays in a single
-      # place and the ones worth reading stand alone.
-      routine:
-        patterns: ['*']
-        exclude-patterns: ['electron', 'electron-builder', 'electron-updater', 'next']
-        update-types: [minor, patch]
     labels: [dependencies]
     commit-message:
       prefix: build
