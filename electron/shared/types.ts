@@ -217,6 +217,29 @@ export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string
   { id: 'bookmarks', label: 'Bookmarks', description: 'The most recent things you saved.' },
 ];
 
+export type VaultAvailability = 'ready' | 'unavailable' | 'unreadable';
+
+export interface VaultEntry {
+  id: string;
+  /** The origin these credentials belong to, e.g. `https://example.com`. */
+  origin: string;
+  username: string;
+  createdAt: number;
+  updatedAt: number;
+  /** False when this entry exists but its secret cannot be decrypted on this machine. */
+  isReadable: boolean;
+}
+
+/** Passwords are deliberately absent: they are fetched one at a time, on request. */
+export interface VaultState {
+  availability: VaultAvailability;
+  /** What is wrong, in the words shown to the user. Empty when nothing is. */
+  detail: string;
+  entries: VaultEntry[];
+  /** Entries that exist and cannot be read — never folded into an empty list. */
+  unreadableCount: number;
+}
+
 export type ClearRange = 'hour' | 'day' | 'week' | 'all';
 
 export type ExportKind = 'bookmarks' | 'history';
