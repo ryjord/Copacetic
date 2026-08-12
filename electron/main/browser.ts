@@ -1,6 +1,7 @@
-import { type BrowserWindow, app, dialog, session as electronSession, shell } from 'electron';
+import { type BrowserWindow, app, dialog, session as electronSession, safeStorage, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { PUSH, type ChromeSurface } from '../shared/channels';
+import { PersistedFile } from './persistence';
 import { sanitiseChromeText } from '../shared/chrome-text';
 import type {
   AppInfo,
@@ -21,6 +22,7 @@ import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
+import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { chooseWallpaper, clearWallpaper, hasWallpaper } from './wallpaper';
 import { DownloadManager } from './downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
@@ -70,6 +72,8 @@ interface PendingPermission {
 export class Browser {
   readonly window: BrowserWindow;
   readonly store: BrowserStore;
+  readonly vault: Vault;
+  private readonly vaultFile: PersistedFile<VaultFile>;
   readonly blocker: ContentBlocker;
   readonly downloads: DownloadManager;
   readonly tabs: TabManager;
@@ -82,6 +86,20 @@ export class Browser {
 
   constructor() {
     this.store = new BrowserStore();
+    // safeStorage is only reachable after app.ready, which is why the keychain
+    // is asked at each call rather than captured once here.
+    this.vaultFile = new PersistedFile<VaultFile>('vault.json', () => EMPTY_VAULT_FILE, reviveVaultFile);
+    this.vault = new Vault(
+      {
+        isAvailable: () => safeStorage.isEncryptionAvailable(),
+        encrypt: (plainText) => safeStorage.encryptString(plainText),
+        decrypt: (cipherText) => safeStorage.decryptString(cipherText),
+      },
+      {
+        get: () => this.vaultFile.get(),
+        set: (next) => this.vaultFile.set(next),
+      },
+    );
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
@@ -575,6 +593,7 @@ export class Browser {
   }
 
   prepareForQuit(): void {
+    this.vaultFile.flush();
     if (this.isQuitting) {
       return;
     }

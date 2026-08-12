@@ -14,6 +14,8 @@ import type {
   Suggestion,
   TabId,
   TopSite,
+  VaultInput,
+  VaultState,
 } from './types';
 
 export interface ContentInsetsInput {
@@ -99,6 +101,18 @@ export interface CopaceticApi {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
   };
+  vault: {
+    /** Fetched when the pane is open rather than pushed: it is not needed to render a page. */
+    list(): Promise<VaultState>;
+    /** Resolves with the new id, or a message explaining why nothing was saved. */
+    add(input: VaultInput): Promise<{ id: string } | { error: string }>;
+    /** Resolves empty on success, or with a message. */
+    update(id: string, changes: Partial<VaultInput>): Promise<string>;
+    remove(id: string): Promise<void>;
+    /** One password, by id, only when asked. Never part of the listed state. */
+    reveal(id: string): Promise<string | null>;
+  };
+
   wallpaper: {
     /** The image as a data URL, or null. Fetched on demand, never pushed. */
     get(): Promise<string | null>;

@@ -62,9 +62,13 @@ describe('the disclaimers stay put', () => {
     expect(document.body.textContent).toContain(claim);
   });
 
-  it('does not claim a password manager before there is one', () => {
+  // This answer was "there is no password manager yet" until 1.3.0, and the
+  // test failed the moment that stopped being true — which is what it was for.
+  // It now holds the narrower claim, which will go the same way when filling
+  // arrives.
+  it('claims only what the vault actually does', () => {
     render(<AboutPane info={info} />);
     expect(screen.getByText('Does it remember passwords?')).toBeTruthy();
-    expect(document.body.textContent).toContain('There is no password manager yet');
+    expect(document.body.textContent).toContain('does not yet offer to save what you type or fill anything in');
   });
 });

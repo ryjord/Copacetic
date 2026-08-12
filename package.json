@@ -1,7 +1,7 @@
 {
   "name": "copacetic",
   "productName": "Copacetic",
-  "version": "1.2.13",
+  "version": "1.3.0",
   "description": "A calm, honest browser that shows you the true state of every page.",
   "author": {
     "name": "Riley Jordan",
@@ -72,7 +72,7 @@
   "build": {
     "appId": "uk.co.ryjord.copacetic",
     "productName": "Copacetic",
-    "copyright": "Copyright © 2026 Riley Jordan",
+    "copyright": "Copyright \u00a9 2026 Riley Jordan",
     "publish": {
       "provider": "github",
       "owner": "ryjord",

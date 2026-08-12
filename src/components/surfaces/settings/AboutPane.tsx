@@ -64,8 +64,8 @@ export function AboutPane({ info }: SettingsPaneProps) {
             sandboxing Copacetic relies on. It is a deliberate no rather than a missing feature.
           </Answer>
           <Answer question="Does it remember passwords?">
-            No. There is no password manager yet, so sign-in details are used for the request that asked for them and
-            kept nowhere. When there is one, it will say so here.
+            It can keep them, in Passwords, encrypted with a key your operating system holds. It does not yet offer to
+            save what you type or fill anything in — that is deliberate, and comes next.
           </Answer>
         </dl>
       </Section>

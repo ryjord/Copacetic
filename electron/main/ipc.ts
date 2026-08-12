@@ -138,6 +138,31 @@ export function registerIpcHandlers(browser: Browser): void {
 
   // -------------------------------------------------------------- wallpaper
 
+  // ------------------------------------------------------------------ vault
+
+  // Every field is read back off the payload as a string: the renderer is the
+  // one place a malformed shape can come from, and a password is not a thing to
+  // pass through on trust.
+  handle(INVOKE.vaultList, () => browser.vault.state());
+  handle(INVOKE.vaultAdd, (_event, input) =>
+    browser.vault.add({
+      origin: asString(isRecord(input) ? input.origin : ''),
+      username: asString(isRecord(input) ? input.username : ''),
+      password: asString(isRecord(input) ? input.password : ''),
+    }),
+  );
+  handle(INVOKE.vaultUpdate, (_event, id, changes) => {
+    const patch = isRecord(changes) ? changes : {};
+    const result = browser.vault.update(asString(id), {
+      ...(typeof patch.origin === 'string' ? { origin: patch.origin } : {}),
+      ...(typeof patch.username === 'string' ? { username: patch.username } : {}),
+      ...(typeof patch.password === 'string' ? { password: patch.password } : {}),
+    });
+    return result?.error ?? '';
+  });
+  handle(INVOKE.vaultRemove, (_event, id) => browser.vault.remove(asString(id)));
+  handle(INVOKE.vaultReveal, (_event, id) => browser.vault.reveal(asString(id)));
+
   handle(INVOKE.wallpaperGet, () => readWallpaper());
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());
   handle(INVOKE.wallpaperChoose, () => browser.chooseWallpaper());

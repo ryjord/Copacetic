@@ -16,6 +16,7 @@ import type {
   Suggestion,
   TabId,
   TopSite,
+  VaultInput,
 } from '../shared/types';
 
 // The complete surface the chrome renderer can reach.
@@ -103,6 +104,14 @@ const api: CopaceticApi = {
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */
+  vault: {
+    list: () => ipcRenderer.invoke(INVOKE.vaultList),
+    add: (input: VaultInput) => ipcRenderer.invoke(INVOKE.vaultAdd, input),
+    update: (id: string, changes: Partial<VaultInput>) => ipcRenderer.invoke(INVOKE.vaultUpdate, id, changes),
+    remove: (id: string) => ipcRenderer.invoke(INVOKE.vaultRemove, id),
+    reveal: (id: string) => ipcRenderer.invoke(INVOKE.vaultReveal, id),
+  },
+
   wallpaper: {
     get: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperGet),
     preview: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperPreview),

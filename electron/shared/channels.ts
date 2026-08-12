@@ -63,6 +63,12 @@ export const INVOKE = {
 
   dataExport: 'data:export',
 
+  vaultList: 'vault:list',
+  vaultAdd: 'vault:add',
+  vaultUpdate: 'vault:update',
+  vaultRemove: 'vault:remove',
+  vaultReveal: 'vault:reveal',
+
   wallpaperGet: 'wallpaper:get',
   wallpaperPreview: 'wallpaper:preview',
   wallpaperChoose: 'wallpaper:choose',

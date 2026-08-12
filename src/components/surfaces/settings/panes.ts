@@ -7,6 +7,7 @@ import { AppearancePane } from '@/components/surfaces/settings/AppearancePane';
 import { BehaviourPane } from '@/components/surfaces/settings/BehaviourPane';
 import { DataPane } from '@/components/surfaces/settings/DataPane';
 import { KeyboardPane } from '@/components/surfaces/settings/KeyboardPane';
+import { PasswordsPane } from '@/components/surfaces/settings/PasswordsPane';
 import { PrivacyPane } from '@/components/surfaces/settings/PrivacyPane';
 import { SearchPane } from '@/components/surfaces/settings/SearchPane';
 import { UpdatesPane } from '@/components/surfaces/settings/UpdatesPane';
@@ -24,6 +25,7 @@ export const SETTINGS_PANES = [
   { id: 'appearance', label: 'Appearance', Component: AppearancePane },
   { id: 'search', label: 'Search', Component: SearchPane },
   { id: 'privacy', label: 'Privacy', Component: PrivacyPane },
+  { id: 'passwords', label: 'Passwords', Component: PasswordsPane },
   { id: 'behaviour', label: 'Behaviour', Component: BehaviourPane },
   { id: 'data', label: 'Your data', Component: DataPane },
   { id: 'keyboard', label: 'Keyboard', Component: KeyboardPane },

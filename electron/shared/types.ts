@@ -230,6 +230,12 @@ export interface VaultEntry {
   isReadable: boolean;
 }
 
+export interface VaultInput {
+  origin: string;
+  username: string;
+  password: string;
+}
+
 /** Passwords are deliberately absent: they are fetched one at a time, on request. */
 export interface VaultState {
   availability: VaultAvailability;
