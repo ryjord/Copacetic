@@ -2,6 +2,38 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.3.2 — 2026-08-12
+
+### Added
+
+- **Copacetic can make you a password.** Twenty characters by default, drawn
+  from the operating system's cryptographic source. `l` `I` `1` `O` `0` are left
+  out, because a password that cannot be read off a screen gets written down
+  somewhere worse than the vault.
+
+  The care is in the drawing. Taking a random byte modulo the alphabet size is
+  the usual shortcut and it makes the earlier characters come up more often —
+  every password produced is weaker and nothing about it looks different. Bytes
+  that would land unevenly are discarded and redrawn instead.
+
+- **The vault locks.** After five minutes, or whenever you ask it to. While it
+  is locked no password can be read and nothing can be exported, though what is
+  saved stays listed — locked is not the same as gone.
+
+  On a Mac, unlocking asks Touch ID. **Everywhere else it is a single click,
+  and Settings says so**, because Electron gives Copacetic no way to check who
+  you are on Windows or Linux and inventing a password of its own would be a
+  lock built here and got wrong. Even with Touch ID this protects against
+  someone at your screen, not someone with your disk: the key is in the
+  keychain, and anything running as you can ask for it.
+
+- **A section saying what the vault does not protect you from.** It shows the
+  real path of the file so you can go and look; you will find the sites and
+  usernames readable and the passwords not. It says that an update can cost the
+  keychain entry while the builds are unsigned, and that it will never fill
+  passwords into pages, because doing so means running Copacetic's code inside
+  them and this browser ships without any.
+
 ## 1.3.1 — 2026-08-12
 
 ### Added
