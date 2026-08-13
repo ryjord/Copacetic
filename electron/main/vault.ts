@@ -1,4 +1,4 @@
-import { newId } from './persistence';
+import { asNumber, asString, isRecord, newId } from './persistence';
 import type { CsvCredential } from '../shared/credential-csv';
 import type { VaultEntry, VaultState } from '../shared/types';
 
@@ -34,16 +34,14 @@ export const EMPTY_VAULT_FILE: VaultFile = { version: 1, entries: [] };
 const NO_KEYCHAIN =
   'This machine has no keychain Copacetic can use, so there is nowhere safe to keep a password. Nothing has been saved.';
 
-/**
- * The distinction this class exists to preserve: a vault with nothing in it and
- * a vault whose secrets cannot be decrypted are different, and showing the
- * first when the second is true tells someone their passwords are gone.
- */
+// A vault with nothing in it and one that cannot be decrypted are different states.
 export class Vault {
   constructor(
     private readonly secrets: SecretStore,
     private readonly storage: VaultStorage,
     private readonly now: () => number = Date.now,
+    // Enforced here, not just the interface — a lock the renderer honours and the vault does not is decoration.
+    private readonly isUnlocked: () => boolean = () => true,
   ) {}
 
   state(): VaultState {
@@ -89,13 +87,11 @@ export class Vault {
       return { error: 'There is no password here to save.' };
     }
 
-    let secret = '';
-    try {
-      secret = this.secrets.encrypt(password).toString('base64');
-    } catch {
-      // Never fall back to storing it in the clear.
-      return { error: NO_KEYCHAIN };
+    const encrypted = this.encryptOrError(password);
+    if ('error' in encrypted) {
+      return encrypted;
     }
+    const secret = encrypted.secret;
 
     const timestamp = this.now();
     const entry: StoredEntry = {
@@ -127,11 +123,11 @@ export class Vault {
       if (!changes.password) {
         return { error: 'There is no password here to save.' };
       }
-      try {
-        secret = this.secrets.encrypt(changes.password).toString('base64');
-      } catch {
-        return { error: NO_KEYCHAIN };
+      const encrypted = this.encryptOrError(changes.password);
+      if ('error' in encrypted) {
+        return encrypted;
       }
+      secret = encrypted.secret;
     }
 
     const origin = changes.origin === undefined ? existing.origin : changes.origin.trim();
@@ -158,28 +154,24 @@ export class Vault {
 
   /** The only way a password leaves this process, one at a time and only when asked. */
   reveal(id: string): string | null {
+    if (!this.isUnlocked()) {
+      return null;
+    }
     const entry = this.storage.get().entries.find((candidate) => candidate.id === id);
-    if (!entry || !this.secrets.isAvailable()) {
-      return null;
-    }
-    try {
-      return this.secrets.decrypt(Buffer.from(entry.secret, 'base64'));
-    } catch {
-      return null;
-    }
+    return entry ? this.decryptEntry(entry) : null;
   }
 
-  /**
-   * Everything that can be decrypted, and a count of what cannot. A password
-   * that will not decrypt cannot be written to a file, and leaving it out
-   * quietly is how someone believes they took everything with them.
-   */
+  // Leaving an undecryptable password out quietly is how someone believes they took everything.
   exportAll(): { credentials: CsvCredential[]; unreadable: number } {
+    // The largest reveal there is, so it is behind the same lock.
+    if (!this.isUnlocked()) {
+      return { credentials: [], unreadable: this.storage.get().entries.length };
+    }
     const credentials: CsvCredential[] = [];
     let unreadable = 0;
 
     for (const entry of this.storage.get().entries) {
-      const password = this.reveal(entry.id);
+      const password = this.decryptEntry(entry);
       if (password === null) {
         unreadable += 1;
         continue;
@@ -224,13 +216,34 @@ export class Vault {
     return { added, updated, skipped };
   }
 
+  /** Whether the secret decrypts, which is a different question from whether the vault is unlocked. */
   private canRead(entry: StoredEntry): boolean {
+    return this.decryptEntry(entry) !== null;
+  }
+
+  private encryptOrError(password: string): { secret: string } | { error: string } {
     try {
-      this.secrets.decrypt(Buffer.from(entry.secret, 'base64'));
-      return true;
+      return { secret: this.secrets.encrypt(password).toString('base64') };
     } catch {
-      return false;
+      // Never fall back to storing it in the clear.
+      return { error: NO_KEYCHAIN };
     }
+  }
+
+  private decryptEntry(entry: StoredEntry): string | null {
+    if (!this.secrets.isAvailable()) {
+      return null;
+    }
+    try {
+      return this.secrets.decrypt(Buffer.from(entry.secret, 'base64'));
+    } catch {
+      return null;
+    }
+  }
+
+  /** The count alone, without attempting to decrypt anything — cheap enough for a status readout. */
+  count(): number {
+    return this.storage.get().entries.length;
   }
 
   private describe(entry: StoredEntry, isReadable: boolean): VaultEntry {
@@ -246,23 +259,19 @@ export class Vault {
 }
 
 export function reviveVaultFile(raw: unknown): VaultFile | null {
-  if (typeof raw !== 'object' || raw === null) {
-    return null;
-  }
-  const candidate = raw as { entries?: unknown };
-  if (!Array.isArray(candidate.entries)) {
+  if (!isRecord(raw) || !Array.isArray(raw.entries)) {
     return null;
   }
 
-  const entries = candidate.entries
-    .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
+  const entries = raw.entries
+    .filter(isRecord)
     .map((entry) => ({
       id: typeof entry.id === 'string' ? entry.id : newId(),
-      origin: typeof entry.origin === 'string' ? entry.origin : '',
-      username: typeof entry.username === 'string' ? entry.username : '',
-      secret: typeof entry.secret === 'string' ? entry.secret : '',
-      createdAt: typeof entry.createdAt === 'number' ? entry.createdAt : 0,
-      updatedAt: typeof entry.updatedAt === 'number' ? entry.updatedAt : 0,
+      origin: asString(entry.origin),
+      username: asString(entry.username),
+      secret: asString(entry.secret),
+      createdAt: asNumber(entry.createdAt),
+      updatedAt: asNumber(entry.updatedAt),
     }))
     // An entry with no origin or no secret is not a password, and keeping it
     // would show a row that can never be used.

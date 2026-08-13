@@ -1,5 +1,14 @@
-import { type BrowserWindow, app, dialog, session as electronSession, safeStorage, shell } from 'electron';
+import {
+  type BrowserWindow,
+  app,
+  dialog,
+  session as electronSession,
+  safeStorage,
+  shell,
+  systemPreferences,
+} from 'electron';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { PUSH, type ChromeSurface } from '../shared/channels';
 import { PersistedFile } from './persistence';
 import { sanitiseChromeText } from '../shared/chrome-text';
@@ -15,6 +24,8 @@ import type {
   PermissionPrompt,
   Settings,
   TabId,
+  VaultFacts,
+  VaultLock,
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -23,6 +34,16 @@ import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
 import { credentialsFromCsv, credentialsToCsv } from '../shared/credential-csv';
+import {
+  LOCKED,
+  type LockState,
+  describeLock,
+  isUnlocked,
+  lock,
+  touch,
+  unlock,
+  unlockMethodFor,
+} from '../shared/vault-lock';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { chooseWallpaper, clearWallpaper, hasWallpaper } from './wallpaper';
 import { DownloadManager } from './downloads';
@@ -74,6 +95,7 @@ export class Browser {
   readonly window: BrowserWindow;
   readonly store: BrowserStore;
   readonly vault: Vault;
+  private lockState: LockState = LOCKED;
   private readonly vaultFile: PersistedFile<VaultFile>;
   readonly blocker: ContentBlocker;
   readonly downloads: DownloadManager;
@@ -99,6 +121,15 @@ export class Browser {
       {
         get: () => this.vaultFile.get(),
         set: (next) => this.vaultFile.set(next),
+      },
+      Date.now,
+      () => {
+        const open = isUnlocked(this.lockState, Date.now());
+        if (open) {
+          // Using it holds it open; reading one password should not start a countdown.
+          this.lockState = touch(this.lockState, Date.now());
+        }
+        return open;
       },
     );
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
@@ -513,13 +544,50 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  // Write bookmarks or history somewhere the user picks.
-  /**
-   * Writes the passwords out in the format every other manager reads. The file
-   * is plain text by necessity — that is what makes it portable — so the
-   * warning is in the interface before the dialog opens, not buried after it.
-   */
+  /** Everything the honesty page claims, read from where it actually is rather than written out. */
+  vaultFacts(): VaultFacts {
+    return {
+      filePath: path.join(app.getPath('userData'), 'vault.json'),
+      hasKeychain: safeStorage.isEncryptionAvailable(),
+      canAskWhoYouAre: unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false) !== 'none',
+      // No certificate is bought, so this is false everywhere until one is.
+      isSigned: false,
+      entryCount: this.vault.count(),
+    };
+  }
+
+  vaultLock(): VaultLock {
+    const method = unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false);
+    return { isUnlocked: isUnlocked(this.lockState, Date.now()), method, detail: describeLock(method) };
+  }
+
+  /** Asks the operating system where it can, and says so plainly where it cannot. */
+  async unlockVault(): Promise<string> {
+    const method = unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false);
+    if (method === 'touch-id') {
+      try {
+        await systemPreferences.promptTouchID('unlock your saved passwords');
+      } catch {
+        // A refused or failed prompt leaves it locked. Saying "cancelled" would
+        // be a guess; either way nothing was unlocked.
+        return 'Not unlocked.';
+      }
+    }
+    this.lockState = unlock(this.lockState, Date.now());
+    this.scheduleStatePush();
+    return '';
+  }
+
+  lockVault(): void {
+    this.lockState = lock(this.lockState);
+    this.scheduleStatePush();
+  }
+
   async exportVault(): Promise<string> {
+    if (!isUnlocked(this.lockState, Date.now())) {
+      return 'Your vault is locked. Unlock it, then try exporting again.';
+    }
+
     const { credentials, unreadable } = this.vault.exportAll();
     if (credentials.length === 0) {
       return unreadable > 0

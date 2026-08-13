@@ -71,6 +71,11 @@ export const INVOKE = {
   vaultReveal: 'vault:reveal',
   vaultExport: 'vault:export',
   vaultImport: 'vault:import',
+  vaultGenerate: 'vault:generate',
+  vaultLockState: 'vault:lock-state',
+  vaultUnlock: 'vault:unlock',
+  vaultLock: 'vault:lock',
+  vaultFacts: 'vault:facts',
 
   wallpaperGet: 'wallpaper:get',
   wallpaperPreview: 'wallpaper:preview',

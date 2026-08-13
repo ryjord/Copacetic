@@ -374,3 +374,58 @@ describe('bringing passwords in', () => {
     expect(store.written().entries).toHaveLength(0);
   });
 });
+
+/**
+ * Enforced in the vault rather than the interface. A lock the renderer honours
+ * and the vault does not is decoration — anything that can reach IPC walks
+ * straight past it.
+ */
+describe('while the vault is locked', () => {
+  const lockedVault = () => {
+    const store = storage();
+    const open = new Vault(keychain(), store, now);
+    const { id } = open.add({ origin: 'https://example.com', username: 'riley', password: 'hunter2' }) as {
+      id: string;
+    };
+    return { id, vault: new Vault(keychain(), store, now, () => false) };
+  };
+
+  it('refuses to reveal a password', () => {
+    const { id, vault } = lockedVault();
+    expect(vault.reveal(id)).toBeNull();
+  });
+
+  // Exporting is the largest reveal available, so it is behind the same lock.
+  it('exports nothing, and says how many it is holding back', () => {
+    const { vault } = lockedVault();
+    expect(vault.exportAll()).toEqual({ credentials: [], unreadable: 1 });
+  });
+
+  // Locked is not the same as gone: the list is how someone knows what is there.
+  it('still lists what is saved', () => {
+    const { vault } = lockedVault();
+    expect(vault.state().entries).toHaveLength(1);
+    expect(vault.state().entries[0]?.origin).toBe('https://example.com');
+  });
+
+  it('reveals again once unlocked', () => {
+    const store = storage();
+    const open = new Vault(keychain(), store, now);
+    const { id } = open.add({ origin: 'https://example.com', username: 'riley', password: 'hunter2' }) as {
+      id: string;
+    };
+
+    let unlocked = false;
+    const vault = new Vault(keychain(), store, now, () => unlocked);
+    expect(vault.reveal(id)).toBeNull();
+    unlocked = true;
+    expect(vault.reveal(id)).toBe('hunter2');
+  });
+
+  // Saving a password you just typed does not require unlocking; you already
+  // have it in your hand.
+  it('still accepts a new password', () => {
+    const { vault } = lockedVault();
+    expect(vault.add({ origin: 'https://new.test', username: 'x', password: 'y' })).toHaveProperty('id');
+  });
+});
