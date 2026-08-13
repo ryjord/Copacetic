@@ -139,8 +139,6 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.appGetInfo, () => browser.getAppInfo());
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
 
-  // -------------------------------------------------------------- wallpaper
-
   // ------------------------------------------------------------------ vault
 
   // Every field is read back off the payload as a string: the renderer is the
@@ -156,11 +154,7 @@ export function registerIpcHandlers(browser: Browser): void {
   );
   handle(INVOKE.vaultUpdate, (_event, id, changes) => {
     const patch = isRecord(changes) ? changes : {};
-    const result = browser.vault.update(asString(id), {
-      ...(typeof patch.origin === 'string' ? { origin: patch.origin } : {}),
-      ...(typeof patch.username === 'string' ? { username: patch.username } : {}),
-      ...(typeof patch.password === 'string' ? { password: patch.password } : {}),
-    });
+    const result = browser.vault.update(asString(id), pickStrings(patch, ['origin', 'username', 'password']));
     return result?.error ?? '';
   });
   handle(INVOKE.vaultRemove, (_event, id) => browser.vault.remove(asString(id)));
@@ -177,6 +171,8 @@ export function registerIpcHandlers(browser: Browser): void {
       (count) => new Uint8Array(randomBytes(count)),
     ),
   );
+
+  // -------------------------------------------------------------- wallpaper
 
   handle(INVOKE.wallpaperGet, () => readWallpaper());
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());
@@ -232,6 +228,20 @@ function asInteger(value: unknown, fallback = 0): number {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+/** Keeps only the listed keys, and only where the value actually arrived as a string. */
+function pickStrings<K extends string>(
+  source: Record<string, unknown>,
+  keys: readonly K[],
+): Partial<Record<K, string>> {
+  const picked: Partial<Record<K, string>> = {};
+  for (const key of keys) {
+    if (typeof source[key] === 'string') {
+      picked[key] = source[key] as string;
+    }
+  }
+  return picked;
 }
 
 function asClearRange(value: unknown): ClearRange {
