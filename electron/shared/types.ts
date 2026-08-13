@@ -38,6 +38,8 @@ export interface SecurityState {
   detail: string;
   /** Present only for an https page whose certificate Chromium accepted. */
   certificate: CertificateSummary | null;
+  /** Set when this site's certificate has changed in a way worth mentioning. */
+  certificateChange: string;
 }
 
 export interface PageError {

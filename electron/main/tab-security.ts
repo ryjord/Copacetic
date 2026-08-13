@@ -1,7 +1,11 @@
 import { START_PAGE_URL, hostOf, isLoopbackHost } from '../shared/url';
 import type { CertificateSummary, SecurityState } from '../shared/types';
 
-export function describeSecurity(url: string, certificate: CertificateSummary | null = null): SecurityState {
+export function describeSecurity(
+  url: string,
+  certificate: CertificateSummary | null = null,
+  certificateChange = '',
+): SecurityState {
   let parsed: URL | null = null;
   try {
     parsed = new URL(url);
@@ -16,6 +20,7 @@ export function describeSecurity(url: string, certificate: CertificateSummary | 
       host: 'start',
       detail: 'A Copacetic page. Nothing here touches the network.',
       certificate: null,
+      certificateChange: '',
     };
   }
 
@@ -29,6 +34,7 @@ export function describeSecurity(url: string, certificate: CertificateSummary | 
       host,
       detail: 'A Copacetic page. Nothing here touches the network.',
       certificate: null,
+      certificateChange: '',
     };
   }
 
@@ -39,6 +45,7 @@ export function describeSecurity(url: string, certificate: CertificateSummary | 
       host: hostOf(url) || 'local file',
       detail: 'A file on this machine. It was never sent over a network.',
       certificate: null,
+      certificateChange: '',
     };
   }
 
@@ -49,6 +56,7 @@ export function describeSecurity(url: string, certificate: CertificateSummary | 
       host,
       detail: 'Encrypted. Chromium checked this site’s certificate against your system’s trusted authorities.',
       certificate,
+      certificateChange,
     };
   }
 
@@ -59,6 +67,7 @@ export function describeSecurity(url: string, certificate: CertificateSummary | 
       host,
       detail: 'Loopback connection. This traffic never leaves your machine.',
       certificate: null,
+      certificateChange: '',
     };
   }
 
@@ -69,6 +78,7 @@ export function describeSecurity(url: string, certificate: CertificateSummary | 
       host,
       detail: 'Not encrypted. Anyone on this network can read this page and change it before you see it.',
       certificate: null,
+      certificateChange: '',
     };
   }
 
@@ -78,5 +88,6 @@ export function describeSecurity(url: string, certificate: CertificateSummary | 
     host,
     detail: 'Copacetic cannot describe this connection.',
     certificate: null,
+    certificateChange: '',
   };
 }

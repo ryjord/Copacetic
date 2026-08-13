@@ -9,6 +9,7 @@ import type {
   TopSite,
 } from '../shared/types';
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../shared/url';
+import type { RememberedCertificate } from '../shared/certificate-changes';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord, newId } from './persistence';
 
 const MAX_HISTORY_ENTRIES = 10_000;
@@ -57,6 +58,7 @@ export class BrowserStore {
   private readonly bookmarksFile: PersistedFile<Bookmark[]>;
   private readonly faviconsFile: PersistedFile<Record<string, FaviconRecord>>;
   private readonly sessionFile: PersistedFile<SessionSnapshot>;
+  private readonly certificatesFile: PersistedFile<Record<string, RememberedCertificate>>;
   /** Parsed host and lowercased forms per history entry, keyed by entry id. */
   private readonly scoreFieldCache = new Map<string, ScoreFields>();
 
@@ -76,6 +78,13 @@ export class BrowserStore {
       reviveSession,
       1_000,
     );
+    // Remembered so a chain that starts ending at a locally-installed root can
+    // be noticed at all. Nothing here is secret; it is what the site presented.
+    this.certificatesFile = new PersistedFile<Record<string, RememberedCertificate>>(
+      'certificates.json',
+      () => ({}),
+      (raw) => (isRecord(raw) ? (raw as Record<string, RememberedCertificate>) : null),
+    );
 
     this.pruneHistory();
   }
@@ -86,6 +95,22 @@ export class BrowserStore {
     this.bookmarksFile.flush();
     this.faviconsFile.flush();
     this.sessionFile.flush();
+    this.certificatesFile.flush();
+  }
+
+  // ------------------------------------------------------------ certificates
+
+  rememberedCertificateFor(origin: string): RememberedCertificate | null {
+    return this.certificatesFile.get()[origin] ?? null;
+  }
+
+  /** Records what a site presented, so a later change can be noticed at all. */
+  rememberCertificate(origin: string, next: RememberedCertificate): void {
+    this.certificatesFile.update((current) => ({ ...current, [origin]: next }));
+  }
+
+  forgetRememberedCertificates(): void {
+    this.certificatesFile.set({});
   }
 
   // ---------------------------------------------------------------- settings
