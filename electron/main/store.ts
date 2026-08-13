@@ -19,7 +19,7 @@ const MAX_FAVICON_ENTRIES = 600;
 export const HISTORY_PAGE_SIZE = 300;
 
 export const DEFAULT_SETTINGS: Settings = {
-  searchEngine: 'duckduckgo',
+  searchEngine: 'brave',
   theme: 'deep',
   density: 'comfortable',
   httpsFirst: true,
