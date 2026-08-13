@@ -25,6 +25,7 @@ import type {
   Settings,
   TabId,
   VaultFacts,
+  VaultLock,
 } from '../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../shared/url';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -543,12 +544,6 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  // Write bookmarks or history somewhere the user picks.
-  /**
-   * Writes the passwords out in the format every other manager reads. The file
-   * is plain text by necessity — that is what makes it portable — so the
-   * warning is in the interface before the dialog opens, not buried after it.
-   */
   /** Everything the honesty page claims, read from where it actually is rather than written out. */
   vaultFacts(): VaultFacts {
     return {
@@ -557,11 +552,11 @@ export class Browser {
       canAskWhoYouAre: unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false) !== 'none',
       // No certificate is bought, so this is false everywhere until one is.
       isSigned: false,
-      entryCount: this.vault.state().entries.length,
+      entryCount: this.vault.count(),
     };
   }
 
-  vaultLock(): { isUnlocked: boolean; method: ReturnType<typeof unlockMethodFor>; detail: string } {
+  vaultLock(): VaultLock {
     const method = unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false);
     return { isUnlocked: isUnlocked(this.lockState, Date.now()), method, detail: describeLock(method) };
   }
@@ -589,6 +584,10 @@ export class Browser {
   }
 
   async exportVault(): Promise<string> {
+    if (!isUnlocked(this.lockState, Date.now())) {
+      return 'Your vault is locked. Unlock it, then try exporting again.';
+    }
+
     const { credentials, unreadable } = this.vault.exportAll();
     if (credentials.length === 0) {
       return unreadable > 0

@@ -44,6 +44,19 @@ export function PasswordsPane() {
 
   useEffect(refresh, [refresh]);
 
+  // Auto-lock fires on its own timer in the main process, so this polls rather than going stale.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void ask((api) => api.vault.lockState(), OPEN).then((next) => {
+        setLockState(next);
+        if (!next.isUnlocked) {
+          setRevealed({});
+        }
+      });
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const reveal = (id: string) => {
     if (revealed[id] !== undefined) {
       setRevealed((current) => {
@@ -160,12 +173,7 @@ export function PasswordsPane() {
   );
 }
 
-/**
- * Every claim here is read from where the thing actually is rather than written
- * out, because a sentence about a file path is only worth having if it is the
- * path. The rest is the list of things a password manager is usually quiet
- * about.
- */
+// Every claim is read from where the thing actually is — the rest is what a password manager is usually quiet about.
 function WhatThisDoesNotDo({ facts }: { facts: VaultFacts }) {
   return (
     <Section title="What this does not protect you from">
@@ -208,12 +216,7 @@ function WhatThisDoesNotDo({ facts }: { facts: VaultFacts }) {
   );
 }
 
-/**
- * What locking is worth on this machine, said before it is offered rather than
- * after. On a platform Electron cannot ask for identity on, unlocking is one
- * click, and calling that security would be the claim this browser exists not
- * to make.
- */
+// What locking is worth here, said before it is offered — calling a one-click unlock "security" is a claim this browser exists not to make.
 function LockCondition({ lock, onChange }: { lock: VaultLock; onChange: (message: string) => void }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -242,11 +245,7 @@ function LockCondition({ lock, onChange }: { lock: VaultLock; onChange: (message
   );
 }
 
-/**
- * An empty vault and a vault that cannot be decrypted are different things, and
- * showing the second as the first tells someone their passwords are gone. This
- * is the only place that difference is visible to them.
- */
+// An empty vault and one that cannot be decrypted are different things — this is where that difference is visible.
 function VaultCondition({ vault }: { vault: VaultState }) {
   if (vault.availability === 'ready') {
     return null;

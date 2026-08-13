@@ -1,8 +1,5 @@
-/**
- * The format every other password manager reads and writes. It is plain text by
- * necessity — that is what makes it portable, and why the interface says so
- * before writing one.
- */
+// The format every other password manager reads and writes — plain text, so the interface says so.
+import { hostOf } from './url';
 
 export interface CsvCredential {
   origin: string;
@@ -26,38 +23,32 @@ const ALIASES: Record<string, readonly string[]> = {
   password: ['password', 'login_password', 'pass'],
 };
 
-function quote(value: string): string {
-  // Only where it changes the meaning, so an ordinary file stays readable.
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
+// A leading one of these is how a spreadsheet decides a cell is a formula, not text.
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
 
-function nameFor(origin: string): string {
-  try {
-    return new URL(origin).hostname || origin;
-  } catch {
-    return origin;
+function quote(value: string): string {
+  const safe = FORMULA_TRIGGER.test(value) ? `'${value}` : value;
+  // Only where it changes the meaning, so an ordinary file stays readable.
+  if (/[",\r\n]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
+  return safe;
 }
 
 export function credentialsToCsv(credentials: readonly CsvCredential[]): string {
   const lines = [COLUMNS.join(',')];
   for (const credential of credentials) {
     lines.push(
-      [nameFor(credential.origin), credential.origin, credential.username, credential.password].map(quote).join(','),
+      [hostOf(credential.origin) || credential.origin, credential.origin, credential.username, credential.password]
+        .map(quote)
+        .join(','),
     );
   }
   // A trailing newline: some importers drop the last row without one.
   return `${lines.join('\n')}\n`;
 }
 
-/**
- * Split on commas and newlines that are not inside quotes. A password may
- * contain either, and splitting naively turns one into two fields — which does
- * not fail loudly, it just stores something wrong.
- */
+// Splits on commas/newlines outside quotes; a password may contain either.
 function parseRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
