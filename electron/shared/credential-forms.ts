@@ -1,9 +1,4 @@
-/**
- * Deciding what a submitted form was for. Every rule here is a guess about
- * markup nobody agreed on, so the bar is not "usually right" — a wrong offer
- * interrupts someone mid-login, and a wrong *save* puts a password under the
- * wrong name where they will not find it again.
- */
+// Every rule here is a guess about markup nobody agreed on — a wrong save loses a password.
 
 export interface FormField {
   /** The `type` attribute, lowercased. */
@@ -38,11 +33,7 @@ function describes(field: FormField, words: readonly string[]): boolean {
   return words.some((word) => haystack.includes(word));
 }
 
-/**
- * What the form appears to have been. Read from the passwords rather than the
- * button text, which is translated, and rather than the action URL, which is
- * frequently a router path that says nothing.
- */
+// Read from the passwords, not the button text (translated) or the action URL (often a router path that says nothing).
 export function classifyForm(fields: readonly FormField[]): FormKind | null {
   const passwords = fields.filter((field) => field.type === 'password' && field.isVisible && field.value !== '');
 
@@ -88,12 +79,7 @@ function passwordFrom(fields: readonly FormField[], kind: FormKind): string {
   return repeated?.value ?? passwords[passwords.length - 1]?.value ?? '';
 }
 
-/**
- * The username, in order of how much the page actually told us. A wrong guess
- * files the password under a name the person will not recognise, so an empty
- * username is better than a confident wrong one — some sites ask for it on a
- * previous screen and there is nothing here to find.
- */
+// An empty username beats a confident wrong one — some sites ask for it on an earlier screen.
 export function usernameFrom(fields: readonly FormField[]): string {
   const firstPasswordIndex = fields.findIndex((field) => field.type === 'password' && field.isVisible);
 

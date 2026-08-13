@@ -1,8 +1,4 @@
-/**
- * Generating a password is the one place in this project where "looks random"
- * and "is random" are different things, and nothing about the output reveals
- * which one you got.
- */
+// The one place where "looks random" and "is random" differ, and nothing about the output reveals which.
 
 export interface PasswordRecipe {
   length: number;
@@ -31,10 +27,7 @@ export const DEFAULT_RECIPE: PasswordRecipe = {
   useSymbols: true,
 };
 
-/**
- * `l` `I` `1` `O` `0` are left out on purpose. A password that cannot be read
- * aloud or typed off a screen gets written down somewhere worse.
- */
+// `l` `I` `1` `O` `0` are left out on purpose — unreadable-aloud gets written down somewhere worse.
 export function alphabetsFor(recipe: PasswordRecipe): string[] {
   const alphabets: string[] = [];
   if (recipe.useLower) {
@@ -52,12 +45,7 @@ export function alphabetsFor(recipe: PasswordRecipe): string[] {
   return alphabets;
 }
 
-/**
- * A number below `limit`, with no bias. Taking a byte modulo the alphabet size
- * is the usual shortcut and it is wrong: 256 does not divide by 25, so the
- * first few characters come up more often. Values in the uneven tail are
- * thrown away and redrawn instead.
- */
+// Unbiased below `limit`: a byte modulo the alphabet size favours the low end, so the tail is redrawn instead.
 function uniformIndex(limit: number, randomBytes: RandomBytes): number {
   if (limit <= 0) {
     return 0;
@@ -92,11 +80,7 @@ export function clampLength(length: number): number {
   return Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, Math.round(length)));
 }
 
-/**
- * One character from each chosen kind, the rest from all of them, then shuffled
- * — rather than generating and retrying until it happens to qualify. Retrying
- * biases towards whatever the check happens to accept.
- */
+// One of each chosen kind, the rest mixed, then shuffled — not generate-and-retry, which biases towards whatever the check accepts first.
 export function generatePassword(recipe: PasswordRecipe, randomBytes: RandomBytes): string {
   const alphabets = alphabetsFor(recipe);
   if (alphabets.length === 0) {

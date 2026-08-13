@@ -1,10 +1,4 @@
-/**
- * Locking the vault protects against someone at your screen. It does not
- * protect against someone with your disk, and saying otherwise would be the
- * kind of claim this browser exists not to make: the key is in the operating
- * system's keychain, and anything running as you can ask for it whether the
- * interface says locked or not.
- */
+// Protects against someone at your screen, not someone with your disk — the key lives in the OS keychain.
 
 /** What this machine can actually do to check who you are. */
 export type UnlockMethod = 'touch-id' | 'none';
@@ -20,12 +14,7 @@ export const TIMEOUT_CHOICES_MS = [60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000, 60 
 
 export const LOCKED: LockState = { unlockedAt: null, timeoutMs: DEFAULT_TIMEOUT_MS };
 
-/**
- * Electron can ask for Touch ID on macOS and has no equivalent for Windows
- * Hello, so on every other platform there is nothing to ask with. That is
- * stated rather than papered over with a password of Copacetic's own, which
- * would be a lock this project rolled itself and got wrong.
- */
+// Only macOS Touch ID exists here — stated plainly rather than papered over with a password of Copacetic's own.
 export function unlockMethodFor(platform: string, canPromptTouchID: boolean): UnlockMethod {
   return platform === 'darwin' && canPromptTouchID ? 'touch-id' : 'none';
 }
