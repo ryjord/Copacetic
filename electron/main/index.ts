@@ -1,16 +1,21 @@
 import { app, nativeImage } from 'electron';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { Browser } from './browser';
 import { showPageContextMenu } from './context-menu';
 import { devIconPath, isDevelopment } from './env';
 import { registerIpcHandlers, removeIpcHandlers } from './ipc';
 import { installApplicationMenu } from './menu';
-import { applyPrivacySwitches } from './command-line';
+import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './protocol';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
 applyPrivacySwitches(app.commandLine);
+applyDnsSwitches(
+  app.commandLine,
+  readDnsPreference(path.join(app.getPath('userData'), 'settings.json'), (file) => readFileSync(file, 'utf8')),
+);
 registerAppProtocolScheme();
 
 // A browser with two copies of itself running would fight over the session

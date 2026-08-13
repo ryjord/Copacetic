@@ -1,3 +1,5 @@
+import { type DnsSwitches, dnsSwitchesFor } from '../shared/dns';
+
 /**
  * Copacetic makes no proprietary calls today, and until now that was true
  * because those hooks are absent from an Electron build rather than because
@@ -79,4 +81,34 @@ export function applyPrivacySwitches(commandLine: CommandLine): void {
       commandLine.appendSwitch(entry.name, entry.value);
     }
   }
+}
+
+/**
+ * Chromium reads its DNS configuration from the command line, once, before the
+ * app is ready — long before the store is built. So this reads the two fields
+ * straight off disk. A missing or unreadable file means the system resolver,
+ * which is the safe answer rather than a guess.
+ */
+export function readDnsPreference(settingsPath: string, readFile: (path: string) => string): DnsSwitches | null {
+  try {
+    const raw: unknown = JSON.parse(readFile(settingsPath));
+    if (typeof raw !== 'object' || raw === null) {
+      return null;
+    }
+    const settings = raw as { dnsMode?: unknown; dnsResolverId?: unknown };
+    if (settings.dnsMode !== 'encrypted') {
+      return null;
+    }
+    return dnsSwitchesFor('encrypted', typeof settings.dnsResolverId === 'string' ? settings.dnsResolverId : '');
+  } catch {
+    return null;
+  }
+}
+
+export function applyDnsSwitches(commandLine: CommandLine, switches: DnsSwitches | null): void {
+  if (!switches) {
+    return;
+  }
+  commandLine.appendSwitch('dns-over-https-mode', switches.mode);
+  commandLine.appendSwitch('dns-over-https-templates', switches.templates);
 }

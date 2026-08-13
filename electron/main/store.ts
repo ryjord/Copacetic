@@ -10,6 +10,7 @@ import type {
 } from '../shared/types';
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../shared/url';
 import type { RememberedCertificate } from '../shared/certificate-changes';
+import { DEFAULT_RESOLVER_ID, resolverFor } from '../shared/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord, newId } from './persistence';
 
 const MAX_HISTORY_ENTRIES = 10_000;
@@ -21,6 +22,8 @@ export const HISTORY_PAGE_SIZE = 300;
 
 export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'brave',
+  dnsMode: 'system',
+  dnsResolverId: DEFAULT_RESOLVER_ID,
   theme: 'deep',
   density: 'comfortable',
   httpsFirst: true,
@@ -486,6 +489,9 @@ function reviveSettings(raw: unknown): Settings | null {
       ? (theme as Settings['theme'])
       : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',
+    // An unknown resolver falls back to the system rather than to one nobody chose.
+    dnsMode: asString(raw.dnsMode) === 'encrypted' ? 'encrypted' : 'system',
+    dnsResolverId: resolverFor(asString(raw.dnsResolverId)) ? asString(raw.dnsResolverId) : DEFAULT_RESOLVER_ID,
     httpsFirst: asBoolean(raw.httpsFirst, DEFAULT_SETTINGS.httpsFirst),
     blockTrackers: asBoolean(raw.blockTrackers, DEFAULT_SETTINGS.blockTrackers),
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),

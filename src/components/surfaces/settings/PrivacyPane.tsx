@@ -1,5 +1,13 @@
 // Components
-import { Note, RowAction, RowList, RowValue, Section, Subheading } from '@/components/surfaces/settings/controls';
+import {
+  ChoiceGroup,
+  Note,
+  RowAction,
+  RowList,
+  RowValue,
+  Section,
+  Subheading,
+} from '@/components/surfaces/settings/controls';
 import { Toggle } from '@/components/ui/Toggle';
 
 // Store
@@ -11,6 +19,7 @@ import { send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
+import { DNS_RESOLVERS, describeDns, resolverFor } from '../../../../electron/shared/dns';
 import { PERMISSION_LABELS, type PermissionKind } from '../../../../electron/shared/types';
 import type { SettingsPaneProps } from '@/components/surfaces/settings/types';
 
@@ -38,6 +47,34 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
         />
         <AllowlistedSites sites={settings.blockerAllowlist} />
         <PermissionList decisions={settings.permissionDecisions} />
+      </Section>
+
+      <Section title="Where names are looked up">
+        <Note>{describeDns(settings.dnsMode, settings.dnsResolverId)}</Note>
+        <ChoiceGroup
+          options={[
+            { id: 'system', label: 'Your network' },
+            { id: 'encrypted', label: 'Encrypted' },
+          ]}
+          selected={settings.dnsMode}
+          onSelect={(dnsMode) => updateSettings({ dnsMode })}
+        />
+        {settings.dnsMode === 'encrypted' && (
+          <div className="mt-3">
+            <Subheading>Who answers</Subheading>
+            <ChoiceGroup
+              options={DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }))}
+              selected={settings.dnsResolverId}
+              onSelect={(dnsResolverId) => updateSettings({ dnsResolverId })}
+              layout="grid"
+            />
+            <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
+              {resolverFor(settings.dnsResolverId)?.detail}
+            </p>
+          </div>
+        )}
+        {/* Chromium reads this once at startup; saying so beats appearing broken. */}
+        <p className="mt-3 text-[12px] text-caution">This takes effect the next time Copacetic starts.</p>
       </Section>
 
       <Section title="Zoom">

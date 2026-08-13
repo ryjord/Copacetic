@@ -219,6 +219,8 @@ export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string
   { id: 'bookmarks', label: 'Bookmarks', description: 'The most recent things you saved.' },
 ];
 
+import type { DnsMode } from './dns';
+
 export type VaultAvailability = 'ready' | 'unavailable' | 'unreadable';
 
 export interface VaultEntry {
@@ -290,6 +292,10 @@ export interface Settings {
   zoomLevels: Record<string, number>;
   // Sites where tracker blocking is switched off, by registrable domain.
   blockerAllowlist: string[];
+  // Encrypted DNS is off until chosen: switching who resolves your names without
+  // saying so is the move it exists to protect against.
+  dnsMode: DnsMode;
+  dnsResolverId: string;
   // Whether a start-page wallpaper is set.
   hasWallpaper: boolean;
   sidebarWidth: number;
