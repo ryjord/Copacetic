@@ -12,10 +12,15 @@ import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput }
 import type { RememberedCertificate } from '../../shared/certificate-changes';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord, newId } from './persistence';
+import { BookmarksStore } from './bookmarks-store';
+import { CertificatesStore } from './certificates-store';
+import { FaviconsStore } from './favicons-store';
+import { SessionStore, type SessionSnapshot } from './session-store';
+
+export type { SessionSnapshot };
 
 const MAX_HISTORY_ENTRIES = 10_000;
 const MAX_HISTORY_AGE_MS = 90 * 24 * 60 * 60 * 1000;
-const MAX_FAVICON_ENTRIES = 600;
 
 /** One page of history, shared so the caller and the default cannot drift apart. */
 export const HISTORY_PAGE_SIZE = 300;
@@ -39,55 +44,25 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultZoomFactor: 1,
 };
 
-interface FaviconRecord {
-  dataUrl: string;
-  updatedAt: number;
-}
-
 export interface HistoryPage {
   entries: HistoryEntry[];
   /** Every entry matching the query, not just the ones in this page. */
   total: number;
 }
 
-export interface SessionSnapshot {
-  urls: string[];
-  activeIndex: number;
-}
-
 export class BrowserStore {
   private readonly settingsFile: PersistedFile<Settings>;
   private readonly historyFile: PersistedFile<HistoryEntry[]>;
-  private readonly bookmarksFile: PersistedFile<Bookmark[]>;
-  private readonly faviconsFile: PersistedFile<Record<string, FaviconRecord>>;
-  private readonly sessionFile: PersistedFile<SessionSnapshot>;
-  private readonly certificatesFile: PersistedFile<Record<string, RememberedCertificate>>;
+  private readonly bookmarks = new BookmarksStore();
+  private readonly favicons = new FaviconsStore();
+  private readonly session = new SessionStore();
+  private readonly certificatesStore = new CertificatesStore();
   /** Parsed host and lowercased forms per history entry, keyed by entry id. */
   private readonly scoreFieldCache = new Map<string, ScoreFields>();
 
   constructor() {
     this.settingsFile = new PersistedFile<Settings>('settings.json', () => ({ ...DEFAULT_SETTINGS }), reviveSettings);
     this.historyFile = new PersistedFile<HistoryEntry[]>('history.json', () => [], reviveHistory);
-    this.bookmarksFile = new PersistedFile<Bookmark[]>('bookmarks.json', () => [], reviveBookmarks);
-    this.faviconsFile = new PersistedFile<Record<string, FaviconRecord>>(
-      'favicons.json',
-      () => ({}),
-      reviveFavicons,
-      2_000,
-    );
-    this.sessionFile = new PersistedFile<SessionSnapshot>(
-      'session.json',
-      () => ({ urls: [], activeIndex: 0 }),
-      reviveSession,
-      1_000,
-    );
-    // Remembered so a chain that starts ending at a locally-installed root can
-    // be noticed at all. Nothing here is secret; it is what the site presented.
-    this.certificatesFile = new PersistedFile<Record<string, RememberedCertificate>>(
-      'certificates.json',
-      () => ({}),
-      (raw) => (isRecord(raw) ? (raw as Record<string, RememberedCertificate>) : null),
-    );
 
     this.pruneHistory();
   }
@@ -95,25 +70,24 @@ export class BrowserStore {
   flushAll(): void {
     this.settingsFile.flush();
     this.historyFile.flush();
-    this.bookmarksFile.flush();
-    this.faviconsFile.flush();
-    this.sessionFile.flush();
-    this.certificatesFile.flush();
+    this.bookmarks.flush();
+    this.favicons.flush();
+    this.session.flush();
+    this.certificatesStore.flush();
   }
 
   // ------------------------------------------------------------ certificates
 
   rememberedCertificateFor(origin: string): RememberedCertificate | null {
-    return this.certificatesFile.get()[origin] ?? null;
+    return this.certificatesStore.for(origin);
   }
 
-  /** Records what a site presented, so a later change can be noticed at all. */
   rememberCertificate(origin: string, next: RememberedCertificate): void {
-    this.certificatesFile.update((current) => ({ ...current, [origin]: next }));
+    this.certificatesStore.remember(origin, next);
   }
 
   forgetRememberedCertificates(): void {
-    this.certificatesFile.set({});
+    this.certificatesStore.forgetAll();
   }
 
   // ---------------------------------------------------------------- settings
@@ -266,100 +240,46 @@ export class BrowserStore {
   // --------------------------------------------------------------- bookmarks
 
   listBookmarks(): Bookmark[] {
-    return this.bookmarksFile.get();
+    return this.bookmarks.list();
   }
 
   isBookmarked(url: string): boolean {
-    return this.bookmarksFile.get().some((bookmark) => bookmark.url === url);
+    return this.bookmarks.has(url);
   }
 
-  /** Adds or removes, and reports whether the URL is bookmarked afterwards. */
   toggleBookmark(url: string, title: string): boolean {
-    let bookmarked = false;
-    this.bookmarksFile.update((bookmarks) => {
-      const index = bookmarks.findIndex((bookmark) => bookmark.url === url);
-      if (index !== -1) {
-        return bookmarks.filter((_, i) => i !== index);
-      }
-      bookmarked = true;
-      return [{ id: newId(), url, title: title || url, createdAt: Date.now() }, ...bookmarks];
-    });
-    return bookmarked;
+    return this.bookmarks.toggle(url, title);
   }
 
-  /**
-   * Adds what is not already here and counts what was already saved, so a short
-   * number after an import is explained rather than looking like a failure.
-   */
   addBookmarks(entries: readonly { url: string; title: string; addedAt: number | null }[]): {
     added: number;
     alreadyHad: number;
   } {
-    let added = 0;
-    let alreadyHad = 0;
-
-    this.bookmarksFile.update((bookmarks) => {
-      const known = new Set(bookmarks.map((bookmark) => bookmark.url));
-      const fresh = [];
-      for (const entry of entries) {
-        if (known.has(entry.url)) {
-          alreadyHad += 1;
-          continue;
-        }
-        known.add(entry.url);
-        added += 1;
-        fresh.push({
-          id: newId(),
-          url: entry.url,
-          title: entry.title || entry.url,
-          // Seconds in the file, milliseconds here.
-          createdAt: entry.addedAt ? entry.addedAt * 1000 : Date.now(),
-        });
-      }
-      return [...fresh, ...bookmarks];
-    });
-
-    return { added, alreadyHad };
+    return this.bookmarks.addMany(entries);
   }
 
   removeBookmark(id: string): void {
-    this.bookmarksFile.update((bookmarks) => bookmarks.filter((bookmark) => bookmark.id !== id));
+    this.bookmarks.remove(id);
   }
 
   // ---------------------------------------------------------------- favicons
 
   getFavicon(url: string): string | null {
-    const origin = originOf(url);
-    return origin ? (this.faviconsFile.get()[origin]?.dataUrl ?? null) : null;
+    return this.favicons.get(url);
   }
 
   setFavicon(url: string, dataUrl: string): void {
-    const origin = originOf(url);
-    if (!origin) {
-      return;
-    }
-    this.faviconsFile.update((current) => {
-      const next = { ...current, [origin]: { dataUrl, updatedAt: Date.now() } };
-      const keys = Object.keys(next);
-      if (keys.length <= MAX_FAVICON_ENTRIES) {
-        return next;
-      }
-      // Evict least-recently-updated first; a stale favicon is refetched cheaply.
-      const keep = keys
-        .sort((a, b) => (next[b]?.updatedAt ?? 0) - (next[a]?.updatedAt ?? 0))
-        .slice(0, MAX_FAVICON_ENTRIES);
-      return Object.fromEntries(keep.map((key) => [key, next[key]!]));
-    });
+    this.favicons.set(url, dataUrl);
   }
 
   // ----------------------------------------------------------------- session
 
   saveSession(snapshot: SessionSnapshot): void {
-    this.sessionFile.set(snapshot);
+    this.session.save(snapshot);
   }
 
   getSession(): SessionSnapshot {
-    return this.sessionFile.get();
+    return this.session.get();
   }
 
   // --------------------------------------------------------------- omnibox
@@ -374,7 +294,7 @@ export class BrowserStore {
     const settings = this.getSettings();
     const needle = query.toLowerCase();
     const now = Date.now();
-    const bookmarkedUrls = new Set(this.bookmarksFile.get().map((bookmark) => bookmark.url));
+    const bookmarkedUrls = new Set(this.bookmarks.list().map((bookmark) => bookmark.url));
 
     const entries = this.historyFile.get();
     // Entries that fell out of history should not keep their parsed forms alive.
@@ -615,57 +535,6 @@ function reviveHistory(raw: unknown): HistoryEntry[] | null {
       },
     ];
   });
-}
-
-function reviveBookmarks(raw: unknown): Bookmark[] | null {
-  if (!Array.isArray(raw)) {
-    return null;
-  }
-  return raw.flatMap((item) => {
-    if (!isRecord(item)) {
-      return [];
-    }
-    const url = asString(item.url);
-    if (!url) {
-      return [];
-    }
-    return [
-      {
-        id: asString(item.id) || newId(),
-        url,
-        title: asString(item.title) || url,
-        createdAt: asNumber(item.createdAt, Date.now()),
-      },
-    ];
-  });
-}
-
-function reviveFavicons(raw: unknown): Record<string, FaviconRecord> | null {
-  if (!isRecord(raw)) {
-    return null;
-  }
-  const result: Record<string, FaviconRecord> = {};
-  for (const [origin, value] of Object.entries(raw)) {
-    if (!isRecord(value)) {
-      continue;
-    }
-    const dataUrl = asString(value.dataUrl);
-    // Only data URLs are ever cached; a remote URL here would mean the chrome
-    // renderer makes a network request, which it must never do.
-    if (!dataUrl.startsWith('data:image/')) {
-      continue;
-    }
-    result[origin] = { dataUrl, updatedAt: asNumber(value.updatedAt, 0) };
-  }
-  return result;
-}
-
-function reviveSession(raw: unknown): SessionSnapshot | null {
-  if (!isRecord(raw)) {
-    return null;
-  }
-  const urls = Array.isArray(raw.urls) ? raw.urls.filter((url): url is string => typeof url === 'string') : [];
-  return { urls, activeIndex: clamp(asNumber(raw.activeIndex, 0), 0, Math.max(0, urls.length - 1)) };
 }
 
 function clamp(value: number, min: number, max: number): number {
