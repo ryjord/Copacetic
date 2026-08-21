@@ -1,8 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
-import type { ChromeSurface } from '../../electron/shared/channels';
-import type { BrowserState, Settings, TabState } from '../../electron/shared/types';
+import type { ChromeSurface } from '@shared/channels';
+import type { BrowserState, Settings, TabState } from '@shared/types';
 import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
 import { keepIfSame, stabiliseState } from '@/lib/stableState';
 

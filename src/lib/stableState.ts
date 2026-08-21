@@ -1,4 +1,4 @@
-import type { BrowserState, TabState } from '../../electron/shared/types';
+import type { BrowserState, TabState } from '@shared/types';
 
 // Keeping references stable across state pushes.
 

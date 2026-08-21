@@ -11,6 +11,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Listed before '@', which matches by prefix and would swallow it.
+      '@shared': fileURLToPath(new URL('./electron/shared', import.meta.url)),
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
