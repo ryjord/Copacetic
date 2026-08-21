@@ -10,8 +10,6 @@ export interface MatchableEntry {
   username: string;
 }
 
-export type RefusalReason = 'not-secure' | 'no-match' | 'unusable-page';
-
 export interface FillOffer {
   entries: MatchableEntry[];
   /** Why nothing is offered, in the words shown to the user. Empty when entries were found. */

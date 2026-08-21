@@ -94,6 +94,27 @@ describe('what it refuses to import', () => {
 });
 
 describe('the file we write ourselves', () => {
+  /**
+   * Export escapes and import decodes; they are inverse operations and have to
+   * agree on the character set or a round trip silently mangles a title or a
+   * URL. The attribute and the element text are escaped differently, which is
+   * the part that would break first.
+   */
+  it('round trips characters that would break the markup', () => {
+    const original = {
+      id: 'a',
+      // A literal quote, not %22: percent-encoding it is exactly what stops
+      // this exercising the attribute escaping at all.
+      url: 'https://a.test/?q="quoted"&x=1<>',
+      title: 'He said "hello" & <b>left</b>',
+      createdAt: 1_690_000_000_000,
+    };
+    const { bookmarks, skipped } = bookmarksFromHtml(bookmarksToHtml([original], Date.now()));
+    expect(skipped).toBe(0);
+    expect(bookmarks[0]?.url).toBe(original.url);
+    expect(bookmarks[0]?.title).toBe(original.title);
+  });
+
   // Export shipped in 1.2.1; if these two ever disagree, leaving is broken.
   it('reads back what Copacetic exported', () => {
     const html = bookmarksToHtml(
