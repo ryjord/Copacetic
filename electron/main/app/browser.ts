@@ -14,7 +14,6 @@ import { PersistedFile } from '../data/persistence';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import type {
   AppInfo,
-  AuthPrompt,
   BrowserState,
   ClearRange,
   ConnectionEntry,
@@ -61,6 +60,7 @@ import {
 import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
+import { PendingPrompts } from './pending-prompts';
 import { UpdateManager } from '../system/updates';
 import { createChromeWindow } from './window';
 
@@ -83,16 +83,6 @@ export function mayBeHandedToOs(url: string): boolean {
   return !NEVER_HANDED_TO_OS.has(`${scheme}:`);
 }
 
-interface PendingAuth {
-  prompt: AuthPrompt;
-  respond: (username?: string, password?: string) => void;
-}
-
-interface PendingPermission {
-  prompt: PermissionPrompt;
-  resolve: (decision: PermissionDecision) => void;
-}
-
 /** Owns every long-lived piece of the browser and exposes the verbs that menus, shortcuts and IPC all call into. */
 export class Browser {
   readonly window: BrowserWindow;
@@ -105,8 +95,7 @@ export class Browser {
   readonly tabs: TabManager;
   readonly updates: UpdateManager;
 
-  private readonly pendingPermissions = new Map<string, PendingPermission>();
-  private readonly pendingAuth = new Map<string, PendingAuth>();
+  private readonly prompts = new PendingPrompts();
   private pushQueued = false;
   private isQuitting = false;
 
@@ -210,8 +199,8 @@ export class Browser {
       activeTabId,
       downloads: this.downloads.list(),
       find: this.tabs.getFindState(),
-      permissionPrompts: [...this.pendingPermissions.values()].map((pending) => pending.prompt),
-      authPrompts: [...this.pendingAuth.values()].map((pending) => pending.prompt),
+      permissionPrompts: this.prompts.permissionPrompts(),
+      authPrompts: this.prompts.authPrompts(),
       settings: { ...this.store.getSettings(), hasWallpaper: hasWallpaper() },
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
@@ -269,7 +258,7 @@ export class Browser {
             kind: input.kind,
             description: input.description,
           };
-          this.pendingPermissions.set(prompt.id, { prompt, resolve });
+          this.prompts.addPermission(prompt, resolve);
           this.scheduleStatePush();
         }),
 
@@ -337,7 +326,7 @@ export class Browser {
           return;
         }
         settled = true;
-        this.pendingAuth.delete(id);
+        this.prompts.forgetAuth(id);
         // Calling back with nothing cancels the challenge, which is what the
         // user asked for when they dismissed the prompt.
         if (username === undefined) {
@@ -348,8 +337,8 @@ export class Browser {
         this.scheduleStatePush();
       };
 
-      this.pendingAuth.set(id, {
-        prompt: describeAuthPrompt({
+      this.prompts.addAuth(
+        describeAuthPrompt({
           id,
           tabId,
           isProxy: authInfo.isProxy,
@@ -359,55 +348,32 @@ export class Browser {
           scheme: authInfo.scheme,
         }),
         respond,
-      });
+      );
       this.scheduleStatePush();
     });
   }
 
   respondToAuth(id: string, username: string, password: string): void {
-    this.pendingAuth.get(id)?.respond(username, password);
+    this.prompts.respondToAuth(id, username, password);
   }
 
   cancelAuth(id: string): void {
-    this.pendingAuth.get(id)?.respond();
+    this.prompts.cancelAuth(id);
   }
 
   respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
-    const pending = this.pendingPermissions.get(id);
-    if (!pending) {
+    const prompt = this.prompts.resolvePermission(id, decision);
+    if (!prompt) {
       return;
     }
-    this.pendingPermissions.delete(id);
     if (remember) {
-      this.store.setPermissionDecision(pending.prompt.origin, pending.prompt.kind, decision);
+      this.store.setPermissionDecision(prompt.origin, prompt.kind, decision);
     }
-    pending.resolve(decision);
     this.scheduleStatePush();
   }
 
-  // A prompt outlives its tab in two ways if nothing does this: the page's permission promise never settles, and the chrome keeps rendering a banner for a tab that is no longer there.
   private dropPermissionsForTab(tabId: TabId): void {
-    let dropped = false;
-    for (const [id, pending] of this.pendingPermissions) {
-      if (pending.prompt.tabId !== tabId) {
-        continue;
-      }
-      this.pendingPermissions.delete(id);
-      pending.resolve('deny');
-      dropped = true;
-    }
-
-    // Same reasoning for a challenge: closing the tab is an answer, and the
-    // request behind it must not be left waiting forever.
-    for (const [, pending] of [...this.pendingAuth]) {
-      if (pending.prompt.tabId !== tabId) {
-        continue;
-      }
-      pending.respond();
-      dropped = true;
-    }
-
-    if (dropped) {
+    if (this.prompts.dropForTab(tabId)) {
       this.scheduleStatePush();
     }
   }
@@ -847,14 +813,7 @@ export class Browser {
     this.prepareForQuit();
     this.updates.stop();
     this.tabs.dispose();
-    for (const pending of this.pendingPermissions.values()) {
-      pending.resolve('deny');
-    }
-    this.pendingPermissions.clear();
-    for (const pending of [...this.pendingAuth.values()]) {
-      pending.respond();
-    }
-    this.pendingAuth.clear();
+    this.prompts.settleAll();
   }
 }
 
