@@ -1,13 +1,13 @@
 import { app, nativeImage } from 'electron';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { Browser } from './browser';
-import { showPageContextMenu } from './context-menu';
-import { devIconPath, isDevelopment } from './env';
-import { registerIpcHandlers, removeIpcHandlers } from './ipc';
-import { installApplicationMenu } from './menu';
-import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './command-line';
-import { handleAppProtocol, registerAppProtocolScheme } from './protocol';
+import { Browser } from './app/browser';
+import { showPageContextMenu } from './menus/context-menu';
+import { devIconPath, isDevelopment } from './app/env';
+import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
+import { installApplicationMenu } from './menus/menu';
+import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './app/command-line';
+import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
