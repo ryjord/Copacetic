@@ -1,3 +1,5 @@
+import type { DnsMode } from './dns';
+
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
 export type TabId = string;
@@ -92,6 +94,10 @@ export interface DownloadState {
   completedAt: number | null;
   /** False once the file has been moved or deleted outside Copacetic. */
   fileExists: boolean;
+  /** Every URL it passed through: where you clicked is often not where it came from. */
+  urlChain: string[];
+  /** SHA-256 of what actually arrived, so it can be checked against a published one. */
+  sha256: string | null;
 }
 
 export interface HistoryEntry {
@@ -218,8 +224,6 @@ export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string
   { id: 'topSites', label: 'Most visited', description: 'Ranked from how often you actually go there.' },
   { id: 'bookmarks', label: 'Bookmarks', description: 'The most recent things you saved.' },
 ];
-
-import type { DnsMode } from './dns';
 
 export type VaultAvailability = 'ready' | 'unavailable' | 'unreadable';
 
