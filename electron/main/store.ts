@@ -287,6 +287,41 @@ export class BrowserStore {
     return bookmarked;
   }
 
+  /**
+   * Adds what is not already here and counts what was already saved, so a short
+   * number after an import is explained rather than looking like a failure.
+   */
+  addBookmarks(entries: readonly { url: string; title: string; addedAt: number | null }[]): {
+    added: number;
+    alreadyHad: number;
+  } {
+    let added = 0;
+    let alreadyHad = 0;
+
+    this.bookmarksFile.update((bookmarks) => {
+      const known = new Set(bookmarks.map((bookmark) => bookmark.url));
+      const fresh = [];
+      for (const entry of entries) {
+        if (known.has(entry.url)) {
+          alreadyHad += 1;
+          continue;
+        }
+        known.add(entry.url);
+        added += 1;
+        fresh.push({
+          id: newId(),
+          url: entry.url,
+          title: entry.title || entry.url,
+          // Seconds in the file, milliseconds here.
+          createdAt: entry.addedAt ? entry.addedAt * 1000 : Date.now(),
+        });
+      }
+      return [...fresh, ...bookmarks];
+    });
+
+    return { added, alreadyHad };
+  }
+
   removeBookmark(id: string): void {
     this.bookmarksFile.update((bookmarks) => bookmarks.filter((bookmark) => bookmark.id !== id));
   }

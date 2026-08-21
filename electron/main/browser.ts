@@ -33,6 +33,7 @@ import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
+import { bookmarksFromHtml } from '../shared/bookmark-import';
 import { credentialsFromCsv, credentialsToCsv } from '../shared/credential-csv';
 import {
   LOCKED,
@@ -618,6 +619,50 @@ export class Browser {
   }
 
   /** Reads a file another manager wrote, and says exactly what came of it. */
+  /**
+   * Reads the bookmark file every browser exports. Reading a live Chrome or
+   * Firefox database would mean shipping a SQLite dependency inside the app for
+   * a once-ever operation; this needs nothing and works for all of them.
+   */
+  async importBookmarks(): Promise<string> {
+    const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
+      title: 'Import bookmarks',
+      properties: ['openFile'],
+      filters: [{ name: 'Bookmarks', extensions: ['html', 'htm'] }],
+    });
+
+    const source = filePaths[0];
+    if (canceled || !source) {
+      return '';
+    }
+
+    let html = '';
+    try {
+      html = await readFile(source, 'utf8');
+    } catch (error) {
+      return error instanceof Error ? error.message : 'The file could not be read.';
+    }
+
+    const { bookmarks, skipped } = bookmarksFromHtml(html);
+    if (bookmarks.length === 0) {
+      return skipped > 0
+        ? `Nothing in that file could be imported. ${skipped} entries were not ordinary web addresses.`
+        : 'No bookmarks were found in that file.';
+    }
+
+    const { added, alreadyHad } = this.store.addBookmarks(bookmarks);
+    this.scheduleStatePush();
+
+    const parts = [`added ${added}`];
+    if (alreadyHad > 0) {
+      parts.push(`${alreadyHad} you already had`);
+    }
+    if (skipped > 0) {
+      parts.push(`${skipped} refused for not being web addresses`);
+    }
+    return `Imported: ${parts.join(', ')}.`;
+  }
+
   async importVault(): Promise<string> {
     const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
       title: 'Import passwords',

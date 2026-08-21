@@ -63,6 +63,7 @@ export const INVOKE = {
   connectionsList: 'connections:list',
 
   dataExport: 'data:export',
+  dataImportBookmarks: 'data:import-bookmarks',
 
   vaultList: 'vault:list',
   vaultAdd: 'vault:add',

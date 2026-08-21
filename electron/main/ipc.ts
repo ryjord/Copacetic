@@ -185,6 +185,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.dataExport, (_event, kind) =>
     browser.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'),
   );
+  handle(INVOKE.dataImportBookmarks, () => browser.importBookmarks());
 
   // ------------------------------------------------------------------- auth
 

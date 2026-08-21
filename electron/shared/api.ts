@@ -142,6 +142,8 @@ export interface CopaceticApi {
   data: {
     /** Write bookmarks or history to a file the user chooses. */
     export(kind: ExportKind): Promise<string>;
+    /** Reads the bookmark file any browser exports. Resolves with a summary. */
+    importBookmarks(): Promise<string>;
   };
   auth: {
     /** Answer a challenge. Credentials go straight to the request, unstored. */
