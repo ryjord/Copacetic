@@ -63,7 +63,7 @@
     "postcss": "^8.5.26",
     "prettier": "^3.4.2",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^3.2.4",
     "wait-on": "^9.0.4"
   },
