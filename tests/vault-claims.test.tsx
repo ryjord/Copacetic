@@ -36,7 +36,7 @@ vi.mock('@/lib/bridge', () => ({
   isRunningInShell: () => false,
 }));
 
-const { PasswordsPane } = await import('../src/components/surfaces/settings/PasswordsPane');
+const { PasswordsPane } = await import('../src/components/settings/passwords/PasswordsPane');
 
 afterEach(cleanup);
 

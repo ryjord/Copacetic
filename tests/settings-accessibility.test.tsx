@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { SettingsSurface } from '../src/components/surfaces/SettingsSurface';
-import { SETTINGS_PANES } from '../src/components/surfaces/settings/panes';
+import { SettingsSurface } from '../src/views/SettingsSurface/SettingsSurface';
+import { SETTINGS_PANES } from '../src/components/settings/shared/panes';
 
 vi.mock('@/lib/bridge', () => ({
   send: () => {},

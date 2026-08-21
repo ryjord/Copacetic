@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { globSync, readFileSync } from 'node:fs';
 import { cleanup, render, screen } from '@testing-library/react';
-import { AboutPane } from '../src/components/surfaces/settings/AboutPane';
-import { PrivacyPane } from '../src/components/surfaces/settings/PrivacyPane';
+import { AboutPane } from '../src/components/settings/about/AboutPane';
+import { PrivacyPane } from '../src/components/settings/privacy/PrivacyPane';
 
 vi.mock('@/lib/bridge', () => ({
   send: () => {},
@@ -43,11 +43,13 @@ describe('the counts Settings quotes', () => {
     expect(document.body.textContent).not.toMatch(/\d+ domains/);
   });
 
-  // A number typed into the prose is one nobody updates when the list changes.
+  // Globbed rather than listed: a pane added later is covered without anyone
+  // remembering, and moving the folder does not silently stop the check.
   it('hardcodes no domain count in any pane', () => {
-    for (const file of ['AboutPane.tsx', 'PrivacyPane.tsx']) {
-      const source = readFileSync(`src/components/surfaces/settings/${file}`, 'utf8');
-      expect(source).not.toMatch(/\b\d{2,4} domains\b/);
+    const panes = globSync('src/components/settings/**/*Pane.tsx');
+    expect(panes.length).toBeGreaterThan(4);
+    for (const file of panes) {
+      expect(readFileSync(file, 'utf8')).not.toMatch(/\b\d{2,4} domains\b/);
     }
   });
 });

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { TabState } from '../electron/shared/types';
-import { Omnibox } from '../src/components/chrome/Omnibox';
+import { Omnibox } from '../src/components/chrome/Omnibox/Omnibox';
 
 // The bridge is absent outside Electron and every call is a no-op, so the
 // component renders for real here — which is the point: these are the render

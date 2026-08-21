@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { TabState } from '../electron/shared/types';
-import { TabStrip } from '../src/components/chrome/TabStrip';
+import { TabStrip } from '../src/components/chrome/TabStrip/TabStrip';
 
 const activate = vi.fn();
 const close = vi.fn();

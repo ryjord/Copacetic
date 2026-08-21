@@ -1,4 +1,4 @@
-import type { CopaceticApi } from '../../electron/shared/api';
+import type { CopaceticApi } from '@shared/api';
 
 /** Access to the preload bridge. */
 export function getBridge(): CopaceticApi | null {
