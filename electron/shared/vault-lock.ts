@@ -22,7 +22,7 @@ export function unlockMethodFor(platform: string, canPromptTouchID: boolean): Un
 /** What locking is worth on this machine, in the words shown to the user. */
 export function describeLock(method: UnlockMethod): string {
   if (method === 'touch-id') {
-    return 'Locking hides your passwords until Touch ID confirms it is you. It does not protect the file itself — anything running as you can still ask the keychain for it.';
+    return 'Locking hides your passwords until macOS confirms it is you — Touch ID where it can, your login password otherwise. Which one you get is macOS\u2019s decision, not Copacetic\u2019s, and it never sees what you type. It does not protect the file itself either: anything running as you can still ask the keychain for it.';
   }
   return 'This machine has no way for Copacetic to check who you are, so unlocking here is a single click. It stops someone reading over your shoulder and nothing more.';
 }

@@ -191,7 +191,7 @@ function WhatThisDoesNotDo({ facts }: { facts: VaultFacts }) {
         </Answer>
         <Answer question="Does locking help?">
           {facts.canAskWhoYouAre
-            ? 'It stops someone at your screen, once Touch ID has confirmed it is you. It does not protect the file.'
+            ? 'It stops someone at your screen, once macOS has confirmed it is you — by Touch ID or by your login password, whichever it decides to ask for. It does not protect the file.'
             : 'This machine cannot check who you are, so unlocking is one click. It stops someone reading over your shoulder and nothing else.'}
         </Answer>
         {!facts.isSigned && (
@@ -237,7 +237,9 @@ function LockCondition({ lock, onChange }: { lock: VaultLock; onChange: (message
             void ask((api) => api.vault.unlock(), '').then(onChange);
           }}
         >
-          {lock.method === 'touch-id' ? 'Unlock with Touch ID' : 'Unlock'}
+          {/* Never 'Unlock with Touch ID': macOS may ask for the login password
+              instead, and promising a fingerprint makes that prompt look wrong. */}
+          Unlock
         </OutlineButton>
       )}
       <span className="w-full text-[12px] leading-relaxed text-ink-faint">{lock.detail}</span>

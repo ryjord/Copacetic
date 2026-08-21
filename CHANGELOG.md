@@ -2,6 +2,22 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.3.3 — 2026-08-13
+
+### Fixed
+
+- **Unlocking no longer promises a fingerprint macOS may not ask for.** The
+  panel said "Unlock with Touch ID"; on a real machine macOS asked for the
+  login password instead, which made a perfectly normal prompt look like
+  something had gone wrong. macOS decides which it asks for — and on a build
+  without a code-signing certificate it tends to decide password. Settings now
+  says so, says the choice is macOS's rather than Copacetic's, and says
+  Copacetic never sees what you type.
+
+### Changed
+
+- Electron 43.4.1, Next 16.3.2, esbuild 0.28.2. Patch level only.
+
 ## 1.3.2 — 2026-08-12
 
 ### Added
