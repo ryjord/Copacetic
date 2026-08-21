@@ -48,6 +48,23 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     separate();
   }
 
+  // Offered where a password box actually is, and only for this page's own site.
+  if (params.isEditable) {
+    const offer = browser.fillOfferFor(tabId);
+    if (offer.entries.length > 0) {
+      push({
+        label: 'Fill password',
+        submenu: offer.entries.map((entry) => ({
+          label: entry.username || 'Saved password',
+          click: () => {
+            void browser.fillPassword(tabId, entry.id);
+          },
+        })),
+      });
+      separate();
+    }
+  }
+
   if (params.isEditable) {
     push({ role: 'undo' });
     push({ role: 'redo' });

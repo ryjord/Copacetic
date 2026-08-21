@@ -660,6 +660,11 @@ export class TabManager {
     this.onChanged();
   }
 
+  /** The live page for a tab, or null for a start page that has no view. */
+  contentsForTab(id: TabId): WebContents | null {
+    return this.contentsFor(id);
+  }
+
   private contentsFor(id: TabId): WebContents | null {
     const tab = this.tabs.get(id);
     if (!tab || tab.view.webContents.isDestroyed()) {
