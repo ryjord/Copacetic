@@ -25,7 +25,6 @@ import type {
   VaultLock,
 } from '../../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../../shared/url';
-import { readFile, writeFile } from 'node:fs/promises';
 import { describeAuthPrompt, isPromptWorthy } from '../security/auth';
 import { ContentBlocker } from '../security/blocker';
 import { forgetCertificates } from '../security/certificates';
@@ -51,6 +50,7 @@ import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
 import { VaultSession } from './vault-session';
+import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
 import { UpdateManager } from '../system/updates';
 import { createChromeWindow } from './window';
 
@@ -574,20 +574,17 @@ export class Browser {
         : 'There are no saved passwords to export.';
     }
 
-    const stamp = new Date(Date.now()).toISOString().slice(0, 10);
-    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
-      title: 'Export passwords',
-      defaultPath: `copacetic-passwords-${stamp}.csv`,
-      filters: [{ name: 'Passwords', extensions: ['csv'] }],
-    });
-    if (canceled || !filePath) {
-      return '';
-    }
-
-    try {
-      await writeFile(filePath, credentialsToCsv(credentials), 'utf8');
-    } catch (error) {
-      return error instanceof Error ? error.message : 'The file could not be written.';
+    const written = await writeChosenFile(
+      this.window,
+      {
+        title: 'Export passwords',
+        defaultPath: `copacetic-passwords-${fileStamp(Date.now())}.csv`,
+        filters: [{ name: 'Passwords', extensions: ['csv'] }],
+      },
+      () => credentialsToCsv(credentials),
+    );
+    if (written.value === null) {
+      return written.message;
     }
 
     // A short count has to be explained, or it reads as everything.
@@ -596,30 +593,20 @@ export class Browser {
       : '';
   }
 
-  /** Reads a file another manager wrote, and says exactly what came of it. */
   /**
    * Reads the bookmark file every browser exports. Reading a live Chrome or
    * Firefox database would mean shipping a SQLite dependency inside the app for
    * a once-ever operation; this needs nothing and works for all of them.
    */
   async importBookmarks(): Promise<string> {
-    const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
+    const chosen = await readChosenFile(this.window, {
       title: 'Import bookmarks',
-      properties: ['openFile'],
       filters: [{ name: 'Bookmarks', extensions: ['html', 'htm'] }],
     });
-
-    const source = filePaths[0];
-    if (canceled || !source) {
-      return '';
+    if (chosen.value === null) {
+      return chosen.message;
     }
-
-    let html = '';
-    try {
-      html = await readFile(source, 'utf8');
-    } catch (error) {
-      return error instanceof Error ? error.message : 'The file could not be read.';
-    }
+    const html = chosen.value;
 
     const { bookmarks, skipped } = bookmarksFromHtml(html);
     if (bookmarks.length === 0) {
@@ -642,23 +629,14 @@ export class Browser {
   }
 
   async importVault(): Promise<string> {
-    const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
+    const chosen = await readChosenFile(this.window, {
       title: 'Import passwords',
-      properties: ['openFile'],
       filters: [{ name: 'Passwords', extensions: ['csv'] }],
     });
-
-    const source = filePaths[0];
-    if (canceled || !source) {
-      return '';
+    if (chosen.value === null) {
+      return chosen.message;
     }
-
-    let text = '';
-    try {
-      text = await readFile(source, 'utf8');
-    } catch (error) {
-      return error instanceof Error ? error.message : 'The file could not be read.';
-    }
+    const text = chosen.value;
 
     const { credentials, skipped: unusable } = credentialsFromCsv(text);
     if (credentials.length === 0) {
@@ -682,30 +660,22 @@ export class Browser {
 
   async exportData(kind: ExportKind): Promise<string> {
     const now = Date.now();
-    const stamp = new Date(now).toISOString().slice(0, 10);
+    const stamp = fileStamp(now);
     const isBookmarks = kind === 'bookmarks';
 
-    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
-      title: isBookmarks ? 'Export bookmarks' : 'Export history',
-      defaultPath: isBookmarks ? `copacetic-bookmarks-${stamp}.html` : `copacetic-history-${stamp}.json`,
-      filters: isBookmarks
-        ? [{ name: 'Bookmarks', extensions: ['html'] }]
-        : [{ name: 'History', extensions: ['json'] }],
-    });
-    if (canceled || !filePath) {
-      return '';
-    }
-
-    const contents = isBookmarks
-      ? bookmarksToHtml(this.store.listBookmarks(), now)
-      : historyToJson(this.store.allHistory(), now);
-
-    try {
-      await writeFile(filePath, contents, 'utf8');
-      return '';
-    } catch (error) {
-      return error instanceof Error ? error.message : 'The file could not be written.';
-    }
+    const written = await writeChosenFile(
+      this.window,
+      {
+        title: isBookmarks ? 'Export bookmarks' : 'Export history',
+        defaultPath: isBookmarks ? `copacetic-bookmarks-${stamp}.html` : `copacetic-history-${stamp}.json`,
+        filters: isBookmarks
+          ? [{ name: 'Bookmarks', extensions: ['html'] }]
+          : [{ name: 'History', extensions: ['json'] }],
+      },
+      () =>
+        isBookmarks ? bookmarksToHtml(this.store.listBookmarks(), now) : historyToJson(this.store.allHistory(), now),
+    );
+    return written.value === null ? written.message : '';
   }
 
   /** Resolves empty on success, or with a sentence for the user. */

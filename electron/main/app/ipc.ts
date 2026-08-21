@@ -250,7 +250,6 @@ function asClearRange(value: unknown): ClearRange {
   return value === 'hour' || value === 'day' || value === 'week' || value === 'all' ? value : 'hour';
 }
 
-/** Only keys the settings schema actually declares survive the trip. */
 /** Everything the renderer is allowed to change, checked one field at a time. */
 export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (!isRecord(value)) {
