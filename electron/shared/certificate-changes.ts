@@ -63,12 +63,13 @@ export function rememberCertificate(
   current: { fingerprint: string; issuer: string; isIssuedByKnownRoot: boolean },
   now: number,
 ): RememberedCertificate {
-  const isSame = remembered?.fingerprint === current.fingerprint;
   return {
     fingerprint: current.fingerprint,
     issuer: current.issuer,
     isIssuedByKnownRoot: current.isIssuedByKnownRoot,
-    // Kept across a renewal, so "first seen" means the site rather than the certificate.
-    firstSeenAt: isSame ? (remembered?.firstSeenAt ?? now) : (remembered?.firstSeenAt ?? now),
+    // Carried across a renewal, so "first seen" means the site rather than this
+    // particular certificate — otherwise it resets every few months and stops
+    // meaning anything.
+    firstSeenAt: remembered?.firstSeenAt ?? now,
   };
 }

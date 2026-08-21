@@ -11,8 +11,6 @@ export interface Provenance {
   sha256: string | null;
 }
 
-export const NO_PROVENANCE: Provenance = { urlChain: [], sha256: null };
-
 /** The distinct hosts a download passed through, in order, without repeats. */
 export function hostsInChain(urlChain: readonly string[]): string[] {
   const hosts: string[] = [];

@@ -1,4 +1,13 @@
-// Every rule here is a guess about markup nobody agreed on — a wrong save loses a password.
+/**
+ * NOT WIRED UP, ON PURPOSE. Detecting a submitted login means running code
+ * inside the page, and Copacetic ships without any — that guarantee was worth
+ * more than the feature, so save-on-submit was dropped in August 2026. This is
+ * kept because the guessing is the hard part and it is fully tested; wiring it
+ * in would mean revisiting the no-preload decision first, not just importing it.
+ *
+ * Every rule here is a guess about markup nobody agreed on — a wrong save loses
+ * a password.
+ */
 
 export interface FormField {
   /** The `type` attribute, lowercased. */
