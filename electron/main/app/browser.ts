@@ -8,9 +8,7 @@ import {
   systemPreferences,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
 import { PUSH, type ChromeSurface } from '../../shared/channels';
-import { PersistedFile } from '../data/persistence';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import type {
   AppInfo,
@@ -36,17 +34,8 @@ import { bookmarksFromHtml } from '../../shared/bookmark-import';
 import { offerFor } from '../../shared/credential-matching';
 import { fillScriptFor } from '../system/fill-script';
 import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
-import {
-  LOCKED,
-  type LockState,
-  describeLock,
-  isUnlocked,
-  lock,
-  touch,
-  unlock,
-  unlockMethodFor,
-} from '../../shared/vault-lock';
-import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from '../data/vault';
+import {} from '../../shared/vault-lock';
+import { Vault } from '../data/vault';
 import { chooseWallpaper, clearWallpaper, hasWallpaper } from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
@@ -61,6 +50,7 @@ import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
+import { VaultSession } from './vault-session';
 import { UpdateManager } from '../system/updates';
 import { createChromeWindow } from './window';
 
@@ -87,9 +77,12 @@ export function mayBeHandedToOs(url: string): boolean {
 export class Browser {
   readonly window: BrowserWindow;
   readonly store: BrowserStore;
-  readonly vault: Vault;
-  private lockState: LockState = LOCKED;
-  private readonly vaultFile: PersistedFile<VaultFile>;
+  private readonly vaultSession: VaultSession;
+
+  /** The vault itself, for the callers that read entries rather than the lock. */
+  get vault(): Vault {
+    return this.vaultSession.vault;
+  }
   readonly blocker: ContentBlocker;
   readonly downloads: DownloadManager;
   readonly tabs: TabManager;
@@ -103,26 +96,17 @@ export class Browser {
     this.store = new BrowserStore();
     // safeStorage is only reachable after app.ready, which is why the keychain
     // is asked at each call rather than captured once here.
-    this.vaultFile = new PersistedFile<VaultFile>('vault.json', () => EMPTY_VAULT_FILE, reviveVaultFile);
-    this.vault = new Vault(
+    this.vaultSession = new VaultSession(
       {
-        isAvailable: () => safeStorage.isEncryptionAvailable(),
-        encrypt: (plainText) => safeStorage.encryptString(plainText),
-        decrypt: (cipherText) => safeStorage.decryptString(cipherText),
+        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+        encryptString: (plainText) => safeStorage.encryptString(plainText),
+        decryptString: (cipherText) => safeStorage.decryptString(cipherText),
+        platform: process.platform,
+        canPromptTouchID: () => systemPreferences.canPromptTouchID?.() ?? false,
+        promptTouchID: (reason) => systemPreferences.promptTouchID(reason),
+        userDataPath: () => app.getPath('userData'),
       },
-      {
-        get: () => this.vaultFile.get(),
-        set: (next) => this.vaultFile.set(next),
-      },
-      Date.now,
-      () => {
-        const open = isUnlocked(this.lockState, Date.now());
-        if (open) {
-          // Using it holds it open; reading one password should not start a countdown.
-          this.lockState = touch(this.lockState, Date.now());
-        }
-        return open;
-      },
+      () => this.scheduleStatePush(),
     );
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
@@ -513,11 +497,10 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  /** Everything the honesty page claims, read from where it actually is rather than written out. */
   /** What could be filled into the page in this tab, or why nothing can be. */
   fillOfferFor(tabId: TabId): { entries: { id: string; username: string }[]; refusal: string } {
     const url = this.tabs.urlFor(tabId) ?? '';
-    const offer = offerFor(url, this.vault.state().entries);
+    const offer = offerFor(url, this.vaultSession.vault.state().entries);
     return { entries: offer.entries.map(({ id, username }) => ({ id, username })), refusal: offer.refusal };
   }
 
@@ -529,13 +512,13 @@ export class Browser {
    */
   async fillPassword(tabId: TabId, entryId: string): Promise<string> {
     const url = this.tabs.urlFor(tabId) ?? '';
-    const offer = offerFor(url, this.vault.state().entries);
+    const offer = offerFor(url, this.vaultSession.vault.state().entries);
     const entry = offer.entries.find((candidate) => candidate.id === entryId);
     if (!entry) {
       return offer.refusal || 'That password does not belong to this page.';
     }
 
-    const password = this.vault.reveal(entryId);
+    const password = this.vaultSession.vault.reveal(entryId);
     if (password === null) {
       return 'The vault is locked, or that password cannot be decrypted on this machine.';
     }
@@ -562,50 +545,29 @@ export class Browser {
     }
   }
 
+  /** Everything the honesty page claims, read from where it actually is rather than written out. */
   vaultFacts(): VaultFacts {
-    return {
-      filePath: path.join(app.getPath('userData'), 'vault.json'),
-      hasKeychain: safeStorage.isEncryptionAvailable(),
-      canAskWhoYouAre: unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false) !== 'none',
-      // No certificate is bought, so this is false everywhere until one is.
-      isSigned: false,
-      entryCount: this.vault.count(),
-    };
+    return this.vaultSession.facts();
   }
 
   vaultLock(): VaultLock {
-    const method = unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false);
-    return { isUnlocked: isUnlocked(this.lockState, Date.now()), method, detail: describeLock(method) };
+    return this.vaultSession.lockInfo();
   }
 
-  /** Asks the operating system where it can, and says so plainly where it cannot. */
-  async unlockVault(): Promise<string> {
-    const method = unlockMethodFor(process.platform, systemPreferences.canPromptTouchID?.() ?? false);
-    if (method === 'touch-id') {
-      try {
-        await systemPreferences.promptTouchID('unlock your saved passwords');
-      } catch {
-        // A refused or failed prompt leaves it locked. Saying "cancelled" would
-        // be a guess; either way nothing was unlocked.
-        return 'Not unlocked.';
-      }
-    }
-    this.lockState = unlock(this.lockState, Date.now());
-    this.scheduleStatePush();
-    return '';
+  unlockVault(): Promise<string> {
+    return this.vaultSession.unlock();
   }
 
   lockVault(): void {
-    this.lockState = lock(this.lockState);
-    this.scheduleStatePush();
+    this.vaultSession.lock();
   }
 
   async exportVault(): Promise<string> {
-    if (!isUnlocked(this.lockState, Date.now())) {
+    if (!this.vaultSession.isOpen()) {
       return 'Your vault is locked. Unlock it, then try exporting again.';
     }
 
-    const { credentials, unreadable } = this.vault.exportAll();
+    const { credentials, unreadable } = this.vaultSession.vault.exportAll();
     if (credentials.length === 0) {
       return unreadable > 0
         ? `None of your ${unreadable} saved passwords could be decrypted on this machine, so there was nothing to write.`
@@ -703,7 +665,7 @@ export class Browser {
       return 'No passwords were found in that file. It needs a header row naming a url and a password column.';
     }
 
-    const { added, updated, skipped } = this.vault.importMany(credentials);
+    const { added, updated, skipped } = this.vaultSession.vault.importMany(credentials);
     const parts = [];
     if (added > 0) {
       parts.push(`added ${added}`);
@@ -798,7 +760,7 @@ export class Browser {
   }
 
   prepareForQuit(): void {
-    this.vaultFile.flush();
+    this.vaultSession.flush();
     if (this.isQuitting) {
       return;
     }
