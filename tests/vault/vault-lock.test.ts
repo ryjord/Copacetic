@@ -110,4 +110,20 @@ describe('what this machine can actually ask', () => {
   it('does not claim Touch ID protects the file itself', () => {
     expect(describeLock('touch-id')).toContain('does not protect the file itself');
   });
+
+  /**
+   * Observed on a real machine: the prompt asked for the login password rather
+   * than a fingerprint. macOS decides which, and on an unsigned build it tends
+   * to decide password — so promising a fingerprint makes the prompt someone
+   * actually gets look like something has gone wrong.
+   */
+  it('does not promise a fingerprint specifically', () => {
+    const detail = describeLock('touch-id');
+    expect(detail).toContain('login password');
+    expect(detail).not.toMatch(/until Touch ID confirms/);
+  });
+
+  it('says whose decision that is, and that Copacetic never sees it', () => {
+    expect(describeLock('touch-id')).toContain('never sees what you type');
+  });
 });
