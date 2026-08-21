@@ -1,13 +1,12 @@
 import { type BrowserWindow, type ContextMenuParams, WebContentsView, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
-import type { FindState, PageError, TabId, TabState } from '../../shared/types';
+import type { FindState, TabId, TabState } from '../../shared/types';
 import {
   START_PAGE_URL,
   fallbackTitleFor,
   hostOf,
   isNavigableUrl,
   originOf,
-  registrableDomainOf,
   resolveOmniboxInput,
 } from '../../shared/url';
 import type { ContentBlocker } from '../security/blocker';
@@ -22,9 +21,11 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
+import { attachTabEvents } from './tab-events';
+import { ClosedTabs } from './closed-tabs';
+import type { TabRecord } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
-import { describeNetError, isAbortError } from '../system/net-errors';
 import {
   HUSH_PARTITION,
   WEB_PARTITION,
@@ -34,41 +35,13 @@ import {
 } from '../security/security';
 import type { BrowserStore } from '../data/store';
 
-interface TabRecord {
-  id: TabId;
-  view: WebContentsView;
-  /** Nothing this tab does is written to disk — see HUSH_PARTITION. */
-  isHush: boolean;
-  /** True while the tab shows Copacetic's own start page instead of a site. */
-  isStartPage: boolean;
-  url: string;
-  title: string;
-  faviconDataUrl: string | null;
-  isLoading: boolean;
-  error: PageError | null;
-  loadStartedAt: number | null;
-  loadMs: number | null;
-  zoomFactor: number;
-  isMuted: boolean;
-  /** The favicon URL we last kicked off a fetch for, to avoid refetching. */
-  pendingFaviconUrl: string | null;
-}
-
-interface ClosedTab {
-  url: string;
-  title: string;
-  index: number;
-}
-
-const MAX_REOPENABLE = 12;
-
 export class TabManager {
   private readonly tabs = new Map<TabId, TabRecord>();
   private order: TabId[] = [];
   private activeId: TabId | null = null;
   private insets: ContentInsets = DEFAULT_INSETS;
   private overlayVisible = false;
-  private readonly closedTabs: ClosedTab[] = [];
+  private readonly closedTabs = new ClosedTabs();
   private find: FindState = CLOSED_FIND;
   private isDisposed = false;
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
@@ -105,7 +78,7 @@ export class TabManager {
   }
 
   hasClosedTabs(): boolean {
-    return this.closedTabs.length > 0;
+    return this.closedTabs.canReopen;
   }
 
   snapshot(): { tabs: TabState[]; tabOrder: TabId[]; activeTabId: TabId | null } {
@@ -397,7 +370,17 @@ export class TabManager {
     // rather than a zero-sized one and picks the wrong responsive breakpoint.
     view.setBounds(this.currentBounds());
     view.setVisible(false);
-    this.attachEvents(tab);
+    attachTabEvents(tab, {
+      store: this.store,
+      blocker: this.blocker,
+      onChanged: () => this.onChanged(),
+      applyVisibility: () => this.applyVisibility(),
+      cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),
+      onFoundInPage: (activeMatch, matches) => {
+        this.find = findWithMatches(this.find, activeMatch, matches);
+      },
+      onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
+    });
     guardTabWebContents(view.webContents, this.securityDelegate);
 
     if (!isStartPage) {
@@ -434,8 +417,7 @@ export class TabManager {
 
     const index = this.order.indexOf(id);
     if (!tab.isStartPage && !tab.isHush) {
-      this.closedTabs.unshift({ url: tab.url, title: tab.title, index });
-      this.closedTabs.length = Math.min(this.closedTabs.length, MAX_REOPENABLE);
+      this.closedTabs.remember({ url: tab.url, title: tab.title, index });
     }
 
     this.destroyTab(tab);
@@ -478,7 +460,7 @@ export class TabManager {
   }
 
   reopenClosed(): void {
-    const restored = this.closedTabs.shift();
+    const restored = this.closedTabs.takeMostRecent();
     if (!restored) {
       return;
     }
@@ -740,132 +722,6 @@ export class TabManager {
   }
 
   // ---------------------------------------------------------------- events
-
-  private attachEvents(tab: TabRecord): void {
-    const contents = tab.view.webContents;
-    const changed = () => this.onChanged();
-
-    contents.on('did-start-loading', () => {
-      tab.isLoading = true;
-      tab.loadStartedAt = Date.now();
-      changed();
-    });
-
-    contents.on('did-stop-loading', () => {
-      tab.isLoading = false;
-      if (tab.loadStartedAt !== null) {
-        tab.loadMs = Date.now() - tab.loadStartedAt;
-        tab.loadStartedAt = null;
-      }
-      changed();
-    });
-
-    contents.on('did-start-navigation', (details) => {
-      if (!details.isMainFrame) {
-        return;
-      }
-      this.blocker.resetCount(contents.id);
-      // Set before any subresource request is judged, so an exception applies
-      // from the first request of the page rather than the second load.
-      const site = hostOf(details.url);
-      this.blocker.setPageSite(contents.id, registrableDomainOf(site) ?? site);
-    });
-
-    const commitNavigation = (url: string, isInPage: boolean) => {
-      if (url === 'about:blank') {
-        return;
-      }
-      tab.url = url;
-      tab.isStartPage = false;
-      tab.error = null;
-      if (!isInPage) {
-        tab.title = fallbackTitleFor(url);
-        tab.faviconDataUrl = this.store.getFavicon(url);
-      }
-      // A stored level for this origin wins over whatever the tab was showing,
-      // so following a link to a site you zoomed once arrives zoomed.
-      if (!isInPage) {
-        tab.zoomFactor = this.store.getZoomForOrigin(originOf(url)) ?? this.store.getSettings().defaultZoomFactor;
-      }
-      contents.setZoomFactor(tab.zoomFactor);
-      this.applyVisibility();
-      changed();
-    };
-
-    contents.on('did-navigate', (_event, url) => commitNavigation(url, false));
-    contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
-      if (isMainFrame) {
-        commitNavigation(url, true);
-      }
-    });
-
-    contents.on('page-title-updated', (_event, title) => {
-      tab.title = title;
-      if (!tab.isStartPage && !tab.error && tab.url.startsWith('http')) {
-        // The whole point of a Hush tab: no record of where it went.
-        if (!tab.isHush) {
-          this.store.recordVisit(tab.url, title);
-        }
-      }
-      changed();
-    });
-
-    contents.on('page-favicon-updated', (_event, favicons) => {
-      const [faviconUrl] = favicons;
-      // A cached favicon is a list of sites visited, stored by another name.
-      if (faviconUrl && !tab.isHush) {
-        void this.cacheFavicon(tab, faviconUrl);
-      }
-    });
-
-    contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-      if (!isMainFrame || isAbortError(errorCode)) {
-        return;
-      }
-      const info = describeNetError(errorCode, errorDescription);
-      tab.isLoading = false;
-      tab.error = {
-        code: errorCode,
-        name: info.name,
-        description: info.description,
-        url: validatedURL || tab.url,
-      };
-      tab.url = validatedURL || tab.url;
-      this.applyVisibility();
-      changed();
-    });
-
-    contents.on('render-process-gone', (_event, details) => {
-      tab.isLoading = false;
-      tab.error = {
-        code: 0,
-        name: `RENDERER_${details.reason.toUpperCase().replace(/-/g, '_')}`,
-        description:
-          details.reason === 'oom'
-            ? 'This page ran out of memory. Reloading usually recovers it.'
-            : 'The process rendering this page stopped unexpectedly.',
-        url: tab.url,
-      };
-      this.applyVisibility();
-      changed();
-    });
-
-    contents.on('found-in-page', (_event, result) => {
-      this.find = findWithMatches(this.find, result.activeMatchOrdinal ?? 0, result.matches ?? 0);
-      changed();
-    });
-
-    contents.on('audio-state-changed', changed);
-    contents.on('media-started-playing', changed);
-    contents.on('media-paused', changed);
-
-    // A WebContentsView paints above the chrome's HTML, so an in-page context
-    // menu drawn in React would be hidden behind the page. Native menus are
-    // both the only thing that can sit on top and the correct platform answer.
-    contents.on('context-menu', (_event, params) => {
-      this.contextMenuHandler?.(tab.id, params);
-    });
-  }
 
   onPageContextMenu(handler: (tabId: TabId, params: ContextMenuParams) => void): void {
     this.contextMenuHandler = handler;
