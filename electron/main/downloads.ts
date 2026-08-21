@@ -1,5 +1,6 @@
 import { type DownloadItem, type Session, app, shell } from 'electron';
-import { existsSync } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type { DownloadState, DownloadStatus } from '../shared/types';
 import { PersistedFile, asNumber, asString, isRecord, newId } from './persistence';
@@ -76,6 +77,8 @@ export class DownloadManager {
         startedAt: Date.now(),
         completedAt: null,
         fileExists: false,
+        urlChain: item.getURLChain(),
+        sha256: null,
       });
 
       item.on('updated', (_updatedEvent, state) => {
@@ -134,8 +137,34 @@ export class DownloadManager {
           completedAt: Date.now(),
           fileExists: status === 'completed' && existsSync(entry.savePath),
         }));
+
+        // Only once it is on disk and whole; a hash of a partial file is a lie.
+        if (status === 'completed') {
+          void this.recordHash(id);
+        }
       });
     });
+  }
+
+  /**
+   * Hashed after the fact and streamed, because a large file must not be held
+   * in memory to be checked, and a checksum you cannot compare is not one.
+   */
+  private async recordHash(id: string): Promise<void> {
+    const entry = this.list().find((candidate) => candidate.id === id);
+    if (!entry) {
+      return;
+    }
+    try {
+      const hash = createHash('sha256');
+      for await (const chunk of createReadStream(entry.savePath)) {
+        hash.update(chunk as Buffer);
+      }
+      this.patch(id, (current) => ({ ...current, sha256: hash.digest('hex') }));
+    } catch {
+      // A file moved or removed before it could be read leaves the hash unset,
+      // which is honest: there is nothing to report.
+    }
   }
 
   pause(id: string): void {
@@ -297,6 +326,10 @@ function reviveDownloads(raw: unknown): DownloadState[] | null {
         startedAt: asNumber(item.startedAt, Date.now()),
         completedAt: typeof item.completedAt === 'number' ? item.completedAt : null,
         fileExists: false,
+        // Kept across restarts: the route a file took and what arrived are
+        // exactly what you want to check later rather than at the time.
+        urlChain: Array.isArray(item.urlChain) ? item.urlChain.filter((url) => typeof url === 'string') : [],
+        sha256: typeof item.sha256 === 'string' ? item.sha256 : null,
       },
     ];
   });

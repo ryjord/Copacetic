@@ -9,6 +9,8 @@ import type {
   TopSite,
 } from '../shared/types';
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../shared/url';
+import type { RememberedCertificate } from '../shared/certificate-changes';
+import { DEFAULT_RESOLVER_ID, resolverFor } from '../shared/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord, newId } from './persistence';
 
 const MAX_HISTORY_ENTRIES = 10_000;
@@ -19,7 +21,9 @@ const MAX_FAVICON_ENTRIES = 600;
 export const HISTORY_PAGE_SIZE = 300;
 
 export const DEFAULT_SETTINGS: Settings = {
-  searchEngine: 'duckduckgo',
+  searchEngine: 'brave',
+  dnsMode: 'system',
+  dnsResolverId: DEFAULT_RESOLVER_ID,
   theme: 'deep',
   density: 'comfortable',
   httpsFirst: true,
@@ -57,6 +61,7 @@ export class BrowserStore {
   private readonly bookmarksFile: PersistedFile<Bookmark[]>;
   private readonly faviconsFile: PersistedFile<Record<string, FaviconRecord>>;
   private readonly sessionFile: PersistedFile<SessionSnapshot>;
+  private readonly certificatesFile: PersistedFile<Record<string, RememberedCertificate>>;
   /** Parsed host and lowercased forms per history entry, keyed by entry id. */
   private readonly scoreFieldCache = new Map<string, ScoreFields>();
 
@@ -76,6 +81,13 @@ export class BrowserStore {
       reviveSession,
       1_000,
     );
+    // Remembered so a chain that starts ending at a locally-installed root can
+    // be noticed at all. Nothing here is secret; it is what the site presented.
+    this.certificatesFile = new PersistedFile<Record<string, RememberedCertificate>>(
+      'certificates.json',
+      () => ({}),
+      (raw) => (isRecord(raw) ? (raw as Record<string, RememberedCertificate>) : null),
+    );
 
     this.pruneHistory();
   }
@@ -86,6 +98,22 @@ export class BrowserStore {
     this.bookmarksFile.flush();
     this.faviconsFile.flush();
     this.sessionFile.flush();
+    this.certificatesFile.flush();
+  }
+
+  // ------------------------------------------------------------ certificates
+
+  rememberedCertificateFor(origin: string): RememberedCertificate | null {
+    return this.certificatesFile.get()[origin] ?? null;
+  }
+
+  /** Records what a site presented, so a later change can be noticed at all. */
+  rememberCertificate(origin: string, next: RememberedCertificate): void {
+    this.certificatesFile.update((current) => ({ ...current, [origin]: next }));
+  }
+
+  forgetRememberedCertificates(): void {
+    this.certificatesFile.set({});
   }
 
   // ---------------------------------------------------------------- settings
@@ -257,6 +285,41 @@ export class BrowserStore {
       return [{ id: newId(), url, title: title || url, createdAt: Date.now() }, ...bookmarks];
     });
     return bookmarked;
+  }
+
+  /**
+   * Adds what is not already here and counts what was already saved, so a short
+   * number after an import is explained rather than looking like a failure.
+   */
+  addBookmarks(entries: readonly { url: string; title: string; addedAt: number | null }[]): {
+    added: number;
+    alreadyHad: number;
+  } {
+    let added = 0;
+    let alreadyHad = 0;
+
+    this.bookmarksFile.update((bookmarks) => {
+      const known = new Set(bookmarks.map((bookmark) => bookmark.url));
+      const fresh = [];
+      for (const entry of entries) {
+        if (known.has(entry.url)) {
+          alreadyHad += 1;
+          continue;
+        }
+        known.add(entry.url);
+        added += 1;
+        fresh.push({
+          id: newId(),
+          url: entry.url,
+          title: entry.title || entry.url,
+          // Seconds in the file, milliseconds here.
+          createdAt: entry.addedAt ? entry.addedAt * 1000 : Date.now(),
+        });
+      }
+      return [...fresh, ...bookmarks];
+    });
+
+    return { added, alreadyHad };
   }
 
   removeBookmark(id: string): void {
@@ -461,6 +524,9 @@ function reviveSettings(raw: unknown): Settings | null {
       ? (theme as Settings['theme'])
       : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',
+    // An unknown resolver falls back to the system rather than to one nobody chose.
+    dnsMode: asString(raw.dnsMode) === 'encrypted' ? 'encrypted' : 'system',
+    dnsResolverId: resolverFor(asString(raw.dnsResolverId)) ? asString(raw.dnsResolverId) : DEFAULT_RESOLVER_ID,
     httpsFirst: asBoolean(raw.httpsFirst, DEFAULT_SETTINGS.httpsFirst),
     blockTrackers: asBoolean(raw.blockTrackers, DEFAULT_SETTINGS.blockTrackers),
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),

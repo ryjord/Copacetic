@@ -2,6 +2,7 @@ import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { readWallpaper, readWallpaperPreview } from './wallpaper';
 import { randomBytes } from 'node:crypto';
 import { INVOKE } from '../shared/channels';
+import { resolverFor } from '../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../shared/password-generator';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../shared/types';
 import type { Browser } from './browser';
@@ -184,6 +185,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.dataExport, (_event, kind) =>
     browser.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'),
   );
+  handle(INVOKE.dataImportBookmarks, () => browser.importBookmarks());
 
   // ------------------------------------------------------------------- auth
 
@@ -261,6 +263,14 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.theme === 'string') {
     patch.theme = value.theme as Settings['theme'];
+  }
+  // Stored the moment it is chosen; Chromium only reads it at the next start,
+  // which the interface says rather than pretending the change is immediate.
+  if (value.dnsMode === 'system' || value.dnsMode === 'encrypted') {
+    patch.dnsMode = value.dnsMode;
+  }
+  if (typeof value.dnsResolverId === 'string' && resolverFor(value.dnsResolverId)) {
+    patch.dnsResolverId = value.dnsResolverId;
   }
   if (value.density === 'comfortable' || value.density === 'compact') {
     patch.density = value.density;

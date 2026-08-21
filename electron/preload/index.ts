@@ -129,6 +129,7 @@ const api: CopaceticApi = {
 
   data: {
     export: (kind: ExportKind): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
+    importBookmarks: (): Promise<string> => ipcRenderer.invoke(INVOKE.dataImportBookmarks),
   },
 
   auth: {

@@ -3,6 +3,7 @@
 import { FolderOpen, Pause, Play, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import type { DownloadState } from '../../../electron/shared/types';
+import { crossedSites, describeChain } from '../../../electron/shared/download-provenance';
 import { IconButton } from '@/components/ui/IconButton';
 import { send } from '@/lib/bridge';
 import { formatBytes, formatEta, formatRate, formatRelativeTime } from '@/lib/format';
@@ -96,6 +97,7 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
         )}
 
         <p className="mt-1.5 font-mono text-[11px] text-ink-faint">{detailLine(download)}</p>
+        <Provenance download={download} />
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -194,4 +196,29 @@ function detailLine(download: DownloadState): string {
   }
 
   return parts.join(' · ');
+}
+
+/**
+ * Where a file actually came from, and what actually arrived. A list that shows
+ * only the last hop is showing the least interesting one, and a checksum you
+ * were never given is one you cannot compare.
+ */
+function Provenance({ download }: { download: DownloadState }) {
+  const route = describeChain(download.urlChain);
+  const isElsewhere = crossedSites(download.urlChain);
+
+  if (!route && !download.sha256) {
+    return null;
+  }
+
+  return (
+    <div className="mt-1 space-y-0.5">
+      {route && <p className={cn('text-[11px]', isElsewhere ? 'text-caution' : 'text-ink-faint')}>{route}</p>}
+      {download.sha256 && (
+        <p className="break-all font-mono text-[10.5px] text-ink-faint" title="SHA-256 of the file on disk">
+          sha256 {download.sha256}
+        </p>
+      )}
+    </div>
+  );
 }

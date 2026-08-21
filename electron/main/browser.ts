@@ -33,6 +33,9 @@ import { describeAuthPrompt, isPromptWorthy } from './auth';
 import { ContentBlocker } from './blocker';
 import { forgetCertificates } from './certificates';
 import { bookmarksToHtml, historyToJson } from './export';
+import { bookmarksFromHtml } from '../shared/bookmark-import';
+import { offerFor } from '../shared/credential-matching';
+import { fillScriptFor } from './fill-script';
 import { credentialsFromCsv, credentialsToCsv } from '../shared/credential-csv';
 import {
   LOCKED,
@@ -545,6 +548,54 @@ export class Browser {
   }
 
   /** Everything the honesty page claims, read from where it actually is rather than written out. */
+  /** What could be filled into the page in this tab, or why nothing can be. */
+  fillOfferFor(tabId: TabId): { entries: { id: string; username: string }[]; refusal: string } {
+    const url = this.tabs.urlFor(tabId) ?? '';
+    const offer = offerFor(url, this.vault.state().entries);
+    return { entries: offer.entries.map(({ id, username }) => ({ id, username })), refusal: offer.refusal };
+  }
+
+  /**
+   * The only time Copacetic runs code inside a page, and only because you asked
+   * for it by name. The offer is checked again here rather than trusted from the
+   * renderer: the page may have navigated since the menu was built, and filling
+   * into wherever it went now would be handing a password to whoever asked.
+   */
+  async fillPassword(tabId: TabId, entryId: string): Promise<string> {
+    const url = this.tabs.urlFor(tabId) ?? '';
+    const offer = offerFor(url, this.vault.state().entries);
+    const entry = offer.entries.find((candidate) => candidate.id === entryId);
+    if (!entry) {
+      return offer.refusal || 'That password does not belong to this page.';
+    }
+
+    const password = this.vault.reveal(entryId);
+    if (password === null) {
+      return 'The vault is locked, or that password cannot be decrypted on this machine.';
+    }
+
+    const contents = this.tabs.contentsForTab(tabId);
+    if (!contents) {
+      return 'There is no page here to fill.';
+    }
+
+    try {
+      const result = (await contents.executeJavaScript(fillScriptFor(entry.username, password), true)) as {
+        filled: boolean;
+        exact?: boolean;
+      };
+      if (!result?.filled) {
+        return 'No password box was found on this page.';
+      }
+      if (result.exact === false) {
+        return 'Filled, but this password contains a line break and the box on this page cannot hold one. Sign-in will fail; paste it yourself.';
+      }
+      return '';
+    } catch {
+      return 'The page would not accept it.';
+    }
+  }
+
   vaultFacts(): VaultFacts {
     return {
       filePath: path.join(app.getPath('userData'), 'vault.json'),
@@ -618,6 +669,50 @@ export class Browser {
   }
 
   /** Reads a file another manager wrote, and says exactly what came of it. */
+  /**
+   * Reads the bookmark file every browser exports. Reading a live Chrome or
+   * Firefox database would mean shipping a SQLite dependency inside the app for
+   * a once-ever operation; this needs nothing and works for all of them.
+   */
+  async importBookmarks(): Promise<string> {
+    const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
+      title: 'Import bookmarks',
+      properties: ['openFile'],
+      filters: [{ name: 'Bookmarks', extensions: ['html', 'htm'] }],
+    });
+
+    const source = filePaths[0];
+    if (canceled || !source) {
+      return '';
+    }
+
+    let html = '';
+    try {
+      html = await readFile(source, 'utf8');
+    } catch (error) {
+      return error instanceof Error ? error.message : 'The file could not be read.';
+    }
+
+    const { bookmarks, skipped } = bookmarksFromHtml(html);
+    if (bookmarks.length === 0) {
+      return skipped > 0
+        ? `Nothing in that file could be imported. ${skipped} entries were not ordinary web addresses.`
+        : 'No bookmarks were found in that file.';
+    }
+
+    const { added, alreadyHad } = this.store.addBookmarks(bookmarks);
+    this.scheduleStatePush();
+
+    const parts = [`added ${added}`];
+    if (alreadyHad > 0) {
+      parts.push(`${alreadyHad} you already had`);
+    }
+    if (skipped > 0) {
+      parts.push(`${skipped} refused for not being web addresses`);
+    }
+    return `Imported: ${parts.join(', ')}.`;
+  }
+
   async importVault(): Promise<string> {
     const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
       title: 'Import passwords',

@@ -23,6 +23,7 @@ import {
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
 import { certificateFor } from './certificates';
+import { compareCertificate, rememberCertificate } from '../shared/certificate-changes';
 import { describeNetError, isAbortError } from './net-errors';
 import { HUSH_PARTITION, WEB_PARTITION, type SecurityDelegate, getWebSession, guardTabWebContents } from './security';
 import type { BrowserStore } from './store';
@@ -154,6 +155,7 @@ export class TabManager {
       security: describeSecurity(
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
+        tab.isStartPage ? '' : this.certificateChangeFor(tab.url),
       ),
       error: tab.error,
       blockedCount: alive ? this.blocker.countFor(contents.id) : 0,
@@ -163,6 +165,24 @@ export class TabManager {
       isHush: tab.isHush,
       isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
     };
+  }
+
+  /**
+   * Compares what this site is presenting against what it presented before, and
+   * records it. Reading and remembering happen together so a site cannot be
+   * flagged twice for the same change.
+   */
+  private certificateChangeFor(url: string): string {
+    const origin = originOf(url);
+    const current = certificateFor(hostOf(url));
+    if (!origin || !current) {
+      return '';
+    }
+
+    const remembered = this.store.rememberedCertificateFor(origin);
+    const { detail } = compareCertificate(remembered, current);
+    this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
+    return detail;
   }
 
   private findByWebContentsId(webContentsId: number): TabRecord | null {
@@ -638,6 +658,11 @@ export class TabManager {
     }
 
     this.onChanged();
+  }
+
+  /** The live page for a tab, or null for a start page that has no view. */
+  contentsForTab(id: TabId): WebContents | null {
+    return this.contentsFor(id);
   }
 
   private contentsFor(id: TabId): WebContents | null {

@@ -46,6 +46,15 @@ export function DataPane() {
       <Section title="Your data">
         <ExportPanel />
       </Section>
+
+      <Section title="Bringing data in">
+        <Note>
+          Reads the bookmarks file any browser exports — Chrome, Firefox, Safari, Edge. Only ordinary web addresses
+          are imported: a bookmarklet or a path on this machine is refused and counted, because an exported file is
+          one you were given rather than one you wrote.
+        </Note>
+        <ImportPanel />
+      </Section>
     </>
   );
 }
@@ -72,6 +81,24 @@ function ExportPanel() {
         ))}
       </div>
       {message && <p className="text-[12px] text-alert">{message}</p>}
+    </div>
+  );
+}
+
+function ImportPanel() {
+  const [message, setMessage] = useState('');
+
+  return (
+    <div className="space-y-3">
+      <OutlineButton
+        onClick={() => {
+          setMessage('');
+          void ask((api) => api.data.importBookmarks(), '').then(setMessage);
+        }}
+      >
+        Import bookmarks
+      </OutlineButton>
+      {message && <p className="text-[12px] text-ink-dim">{message}</p>}
     </div>
   );
 }

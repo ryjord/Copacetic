@@ -1,3 +1,5 @@
+import type { DnsMode } from './dns';
+
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
 export type TabId = string;
@@ -38,6 +40,8 @@ export interface SecurityState {
   detail: string;
   /** Present only for an https page whose certificate Chromium accepted. */
   certificate: CertificateSummary | null;
+  /** Set when this site's certificate has changed in a way worth mentioning. */
+  certificateChange: string;
 }
 
 export interface PageError {
@@ -90,6 +94,10 @@ export interface DownloadState {
   completedAt: number | null;
   /** False once the file has been moved or deleted outside Copacetic. */
   fileExists: boolean;
+  /** Every URL it passed through: where you clicked is often not where it came from. */
+  urlChain: string[];
+  /** SHA-256 of what actually arrived, so it can be checked against a published one. */
+  sha256: string | null;
 }
 
 export interface HistoryEntry {
@@ -288,6 +296,10 @@ export interface Settings {
   zoomLevels: Record<string, number>;
   // Sites where tracker blocking is switched off, by registrable domain.
   blockerAllowlist: string[];
+  // Encrypted DNS is off until chosen: switching who resolves your names without
+  // saying so is the move it exists to protect against.
+  dnsMode: DnsMode;
+  dnsResolverId: string;
   // Whether a start-page wallpaper is set.
   hasWallpaper: boolean;
   sidebarWidth: number;

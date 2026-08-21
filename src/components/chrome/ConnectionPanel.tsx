@@ -75,6 +75,8 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
           {certificate && <CertificateRows certificate={certificate} now={openedAt} />}
         </dl>
 
+        {tab?.security.certificateChange && <CertificateChangeNotice detail={tab.security.certificateChange} />}
+
         {/*
           Keyed by tab so a switch produces a fresh instance rather than
           briefly showing one tab's hosts under another tab's heading. Cheaper
@@ -251,6 +253,21 @@ function ConnectionLog({ tabId }: { tabId: string }) {
 }
 
 // What Chromium validated, reported rather than re-derived.
+/**
+ * Copacetic already recorded every certificate it saw; remembering them is what
+ * lets it say a site is presenting a different one. Shown below the details
+ * rather than as an interruption — the change is worth reading, and the page
+ * has already loaded either way.
+ */
+function CertificateChangeNotice({ detail }: { detail: string }) {
+  return (
+    <div className="mt-3 rounded-field border border-caution/40 px-3 py-2" role="status">
+      <h3 className="label mb-1 text-caution">This certificate has changed</h3>
+      <p className="text-[12px] leading-relaxed text-ink-dim">{detail}</p>
+    </div>
+  );
+}
+
 function CertificateRows({ certificate, now }: { certificate: CertificateSummary; now: number | null }) {
   const daysLeft = now === null ? null : Math.floor((certificate.validTo - now) / 86_400_000);
   const expiringSoon = daysLeft !== null && daysLeft <= 14;
