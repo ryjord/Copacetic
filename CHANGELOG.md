@@ -34,6 +34,52 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   passwords into pages, because doing so means running Copacetic's code inside
   them and this browser ships without any.
 
+## 1.3.2 — 2026-08-13
+
+### Added
+
+- **A generated password**, twenty characters from the operating system's
+  cryptographic source, avoiding the characters people misread.
+
+- **The vault locks.** After five minutes or on demand. Touch ID unlocks it on a
+  Mac; everywhere else it is a single click and Settings says so, because
+  Electron gives Copacetic no way to check who you are on Windows or Linux.
+
+- **Copacetic can fill a saved password**, from the right-click menu on the page,
+  only when you ask. It refuses a page that is not encrypted, and only offers
+  passwords saved for that site — matched so that a lookalike host, or another
+  user of a shared hosting domain, gets nothing.
+
+- **A section saying what the vault does not protect you from**, showing the real
+  path of the file so you can go and look.
+
+- **Encrypted DNS, with the resolver named.** Off until chosen. Turning it on
+  means your network can no longer read the names you look up and the resolver
+  you picked can, which is what the setting says.
+
+- **Copacetic tells you when a site's certificate changes** in a way worth
+  knowing — specifically when the chain starts ending at a root installed on
+  this machine, which is what an intercepting proxy looks like from in here. An
+  ordinary renewal is not mentioned, because a browser that cries wolf is worse
+  than one that says nothing.
+
+- **Downloads record where the file actually came from** — every redirect, not
+  just the last one — and the SHA-256 of what arrived, so you can check it
+  against a published checksum.
+
+- **Bookmarks can be imported** from the file any browser exports.
+
+### Changed
+
+- **Chromium's quiet networking is now switched off by name** rather than being
+  absent by accident: background requests, component updates, reliability
+  reports, link pings, cast-device discovery on your network, per-site hints,
+  translation, autofill server calls and the advertising measurement stack.
+  Measured with a fresh profile and every session watched: no host contacted at
+  all while idle.
+
+- The default search engine is Brave.
+
 ## 1.3.1 — 2026-08-12
 
 ### Added
