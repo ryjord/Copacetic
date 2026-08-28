@@ -58,6 +58,19 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # The only step that starts the app. Everything else here proves it
+      # compiles and packages; this proves it opens, which is the one failure a
+      # person experiences as total. Run on all three because two of them are
+      # platforms nobody here has to test on.
+      - name: Smoke test the built app
+        if: runner.os != 'Linux'
+        run: npm run smoke
+
+      # Electron needs a display even to open a window it never shows.
+      - name: Smoke test the built app
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run smoke
+
       - name: Check the packaged tree assembles
         run: npx electron-builder --dir --publish never
 

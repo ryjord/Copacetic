@@ -24,12 +24,13 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json && tsc -p tsconfig.smoke.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "generate:psl": "node scripts/generate-public-suffix-list.mjs",
-    "clean:dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+    "clean:dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "smoke": "vitest run --config vitest.smoke.config.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -60,6 +61,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.2",
     "jsdom": "^30.0.1",
+    "playwright": "^1.62.1",
     "postcss": "^8.5.26",
     "prettier": "^3.4.2",
     "tailwindcss": "^4.2.1",
