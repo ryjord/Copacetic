@@ -1,5 +1,6 @@
 // Components
 import { Section } from '@/components/settings/shared/controls';
+import { DefaultBrowserRow } from '@/components/settings/browsing/DefaultBrowserRow';
 import { Toggle } from '@/components/ui/controls/Toggle';
 
 // Store
@@ -12,12 +13,18 @@ export function BehaviourPane() {
   const settings = useBrowserStore((state) => state.settings);
 
   return (
-    <Section title="On launch">
-      <Toggle
-        label="Reopen the tabs I had open"
-        checked={settings.restoreTabsOnLaunch}
-        onChange={(restoreTabsOnLaunch) => updateSettings({ restoreTabsOnLaunch })}
-      />
-    </Section>
+    <>
+      <Section title="On launch">
+        <Toggle
+          label="Reopen the tabs I had open"
+          checked={settings.restoreTabsOnLaunch}
+          onChange={(restoreTabsOnLaunch) => updateSettings({ restoreTabsOnLaunch })}
+        />
+      </Section>
+
+      <Section title="Default browser">
+        <DefaultBrowserRow />
+      </Section>
+    </>
   );
 }

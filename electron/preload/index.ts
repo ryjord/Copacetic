@@ -103,6 +103,8 @@ const api: CopaceticApi = {
     getInfo: (): Promise<AppInfo> => ipcRenderer.invoke(INVOKE.appGetInfo),
     openExternal: (url: string) => ipcRenderer.invoke(INVOKE.appOpenExternal, url),
     revealDiagnostics: () => ipcRenderer.invoke(INVOKE.appRevealDiagnostics),
+    defaultBrowserStatus: () => ipcRenderer.invoke(INVOKE.appDefaultBrowserStatus),
+    makeDefaultBrowser: () => ipcRenderer.invoke(INVOKE.appMakeDefaultBrowser),
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */

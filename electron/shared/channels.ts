@@ -60,6 +60,8 @@ export const INVOKE = {
   appGetInfo: 'app:get-info',
   appOpenExternal: 'app:open-external',
   appRevealDiagnostics: 'app:reveal-diagnostics',
+  appDefaultBrowserStatus: 'app:default-browser-status',
+  appMakeDefaultBrowser: 'app:make-default-browser',
 
   connectionsList: 'connections:list',
 

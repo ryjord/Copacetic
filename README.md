@@ -150,6 +150,18 @@ things:
 - **Not audited.** A personal project built to a high standard, not a browser
   that has been through security review.
 
+## Being the default browser
+
+Copacetic declares that it can open `http` and `https`, so the system will offer
+it. Settings has a control that says what your platform will actually allow:
+macOS and Linux can be asked directly, and **Windows 10 and 11 do not let an
+application make itself the default at all** — there the control opens the
+screen where you choose, rather than claiming to have done something it cannot.
+
+Nothing registers itself at startup. An address handed over by another
+application goes through the same check as a link on a page, so a `file:` or
+`javascript:` argument on the command line does not become a tab.
+
 ## Checking a download is what it claims to be
 
 The builds are not code-signed, so nothing in the installer says who made it.

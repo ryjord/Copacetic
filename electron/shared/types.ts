@@ -8,6 +8,9 @@ export type DownloadId = string;
 /** How much Copacetic can honestly say about the connection behind a tab. */
 export type SecurityLevel = 'secure' | 'insecure' | 'internal' | 'unknown';
 
+/** What this platform will let Copacetic do about becoming the default browser. */
+export type DefaultBrowserStatus = 'default' | 'can-ask' | 'settings-only' | 'unavailable';
+
 /** What Chromium validated, reported rather than re-derived. */
 export interface CertificateSummary {
   /** Who issued it, e.g. `Let's Encrypt`. */

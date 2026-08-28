@@ -106,7 +106,21 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "Web site URL",
+            "CFBundleURLSchemes": [
+              "http",
+              "https"
+            ],
+            "CFBundleTypeRole": "Viewer"
+          }
+        ],
+        "LSHandlerRank": "Owner",
+        "LSApplicationCategoryType": "public.app-category.productivity"
+      }
     },
     "win": {
       "target": [
@@ -124,7 +138,15 @@
         "AppImage",
         "deb"
       ],
-      "category": "Network"
+      "category": "Network",
+      "mimeTypes": [
+        "x-scheme-handler/http",
+        "x-scheme-handler/https",
+        "text/html"
+      ],
+      "desktop": {
+        "StartupWMClass": "Copacetic"
+      }
     },
     "deb": {
       "afterInstall": "build/deb/after-install.sh",

@@ -6,6 +6,7 @@ import { resolverFor } from '../../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import type { Browser } from './browser';
+import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { showNewTabMenu, showTabContextMenu } from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
@@ -140,6 +141,8 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.appGetInfo, () => browser.getAppInfo());
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
   handle(INVOKE.appRevealDiagnostics, () => browser.revealDiagnostics());
+  handle(INVOKE.appDefaultBrowserStatus, () => defaultBrowserStatus());
+  handle(INVOKE.appMakeDefaultBrowser, () => makeDefaultBrowser());
 
   // ------------------------------------------------------------------ vault
 

@@ -1,6 +1,7 @@
 import type { ChromeSurface } from './channels';
 import type {
   AppInfo,
+  DefaultBrowserStatus,
   Bookmark,
   BrowserState,
   ClearRange,
@@ -106,6 +107,10 @@ export interface CopaceticApi {
     openExternal(url: string): Promise<void>;
     /** Show the diagnostics log in the file manager, so it can be read before it is shared. */
     revealDiagnostics(): Promise<void>;
+    /** What this platform will actually allow, so the control can say it. */
+    defaultBrowserStatus(): Promise<DefaultBrowserStatus>;
+    /** Empty when it worked or there was nothing to do; otherwise a sentence for the user. */
+    makeDefaultBrowser(): Promise<string>;
   };
   vault: {
     /** Fetched when the pane is open rather than pushed: it is not needed to render a page. */
