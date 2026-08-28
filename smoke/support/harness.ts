@@ -33,6 +33,44 @@ export class SmokeApp {
     return new SmokeApp(app, chrome, profile);
   }
 
+  /**
+   * Open a page in a real tab and read something out of it.
+   *
+   * The tab is created through the same call the interface makes, so it is a
+   * genuine tab with every guard the app installs on one. Building a view
+   * directly here would skip all of that and quietly test nothing.
+   */
+  async inPage<T>(url: string, expression: string): Promise<T> {
+    await this.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
+
+    const ready = await this.until(async () => (await this.pageCount(url)) > 0, 20_000);
+    if (!ready) {
+      throw new Error(`no tab ever reached ${url}`);
+    }
+
+    return this.app.evaluate(
+      async ({ webContents }, options) => {
+        const page = webContents
+          .getAllWebContents()
+          .filter((contents) => contents.getURL().startsWith(options.url))
+          .at(-1);
+        if (!page) {
+          throw new Error(`no web contents at ${options.url}`);
+        }
+        return (await page.executeJavaScript(options.expression)) as T;
+      },
+      { url, expression },
+    );
+  }
+
+  private pageCount(url: string): Promise<number> {
+    return this.app.evaluate(
+      ({ webContents }, target) =>
+        webContents.getAllWebContents().filter((contents) => contents.getURL().startsWith(target)).length,
+      url,
+    );
+  }
+
   /** Run something in the main process, where Electron's own objects live. */
   main<T>(fn: (electronModule: typeof import('electron')) => T | Promise<T>): Promise<T> {
     return this.app.evaluate(fn);

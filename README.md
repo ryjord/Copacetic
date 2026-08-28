@@ -121,6 +121,11 @@ something that gets past them, see [SECURITY.md](SECURITY.md).
 
 Copacetic presents a plain Chrome user agent rather than advertising Electron:
 better site compatibility, and one less signal that fingerprints you as unusual.
+Chromium's client hints are corrected to match it, because Electron otherwise
+describes the browser as Chromium while the user agent says Chrome — and a
+browser that disagrees with itself is both a fingerprinting signal and the
+reason some sign-in pages refuse it. The correction is made in the main process
+through the DevTools protocol; page content still runs no script of ours.
 
 ### What it does not do
 

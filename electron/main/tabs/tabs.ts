@@ -21,6 +21,7 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
+import { applyClientHints } from './tab-client-hints';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
 import type { TabRecord } from './tab-record';
@@ -382,6 +383,7 @@ export class TabManager {
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
     });
     guardTabWebContents(view.webContents, this.securityDelegate);
+    applyClientHints(view.webContents, process.platform);
 
     if (!isStartPage) {
       void this.loadUrl(tab, rawUrl);
