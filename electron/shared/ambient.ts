@@ -14,12 +14,19 @@ export interface Hsl {
   l: number;
 }
 
-/** The four atmospheres, as the stylesheet defines them. */
+/** The four atmospheres, as the stylesheet defines them. Kept in step with globals.css by the test that reads both. */
 export const AMBIENT_NEAR: Record<string, string> = {
   deep: '#123043',
   slate: '#1e2730',
   ember: '#3a1f21',
   moss: '#16302a',
+};
+
+export const AMBIENT_FAR: Record<string, string> = {
+  deep: '#1b2a4a',
+  slate: '#2a3440',
+  ember: '#46281c',
+  moss: '#1d3a2b',
 };
 
 export function hexToHsl(hex: string): Hsl | null {

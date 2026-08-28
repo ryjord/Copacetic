@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 
 // Components
+import { AppearancePreview } from '@/components/settings/appearance/AppearancePreview';
 import { ChoiceGroup, Note, RowList, Section, Subheading } from '@/components/settings/shared/controls';
 import { IconButton } from '@/components/ui/controls/IconButton';
 
@@ -16,7 +17,14 @@ import { labelledOptions, updateSettings } from '@/components/settings/shared/op
 import { ask, send } from '@/lib/bridge';
 
 // Types
-import { START_PAGE_WIDGETS, type DensityId, type StartPageWidgetId, type ThemeId } from '@shared/types';
+import { ambientHexFor, hueForAmbientHex } from '@shared/ambient';
+import {
+  START_PAGE_WIDGETS,
+  type DensityId,
+  type Settings,
+  type StartPageWidgetId,
+  type ThemeId,
+} from '@shared/types';
 
 const DENSITY_LABELS: Record<DensityId, string> = {
   comfortable: 'Comfortable',
@@ -30,11 +38,96 @@ const THEME_LABELS: Record<ThemeId, string> = {
   moss: 'Moss',
 };
 
+/** The settings this pane stages. Everything else it touches applies at once, and says so. */
+type Draft = Pick<Settings, 'theme' | 'density' | 'ambientHue' | 'startPageWidgets'>;
+
+const draftOf = (settings: Settings): Draft => ({
+  theme: settings.theme,
+  density: settings.density,
+  ambientHue: settings.ambientHue,
+  startPageWidgets: settings.startPageWidgets,
+});
+
+const same = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
+
 export function AppearancePane() {
   const settings = useBrowserStore((state) => state.settings);
+  const saved = draftOf(settings);
+
+  const [draft, setDraft] = useState<Draft>(saved);
+  const [wallpaper, setWallpaper] = useState<string | null>(null);
+
+  /*
+   * Anything that changes the saved settings from elsewhere — another window,
+   * the menu — replaces an untouched draft rather than fighting it. A draft
+   * with changes in it is left alone: they are the reason someone is here.
+   */
+  const [base, setBase] = useState(saved);
+  if (!same(base, saved)) {
+    setBase(saved);
+    if (same(draft, base)) {
+      setDraft(saved);
+    }
+  }
+
+  useEffect(() => {
+    if (!settings.hasWallpaper) {
+      return;
+    }
+    let cancelled = false;
+    void ask((api) => api.wallpaper.preview(), null).then((image) => {
+      if (!cancelled) {
+        setWallpaper(image);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.hasWallpaper]);
+
+  // Derived rather than cleared: removing a wallpaper should not need a render
+  // to take effect, and a stale one must never outlive the setting.
+  const shownWallpaper = settings.hasWallpaper ? wallpaper : null;
+
+  const changed = !same(draft, saved);
+  const set = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
 
   return (
     <>
+      <Section title="Appearance">
+        <Note>Everything below shows here first. Nothing is kept until you keep it.</Note>
+
+        <div className="mb-4 mt-3">
+          <AppearancePreview
+            theme={draft.theme}
+            density={draft.density}
+            ambientHue={draft.ambientHue}
+            widgets={draft.startPageWidgets}
+            wallpaper={shownWallpaper}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={!changed}
+            onClick={() => updateSettings(draft)}
+            className="rounded-field bg-active px-3.5 py-1.5 text-[12.5px] font-medium text-void transition-opacity disabled:opacity-40"
+          >
+            Keep these
+          </button>
+          <button
+            type="button"
+            disabled={!changed}
+            onClick={() => setDraft(saved)}
+            className="rounded-field border border-line px-3.5 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-40"
+          >
+            Discard
+          </button>
+          <span className="text-[12px] text-ink-faint">{changed ? 'Not saved yet.' : 'This is what is saved.'}</span>
+        </div>
+      </Section>
+
       <Section title="Interface">
         <Note>
           How much room the chrome takes. This changes sizing only — colour in this interface means state, so nothing
@@ -42,30 +135,93 @@ export function AppearancePane() {
         </Note>
         <ChoiceGroup
           options={labelledOptions(DENSITY_LABELS)}
-          selected={settings.density}
-          onSelect={(density) => updateSettings({ density })}
+          selected={draft.density}
+          onSelect={(density) => set({ density })}
         />
       </Section>
 
-      <Section title="Start page">
+      <Section title="Atmosphere">
         <div className="mb-3">
           <ChoiceGroup
             options={labelledOptions(THEME_LABELS)}
-            selected={settings.theme}
-            onSelect={(theme) => updateSettings({ theme })}
+            selected={draft.theme}
+            onSelect={(theme) => set({ theme, ambientHue: 0 })}
           />
         </div>
-        <p className="mb-1 text-[12px] leading-relaxed text-ink-faint">
+        <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
           The atmosphere only tints the start page. The rest of the interface stays monochrome so colour always means
           the same thing.
         </p>
+        <HueControl theme={draft.theme} hue={draft.ambientHue} onChange={(ambientHue) => set({ ambientHue })} />
+      </Section>
+
+      <Section title="Start page">
+        <WidgetManager widgets={draft.startPageWidgets} onChange={(startPageWidgets) => set({ startPageWidgets })} />
+      </Section>
+
+      <Section title="Wallpaper">
+        <Note>Chosen from a file, so this one applies as soon as you pick it.</Note>
         <WallpaperControl hasWallpaper={settings.hasWallpaper} />
-        <WidgetManager
-          widgets={settings.startPageWidgets}
-          onChange={(startPageWidgets) => updateSettings({ startPageWidgets })}
-        />
       </Section>
     </>
+  );
+}
+
+/**
+ * One value, two ways of saying it: the slider turns the theme's pair of
+ * colours, and the field shows where the near one landed. Typing a colour works
+ * out the turn that would land there, so the two cannot disagree.
+ */
+function HueControl({ theme, hue, onChange }: { theme: ThemeId; hue: number; onChange: (hue: number) => void }) {
+  const [typed, setTyped] = useState<string | null>(null);
+  const shown = typed ?? ambientHexFor(theme, hue);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={0}
+          max={359}
+          value={hue}
+          aria-label="Atmosphere hue"
+          onChange={(event) => {
+            setTyped(null);
+            onChange(Number(event.target.value));
+          }}
+          className="h-1 flex-1 accent-active"
+        />
+        <span className="w-10 shrink-0 text-right font-mono text-[11.5px] text-ink-faint tabular-nums">
+          {hue}&deg;
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span
+          className="size-6 shrink-0 rounded-field border border-line"
+          style={{ background: shown }}
+          aria-hidden
+        />
+        <input
+          type="text"
+          value={shown}
+          spellCheck={false}
+          aria-label="Atmosphere colour"
+          onChange={(event) => {
+            setTyped(event.target.value);
+            const turn = hueForAmbientHex(theme, event.target.value);
+            if (turn !== null) {
+              onChange(turn);
+            }
+          }}
+          onBlur={() => setTyped(null)}
+          className="w-24 rounded-field border border-line bg-raised px-2 py-1 font-mono text-[12px] text-ink outline-none focus:border-line-strong"
+        />
+        <span className="text-[12px] text-ink-faint">
+          Only the hue is taken — the depth belongs to the atmosphere.
+        </span>
+      </div>
+    </div>
   );
 }
 
