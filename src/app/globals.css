@@ -184,6 +184,17 @@
       radial-gradient(120% 90% at 18% 0%, var(--ambient-near) 0%, transparent 55%),
       radial-gradient(110% 100% at 92% 100%, var(--ambient-far) 0%, transparent 58%), var(--color-void);
   }
+
+  /*
+   * A Hush tab keeps the chrome exactly as it is — the rule about colour
+   * carrying state holds — and changes the one surface a theme may change:
+   * the atmosphere goes out, whichever theme is chosen.
+   */
+  .ambient-field[data-hush='true'] {
+    background:
+      radial-gradient(120% 90% at 50% 0%, #101722 0%, transparent 62%),
+      repeating-linear-gradient(115deg, rgba(127, 178, 209, 0.028) 0 1px, transparent 1px 9px), var(--color-sunken);
+  }
 }
 
 @keyframes copacetic-indeterminate {

@@ -64,7 +64,10 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   };
 
   return (
-    <div className="ambient-field relative flex h-full w-full flex-col items-center justify-center overflow-y-auto px-8">
+    <div
+      data-hush={isHush}
+      className="ambient-field relative flex h-full w-full flex-col items-center justify-center overflow-y-auto px-8"
+    >
       {wallpaper && (
         <>
           {/*
@@ -87,7 +90,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
       <div className="relative flex w-full max-w-xl flex-col items-center gap-8">
         {isHush && <HushNotice />}
 
-        {settings.startPageWidgets.map((widget) => (
+        {(isHush ? [] : settings.startPageWidgets).map((widget) => (
           <div key={widget} className="w-full">
             {widget === 'clock' && (
               <div className="flex flex-col items-center">
@@ -204,21 +207,30 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
 }
 
 // What a Hush tab actually is, said in full.
+/**
+ * A Hush tab shows this and nothing else. Widgets are a record of what you do —
+ * the sites you visit most, the things you searched — and none of that belongs
+ * on a page whose whole promise is that it keeps nothing.
+ */
 function HushNotice() {
   return (
-    <section className="w-full rounded-panel border border-line bg-raised/60 px-4 py-3 backdrop-blur-xl">
-      <h2 className="flex items-center gap-2 text-[13px] font-medium text-ink">
-        <EyeOff size={13} className="text-active" aria-hidden />
-        This is a Hush tab
-      </h2>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-dim">
-        Your machine forgets it. No history, no cookies, no cache and no favicons are kept, and nothing from this tab
-        is written to disk at all — not even the list of tabs to reopen.
-      </p>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-ink-faint">
-        It does not make you anonymous. The sites you visit, your network, your employer and your internet provider
-        see exactly what they would see in any other tab.
-      </p>
+    <section className="flex w-full flex-col items-center gap-7">
+      <div className="flex flex-col items-center gap-3.5">
+        <EyeOff size={34} strokeWidth={1.4} className="text-active" aria-hidden />
+        <h2 className="text-[26px] font-medium tracking-tight text-ink">This is a Hush tab</h2>
+      </div>
+
+      <div className="w-full overflow-hidden rounded-panel border border-line bg-raised/70 backdrop-blur-xl">
+        <p className="px-[18px] py-4 text-[12.5px] leading-relaxed text-ink-dim">
+          Nothing here reaches the disk. No history, no cookies kept, no cache, no favicons — not even the list of
+          tabs to reopen. Close it and there is nothing to delete, because nothing was written.
+        </p>
+        <div className="h-px bg-line" />
+        <p className="px-[18px] py-4 text-[12.5px] leading-relaxed text-ink-dim">
+          It does not hide you. The sites you open, your network, your employer and your internet provider all see
+          this tab exactly as they see any other. Hush is about what Copacetic keeps, not about who is watching.
+        </p>
+      </div>
     </section>
   );
 }
