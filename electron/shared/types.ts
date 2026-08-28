@@ -291,6 +291,8 @@ export interface Settings {
   restoreTabsOnLaunch: boolean;
   // Which pieces the start page shows, in order.
   startPageWidgets: StartPageWidgetId[];
+  /** Set once someone has read what Hush does and does not do. */
+  hushNoticeDismissed: boolean;
   // Ask GitHub whether a newer release exists, on launch and on a long timer.
   checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */

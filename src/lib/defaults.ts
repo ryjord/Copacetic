@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   blockTrackers: true,
   restoreTabsOnLaunch: true,
   startPageWidgets: ['clock', 'search', 'topSites'],
+  hushNoticeDismissed: false,
   checkForUpdates: true,
   permissionDecisions: {},
   zoomLevels: {},

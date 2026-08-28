@@ -1,12 +1,13 @@
 'use client';
 
-import { EyeOff } from 'lucide-react';
+import { AlertCircle, Check, EyeOff } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Bookmark, TopSite } from '@shared/types';
 import { SEARCH_ENGINES } from '@shared/url';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { ask, send } from '@/lib/bridge';
 import { formatClockTime } from '@/lib/format';
+import { updateSettings } from '@/components/settings/shared/options';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 /** What a new tab actually offers is a way to get somewhere. */
@@ -55,6 +56,16 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
 
   const engineName = SEARCH_ENGINES[settings.searchEngine]?.name ?? 'the web';
 
+  /*
+   * A Hush tab withholds the widgets that report what you have done — the sites
+   * you visit most, your bookmarks — and keeps the ones that are simply a way to
+   * get somewhere. Until the notice has been read it shows nothing else at all.
+   */
+  const noticeShowing = isHush && !settings.hushNoticeDismissed;
+  const visibleWidgets = noticeShowing
+    ? []
+    : settings.startPageWidgets.filter((widget) => !isHush || widget === 'clock' || widget === 'search');
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!query.trim()) {
@@ -88,9 +99,9 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
       )}
 
       <div className="relative flex w-full max-w-xl flex-col items-center gap-8">
-        {isHush && <HushNotice />}
+        {noticeShowing && <HushNotice />}
 
-        {(isHush ? [] : settings.startPageWidgets).map((widget) => (
+        {visibleWidgets.map((widget) => (
           <div key={widget} className="w-full">
             {widget === 'clock' && (
               <div className="flex flex-col items-center">
@@ -208,9 +219,9 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
 
 // What a Hush tab actually is, said in full.
 /**
- * A Hush tab shows this and nothing else. Widgets are a record of what you do —
- * the sites you visit most, the things you searched — and none of that belongs
- * on a page whose whole promise is that it keeps nothing.
+ * A Hush tab shows this and nothing else until it has been read. Once it has,
+ * the page keeps only the widgets that are a way to get somewhere — never the
+ * ones that report where you have been.
  */
 function HushNotice() {
   return (
@@ -221,16 +232,34 @@ function HushNotice() {
       </div>
 
       <div className="w-full overflow-hidden rounded-panel border border-line bg-raised/70 backdrop-blur-xl">
-        <p className="px-[18px] py-4 text-[12.5px] leading-relaxed text-ink-dim">
-          Nothing here reaches the disk. No history, no cookies kept, no cache, no favicons — not even the list of
-          tabs to reopen. Close it and there is nothing to delete, because nothing was written.
-        </p>
+        <div className="flex gap-3 px-[18px] py-4">
+          <Check size={15} className="mt-0.5 shrink-0 text-clear" aria-hidden />
+          <p className="text-[12.5px] leading-relaxed text-ink-dim">
+            Nothing here reaches the disk. No history, no cookies kept, no cache, no favicons — not even the list of
+            tabs to reopen. Close it and there is nothing to delete, because nothing was written.
+          </p>
+        </div>
         <div className="h-px bg-line" />
-        <p className="px-[18px] py-4 text-[12.5px] leading-relaxed text-ink-dim">
-          It does not hide you. The sites you open, your network, your employer and your internet provider all see
-          this tab exactly as they see any other. Hush is about what Copacetic keeps, not about who is watching.
-        </p>
+        <div className="flex gap-3 px-[18px] py-4">
+          <AlertCircle size={15} className="mt-0.5 shrink-0 text-caution" aria-hidden />
+          <p className="text-[12.5px] leading-relaxed text-ink-dim">
+            It does not hide you. The sites you open, your network, your employer and your internet provider all see
+            this tab exactly as they see any other. Hush is about what Copacetic keeps, not about who is watching.
+          </p>
+        </div>
       </div>
+
+      {/*
+        Dismissing it is a setting rather than something this tab remembers: a
+        Hush tab keeps nothing, so it could not remember having been read.
+      */}
+      <button
+        type="button"
+        onClick={() => updateSettings({ hushNoticeDismissed: true })}
+        className="h-[30px] rounded-field border border-line-strong px-3.5 text-[12px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
+      >
+        Don&apos;t show this again
+      </button>
     </section>
   );
 }
