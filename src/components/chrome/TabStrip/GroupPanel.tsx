@@ -30,7 +30,12 @@ export function GroupPanel({
 }: {
   group: TabGroup;
   holdsHush: boolean;
-  /** Where the group's label is on screen. The panel cannot live inside the strip: it scrolls, and a box that clips one axis clips both. */
+  /**
+   * Where the group's label is on screen. Only the horizontal position is
+   * used, to line the panel up under its group: the panel cannot live inside
+   * the strip, which scrolls and so clips both axes, and it cannot float over
+   * the page either, which a native view paints on top of.
+   */
   anchor: { left: number; top: number };
   onClose: () => void;
 }) {
@@ -45,12 +50,17 @@ export function GroupPanel({
     }
   };
 
+  const slot = typeof document === 'undefined' ? null : document.getElementById('group-panel-slot');
+  if (!slot) {
+    return null;
+  }
+
   return createPortal(
     <div
       role="dialog"
       aria-label={`Group ${group.name}`}
-      style={{ left: anchor.left, top: anchor.top }}
-      className="fixed z-50 w-[300px] overflow-hidden rounded-panel border border-line-strong bg-raised shadow-2xl"
+      style={{ marginInlineStart: anchor.left }}
+      className="mb-1.5 w-[300px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-panel border border-line-strong bg-raised shadow-2xl"
     >
       <div className="flex flex-col gap-3 p-3.5">
         <input
@@ -117,6 +127,6 @@ export function GroupPanel({
         </button>
       </div>
     </div>,
-    document.body,
+    slot,
   );
 }
