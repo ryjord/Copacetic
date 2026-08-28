@@ -1,0 +1,87 @@
+/**
+ * A group is a name, a colour, and how far the separation goes.
+ *
+ * Tab groups and separate containers are the same idea at two depths, so they
+ * are one thing here: a group that keeps its own browsing runs in its own
+ * session, and one that does not simply names a set of tabs.
+ */
+
+/**
+ * Group colours are deliberately not the state colours.
+ *
+ * The chrome's rule is that colour appears only where it carries state, and
+ * each state colour means one thing everywhere. A group colour means "this
+ * group", which is different for every person — identity rather than state. So
+ * the two palettes are kept apart by chroma: signals are saturated, identities
+ * are muted, and a group can never be given a colour that reads as a signal.
+ */
+export const GROUP_COLOURS = [
+  { id: 'violet', hex: '#7d7aa8' },
+  { id: 'moss', hex: '#6f8f78' },
+  { id: 'clay', hex: '#a87f6f' },
+  { id: 'ocean', hex: '#5f8394' },
+  { id: 'plum', hex: '#94657f' },
+  { id: 'ash', hex: '#7d8894' },
+] as const;
+
+export type GroupColourId = (typeof GROUP_COLOURS)[number]['id'];
+
+export interface TabGroup {
+  id: string;
+  name: string;
+  colour: GroupColourId;
+  /** Its own cookies, logins and cache. Written to disk, so a Hush tab can never use it. */
+  ownSession: boolean;
+  collapsed: boolean;
+}
+
+export function colourOf(colour: GroupColourId): string {
+  return GROUP_COLOURS.find((candidate) => candidate.id === colour)?.hex ?? GROUP_COLOURS[0].hex;
+}
+
+/**
+ * Which session a tab runs in.
+ *
+ * A group's own session is persistent and a Hush tab's must not be, so one tab
+ * cannot have both. Hush wins: it is the stronger promise, and the weaker one
+ * breaking it would be the more expensive mistake. A group's separation simply
+ * does not reach a Hush tab inside it.
+ */
+export function partitionFor(
+  options: { isHush: boolean; group: TabGroup | null },
+  partitions: { web: string; hush: string },
+): string {
+  if (options.isHush) {
+    return partitions.hush;
+  }
+  if (options.group?.ownSession) {
+    return `persist:copacetic-group-${options.group.id}`;
+  }
+  return partitions.web;
+}
+
+/**
+ * What a group can honestly claim about the tabs in it.
+ *
+ * A group holding both kinds cannot say one thing about all of them, so it is
+ * not allowed to say the thing that would be true of only part.
+ */
+export type GroupClaim = 'separate' | 'shared' | 'mixed';
+
+export function claimOf(group: TabGroup, holdsHush: boolean): GroupClaim {
+  if (holdsHush) {
+    return 'mixed';
+  }
+  return group.ownSession ? 'separate' : 'shared';
+}
+
+export function describeClaim(claim: GroupClaim): string {
+  switch (claim) {
+    case 'separate':
+      return 'Its own cookies and logins. Signing in here signs you in nowhere else.';
+    case 'shared':
+      return 'Shares cookies and logins with your other tabs.';
+    case 'mixed':
+      return 'Mixed: one of these tabs keeps nothing, and the rest are kept. This group cannot say one thing about all of them.';
+  }
+}
