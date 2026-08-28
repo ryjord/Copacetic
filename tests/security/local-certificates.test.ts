@@ -102,19 +102,26 @@ describe('what happens when Chromium refuses a certificate', () => {
     expect(refuse('https://localhost.example.com/')).toEqual({ prevented: false, trusted: false });
   });
 
-  it('remembers the host so the badge can stop claiming the certificate was checked', () => {
+  it('remembers the origin so the badge can stop claiming the certificate was checked', () => {
     refuse('https://localhost:3000/app');
-    expect(trustedLocally('localhost')).toBe(true);
+    expect(trustedLocally('https://localhost:3000')).toBe(true);
+  });
+
+  // One bad certificate on one port says nothing about another.
+  it('does not let one port speak for another', () => {
+    refuse('https://localhost:8443/');
+    expect(trustedLocally('https://localhost:8443')).toBe(true);
+    expect(trustedLocally('https://localhost:3000')).toBe(false);
   });
 
   it('remembers nothing about a host it refused', () => {
     refuse('https://example.com/');
-    expect(trustedLocally('example.com')).toBe(false);
+    expect(trustedLocally('https://example.com')).toBe(false);
   });
 
   it('forgets what it trusted when asked', () => {
     refuse('https://127.0.0.1:8443/');
     forgetLocalCertificates();
-    expect(trustedLocally('127.0.0.1')).toBe(false);
+    expect(trustedLocally('https://127.0.0.1:8443')).toBe(false);
   });
 });

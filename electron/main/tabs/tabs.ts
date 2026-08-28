@@ -136,8 +136,8 @@ export class TabManager {
       security: describeSecurity(
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
-        tab.isStartPage ? '' : this.certificateChangeFor(tab.url),
-        !tab.isStartPage && trustedLocally(hostOf(tab.url)),
+        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url),
+        !tab.isStartPage && trustedLocally(originOf(tab.url)),
         tab.error !== null,
       ),
       error: tab.error,
@@ -397,7 +397,12 @@ export class TabManager {
       .then(() => describeTab(view.webContents, process.platform));
 
     if (!isStartPage) {
-      void described.then(() => this.loadUrl(tab, rawUrl));
+      void described.then(() => {
+        // It can be closed, or sent somewhere else, while it waits.
+        if (this.tabs.get(id) === tab && tab.url === rawUrl) {
+          void this.loadUrl(tab, rawUrl);
+        }
+      });
     }
 
     if (options.activate !== false) {

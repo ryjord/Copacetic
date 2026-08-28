@@ -293,13 +293,3 @@ function scoreEntry(
 
   return match * recency * frequency * (isBookmark ? 1.4 : 1);
 }
-
-// ------------------------------------------------------------------- revivers
-//
-// Every persisted file is treated as untrusted input. It lives in a directory
-// the user can edit, and a malformed field must degrade to a default rather
-// than crash the browser at launch.
-
-// Bounds every numeric setting, wherever it came from.
-// The widget list, or one derived from the booleans it replaced.
-/** Untrusted on-disk input, so every level is bounded like a live one. */

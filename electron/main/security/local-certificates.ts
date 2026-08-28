@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import { hostOf, isLoopbackHost } from '../../shared/url';
+import { hostOf, isLoopbackHost, originOf } from '../../shared/url';
 import { log } from '../system/diagnostics';
 
 /**
@@ -26,8 +26,9 @@ export function mayTrustLocally(url: string): boolean {
   return parsed.protocol === 'https:' && isLoopbackHost(parsed.hostname);
 }
 
-export function trustedLocally(host: string): boolean {
-  return granted.has(host.toLowerCase());
+/** Keyed by origin: one bad certificate on :8443 says nothing about :3000. */
+export function trustedLocally(origin: string): boolean {
+  return granted.has(origin.toLowerCase());
 }
 
 /** Cleared with the rest of a session's browsing. */
@@ -44,10 +45,10 @@ export function allowLocalCertificates(): void {
     }
 
     event.preventDefault();
-    const host = hostOf(url);
-    if (!granted.has(host)) {
-      granted.add(host);
-      log.info('trusted a certificate from this machine', { host, reason: error });
+    const origin = originOf(url);
+    if (origin && !granted.has(origin)) {
+      granted.add(origin);
+      log.info('trusted a certificate from this machine', { host: hostOf(url), reason: error });
     }
     callback(true);
   });

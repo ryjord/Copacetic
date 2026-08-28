@@ -1,4 +1,5 @@
 import type { Session, WebContents } from 'electron';
+import type { ClientHints } from '../../shared/browser-identity';
 import {
   CHROME_OBJECT_SCRIPT,
   acceptLanguagesFor,
@@ -31,7 +32,7 @@ export function describeSession(session: Session, platform: string, locale: stri
   const userAgent = stripElectronFromUserAgent(session.getUserAgent());
   session.setUserAgent(userAgent, acceptLanguagesFor(locale));
 
-  const hints = clientHintsFor(userAgent, platform);
+  const hints = clientHintsFor(userAgent, platform, process.arch);
   if (!hints) {
     return;
   }
@@ -61,33 +62,42 @@ export function describeSession(session: Session, platform: string, locale: stri
  * first.
  */
 export async function describeTab(contents: WebContents, platform: string): Promise<void> {
-  const userAgent = contents.session.getUserAgent();
-  const hints = clientHintsFor(userAgent, platform);
-  if (!hints) {
+  // The caller waits for an empty document first, and a tab can be closed
+  // during it. Everything below would then throw on a destroyed object.
+  if (contents.isDestroyed()) {
     return;
   }
 
+  try {
+    const userAgent = contents.session.getUserAgent();
+    const hints = clientHintsFor(userAgent, platform, process.arch);
+    if (!hints) {
+      return;
+    }
+    await describeAsChrome(contents, userAgent, hints);
+  } catch (error) {
+    log.warn('could not describe a tab as Chrome', describeError(error));
+  }
+}
+
+async function describeAsChrome(contents: WebContents, userAgent: string, hints: ClientHints): Promise<void> {
   try {
     contents.debugger.attach('1.3');
   } catch (error) {
     // Nothing here is worth failing a tab over. Without it the browser simply
     // goes back to describing itself the way Electron does.
-    log.warn('could not describe a tab as Chrome', describeError(error));
+    log.warn('could not attach to a tab to describe it', describeError(error));
     return;
   }
 
-  try {
-    await contents.debugger.sendCommand('Emulation.setUserAgentOverride', {
-      userAgent,
-      platform: hints.platform,
-      userAgentMetadata: hints,
-    });
+  await contents.debugger.sendCommand('Emulation.setUserAgentOverride', {
+    userAgent,
+    platform: hints.platform,
+    userAgentMetadata: hints,
+  });
 
-    // Electron leaves window.chrome empty where a real Chrome has three objects
-    // on it, so they are added to every document this tab loads.
-    await contents.debugger.sendCommand('Page.enable');
-    await contents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: CHROME_OBJECT_SCRIPT });
-  } catch (error) {
-    log.warn('could not finish describing a tab as Chrome', describeError(error));
-  }
+  // Electron leaves window.chrome empty where a real Chrome has three objects
+  // on it, so they are added to every document this tab loads.
+  await contents.debugger.sendCommand('Page.enable');
+  await contents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: CHROME_OBJECT_SCRIPT });
 }

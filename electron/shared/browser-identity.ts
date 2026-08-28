@@ -30,18 +30,23 @@ export interface ClientHints {
 const GREASE: Brand = { brand: 'Not;A=Brand', version: '8' };
 const GREASE_FULL: Brand = { brand: 'Not;A=Brand', version: '8.0.0.0' };
 
-const PLATFORMS: Record<string, { platform: string; platformVersion: string; architecture: string }> = {
-  darwin: { platform: 'macOS', platformVersion: '15.5.0', architecture: 'arm' },
-  win32: { platform: 'Windows', platformVersion: '15.0.0', architecture: 'x86' },
-  linux: { platform: 'Linux', platformVersion: '6.8.0', architecture: 'x86' },
+const PLATFORMS: Record<string, { platform: string; platformVersion: string }> = {
+  darwin: { platform: 'macOS', platformVersion: '15.5.0' },
+  win32: { platform: 'Windows', platformVersion: '15.0.0' },
+  linux: { platform: 'Linux', platformVersion: '6.8.0' },
 };
+
+/** What Chrome reports, from what the process actually runs on. Claiming arm on an Intel Mac would contradict WebGL. */
+function architectureFor(arch: string): string {
+  return arch === 'arm64' || arch === 'arm' ? 'arm' : 'x86';
+}
 
 /**
  * Everything reported is read out of the user agent the session already sends,
  * so the string and the hints cannot drift apart — including when Chromium is
  * upgraded and the version changes underneath.
  */
-export function clientHintsFor(userAgent: string, platform: string): ClientHints | null {
+export function clientHintsFor(userAgent: string, platform: string, arch = 'x64'): ClientHints | null {
   const version = /Chrome\/((\d+)[\d.]*)/.exec(userAgent);
   const full = version?.[1];
   const major = version?.[2];
@@ -60,7 +65,7 @@ export function clientHintsFor(userAgent: string, platform: string): ClientHints
     fullVersion: full,
     platform: system.platform,
     platformVersion: system.platformVersion,
-    architecture: system.architecture,
+    architecture: architectureFor(arch),
     model: '',
     mobile: false,
   };

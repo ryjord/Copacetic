@@ -28,12 +28,12 @@ import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } fr
 import { describeAuthPrompt, isPromptWorthy } from '../security/auth';
 import { ContentBlocker } from '../security/blocker';
 import { forgetCertificates } from '../security/certificates';
+import { forgetLocalCertificates } from '../security/local-certificates';
 import { bookmarksToHtml, historyToJson } from '../data/export';
 import { bookmarksFromHtml } from '../../shared/bookmark-import';
 import { offerFor } from '../../shared/credential-matching';
 import { fillScriptFor } from '../system/fill-script';
 import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
-import {} from '../../shared/vault-lock';
 import { Vault } from '../data/vault';
 import { chooseWallpaper, clearWallpaper, hasWallpaper } from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
@@ -492,6 +492,7 @@ export class Browser {
       // Certificate summaries are browsing data too: they name every host
       // visited this session.
       forgetCertificates();
+      forgetLocalCertificates();
       await getWebSession().clearStorageData();
       await getWebSession().clearCache();
     }
