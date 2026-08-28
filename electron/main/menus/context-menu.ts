@@ -3,6 +3,7 @@ import type { TabId } from '../../shared/types';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-text';
 import { isPageNavigableUrl } from '../../shared/url';
 import type { Browser } from '../app/browser';
+import { GROUP_COLOURS } from '../../shared/tab-groups';
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
@@ -130,6 +131,8 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
     { label: 'Reload', click: () => browser.tabs.reload(tabId) },
     { type: 'separator' },
+    groupSubmenu(browser, tabId),
+    { type: 'separator' },
     {
       label: isBookmarked ? 'Remove bookmark' : 'Bookmark this page',
       enabled: url !== null,
@@ -177,4 +180,49 @@ export function showNewTabMenu(browser: Browser): void {
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * Where a group is made and joined.
+ *
+ * A group that keeps its own browsing is offered as a separate choice rather
+ * than a checkbox on the first one, because it cannot be changed afterwards:
+ * it decides which session the tabs load in, and turning it on later would
+ * silently sign someone out of pages already open.
+ */
+function groupSubmenu(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
+  const groups = browser.store.listGroups();
+  const current = browser.tabs.groupIdFor(tabId);
+  const isHush = browser.tabs.isHush(tabId);
+
+  const existing: MenuItemConstructorOptions[] = groups.map((group) => ({
+    label: group.name,
+    type: 'checkbox',
+    checked: group.id === current,
+    click: () => browser.setTabGroup(tabId, group.id === current ? null : group.id),
+  }));
+
+  return {
+    label: 'Group',
+    submenu: [
+      {
+        label: 'New group',
+        click: () => browser.createGroup(tabId, 'Group', GROUP_COLOURS[0].id, false),
+      },
+      {
+        label: 'New group that keeps its own browsing',
+        // A Hush tab would not use it: its session must never be written down,
+        // so the group's separation could not reach it anyway.
+        enabled: !isHush,
+        click: () => browser.createGroup(tabId, 'Group', GROUP_COLOURS[0].id, true),
+      },
+      ...(existing.length > 0 ? [{ type: 'separator' as const }, ...existing] : []),
+      ...(current
+        ? [
+            { type: 'separator' as const },
+            { label: 'Remove from group', click: () => browser.setTabGroup(tabId, null) },
+          ]
+        : []),
+    ],
+  };
 }

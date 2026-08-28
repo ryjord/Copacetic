@@ -37,6 +37,7 @@ export function Chrome() {
 
   const authPrompts = useBrowserStore((state) => state.authPrompts);
   const density = useBrowserStore((state) => state.settings.density);
+  const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
   const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
   const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
@@ -145,7 +146,7 @@ export function Chrome() {
       <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 px-2.5 pt-1.5">
         {/* Room for the macOS traffic lights, which sit inside this strip. */}
         {isMac() && <div className="w-[68px] shrink-0" aria-hidden />}
-        <TabStrip tabs={tabs} activeTabId={activeTabId} />
+        <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
         {!isMac() && <WindowControls />}
       </header>
 

@@ -85,3 +85,26 @@ export function describeClaim(claim: GroupClaim): string {
       return 'Mixed: one of these tabs keeps nothing, and the rest are kept. This group cannot say one thing about all of them.';
   }
 }
+
+/**
+ * The strip, split into runs of tabs that belong together.
+ *
+ * Runs are consecutive: a group is drawn wherever its tabs are adjacent, so a
+ * group whose tabs have been dragged apart is drawn as two bands rather than
+ * one band swallowing what sits between them. Two bands is honest about where
+ * the tabs actually are; one would not be.
+ */
+export function segmentByGroup<T extends { groupId: string | null }>(
+  tabs: readonly T[],
+): { groupId: string | null; tabs: T[] }[] {
+  const runs: { groupId: string | null; tabs: T[] }[] = [];
+  for (const tab of tabs) {
+    const last = runs[runs.length - 1];
+    if (last && last.groupId === tab.groupId) {
+      last.tabs.push(tab);
+    } else {
+      runs.push({ groupId: tab.groupId, tabs: [tab] });
+    }
+  }
+  return runs;
+}

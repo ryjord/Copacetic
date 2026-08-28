@@ -1,8 +1,9 @@
 'use client';
 
-import { ChevronDown, EyeOff, Plus, Volume2, VolumeX, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { TabState } from '@shared/types';
+import { claimOf, colourOf, describeClaim, segmentByGroup, type TabGroup } from '@shared/tab-groups';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
 import { send } from '@/lib/bridge';
@@ -11,9 +12,10 @@ import { cn } from '@/lib/utils';
 interface TabStripProps {
   tabs: TabState[];
   activeTabId: string | null;
+  groups: TabGroup[];
 }
 
-export function TabStrip({ tabs, activeTabId }: TabStripProps) {
+export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -63,22 +65,44 @@ export function TabStrip({ tabs, activeTabId }: TabStripProps) {
       }}
       className="hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     >
-      {tabs.map((tab, index) => (
-        <Tab
-          key={tab.id}
-          tab={tab}
-          isActive={tab.id === activeTabId}
-          isDragging={dragId === tab.id}
-          showDropBefore={dropIndex === index && dragId !== tab.id}
-          onDragStart={() => setDragId(tab.id)}
-          onDragEnd={() => {
-            setDragId(null);
-            setDropIndex(null);
-          }}
-          onDragOver={() => setDropIndex(index)}
-          onDrop={() => handleDrop(index)}
-        />
-      ))}
+      {segmentByGroup(tabs).map((run, runIndex) => {
+        const group = run.groupId ? groups.find((candidate) => candidate.id === run.groupId) : undefined;
+        const startsAt = tabs.indexOf(run.tabs[0] as TabState);
+
+        const rendered = run.tabs.map((tab, offset) => {
+          const index = startsAt + offset;
+          return (
+            <Tab
+              key={tab.id}
+              tab={tab}
+              isActive={tab.id === activeTabId}
+              isDragging={dragId === tab.id}
+              showDropBefore={dropIndex === index && dragId !== tab.id}
+              onDragStart={() => setDragId(tab.id)}
+              onDragEnd={() => {
+                setDragId(null);
+                setDropIndex(null);
+              }}
+              onDragOver={() => setDropIndex(index)}
+              onDrop={() => handleDrop(index)}
+            />
+          );
+        });
+
+        if (!group) {
+          return (
+            <div key={`ungrouped-${runIndex}`} className="flex items-center gap-1">
+              {rendered}
+            </div>
+          );
+        }
+
+        return (
+          <GroupBand key={`${group.id}-${runIndex}`} group={group} holdsHush={run.tabs.some((tab) => tab.isHush)}>
+            {rendered}
+          </GroupBand>
+        );
+      })}
 
       <IconButton label="New tab" size="sm" className="ml-0.5" onClick={() => send((api) => api.tabs.create())}>
         <Plus size={14} />
@@ -220,6 +244,42 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       >
         <X size={11} />
       </button>
+    </div>
+  );
+}
+
+/**
+ * A group's own mark, and the only place its colour appears.
+ *
+ * The colour never fills a tab. That keeps it out of the way of the state
+ * colours, which say whether a connection is encrypted or a tab is Hush, and it
+ * keeps a Hush outline the strongest thing inside a group — which is right,
+ * because in a mixed group it is the only guarantee there is.
+ */
+function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
+  const claim = claimOf(group, holdsHush);
+  const colour = colourOf(group.colour);
+
+  return (
+    <div
+      className="flex items-center gap-1 rounded-t-[10px] px-1"
+      style={{ borderTop: `2px solid ${colour}`, background: `${colour}1a` }}
+    >
+      <button
+        type="button"
+        title={describeClaim(claim)}
+        onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
+        className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px]"
+        style={{ color: colour }}
+      >
+        <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
+        <span className="max-w-[14ch] truncate">{group.name}</span>
+        {claim === 'separate' && <Lock size={11} aria-label="Keeps its own browsing" />}
+        {/* A group holding a Hush tab cannot claim to be separate, because that
+            would be true of only part of what it names. */}
+        {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
+      </button>
+      {!group.collapsed && children}
     </div>
   );
 }

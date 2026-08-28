@@ -66,6 +66,10 @@ export const INVOKE = {
   wallpaperKeep: 'wallpaper:keep',
   wallpaperDiscard: 'wallpaper:discard',
   wallpaperRemove: 'wallpaper:remove',
+  groupCreate: 'group:create',
+  groupUpdate: 'group:update',
+  groupRemove: 'group:remove',
+  groupSetForTab: 'group:set-for-tab',
 
   connectionsList: 'connections:list',
 

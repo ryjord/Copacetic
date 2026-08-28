@@ -190,6 +190,14 @@ export class TabManager {
     this.onChanged();
   }
 
+  groupIdFor(id: TabId): string | null {
+    return this.tabs.get(id)?.groupId ?? null;
+  }
+
+  isHush(id: TabId): boolean {
+    return this.tabs.get(id)?.isHush === true;
+  }
+
   /** Every tab currently in a group, in strip order. */
   tabsInGroup(groupId: string): TabRecord[] {
     return this.order

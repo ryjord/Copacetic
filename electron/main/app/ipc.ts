@@ -7,6 +7,7 @@ import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generato
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import type { Browser } from './browser';
 import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
+import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import { showNewTabMenu, showTabContextMenu } from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
@@ -186,6 +187,17 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.wallpaperStaged, () => stagedWallpaper());
   handle(INVOKE.wallpaperKeep, () => browser.keepWallpaper());
   handle(INVOKE.wallpaperRemove, () => browser.removeWallpaper());
+
+  // ------------------------------------------------------------------ groups
+
+  handle(INVOKE.groupCreate, (_event, tabId, name, colour, ownSession) =>
+    browser.createGroup(asString(tabId), asString(name), asGroupColour(colour), ownSession === true),
+  );
+  handle(INVOKE.groupUpdate, (_event, id, changes) => browser.updateGroup(asString(id), asGroupChanges(changes)));
+  handle(INVOKE.groupRemove, (_event, id) => browser.removeGroup(asString(id)));
+  handle(INVOKE.groupSetForTab, (_event, tabId, groupId) =>
+    browser.setTabGroup(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
+  );
   handle(INVOKE.wallpaperDiscard, () => browser.discardWallpaper());
 
   // ------------------------------------------------------------------- data
@@ -252,6 +264,28 @@ function pickStrings<K extends string>(
     }
   }
   return picked;
+}
+
+function asGroupColour(value: unknown): GroupColourId {
+  const known = GROUP_COLOURS.find((colour) => colour.id === value);
+  return known?.id ?? GROUP_COLOURS[0].id;
+}
+
+function asGroupChanges(value: unknown): { name?: string; colour?: GroupColourId; collapsed?: boolean } {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const changes: { name?: string; colour?: GroupColourId; collapsed?: boolean } = {};
+  if (typeof value.name === 'string') {
+    changes.name = value.name.slice(0, 60);
+  }
+  if (GROUP_COLOURS.some((colour) => colour.id === value.colour)) {
+    changes.colour = value.colour as GroupColourId;
+  }
+  if (typeof value.collapsed === 'boolean') {
+    changes.collapsed = value.collapsed;
+  }
+  return changes;
 }
 
 function asClearRange(value: unknown): ClearRange {

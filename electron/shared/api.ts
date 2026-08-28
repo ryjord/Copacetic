@@ -1,4 +1,5 @@
 import type { ChromeSurface } from './channels';
+import type { GroupColourId } from './tab-groups';
 import type {
   AppInfo,
   DefaultBrowserStatus,
@@ -137,6 +138,15 @@ export interface CopaceticApi {
     facts(): Promise<VaultFacts>;
   };
 
+  groups: {
+    /** Makes a group and puts a tab in it. Returns the new group's id. */
+    create(tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): Promise<string>;
+    update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): Promise<void>;
+    /** Removes the group. Its tabs stay open and become ungrouped. */
+    remove(id: string): Promise<void>;
+    /** Puts a tab in a group, or takes it out with null. */
+    setForTab(tabId: TabId, groupId: string | null): Promise<void>;
+  };
   wallpaper: {
     /** The image as a data URL, or null. Fetched on demand, never pushed. */
     get(): Promise<string | null>;

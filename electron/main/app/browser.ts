@@ -56,6 +56,7 @@ import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
+import type { GroupColourId } from '../../shared/tab-groups';
 import { VaultSession } from './vault-session';
 import { log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
@@ -727,6 +728,35 @@ export class Browser {
     if (file) {
       shell.showItemInFolder(file);
     }
+  }
+
+  // -------------------------------------------------------------------- groups
+
+  /** Makes a group and puts the tab that asked for it inside. */
+  createGroup(tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): string {
+    const group = this.store.createGroup(name, colour, ownSession);
+    this.tabs.setGroup(tabId, group.id);
+    this.scheduleStatePush();
+    return group.id;
+  }
+
+  updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    this.store.updateGroup(id, changes);
+    this.scheduleStatePush();
+  }
+
+  /** The group goes; its tabs stay open with nothing to belong to. */
+  removeGroup(id: string): void {
+    for (const tab of this.tabs.tabsInGroup(id)) {
+      this.tabs.setGroup(tab.id, null);
+    }
+    this.store.removeGroup(id);
+    this.scheduleStatePush();
+  }
+
+  setTabGroup(tabId: TabId, groupId: string | null): void {
+    this.tabs.setGroup(tabId, groupId);
+    this.scheduleStatePush();
   }
 
   openDownloadsFolder(): void {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { GROUP_COLOURS, claimOf, describeClaim, partitionFor } from '../../electron/shared/tab-groups';
+import {
+  GROUP_COLOURS,
+  claimOf,
+  describeClaim,
+  partitionFor,
+  segmentByGroup,
+} from '../../electron/shared/tab-groups';
 import type { TabGroup } from '../../electron/shared/tab-groups';
 
 const PARTITIONS = { web: 'persist:copacetic-web', hush: 'copacetic-hush' };
@@ -109,5 +115,44 @@ describe('group colours are not state colours', () => {
     expect(GROUP_COLOURS.length).toBeGreaterThanOrEqual(4);
     expect(GROUP_COLOURS.length).toBeLessThanOrEqual(8);
     expect(new Set(GROUP_COLOURS.map((c) => c.hex)).size).toBe(GROUP_COLOURS.length);
+  });
+});
+
+/** How the strip is drawn: runs of tabs that sit together and belong together. */
+describe('splitting the strip into groups', () => {
+  const strip = (...ids: (string | null)[]) => ids.map((groupId, index) => ({ id: `t${index}`, groupId }));
+
+  it('leaves ungrouped tabs as one run', () => {
+    expect(segmentByGroup(strip(null, null))).toEqual([{ groupId: null, tabs: strip(null, null) }]);
+  });
+
+  it('gathers adjacent tabs of the same group', () => {
+    const runs = segmentByGroup(strip('a', 'a', null));
+    expect(runs).toHaveLength(2);
+    expect(runs[0]?.groupId).toBe('a');
+    expect(runs[0]?.tabs).toHaveLength(2);
+  });
+
+  /**
+   * A group whose tabs have been dragged apart is drawn as two bands. One band
+   * stretching over the tab between them would say those tabs are in the group
+   * when they are not.
+   */
+  it('draws a split group as two bands rather than swallowing what is between', () => {
+    const runs = segmentByGroup(strip('a', null, 'a'));
+    expect(runs.map((run) => run.groupId)).toEqual(['a', null, 'a']);
+  });
+
+  it('keeps two different groups apart even when adjacent', () => {
+    expect(segmentByGroup(strip('a', 'b')).map((run) => run.groupId)).toEqual(['a', 'b']);
+  });
+
+  it('copes with an empty strip', () => {
+    expect(segmentByGroup([])).toEqual([]);
+  });
+
+  it('keeps every tab, in order', () => {
+    const tabs = strip('a', null, 'b', 'b', null);
+    expect(segmentByGroup(tabs).flatMap((run) => run.tabs)).toEqual(tabs);
   });
 });

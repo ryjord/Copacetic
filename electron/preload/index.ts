@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
+import type { GroupColourId } from '../shared/tab-groups';
 import type {
   AppInfo,
   Bookmark,
@@ -121,6 +122,15 @@ const api: CopaceticApi = {
     unlock: () => ipcRenderer.invoke(INVOKE.vaultUnlock),
     lock: () => ipcRenderer.invoke(INVOKE.vaultLock),
     facts: () => ipcRenderer.invoke(INVOKE.vaultFacts),
+  },
+
+  groups: {
+    create: (tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): Promise<string> =>
+      ipcRenderer.invoke(INVOKE.groupCreate, tabId, name, colour, ownSession),
+    update: (id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }) =>
+      ipcRenderer.invoke(INVOKE.groupUpdate, id, changes),
+    remove: (id: string) => ipcRenderer.invoke(INVOKE.groupRemove, id),
+    setForTab: (tabId: TabId, groupId: string | null) => ipcRenderer.invoke(INVOKE.groupSetForTab, tabId, groupId),
   },
 
   wallpaper: {
