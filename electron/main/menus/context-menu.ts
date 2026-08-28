@@ -3,7 +3,7 @@ import type { TabId } from '../../shared/types';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-text';
 import { isPageNavigableUrl } from '../../shared/url';
 import type { Browser } from '../app/browser';
-import { GROUP_COLOURS } from '../../shared/tab-groups';
+import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tab-groups';
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
@@ -241,8 +241,18 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
     return;
   }
 
+  // What the group can honestly promise about its browsing. It was on the
+  // panel, and the panel is gone; it is not a detail worth losing, because it
+  // is the only place a mixed group admits what it is.
+  const claim = claimOf(
+    group,
+    browser.tabs.tabsInGroup(groupId).some((tab) => tab.isHush),
+  );
+
   const items: MenuItemConstructorOptions[] = [
-    { label: `Rename “${group.name}”`, click: () => browser.openGroupPanel(groupId) },
+    { label: describeClaim(claim), enabled: false },
+    { type: 'separator' },
+    { label: `Rename “${group.name}”`, click: () => browser.renameGroup(groupId) },
     {
       label: 'Colour',
       submenu: GROUP_COLOURS.map((colour) => ({

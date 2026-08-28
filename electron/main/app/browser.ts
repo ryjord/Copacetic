@@ -763,9 +763,9 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  /** Asks the chrome to open the group's panel, which is where renaming happens. */
-  openGroupPanel(id: string): void {
-    this.pushToChrome(PUSH.openGroupPanel, id);
+  /** Asks the chrome to put the group's name into an editable field in the strip. */
+  renameGroup(id: string): void {
+    this.pushToChrome(PUSH.renameGroup, id);
   }
 
   setTabGroup(tabId: TabId, groupId: string | null): void {

@@ -150,14 +150,6 @@ export function Chrome() {
         {!isMac() && <WindowControls />}
       </header>
 
-      {/*
-       * The group panel hangs from the strip, so it is rendered into this row
-       * rather than floated over the content: a WebContentsView paints above
-       * the renderer's HTML, and a panel drawn over that rectangle is simply
-       * swallowed by the page. Being in flow, it moves the page down instead.
-       */}
-      <div id="group-panel-slot" className="empty:hidden" />
-
       <Toolbar tab={activeTab} />
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />

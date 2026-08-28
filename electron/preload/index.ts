@@ -170,7 +170,7 @@ const api: CopaceticApi = {
     state: (listener: (state: BrowserState) => void) => subscribe(PUSH.state, listener),
     focusOmnibox: (listener: () => void) => subscribe(PUSH.focusOmnibox, listener),
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
-    openGroupPanel: (listener: (groupId: string) => void) => subscribe(PUSH.openGroupPanel, listener),
+    renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
   },
 };
 

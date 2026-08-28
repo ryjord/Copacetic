@@ -111,7 +111,7 @@ export const PUSH = {
   /** Fired when a menu item or shortcut wants the chrome to open a surface. */
   openSurface: 'push:open-surface',
   /** A native menu cannot hold a text field, so renaming asks the chrome to open the group's panel. */
-  openGroupPanel: 'push:open-group-panel',
+  renameGroup: 'push:rename-group',
 } as const;
 
 export type InvokeChannel = (typeof INVOKE)[keyof typeof INVOKE];

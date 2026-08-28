@@ -6,7 +6,6 @@ import type { TabState } from '@shared/types';
 import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type TabGroup } from '@shared/tab-groups';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
-import { GroupPanel } from '@/components/chrome/TabStrip/GroupPanel';
 import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
@@ -262,19 +261,24 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
  * because in a mixed group it is the only guarantee there is.
  */
 function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
-  const [panel, setPanel] = useState<{ left: number; top: number } | null>(null);
-  const labelRef = useRef<HTMLButtonElement>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
 
   useEffect(() => {
     const api = getBridge();
-    return api?.on.openGroupPanel((id) => {
-      if (id !== group.id) {
-        return;
+    return api?.on.renameGroup((id) => {
+      if (id === group.id) {
+        setIsRenaming(true);
       }
-      const box = labelRef.current?.getBoundingClientRect();
-      setPanel(box ? { left: box.left, top: box.bottom + 4 } : { left: 80, top: 80 });
     });
   }, [group.id]);
+
+  const commit = (next: string) => {
+    const trimmed = next.trim();
+    if (trimmed && trimmed !== group.name) {
+      send((api) => api.groups.update(group.id, { name: trimmed }));
+    }
+    setIsRenaming(false);
+  };
   const claim = claimOf(group, holdsHush);
   const colour = colourOf(group.colour);
 
@@ -287,30 +291,55 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
         send((api) => api.groups.openContextMenu(group.id));
       }}
     >
-      <button
-        ref={labelRef}
-        type="button"
-        title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
-        // Click names it; the chevron collapses it. A click that hid the tabs
-        // would make renaming the thing you cannot see.
-        onClick={(event) => {
-          if (panel) {
-            setPanel(null);
-            return;
-          }
-          const box = event.currentTarget.getBoundingClientRect();
-          setPanel({ left: box.left, top: box.bottom + 4 });
-        }}
-        className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px] transition-colors hover:bg-hover/60"
-        style={{ color: colour }}
-      >
-        <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
-        <span className="max-w-[14ch] truncate">{group.name}</span>
-        {claim === 'separate' && <Lock size={11} aria-label="Keeps its own browsing" />}
-        {/* A group holding a Hush tab cannot claim to be separate, because that
-            would be true of only part of what it names. */}
-        {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
-      </button>
+      {isRenaming ? (
+        <div
+          className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 px-2"
+          style={{ color: colour }}
+        >
+          <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
+          <input
+            defaultValue={group.name}
+            autoFocus
+            maxLength={60}
+            aria-label={`Rename ${group.name}`}
+            size={Math.max(group.name.length, 8)}
+            // Selected, so typing replaces the name rather than appending to it.
+            onFocus={(event) => event.currentTarget.select()}
+            // Leaving keeps what was typed: clicking away from a field you have
+            // edited means you are done with it, not that you changed your mind.
+            onBlur={(event) => commit(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                commit(event.currentTarget.value);
+              }
+              if (event.key === 'Escape') {
+                // Escape is the one way out that keeps the old name, so it must
+                // not be undone by the blur that follows.
+                event.currentTarget.value = group.name;
+                setIsRenaming(false);
+              }
+            }}
+            className="h-5 min-w-0 rounded-[4px] border border-line-strong bg-base px-1 text-[11.5px] text-ink outline-none"
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
+          // Click names it; the chevron collapses it. A click that hid the tabs
+          // would make renaming the thing you cannot see.
+          onClick={() => setIsRenaming(true)}
+          className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px] transition-colors hover:bg-hover/60"
+          style={{ color: colour }}
+        >
+          <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
+          <span className="max-w-[14ch] truncate">{group.name}</span>
+          {claim === 'separate' && <Lock size={11} aria-label="Keeps its own browsing" />}
+          {/* A group holding a Hush tab cannot claim to be separate, because that
+              would be true of only part of what it names. */}
+          {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
+        </button>
+      )}
       <button
         type="button"
         aria-label={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
@@ -321,8 +350,6 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
       </button>
 
       {!group.collapsed && children}
-
-      {panel && <GroupPanel group={group} holdsHush={holdsHush} anchor={panel} onClose={() => setPanel(null)} />}
     </div>
   );
 }
