@@ -36,6 +36,7 @@ export function Chrome() {
 
   const authPrompts = useBrowserStore((state) => state.authPrompts);
   const density = useBrowserStore((state) => state.settings.density);
+  const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
   const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
   const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
 
@@ -123,6 +124,10 @@ export function Chrome() {
   useEffect(() => {
     document.documentElement.dataset.density = density;
   }, [density]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ambient-hue', `${ambientHue}deg`);
+  }, [ambientHue]);
 
   // --- render --------------------------------------------------------------
 

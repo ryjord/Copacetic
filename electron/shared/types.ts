@@ -293,6 +293,8 @@ export interface Settings {
   startPageWidgets: StartPageWidgetId[];
   /** Set once someone has read what Hush does and does not do. */
   hushNoticeDismissed: boolean;
+  /** Degrees the start page's atmosphere is turned from the theme's own hue. Nothing else in the interface moves. */
+  ambientHue: number;
   // Ask GitHub whether a newer release exists, on launch and on a long timer.
   checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */

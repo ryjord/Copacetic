@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   restoreTabsOnLaunch: true,
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
+  ambientHue: 0,
   checkForUpdates: true,
   permissionDecisions: {},
   zoomLevels: {},
@@ -115,6 +116,7 @@ function reviveSettings(raw: unknown): Settings | null {
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),
     startPageWidgets: reviveStartPageWidgets(raw),
     hushNoticeDismissed: raw.hushNoticeDismissed === true,
+    ambientHue: clampHue(raw.ambientHue),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     permissionDecisions: decisions,
     zoomLevels: reviveZoomLevels(raw.zoomLevels),
@@ -148,6 +150,14 @@ function reviveZoomLevels(raw: unknown): Record<string, number> {
     levels[origin] = clamp(value, 0.25, 5);
   }
   return levels;
+}
+
+/** A turn of the colour wheel, wrapped rather than rejected: any number lands somewhere sensible. */
+function clampHue(raw: unknown): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+    return 0;
+  }
+  return ((Math.round(raw) % 360) + 360) % 360;
 }
 
 function reviveStartPageWidgets(raw: Record<string, unknown>): StartPageWidgetId[] {

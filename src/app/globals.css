@@ -180,9 +180,23 @@
 
 @layer utilities {
   .ambient-field {
+    background: var(--color-void);
+  }
+
+  /*
+   * The atmosphere is its own layer so that turning its hue turns the
+   * atmosphere and nothing else — a filter on the container would take the
+   * clock and the text with it.
+   */
+  .ambient-field::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    filter: hue-rotate(var(--ambient-hue, 0deg));
     background:
       radial-gradient(120% 90% at 18% 0%, var(--ambient-near) 0%, transparent 55%),
-      radial-gradient(110% 100% at 92% 100%, var(--ambient-far) 0%, transparent 58%), var(--color-void);
+      radial-gradient(110% 100% at 92% 100%, var(--ambient-far) 0%, transparent 58%);
   }
 
   /*
@@ -191,9 +205,15 @@
    * the atmosphere goes out, whichever theme is chosen.
    */
   .ambient-field[data-hush='true'] {
+    background: var(--color-sunken);
+  }
+
+  /* Hush is not a tint of the theme, so the hue lever does not reach it. */
+  .ambient-field[data-hush='true']::before {
+    filter: none;
     background:
       radial-gradient(120% 90% at 50% 0%, #101722 0%, transparent 62%),
-      repeating-linear-gradient(115deg, rgba(127, 178, 209, 0.028) 0 1px, transparent 1px 9px), var(--color-sunken);
+      repeating-linear-gradient(115deg, rgba(127, 178, 209, 0.028) 0 1px, transparent 1px 9px);
   }
 }
 

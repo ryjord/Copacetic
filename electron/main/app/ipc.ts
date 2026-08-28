@@ -293,6 +293,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.hushNoticeDismissed === 'boolean') {
     patch.hushNoticeDismissed = value.hushNoticeDismissed;
   }
+  if (typeof value.ambientHue === 'number' && Number.isFinite(value.ambientHue)) {
+    patch.ambientHue = value.ambientHue;
+  }
   if (Array.isArray(value.startPageWidgets)) {
     const allowed = ['clock', 'search', 'topSites', 'bookmarks'];
     const seen = new Set<string>();
