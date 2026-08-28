@@ -143,10 +143,7 @@
         "x-scheme-handler/http",
         "x-scheme-handler/https",
         "text/html"
-      ],
-      "desktop": {
-        "StartupWMClass": "Copacetic"
-      }
+      ]
     },
     "deb": {
       "afterInstall": "build/deb/after-install.sh",
