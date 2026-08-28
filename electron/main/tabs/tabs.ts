@@ -21,6 +21,7 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
+import { trustedLocally } from '../security/local-certificates';
 import { describeTab } from '../system/browser-identity';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
@@ -136,6 +137,7 @@ export class TabManager {
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
         tab.isStartPage ? '' : this.certificateChangeFor(tab.url),
+        !tab.isStartPage && trustedLocally(hostOf(tab.url)),
       ),
       error: tab.error,
       blockedCount: alive ? this.blocker.countFor(contents.id) : 0,

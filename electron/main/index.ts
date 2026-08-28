@@ -9,6 +9,7 @@ import { installApplicationMenu } from './menus/menu';
 import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './app/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
+import { allowLocalCertificates } from './security/local-certificates';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
@@ -50,6 +51,7 @@ async function start(): Promise<void> {
   await app.whenReady();
   // Before anything else that can fail, so that when it does there is a record.
   startDiagnostics(app.getPath('userData'));
+  allowLocalCertificates();
   log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
 
