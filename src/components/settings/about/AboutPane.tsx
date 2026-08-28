@@ -1,5 +1,8 @@
 // Components
-import { Answer, InfoRow, Section } from '@/components/settings/shared/controls';
+import { Answer, InfoRow, OutlineButton, Section } from '@/components/settings/shared/controls';
+
+// Utils
+import { send } from '@/lib/bridge';
 
 // Types
 import type { SettingsPaneProps } from '@/components/settings/shared/types';
@@ -28,6 +31,16 @@ export function AboutPane({ info }: SettingsPaneProps) {
             No. There is no analytics, no telemetry, no crash reporting and no account. Nothing about how you use the
             browser is recorded anywhere but on this machine.
           </Answer>
+          <Answer question="Then what is the diagnostics log?">
+            A file on this machine that records what Copacetic itself did — that it started, that a setting would not
+            save, that something failed. It never records a page you visited: an address is reduced to its scheme
+            before anything is written, so the log can say a page failed to load without saying which one. Nothing
+            sends it anywhere. It is there so that if Copacetic misbehaves you have something to read, and something
+            to pass on if you choose to.
+          </Answer>
+          <div className="pt-1">
+            <OutlineButton onClick={() => send((api) => api.app.revealDiagnostics())}>Show the log</OutlineButton>
+          </div>
           <Answer question="Does it phone home?">
             Once, if you let it: the update check asks GitHub for the latest version number. It sends a version and
             nothing else, and you can turn it off in Updates. That is the only request Copacetic makes on its own

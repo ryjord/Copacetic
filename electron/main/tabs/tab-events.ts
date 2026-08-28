@@ -4,6 +4,7 @@ import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../s
 import type { ContentBlocker } from '../security/blocker';
 import type { BrowserStore } from '../data/store';
 import { describeNetError, isAbortError } from '../system/net-errors';
+import { log } from '../system/diagnostics';
 import type { TabRecord } from './tab-record';
 
 /**
@@ -103,6 +104,9 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       return;
     }
     const info = describeNetError(errorCode, errorDescription);
+    // Worth a record, and the reason the log scrubs addresses: which page
+    // failed is the user's business, that one did is Copacetic's.
+    log.warn('a page failed to load', { url: validatedURL || tab.url, code: errorCode, reason: info.name });
     tab.isLoading = false;
     tab.error = {
       code: errorCode,

@@ -50,6 +50,7 @@ import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
 import { VaultSession } from './vault-session';
+import { log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
 import { UpdateManager } from '../system/updates';
 import { createChromeWindow } from './window';
@@ -688,6 +689,14 @@ export class Browser {
   clearWallpaper(): void {
     clearWallpaper();
     this.scheduleStatePush();
+  }
+
+  /** The log is only worth keeping if the person it belongs to can find it. */
+  revealDiagnostics(): void {
+    const file = log.path();
+    if (file) {
+      shell.showItemInFolder(file);
+    }
   }
 
   openDownloadsFolder(): void {

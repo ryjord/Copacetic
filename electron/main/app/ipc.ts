@@ -139,6 +139,7 @@ export function registerIpcHandlers(browser: Browser): void {
 
   handle(INVOKE.appGetInfo, () => browser.getAppInfo());
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
+  handle(INVOKE.appRevealDiagnostics, () => browser.revealDiagnostics());
 
   // ------------------------------------------------------------------ vault
 

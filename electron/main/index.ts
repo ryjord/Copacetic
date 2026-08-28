@@ -8,6 +8,7 @@ import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
 import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './app/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
+import { describeError, log, startDiagnostics } from './system/diagnostics';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
@@ -47,6 +48,9 @@ async function start(): Promise<void> {
   });
 
   await app.whenReady();
+  // Before anything else that can fail, so that when it does there is a record.
+  startDiagnostics(app.getPath('userData'));
+  log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
 
   browser = new Browser();
@@ -105,6 +109,7 @@ function applyDevelopmentIcon(): void {
 
 process.on('uncaughtException', (error) => {
   console.error('[copacetic] uncaught exception in the main process', error);
+  log.error('uncaught exception in the main process', describeError(error));
   if (isDevelopment()) {
     throw error;
   }
@@ -112,4 +117,5 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason) => {
   console.error('[copacetic] unhandled rejection in the main process', reason);
+  log.error('unhandled rejection in the main process', describeError(reason));
 });

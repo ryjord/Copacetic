@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { describeError, log } from '../system/diagnostics';
 import { UNVERSIONED, type SchemaPlan, type SchemaVersions, migrate, schemaVersionsFor } from './schema';
 
 /** A single JSON file on disk, written atomically and flushed on a debounce. */
@@ -38,6 +39,7 @@ export class PersistedFile<T> {
    */
   private setAsideNewerFile(found: number): void {
     console.error(`[persistence] ${this.filename} was written by a newer version (${found}), keeping it aside`);
+    log.warn('a stored file came from a newer version and was kept aside', { file: this.filename, found });
     try {
       renameSync(this.filePath, `${this.filePath}.newer`);
     } catch {
@@ -61,6 +63,11 @@ export class PersistedFile<T> {
       const revived = this.revive(outcome.data);
       if (outcome.status === 'migrated') {
         console.info(`[persistence] ${this.filename}: ${outcome.applied.join(', ')}`);
+        log.info('a stored file was brought up to date', {
+          file: this.filename,
+          from: outcome.from,
+          steps: outcome.applied.join(', '),
+        });
         // Write it back in the new shape rather than migrating it again next time.
         this.dirty = true;
         this.scheduleFlush();
@@ -70,6 +77,7 @@ export class PersistedFile<T> {
       // A corrupt file must never stop the browser from starting. Move it aside
       // so the user can recover it manually, and carry on with defaults.
       console.error(`[persistence] ${path.basename(this.filePath)} is unreadable, starting fresh`, error);
+      log.error('a stored file could not be read, starting fresh', { file: this.filename, ...describeError(error) });
       try {
         renameSync(this.filePath, `${this.filePath}.corrupt`);
       } catch {
@@ -123,6 +131,7 @@ export class PersistedFile<T> {
       this.versions.record(this.filename, this.plan.current);
     } catch (error) {
       console.error(`[persistence] failed to write ${path.basename(this.filePath)}`, error);
+      log.error('a stored file could not be written', { file: this.filename, ...describeError(error) });
       try {
         if (existsSync(tempPath)) {
           unlinkSync(tempPath);

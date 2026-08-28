@@ -104,6 +104,8 @@ export interface CopaceticApi {
   app: {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
+    /** Show the diagnostics log in the file manager, so it can be read before it is shared. */
+    revealDiagnostics(): Promise<void>;
   };
   vault: {
     /** Fetched when the pane is open rather than pushed: it is not needed to render a page. */

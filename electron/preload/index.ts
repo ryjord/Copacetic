@@ -102,6 +102,7 @@ const api: CopaceticApi = {
   app: {
     getInfo: (): Promise<AppInfo> => ipcRenderer.invoke(INVOKE.appGetInfo),
     openExternal: (url: string) => ipcRenderer.invoke(INVOKE.appOpenExternal, url),
+    revealDiagnostics: () => ipcRenderer.invoke(INVOKE.appRevealDiagnostics),
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */
