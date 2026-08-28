@@ -2,6 +2,60 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.4.0 — unreleased
+
+### Added
+
+- **Signing in to Google works.** It refused before, and the reason turned out to
+  be that Copacetic said it was Chrome and then did not behave like one:
+  Chromium in Electron sends none of the client-hint headers every real Chrome
+  sends on every secure request, and a sign-in page reads those before a single
+  script runs. Those, the browser's own description of itself, the languages it
+  offers and `window.chrome` all now say the same thing. Page content still runs
+  no script of Copacetic's — the fix is entirely in the main process.
+- **Development servers open.** A certificate signed by nobody is accepted from
+  `localhost`, `127.0.0.1`, `::1` and `.localhost`, and nowhere else; reaching
+  that traffic already means being on the machine. The badge says the
+  certificate was not checked rather than claiming it was.
+- **Copacetic can be your default browser.** Settings says what your platform
+  will actually do: macOS and Linux can be asked, and Windows 10 and 11 do not
+  let an application make itself the default at all, so there it opens the
+  screen where you choose.
+- **Appearance shows you the change before you keep it.** A working miniature of
+  the window sits at the top of the pane and follows every choice — density,
+  atmosphere, widgets, wallpaper. Nothing is saved until Keep these, and Discard
+  puts it all back. The atmosphere can be turned with a slider or named as a
+  colour, and the two are the same value said two ways.
+- **A diagnostics log**, kept on this machine and sent nowhere. It records what
+  Copacetic did rather than what you did with it: an address is reduced to its
+  scheme before anything is written, so it can say a page failed without saying
+  which. Settings has a button that opens it, so you can read it before deciding
+  whether to share it.
+- **Downloads can be checked against where they came from.** Every release is
+  attested by GitHub, so `gh attestation verify <file> --repo ryjord/Copacetic`
+  proves a download came out of this repository. The builds are still unsigned;
+  this is the part of that question that can be answered for nothing.
+
+### Changed
+
+- **A Hush tab is no longer easy to overlook.** The tab is outlined rather than
+  carrying one small icon among three, the start page atmosphere goes dark, and
+  the page shows what Hush does and does not do instead of the usual widgets.
+  Once you have read that, the widgets that are a way to get somewhere come
+  back — search, the clock — and the ones that report where you have been do
+  not.
+- **Addresses on your own network are left on http.** Typing
+  `dev.internal:3000` upgraded it to https, where nothing was listening, with no
+  way back. `.internal`, `.local` and the private ranges join loopback in being
+  left alone; everything on the internet is still upgraded.
+
+### Fixed
+
+- The connection badge no longer describes a page that failed to load as
+  encrypted and verified. Nothing was exchanged and no certificate was checked.
+- Stored files can change shape between versions without losing what an older
+  build wrote, and a file from a newer version is kept rather than guessed at.
+
 ## 1.3.3 — 2026-08-13
 
 ### Fixed
