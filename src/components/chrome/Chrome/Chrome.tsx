@@ -9,6 +9,7 @@ import { SettingsSurface } from '@/views/SettingsSurface/SettingsSurface';
 import { ErrorPage } from '@/components/pages/ErrorPage/ErrorPage';
 import { StartPage } from '@/components/pages/StartPage/StartPage';
 import { getBridge, isRunningInShell, send } from '@/lib/bridge';
+import { ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { AuthBanner } from '@/components/chrome/AuthBanner/AuthBanner';
 import { ConnectionPanel } from '@/components/chrome/ConnectionPanel/ConnectionPanel';
@@ -125,9 +126,13 @@ export function Chrome() {
     document.documentElement.dataset.density = density;
   }, [density]);
 
+  // Turned here rather than by a filter, so what the settings pane names is
+  // what the start page paints.
   useEffect(() => {
-    document.documentElement.style.setProperty('--ambient-hue', `${ambientHue}deg`);
-  }, [ambientHue]);
+    const { near, far } = ambientStopsFor(theme, ambientHue);
+    document.documentElement.style.setProperty('--ambient-near', near);
+    document.documentElement.style.setProperty('--ambient-far', far);
+  }, [theme, ambientHue]);
 
   // --- render --------------------------------------------------------------
 

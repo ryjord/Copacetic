@@ -38,9 +38,10 @@ import { Vault } from '../data/vault';
 import {
   chooseWallpaper,
   clearWallpaper,
-  commitStagedWallpaper,
+  commitStagedChanges,
   discardStagedWallpaper,
   hasWallpaper,
+  stageWallpaperRemoval,
 } from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
@@ -693,9 +694,16 @@ export class Browser {
     return error;
   }
 
-  /** Writes the wallpaper that was picked, alongside whatever else the pane kept. */
-  keepWallpaper(): void {
-    commitStagedWallpaper();
+  /** Applies what the pane staged. Returns what to say if it could not be written. */
+  keepWallpaper(): string {
+    const failure = commitStagedChanges();
+    this.scheduleStatePush();
+    return failure;
+  }
+
+  /** A removal waits with everything else, so Discard can undo it. */
+  removeWallpaper(): void {
+    stageWallpaperRemoval();
     this.scheduleStatePush();
   }
 

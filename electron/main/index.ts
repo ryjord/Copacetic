@@ -41,7 +41,8 @@ async function start(): Promise<void> {
   let pendingUrl: string | null = null;
 
   const openUrl = (url: string) => {
-    if (browser) {
+    // macOS keeps the app alive with no window, and this arrives regardless.
+    if (browser && !browser.window.isDestroyed()) {
       browser.tabs.create(url, { activate: true });
       browser.window.focus();
     } else {
@@ -58,7 +59,7 @@ async function start(): Promise<void> {
   });
 
   app.on('second-instance', (_event, argv) => {
-    if (!browser) {
+    if (!browser || browser.window.isDestroyed()) {
       return;
     }
     if (browser.window.isMinimized()) {

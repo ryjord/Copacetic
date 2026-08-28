@@ -58,6 +58,9 @@ export function AppearancePane() {
   const [wallpaper, setWallpaper] = useState<string | null>(null);
   /** A wallpaper picked but not yet kept. It outranks the saved one in the preview. */
   const [pending, setPending] = useState<string | null>(null);
+  /** A removal picked but not yet kept, which hides the saved one without deleting it. */
+  const [removing, setRemoving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   /*
    * Anything that changes the saved settings from elsewhere — another window,
@@ -72,6 +75,7 @@ export function AppearancePane() {
     }
   }
 
+  const [reloads, setReloads] = useState(0);
   useEffect(() => {
     if (!settings.hasWallpaper) {
       return;
@@ -85,13 +89,22 @@ export function AppearancePane() {
     return () => {
       cancelled = true;
     };
-  }, [settings.hasWallpaper]);
+    // `reloads` is bumped after a keep: replacing one wallpaper with another
+    // leaves the setting alone, so nothing else here would notice.
+  }, [settings.hasWallpaper, reloads]);
+
+  // Anything staged belongs to this pane. Leaving it is the same as discarding.
+  useEffect(() => {
+    return () => {
+      send((api) => api.wallpaper.discard());
+    };
+  }, []);
 
   // Derived rather than cleared: removing a wallpaper should not need a render
   // to take effect, and a stale one must never outlive the setting.
-  const shownWallpaper = pending ?? (settings.hasWallpaper ? wallpaper : null);
+  const shownWallpaper = removing ? null : (pending ?? (settings.hasWallpaper ? wallpaper : null));
 
-  const changed = !same(draft, saved) || pending !== null;
+  const changed = !same(draft, saved) || pending !== null || removing;
   const set = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
 
   return (
@@ -122,9 +135,16 @@ export function AppearancePane() {
             disabled={!changed}
             onClick={() => {
               updateSettings(draft);
-              if (pending) {
-                send((api) => api.wallpaper.keep());
-                setPending(null);
+              setSaveError('');
+              if (pending || removing) {
+                void ask((api) => api.wallpaper.keep(), '').then((failure) => {
+                  setSaveError(failure);
+                  if (!failure) {
+                    setPending(null);
+                    setRemoving(false);
+                    setReloads((count) => count + 1);
+                  }
+                });
               }
             }}
             className="rounded-field bg-active px-3.5 py-1.5 text-[12.5px] font-medium text-void transition-opacity disabled:opacity-40"
@@ -136,9 +156,11 @@ export function AppearancePane() {
             disabled={!changed}
             onClick={() => {
               setDraft(saved);
-              if (pending) {
+              setSaveError('');
+              if (pending || removing) {
                 send((api) => api.wallpaper.discard());
                 setPending(null);
+                setRemoving(false);
               }
             }}
             className="rounded-field border border-line px-3.5 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-40"
@@ -147,10 +169,23 @@ export function AppearancePane() {
           </button>
           <span className="text-[12px] text-ink-faint">{changed ? 'Not saved yet.' : 'This is what is saved.'}</span>
         </div>
+        {saveError && <p className="mt-1.5 text-[12px] text-alert">{saveError}</p>}
       </div>
 
       <Section title="Wallpaper">
-        <WallpaperControl hasWallpaper={settings.hasWallpaper} pending={pending !== null} onPicked={setPending} />
+        <WallpaperControl
+          hasWallpaper={settings.hasWallpaper && !removing}
+          pending={pending !== null}
+          onPicked={(image) => {
+            setPending(image);
+            setRemoving(false);
+          }}
+          onRemove={() => {
+            setPending(null);
+            setRemoving(true);
+            send((api) => api.wallpaper.remove());
+          }}
+        />
       </Section>
       <Section title="Interface">
         <Note>
@@ -169,7 +204,7 @@ export function AppearancePane() {
           <ChoiceGroup
             options={labelledOptions(THEME_LABELS)}
             selected={draft.theme}
-            onSelect={(theme) => set({ theme, ambientHue: 0 })}
+            onSelect={(theme) => set(theme === draft.theme ? {} : { theme, ambientHue: 0 })}
           />
         </div>
         <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
@@ -337,10 +372,12 @@ function WallpaperControl({
   hasWallpaper,
   pending,
   onPicked,
+  onRemove,
 }: {
   hasWallpaper: boolean;
   pending: boolean;
   onPicked: (image: string | null) => void;
+  onRemove: () => void;
 }) {
   const [message, setMessage] = useState('');
 
@@ -365,10 +402,7 @@ function WallpaperControl({
         {(hasWallpaper || pending) && (
           <button
             type="button"
-            onClick={() => {
-              onPicked(null);
-              send((api) => api.wallpaper.clear());
-            }}
+            onClick={onRemove}
             className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-faint transition-colors hover:bg-raised hover:text-ink"
           >
             Remove

@@ -185,6 +185,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.wallpaperClear, () => browser.clearWallpaper());
   handle(INVOKE.wallpaperStaged, () => stagedWallpaper());
   handle(INVOKE.wallpaperKeep, () => browser.keepWallpaper());
+  handle(INVOKE.wallpaperRemove, () => browser.removeWallpaper());
   handle(INVOKE.wallpaperDiscard, () => browser.discardWallpaper());
 
   // ------------------------------------------------------------------- data

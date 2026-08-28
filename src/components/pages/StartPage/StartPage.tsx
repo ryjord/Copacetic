@@ -79,7 +79,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
       data-hush={isHush}
       className="ambient-field relative flex h-full w-full flex-col items-center justify-center overflow-y-auto px-8"
     >
-      {wallpaper && (
+      {wallpaper && !isHush && (
         <>
           {/*
             next/image exists to optimise and lazily fetch images over a

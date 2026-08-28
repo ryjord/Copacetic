@@ -65,6 +65,7 @@ export const INVOKE = {
   wallpaperStaged: 'wallpaper:staged',
   wallpaperKeep: 'wallpaper:keep',
   wallpaperDiscard: 'wallpaper:discard',
+  wallpaperRemove: 'wallpaper:remove',
 
   connectionsList: 'connections:list',
 

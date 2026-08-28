@@ -146,8 +146,10 @@ export interface CopaceticApi {
     choose(): Promise<string>;
     /** What has been picked but not yet kept, as a data URL. */
     staged(): Promise<string | null>;
-    /** Writes what was picked. */
-    keep(): Promise<void>;
+    /** Applies what was staged. Resolves empty, or with what to say if it failed. */
+    keep(): Promise<string>;
+    /** Stages a removal, so it can be undone like anything else on the pane. */
+    remove(): Promise<void>;
     /** Forgets what was picked, leaving whatever was there before. */
     discard(): Promise<void>;
     clear(): Promise<void>;

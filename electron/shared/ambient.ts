@@ -85,6 +85,25 @@ export function hslToHex({ h, s, l }: Hsl): string {
   return `#${hex(channel(1 / 3))}${hex(channel(0))}${hex(channel(-1 / 3))}`;
 }
 
+/**
+ * Both stops, turned.
+ *
+ * The turn happens here rather than in a CSS `hue-rotate()`, which is a colour
+ * matrix and not a rotation: it moves saturation and lightness too, so the
+ * colour named in the field was not the colour on the screen. Measured at up to
+ * 23 of 255 per channel — the field said #121343 while deep painted #242a4d.
+ * Rotating the colours and handing CSS the answer removes the disagreement
+ * rather than documenting it.
+ */
+export function ambientStopsFor(theme: string, hue: number): { near: string; far: string } {
+  const near = hexToHsl(AMBIENT_NEAR[theme] ?? AMBIENT_NEAR.deep ?? '#123043');
+  const far = hexToHsl(AMBIENT_FAR[theme] ?? AMBIENT_FAR.deep ?? '#1b2a4a');
+  return {
+    near: near ? hslToHex({ ...near, h: near.h + hue }) : '#123043',
+    far: far ? hslToHex({ ...far, h: far.h + hue }) : '#1b2a4a',
+  };
+}
+
 /** Where the theme's near colour lands once the atmosphere has been turned. */
 export function ambientHexFor(theme: string, hue: number): string {
   const base = hexToHsl(AMBIENT_NEAR[theme] ?? AMBIENT_NEAR.deep ?? '#123043');
@@ -103,6 +122,11 @@ export function hueForAmbientHex(theme: string, hex: string): number | null {
   const wanted = hexToHsl(hex);
   const base = hexToHsl(AMBIENT_NEAR[theme] ?? AMBIENT_NEAR.deep ?? '#123043');
   if (!wanted || !base) {
+    return null;
+  }
+  // A grey has no hue. Reading one off it would jump the slider somewhere
+  // arbitrary and call it the colour that was typed.
+  if (wanted.s < 0.02) {
     return null;
   }
   return Math.round((((wanted.h - base.h) % 360) + 360) % 360);

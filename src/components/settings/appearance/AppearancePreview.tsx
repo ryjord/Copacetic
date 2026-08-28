@@ -1,5 +1,5 @@
 // Utils
-import { AMBIENT_FAR, AMBIENT_NEAR } from '@shared/ambient';
+import { ambientStopsFor } from '@shared/ambient';
 
 // Types
 import type { DensityId, StartPageWidgetId, ThemeId } from '@shared/types';
@@ -29,8 +29,7 @@ export function AppearancePreview({
   wallpaper: string | null;
 }) {
   const size = CHROME[density];
-  const near = AMBIENT_NEAR[theme] ?? AMBIENT_NEAR.deep;
-  const far = AMBIENT_FAR[theme] ?? AMBIENT_FAR.deep;
+  const { near, far } = ambientStopsFor(theme, ambientHue);
 
   return (
     <div
@@ -73,7 +72,6 @@ export function AppearancePreview({
             aria-hidden
             className="absolute inset-0"
             style={{
-              filter: `hue-rotate(${ambientHue}deg)`,
               background: `radial-gradient(120% 90% at 18% 0%, ${near} 0%, transparent 55%), radial-gradient(110% 100% at 92% 100%, ${far} 0%, transparent 58%)`,
             }}
           />

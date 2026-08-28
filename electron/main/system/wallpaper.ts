@@ -68,19 +68,42 @@ export function stagedWallpaper(): string | null {
 
 export function discardStagedWallpaper(): void {
   staged = null;
+  removalStaged = false;
 }
 
-/** Writes what was staged. Nothing staged means nothing to do, not an error. */
-export function commitStagedWallpaper(): void {
+/**
+ * Writes what was staged. Nothing staged means nothing to do, not an error.
+ *
+ * Returns what to say when it could not be written. The image stays staged in
+ * that case: reporting the draft as kept and dropping the picture is the worst
+ * of the available outcomes.
+ */
+export function commitStagedWallpaper(): string {
   if (!staged) {
-    return;
+    return '';
   }
   try {
     writeFileSync(wallpaperPath(), staged);
-  } catch {
-    // The pane reports what it can see; a failure here leaves the old one in place.
+  } catch (error) {
+    return error instanceof Error ? error.message : 'The wallpaper could not be saved.';
   }
   staged = null;
+  return '';
+}
+
+/** Everything the pane staged, applied together. */
+export function commitStagedChanges(): string {
+  if (removalStaged) {
+    removalStaged = false;
+    staged = null;
+    try {
+      rmSync(wallpaperPath(), { force: true });
+    } catch {
+      // Already gone is the outcome we wanted.
+    }
+    return '';
+  }
+  return commitStagedWallpaper();
 }
 
 export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
@@ -118,8 +141,21 @@ export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
   }
 }
 
+/** A removal waits like a choice does, so that Discard can undo it. */
+let removalStaged = false;
+
+export function removalIsStaged(): boolean {
+  return removalStaged;
+}
+
+export function stageWallpaperRemoval(): void {
+  staged = null;
+  removalStaged = true;
+}
+
 export function clearWallpaper(): void {
   staged = null;
+  removalStaged = false;
   try {
     rmSync(wallpaperPath(), { force: true });
   } catch {

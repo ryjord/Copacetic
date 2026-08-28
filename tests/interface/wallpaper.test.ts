@@ -31,10 +31,12 @@ vi.mock('electron', () => ({
 const {
   chooseWallpaper,
   clearWallpaper,
+  commitStagedChanges,
   commitStagedWallpaper,
   discardStagedWallpaper,
   hasWallpaper,
   readWallpaper,
+  stageWallpaperRemoval,
   stagedWallpaper,
 } = await import('../../electron/main/system/wallpaper');
 
@@ -189,5 +191,51 @@ describe('a wallpaper waits to be kept', () => {
     commitStagedWallpaper();
 
     expect(existsSync(wallpaperFile())).toBe(false);
+  });
+});
+
+/**
+ * Removing was the one action on a pane promising nothing is kept until you
+ * keep it that deleted a file outright, with no way back.
+ */
+describe('removing one also waits', () => {
+  it('leaves the file alone until it is kept', () => {
+    writeFileSync(wallpaperFile(), Buffer.from('still here'));
+    stageWallpaperRemoval();
+
+    expect(existsSync(wallpaperFile())).toBe(true);
+  });
+
+  it('deletes it once it is kept', () => {
+    writeFileSync(wallpaperFile(), Buffer.from('going'));
+    stageWallpaperRemoval();
+    commitStagedChanges();
+
+    expect(existsSync(wallpaperFile())).toBe(false);
+  });
+
+  it('puts it back when discarded, because it was never gone', () => {
+    writeFileSync(wallpaperFile(), Buffer.from('kept after all'));
+    stageWallpaperRemoval();
+    discardStagedWallpaper();
+    commitStagedChanges();
+
+    expect(readFileSync(wallpaperFile()).toString()).toBe('kept after all');
+  });
+});
+
+/**
+ * Reporting a draft as kept while dropping the picture is the worst outcome
+ * available, so a failed write says so and holds on to it.
+ */
+describe('when it cannot be written', () => {
+  it('says why, and keeps what was picked', async () => {
+    chosenFiles = [path.join(userDataDir, 'source.png')];
+    await chooseWallpaper(fakeWindow);
+    rmSync(userDataDir, { recursive: true, force: true });
+
+    const failure = commitStagedWallpaper();
+    expect(failure).not.toBe('');
+    expect(stagedWallpaper()).not.toBeNull();
   });
 });
