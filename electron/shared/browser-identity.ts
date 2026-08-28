@@ -1,14 +1,14 @@
 /**
- * Copacetic presents a plain Chrome user agent, and Chromium's client hints
- * then describe the browser as Chromium without the Google Chrome brand a real
- * Chrome of that version also reports. A site comparing the two — Google's
- * sign-in among them — sees a browser disagreeing with itself.
+ * What Copacetic says it is.
  *
- * The hints are corrected in the main process through the DevTools protocol,
- * which is how Chromium populates them anyway. Page content still runs no
- * script of ours: this describes the browser, it does not enter the page.
+ * It presents a plain Chrome user agent, and then has to behave like one
+ * consistently: Electron leaves gaps a real Chrome does not have, and a browser
+ * that contradicts itself is both a thing to fingerprint and a thing sign-in
+ * pages refuse. Everything here is derived from the user agent the session
+ * already sends, so no two answers can drift apart.
+ *
+ * This file decides. `electron/main/system/browser-identity.ts` applies it.
  */
-
 export interface Brand {
   brand: string;
   version: string;
@@ -121,3 +121,15 @@ export const CHROME_OBJECT_SCRIPT = `(() => {
     RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
   };
 })()`;
+
+/**
+ * A site claiming to be Electron invites bespoke, often broken code paths.
+ * Presenting as plain Chrome is both better for compatibility and one less
+ * signal that fingerprints this user as unusual.
+ */
+export function stripElectronFromUserAgent(userAgent: string): string {
+  return userAgent
+    .replace(/ Electron\/[\d.]+/, '')
+    .replace(/ Copacetic\/[\d.]+/, '')
+    .trim();
+}

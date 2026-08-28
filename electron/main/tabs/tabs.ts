@@ -21,7 +21,7 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
-import { applyClientHints } from './tab-client-hints';
+import { describeTab } from '../system/browser-identity';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
 import type { TabRecord } from './tab-record';
@@ -391,7 +391,7 @@ export class TabManager {
     const described = view.webContents
       .loadURL('about:blank')
       .catch(() => {})
-      .then(() => applyClientHints(view.webContents, process.platform));
+      .then(() => describeTab(view.webContents, process.platform));
 
     if (!isStartPage) {
       void described.then(() => this.loadUrl(tab, rawUrl));

@@ -9,13 +9,8 @@ vi.mock('electron', () => ({
   shell: { openExternal: vi.fn() },
 }));
 
-const {
-  guardChromeWebContents,
-  guardTabWebContents,
-  hardenWebSession,
-  isTransportSecure,
-  stripElectronFromUserAgent,
-} = await import('../../electron/main/security/security');
+const { guardChromeWebContents, guardTabWebContents, hardenWebSession, isTransportSecure } =
+  await import('../../electron/main/security/security');
 
 type Handler = (...args: never[]) => unknown;
 
@@ -262,19 +257,6 @@ describe('the chrome document itself', () => {
     let prevented = false;
     contents.fire('will-attach-webview', { preventDefault: () => (prevented = true) }, {}, {});
     expect(prevented).toBe(true);
-  });
-});
-
-describe('what the browser tells sites it is', () => {
-  it('does not advertise Electron', () => {
-    const stripped = stripElectronFromUserAgent('Mozilla/5.0 Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36');
-    expect(stripped).not.toMatch(/electron/i);
-    expect(stripped).toMatch(/Chrome\/120/);
-  });
-
-  it('leaves a user agent without Electron alone', () => {
-    const plain = 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36';
-    expect(stripElectronFromUserAgent(plain)).toBe(plain);
   });
 });
 

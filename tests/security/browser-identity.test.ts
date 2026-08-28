@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { acceptLanguagesFor, clientHintHeaders, clientHintsFor } from '../../electron/shared/client-hints';
+import {
+  acceptLanguagesFor,
+  clientHintHeaders,
+  clientHintsFor,
+  stripElectronFromUserAgent,
+} from '../../electron/shared/browser-identity';
 
 const CHROME_MAC =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.7871.224 Safari/537.36';
@@ -132,5 +137,18 @@ describe('the languages a request offers', () => {
 
   it('falls back to a sensible default when there is no locale', () => {
     expect(acceptLanguagesFor('')).toBe('en-US,en');
+  });
+});
+
+describe('what the browser tells sites it is', () => {
+  it('does not advertise Electron', () => {
+    const stripped = stripElectronFromUserAgent('Mozilla/5.0 Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36');
+    expect(stripped).not.toMatch(/electron/i);
+    expect(stripped).toMatch(/Chrome\/120/);
+  });
+
+  it('leaves a user agent without Electron alone', () => {
+    const plain = 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36';
+    expect(stripElectronFromUserAgent(plain)).toBe(plain);
   });
 });
