@@ -102,7 +102,8 @@ platform expects.
 ## Security
 
 The threat model is the obvious one: Copacetic renders hostile content by
-design. The measures below are the ones that follow from that.
+design. The measures below are the ones that follow from that. To report
+something that gets past them, see [SECURITY.md](SECURITY.md).
 
 | Concern                              | What Copacetic does                                                                                                                                                                                                                                                       |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
