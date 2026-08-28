@@ -6,6 +6,7 @@ import type { TabState } from '@shared/types';
 import { claimOf, colourOf, describeClaim, segmentByGroup, type TabGroup } from '@shared/tab-groups';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
+import { GroupPanel } from '@/components/chrome/TabStrip/GroupPanel';
 import { send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
@@ -257,18 +258,21 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
  * because in a mixed group it is the only guarantee there is.
  */
 function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
+  const [panelOpen, setPanelOpen] = useState(false);
   const claim = claimOf(group, holdsHush);
   const colour = colourOf(group.colour);
 
   return (
     <div
-      className="flex items-center gap-1 rounded-t-[10px] px-1"
+      className="relative flex items-center gap-1 rounded-t-[10px] px-1"
       style={{ borderTop: `2px solid ${colour}`, background: `${colour}1a` }}
     >
       <button
         type="button"
         title={describeClaim(claim)}
-        onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
+        // Click names it; the chevron collapses it. A click that hid the tabs
+        // would make renaming the thing you cannot see.
+        onClick={() => setPanelOpen((open) => !open)}
         className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px]"
         style={{ color: colour }}
       >
@@ -279,7 +283,18 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
             would be true of only part of what it names. */}
         {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
       </button>
+      <button
+        type="button"
+        aria-label={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+        onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
+        className="shrink-0 rounded px-0.5 text-ink-faint transition-colors hover:text-ink"
+      >
+        <ChevronDown size={11} className={cn('transition-transform', group.collapsed && '-rotate-90')} />
+      </button>
+
       {!group.collapsed && children}
+
+      {panelOpen && <GroupPanel group={group} holdsHush={holdsHush} onClose={() => setPanelOpen(false)} />}
     </div>
   );
 }
