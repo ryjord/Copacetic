@@ -32,6 +32,7 @@ interface BrowserStoreState extends BrowserState {
 
 const EMPTY_STATE: BrowserState = {
   tabs: [],
+  groups: [],
   tabOrder: [],
   activeTabId: null,
   downloads: [],

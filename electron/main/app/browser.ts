@@ -168,13 +168,15 @@ export class Browser {
     const settings = this.store.getSettings();
     const session = this.store.getSession();
 
-    if (!settings.restoreTabsOnLaunch || session.urls.length === 0) {
+    if (!settings.restoreTabsOnLaunch || session.tabs.length === 0) {
       this.tabs.create(START_PAGE_URL);
       return;
     }
 
-    session.urls.forEach((url, index) => {
-      this.tabs.create(url, { activate: index === session.activeIndex });
+    // A group whose tabs were all Hush comes back empty and is left alone: the
+    // group is remembered, and nothing that was in it was ever written down.
+    session.tabs.forEach((tab, index) => {
+      this.tabs.create(tab.url, { activate: index === session.activeIndex, groupId: tab.groupId });
     });
     if (this.tabs.tabCount === 0) {
       this.tabs.create(START_PAGE_URL);
@@ -189,6 +191,7 @@ export class Browser {
       tabs,
       tabOrder,
       activeTabId,
+      groups: this.store.listGroups(),
       downloads: this.downloads.list(),
       find: this.tabs.getFindState(),
       permissionPrompts: this.prompts.permissionPrompts(),

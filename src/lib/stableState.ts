@@ -63,6 +63,7 @@ export function keepTabs(previous: readonly TabState[], next: readonly TabState[
 export function stabiliseState(previous: BrowserState, next: BrowserState): BrowserState {
   return {
     tabs: keepTabs(previous.tabs, next.tabs),
+    groups: keepIfSame(previous.groups, next.groups),
     tabOrder: keepIfSame(previous.tabOrder, next.tabOrder),
     activeTabId: next.activeTabId,
     downloads: keepIfSame(previous.downloads, next.downloads),

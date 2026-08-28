@@ -1,4 +1,5 @@
 import type { DnsMode } from './dns';
+import type { TabGroup } from './tab-groups';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -78,6 +79,8 @@ export interface TabState {
   isStartPage: boolean;
   /** A Hush tab: nothing it does is written to this machine. */
   isHush: boolean;
+  /** The group this tab is in, if any. */
+  groupId: string | null;
   isBookmarked: boolean;
 }
 
@@ -316,6 +319,8 @@ export interface Settings {
 /** The single snapshot the main process pushes to the chrome renderer. */
 export interface BrowserState {
   tabs: TabState[];
+  /** The groups themselves. Which tabs are in them is carried on each tab. */
+  groups: TabGroup[];
   tabOrder: TabId[];
   activeTabId: TabId | null;
   downloads: DownloadState[];

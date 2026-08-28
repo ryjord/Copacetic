@@ -10,6 +10,8 @@ import type {
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, resolveOmniboxInput } from '../../shared/url';
 import type { RememberedCertificate } from '../../shared/certificate-changes';
 import { BookmarksStore } from './bookmarks-store';
+import { GroupsStore } from './groups-store';
+import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
 
 export { HISTORY_PAGE_SIZE };
@@ -27,6 +29,7 @@ export class BrowserStore {
   private readonly settings = new SettingsStore();
   private readonly history = new HistoryStore();
   private readonly bookmarks = new BookmarksStore();
+  private readonly groups = new GroupsStore();
   private readonly favicons = new FaviconsStore();
   private readonly session = new SessionStore();
   private readonly certificatesStore = new CertificatesStore();
@@ -39,9 +42,32 @@ export class BrowserStore {
     this.settings.flush();
     this.history.flush();
     this.bookmarks.flush();
+    this.groups.flush();
     this.favicons.flush();
     this.session.flush();
     this.certificatesStore.flush();
+  }
+
+  // ----------------------------------------------------------------- groups
+
+  listGroups(): TabGroup[] {
+    return this.groups.list();
+  }
+
+  groupFor(id: string | null): TabGroup | null {
+    return id ? this.groups.find(id) : null;
+  }
+
+  createGroup(name: string, colour: GroupColourId, ownSession: boolean): TabGroup {
+    return this.groups.create(name, colour, ownSession);
+  }
+
+  updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    this.groups.rename(id, changes);
+  }
+
+  removeGroup(id: string): void {
+    this.groups.remove(id);
   }
 
   // ------------------------------------------------------------ certificates

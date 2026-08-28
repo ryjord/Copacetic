@@ -21,6 +21,8 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
+import { partitionFor } from '../../shared/tab-groups';
+import type { SessionSnapshot, SessionTab } from '../data/session-store';
 import { trustedLocally } from '../security/local-certificates';
 import { describeTab } from '../system/browser-identity';
 import { attachTabEvents } from './tab-events';
@@ -94,29 +96,30 @@ export class TabManager {
     };
   }
 
-  sessionSnapshot(): { urls: string[]; activeIndex: number } {
-    // `urls` skips start-page tabs, so the active tab's index has to be
+  sessionSnapshot(): SessionSnapshot {
+    // The list skips start-page tabs, so the active tab's index has to be
     // counted against the filtered list as it is built. Taking it from
     // `this.order` instead would be off by one for every start-page tab
     // sitting to the left of the active one, and restore the wrong site.
-    const urls: string[] = [];
+    const saved: SessionTab[] = [];
     let activeIndex = 0;
 
     for (const id of this.order) {
       const tab = this.tabs.get(id);
       // A Hush tab is excluded rather than merely not reopened: the session
       // file is on disk, so listing its URL there would be the one place the
-      // tab left a trace.
+      // tab left a trace. Its group membership goes with it, because the tab
+      // it belongs to is never written here at all.
       if (!tab || tab.isStartPage || tab.isHush) {
         continue;
       }
       if (id === this.activeId) {
-        activeIndex = urls.length;
+        activeIndex = saved.length;
       }
-      urls.push(tab.url);
+      saved.push({ url: tab.url, groupId: tab.groupId });
     }
 
-    return { urls, activeIndex };
+    return { tabs: saved, activeIndex };
   }
 
   private toState(tab: TabRecord): TabState {
@@ -146,6 +149,7 @@ export class TabManager {
       zoomFactor: tab.zoomFactor,
       isStartPage: tab.isStartPage,
       isHush: tab.isHush,
+      groupId: tab.groupId,
       isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
     };
   }
@@ -166,6 +170,36 @@ export class TabManager {
     const { detail } = compareCertificate(remembered, current);
     this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
     return detail;
+  }
+
+  /**
+   * Puts a tab in a group, or takes it out of one.
+   *
+   * The tab keeps the session it was born with. Moving an ordinary tab into a
+   * group that keeps its own browsing does not move its cookies across, and
+   * saying otherwise would be the sort of quiet untruth this browser avoids —
+   * so the group's separation applies to tabs opened in it, and the interface
+   * says so.
+   */
+  setGroup(id: TabId, groupId: string | null): void {
+    const tab = this.tabs.get(id);
+    if (!tab || tab.groupId === groupId) {
+      return;
+    }
+    tab.groupId = groupId;
+    this.onChanged();
+  }
+
+  /** Every tab currently in a group, in strip order. */
+  tabsInGroup(groupId: string): TabRecord[] {
+    return this.order
+      .map((tabId) => this.tabs.get(tabId))
+      .filter((tab): tab is TabRecord => tab !== undefined && tab.groupId === groupId);
+  }
+
+  /** Whether a group is holding anything that keeps nothing, which is what stops it claiming to be separate. */
+  groupHoldsHush(groupId: string): boolean {
+    return this.tabsInGroup(groupId).some((tab) => tab.isHush);
   }
 
   private findByWebContentsId(webContentsId: number): TabRecord | null {
@@ -318,7 +352,13 @@ export class TabManager {
 
   create(
     requestedUrl: string = START_PAGE_URL,
-    options: { activate?: boolean; index?: number; openerWebContentsId?: number; hush?: boolean } = {},
+    options: {
+      activate?: boolean;
+      index?: number;
+      openerWebContentsId?: number;
+      hush?: boolean;
+      groupId?: string | null;
+    } = {},
   ): TabId {
     // Last line of defence. Callers are expected to have already decided the
     // URL is allowed, but this is the single place every tab is born, so
@@ -339,7 +379,11 @@ export class TabManager {
         webviewTag: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
-        partition: options.hush ? HUSH_PARTITION : WEB_PARTITION,
+        // Hush wins over a group's own session: see shared/tab-groups.ts.
+        partition: partitionFor(
+          { isHush: options.hush === true, group: this.store.groupFor(options.groupId ?? null) },
+          { web: WEB_PARTITION, hush: HUSH_PARTITION },
+        ),
         spellcheck: true,
         safeDialogs: true,
       },
@@ -363,6 +407,7 @@ export class TabManager {
       zoomFactor: settings.defaultZoomFactor,
       isMuted: false,
       pendingFaviconUrl: null,
+      groupId: options.groupId ?? null,
     };
 
     this.tabs.set(id, tab);
