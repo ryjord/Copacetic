@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { UNVERSIONED, type SchemaPlan, type SchemaVersions, migrate, schemaVersionsFor } from './schema';
 
 /** A single JSON file on disk, written atomically and flushed on a debounce. */
 export class PersistedFile<T> {
@@ -10,18 +11,38 @@ export class PersistedFile<T> {
   private readonly filePath: string;
   private dirty = false;
 
+  private readonly versions: SchemaVersions;
+
   constructor(
-    filename: string,
+    private readonly filename: string,
     private readonly fallback: () => T,
     private readonly revive: (raw: unknown) => T | null,
     private readonly flushDelayMs = 400,
+    /** How this file's shape has changed over time. Files that have never changed shape need nothing here. */
+    private readonly plan: SchemaPlan = UNVERSIONED,
   ) {
     const dir = app.getPath('userData');
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
     this.filePath = path.join(dir, filename);
+    this.versions = schemaVersionsFor(dir);
     this.value = this.load();
+  }
+
+  /**
+   * A file written by a newer build than this one. Reading it would mean
+   * guessing at a shape from the future, and writing it back would then destroy
+   * whatever the newer build had put there — so it is kept, untouched and named
+   * so it can be found, and this build starts fresh.
+   */
+  private setAsideNewerFile(found: number): void {
+    console.error(`[persistence] ${this.filename} was written by a newer version (${found}), keeping it aside`);
+    try {
+      renameSync(this.filePath, `${this.filePath}.newer`);
+    } catch {
+      /* best effort */
+    }
   }
 
   private load(): T {
@@ -29,7 +50,21 @@ export class PersistedFile<T> {
       return this.fallback();
     }
     try {
-      const revived = this.revive(JSON.parse(readFileSync(this.filePath, 'utf8')));
+      const raw: unknown = JSON.parse(readFileSync(this.filePath, 'utf8'));
+      const outcome = migrate(raw, this.versions.versionOf(this.filename), this.plan);
+
+      if (outcome.status === 'from-a-newer-version') {
+        this.setAsideNewerFile(outcome.found);
+        return this.fallback();
+      }
+
+      const revived = this.revive(outcome.data);
+      if (outcome.status === 'migrated') {
+        console.info(`[persistence] ${this.filename}: ${outcome.applied.join(', ')}`);
+        // Write it back in the new shape rather than migrating it again next time.
+        this.dirty = true;
+        this.scheduleFlush();
+      }
       return revived ?? this.fallback();
     } catch (error) {
       // A corrupt file must never stop the browser from starting. Move it aside
@@ -84,6 +119,8 @@ export class PersistedFile<T> {
       writeFileSync(tempPath, JSON.stringify(this.value), 'utf8');
       renameSync(tempPath, this.filePath);
       this.dirty = false;
+      // Recorded only once the write it describes has actually happened.
+      this.versions.record(this.filename, this.plan.current);
     } catch (error) {
       console.error(`[persistence] failed to write ${path.basename(this.filePath)}`, error);
       try {
