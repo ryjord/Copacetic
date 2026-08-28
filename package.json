@@ -41,7 +41,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
@@ -64,7 +64,7 @@
     "prettier": "^3.4.2",
     "tailwindcss": "^4.2.1",
     "typescript": "^5",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "wait-on": "^9.0.4"
   },
   "engines": {
