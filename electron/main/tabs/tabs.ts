@@ -186,6 +186,12 @@ export class TabManager {
     if (!tab || tab.groupId === groupId) {
       return;
     }
+    // A group that does not exist cannot be joined. Without this a stale id
+    // from a session file or a slow renderer sticks to the tab for good: it
+    // draws as ungrouped, so there is no way to see it or shake it off.
+    if (groupId !== null && !this.store.groupFor(groupId)) {
+      return;
+    }
     tab.groupId = groupId;
     this.onChanged();
   }
@@ -415,7 +421,7 @@ export class TabManager {
       zoomFactor: settings.defaultZoomFactor,
       isMuted: false,
       pendingFaviconUrl: null,
-      groupId: options.groupId ?? null,
+      groupId: options.groupId && this.store.groupFor(options.groupId) ? options.groupId : null,
     };
 
     this.tabs.set(id, tab);

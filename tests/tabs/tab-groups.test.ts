@@ -179,6 +179,50 @@ describe('where a dragged tab lands', () => {
     expect(groupForDrop(strip(null, 'a', 'a'), 0, 3)).toBeNull();
   });
 
+  /*
+   * Dragging rightward is not the mirror of dragging leftward. TabManager.move
+   * removes the tab first and then splices it in at the target index, so the
+   * tab comes to rest at that index in the strip that no longer contains it.
+   * Every test above drags leftward or drops in place, which is why an
+   * off-by-one on the rightward path went unnoticed.
+   */
+  it('joins the group when dragged rightward into it', () => {
+    // [x, a, a] — move() leaves [a, x, a], so x is between the two a's.
+    expect(groupForDrop(strip(null, 'a', 'a'), 0, 1)).toBe('a');
+  });
+
+  it('does not join a group it is dragged rightward past', () => {
+    // [x, a, a, b] — move() leaves [a, a, x, b], so x comes to rest outside.
+    expect(groupForDrop(strip(null, 'a', 'a', 'b'), 0, 2)).toBeNull();
+  });
+
+  it('agrees with where move() actually puts the tab', () => {
+    // The contract in one assertion: land the tab, then read its neighbours.
+    const land = (ids: (string | null)[], from: number, to: number) => {
+      const without = ids.filter((_, index) => index !== from);
+      const at = Math.min(Math.max(0, to), ids.length - 1);
+      const landed = [...without.slice(0, at), ids[from], ...without.slice(at)];
+      const before = landed[at - 1];
+      const after = landed[at + 1];
+      return before && after && before === after ? before : null;
+    };
+    for (const ids of [
+      [null, 'a', 'a'],
+      ['a', 'a', null],
+      [null, 'a', 'a', 'b'],
+      ['a', null, 'a'],
+      ['a', 'a', 'a', null],
+    ] as (string | null)[][]) {
+      for (let from = 0; from < ids.length; from += 1) {
+        for (let to = 0; to < ids.length; to += 1) {
+          expect(`${ids}|${from}->${to}: ${groupForDrop(strip(...ids), from, to)}`).toBe(
+            `${ids}|${from}->${to}: ${land(ids, from, to)}`,
+          );
+        }
+      }
+    }
+  });
+
   it('stays ungrouped between two different groups', () => {
     expect(groupForDrop(strip('a', 'b', null), 2, 1)).toBeNull();
   });

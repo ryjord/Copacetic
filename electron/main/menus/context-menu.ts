@@ -244,10 +244,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
   // What the group can honestly promise about its browsing. It was on the
   // panel, and the panel is gone; it is not a detail worth losing, because it
   // is the only place a mixed group admits what it is.
-  const claim = claimOf(
-    group,
-    browser.tabs.tabsInGroup(groupId).some((tab) => tab.isHush),
-  );
+  const claim = claimOf(group, browser.tabs.groupHoldsHush(groupId));
 
   const items: MenuItemConstructorOptions[] = [
     { label: describeClaim(claim), enabled: false },

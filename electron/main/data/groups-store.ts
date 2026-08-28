@@ -29,7 +29,7 @@ export class GroupsStore {
    * browsing. That decides which session its tabs already loaded in, and
    * changing it would silently sign someone out of pages that are open.
    */
-  rename(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+  update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
     this.file.update((groups) =>
       groups.map((group) =>
         group.id === id

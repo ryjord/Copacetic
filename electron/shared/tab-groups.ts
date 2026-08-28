@@ -124,7 +124,10 @@ export function groupForDrop<T extends { groupId: string | null }>(
   toIndex: number,
 ): string | null {
   const without = tabs.filter((_, index) => index !== fromIndex);
-  const target = fromIndex < toIndex ? toIndex - 1 : toIndex;
+  // Where the tab actually comes to rest. TabManager.move removes it first and
+  // then splices it in at the clamped target, so the index is read against the
+  // strip that no longer contains it — the same for both directions of travel.
+  const target = Math.min(Math.max(0, toIndex), tabs.length - 1);
   const before = without[target - 1];
   const after = without[target];
 

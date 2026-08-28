@@ -63,7 +63,7 @@ export class BrowserStore {
   }
 
   updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
-    this.groups.rename(id, changes);
+    this.groups.update(id, changes);
   }
 
   removeGroup(id: string): void {

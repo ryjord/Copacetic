@@ -193,7 +193,7 @@ export interface CopaceticApi {
     state(listener: (state: BrowserState) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
-    /** The group whose panel should open, so renaming can happen somewhere a native menu cannot. */
+    /** The group whose label should become editable, which is the one thing a native menu cannot do. */
     renameGroup(listener: (groupId: string) => void): Unsubscribe;
   };
 }

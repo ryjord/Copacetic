@@ -110,7 +110,7 @@ export const PUSH = {
   focusOmnibox: 'push:focus-omnibox',
   /** Fired when a menu item or shortcut wants the chrome to open a surface. */
   openSurface: 'push:open-surface',
-  /** A native menu cannot hold a text field, so renaming asks the chrome to open the group's panel. */
+  /** A native menu cannot hold a text field, so renaming asks the chrome to make the group's label editable. */
   renameGroup: 'push:rename-group',
 } as const;
 

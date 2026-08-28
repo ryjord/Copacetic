@@ -5,11 +5,14 @@ import { TabStrip } from '../../src/components/chrome/TabStrip/TabStrip';
 
 const activate = vi.fn();
 const close = vi.fn();
+const move = vi.fn();
+const setForTab = vi.fn();
 
 // The bridge is absent outside Electron, so stub it to record what the strip
 // asks the main process to do.
 vi.mock('@/lib/bridge', () => ({
-  send: (action: (api: unknown) => void) => action({ tabs: { activate, close, create: vi.fn(), move: vi.fn() } }),
+  send: (action: (api: unknown) => void) =>
+    action({ tabs: { activate, close, create: vi.fn(), move }, groups: { setForTab } }),
   ask: async () => [],
   getBridge: () => null,
   isRunningInShell: () => false,
@@ -34,8 +37,14 @@ function tab(id: string, title: string): TabState {
     zoomFactor: 1,
     isStartPage: false,
     isBookmarked: false,
+    groupId: null,
   };
 }
+
+const grouped = (id: string, title: string, groupId: string | null): TabState => ({
+  ...tab(id, title),
+  groupId,
+});
 
 const TABS = [tab('one', 'One'), tab('two', 'Two'), tab('three', 'Three')];
 
@@ -43,6 +52,38 @@ afterEach(() => {
   cleanup();
   activate.mockClear();
   close.mockClear();
+  move.mockClear();
+  setForTab.mockClear();
+});
+
+/**
+ * A drop only decides a tab's group because of where it comes to rest. A tab
+ * dropped where it already was has not come to rest anywhere new, so nothing
+ * about it may be re-decided — otherwise a tab deliberately left ungrouped
+ * between two of a group's tabs is swallowed by the smallest twitch of a mouse.
+ */
+describe('dropping a tab where it already was', () => {
+  const between = [grouped('one', 'One', 'g1'), grouped('two', 'Two', null), grouped('three', 'Three', 'g1')];
+
+  it('does not move it and does not change its group', () => {
+    render(<TabStrip tabs={between} activeTabId="two" groups={[]} />);
+    const parked = screen.getByRole('tab', { name: /Two/ });
+    fireEvent.dragStart(parked);
+    fireEvent.dragOver(parked);
+    fireEvent.drop(parked);
+
+    expect(move).not.toHaveBeenCalled();
+    expect(setForTab).not.toHaveBeenCalled();
+  });
+
+  it('still joins a group when it is dropped somewhere else', () => {
+    render(<TabStrip tabs={between} activeTabId="three" groups={[]} />);
+    fireEvent.dragStart(screen.getByRole('tab', { name: /Three/ }));
+    fireEvent.drop(screen.getByRole('tab', { name: /Two/ }));
+
+    expect(move).toHaveBeenCalledWith('three', 1);
+    expect(setForTab).toHaveBeenCalledWith('three', null);
+  });
 });
 
 describe('the tab strip is reachable by keyboard', () => {
