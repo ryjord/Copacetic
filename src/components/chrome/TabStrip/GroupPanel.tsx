@@ -56,6 +56,9 @@ export function GroupPanel({
         <input
           value={name}
           autoFocus
+          // Selected, not merely focused: a new group is called "Group", and
+          // typing should replace that rather than append to it.
+          onFocus={(event) => event.currentTarget.select()}
           maxLength={60}
           aria-label="Group name"
           onChange={(event) => setName(event.target.value)}

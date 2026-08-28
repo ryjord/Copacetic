@@ -301,7 +301,7 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
           const box = event.currentTarget.getBoundingClientRect();
           setPanel({ left: box.left, top: box.bottom + 4 });
         }}
-        className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px]"
+        className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px] transition-colors hover:bg-hover/60"
         style={{ color: colour }}
       >
         <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
