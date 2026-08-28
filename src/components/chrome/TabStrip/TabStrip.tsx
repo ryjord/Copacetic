@@ -3,7 +3,7 @@
 import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { TabState } from '@shared/types';
-import { claimOf, colourOf, describeClaim, segmentByGroup, type TabGroup } from '@shared/tab-groups';
+import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type TabGroup } from '@shared/tab-groups';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
 import { GroupPanel } from '@/components/chrome/TabStrip/GroupPanel';
@@ -23,7 +23,11 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
 
   const handleDrop = (index: number) => {
     if (dragId) {
+      const from = tabs.findIndex((tab) => tab.id === dragId);
+      // Where it lands decides which group it is in, not just where it sits.
+      const groupId = from === -1 ? null : groupForDrop(tabs, from, index);
       send((api) => api.tabs.move(dragId, index));
+      send((api) => api.groups.setForTab(dragId, groupId));
     }
     setDragId(null);
     setDropIndex(null);
@@ -258,7 +262,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
  * because in a mixed group it is the only guarantee there is.
  */
 function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panel, setPanel] = useState<{ left: number; top: number } | null>(null);
   const claim = claimOf(group, holdsHush);
   const colour = colourOf(group.colour);
 
@@ -272,7 +276,14 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
         title={describeClaim(claim)}
         // Click names it; the chevron collapses it. A click that hid the tabs
         // would make renaming the thing you cannot see.
-        onClick={() => setPanelOpen((open) => !open)}
+        onClick={(event) => {
+          if (panel) {
+            setPanel(null);
+            return;
+          }
+          const box = event.currentTarget.getBoundingClientRect();
+          setPanel({ left: box.left, top: box.bottom + 4 });
+        }}
         className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px]"
         style={{ color: colour }}
       >
@@ -294,7 +305,7 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
 
       {!group.collapsed && children}
 
-      {panelOpen && <GroupPanel group={group} holdsHush={holdsHush} onClose={() => setPanelOpen(false)} />}
+      {panel && <GroupPanel group={group} holdsHush={holdsHush} anchor={panel} onClose={() => setPanel(null)} />}
     </div>
   );
 }

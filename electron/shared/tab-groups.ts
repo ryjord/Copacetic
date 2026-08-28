@@ -108,3 +108,28 @@ export function segmentByGroup<T extends { groupId: string | null }>(
   }
   return runs;
 }
+
+/**
+ * Which group a tab lands in when it is dragged somewhere.
+ *
+ * It joins a group only when it comes to rest *between* two tabs of that group.
+ * Landing beside one is not joining it: the edge of a group is exactly where
+ * someone parks a tab they want next to it and not in it, and a rule that
+ * swallowed those would put tabs in a container they never chose — which for a
+ * group that keeps its own browsing decides which session they load in.
+ */
+export function groupForDrop<T extends { groupId: string | null }>(
+  tabs: readonly T[],
+  fromIndex: number,
+  toIndex: number,
+): string | null {
+  const without = tabs.filter((_, index) => index !== fromIndex);
+  const target = fromIndex < toIndex ? toIndex - 1 : toIndex;
+  const before = without[target - 1];
+  const after = without[target];
+
+  if (before && after && before.groupId && before.groupId === after.groupId) {
+    return before.groupId;
+  }
+  return null;
+}

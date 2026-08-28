@@ -3,6 +3,7 @@ import {
   GROUP_COLOURS,
   claimOf,
   describeClaim,
+  groupForDrop,
   partitionFor,
   segmentByGroup,
 } from '../../electron/shared/tab-groups';
@@ -154,5 +155,43 @@ describe('splitting the strip into groups', () => {
   it('keeps every tab, in order', () => {
     const tabs = strip('a', null, 'b', 'b', null);
     expect(segmentByGroup(tabs).flatMap((run) => run.tabs)).toEqual(tabs);
+  });
+});
+
+/**
+ * Dropping a tab somewhere. Joining is deliberate: for a group that keeps its
+ * own browsing, being in it decides which session a tab loads in, so a tab must
+ * never be swallowed by a group it was only parked beside.
+ */
+describe('where a dragged tab lands', () => {
+  const strip = (...ids: (string | null)[]) => ids.map((groupId) => ({ groupId }));
+
+  it('joins the group when it comes to rest between two of its tabs', () => {
+    // [a, a, x] — dropping x at index 1 puts it between the two a's.
+    expect(groupForDrop(strip('a', 'a', null), 2, 1)).toBe('a');
+  });
+
+  it('does not join by landing on the left edge', () => {
+    expect(groupForDrop(strip('a', 'a', null), 2, 0)).toBeNull();
+  });
+
+  it('does not join by landing on the right edge', () => {
+    expect(groupForDrop(strip(null, 'a', 'a'), 0, 3)).toBeNull();
+  });
+
+  it('stays ungrouped between two different groups', () => {
+    expect(groupForDrop(strip('a', 'b', null), 2, 1)).toBeNull();
+  });
+
+  it('stays ungrouped between two ungrouped tabs', () => {
+    expect(groupForDrop(strip(null, null, 'a'), 2, 1)).toBeNull();
+  });
+
+  it('leaves a tab dropped where it already was alone', () => {
+    expect(groupForDrop(strip('a', 'a', 'a'), 1, 1)).toBe('a');
+  });
+
+  it('copes with a single tab', () => {
+    expect(groupForDrop(strip(null), 0, 0)).toBeNull();
   });
 });

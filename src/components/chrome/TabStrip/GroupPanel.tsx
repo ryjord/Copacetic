@@ -2,6 +2,7 @@
 
 // React
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 // Icons
 import { Trash2 } from 'lucide-react';
@@ -24,10 +25,13 @@ import { GROUP_COLOURS, claimOf, describeClaim, type GroupColourId, type TabGrou
 export function GroupPanel({
   group,
   holdsHush,
+  anchor,
   onClose,
 }: {
   group: TabGroup;
   holdsHush: boolean;
+  /** Where the group's label is on screen. The panel cannot live inside the strip: it scrolls, and a box that clips one axis clips both. */
+  anchor: { left: number; top: number };
   onClose: () => void;
 }) {
   const [name, setName] = useState(group.name);
@@ -41,11 +45,12 @@ export function GroupPanel({
     }
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-label={`Group ${group.name}`}
-      className="absolute left-0 top-full z-50 mt-1 w-[300px] overflow-hidden rounded-panel border border-line-strong bg-raised shadow-2xl"
+      style={{ left: anchor.left, top: anchor.top }}
+      className="fixed z-50 w-[300px] overflow-hidden rounded-panel border border-line-strong bg-raised shadow-2xl"
     >
       <div className="flex flex-col gap-3 p-3.5">
         <input
@@ -108,6 +113,7 @@ export function GroupPanel({
           <span className="ml-auto text-[11.5px] text-ink-faint">Tabs stay open</span>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
