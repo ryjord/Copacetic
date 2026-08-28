@@ -8,6 +8,9 @@ export type DownloadId = string;
 /** How much Copacetic can honestly say about the connection behind a tab. */
 export type SecurityLevel = 'secure' | 'insecure' | 'internal' | 'unknown';
 
+/** What this platform will let Copacetic do about becoming the default browser. */
+export type DefaultBrowserStatus = 'default' | 'can-ask' | 'settings-only' | 'unavailable';
+
 /** What Chromium validated, reported rather than re-derived. */
 export interface CertificateSummary {
   /** Who issued it, e.g. `Let's Encrypt`. */
@@ -288,6 +291,10 @@ export interface Settings {
   restoreTabsOnLaunch: boolean;
   // Which pieces the start page shows, in order.
   startPageWidgets: StartPageWidgetId[];
+  /** Set once someone has read what Hush does and does not do. */
+  hushNoticeDismissed: boolean;
+  /** Degrees the start page's atmosphere is turned from the theme's own hue. Nothing else in the interface moves. */
+  ambientHue: number;
   // Ask GitHub whether a newer release exists, on launch and on a long timer.
   checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */

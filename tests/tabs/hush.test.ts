@@ -34,16 +34,10 @@ describe('the partition is what makes the promise true', () => {
   });
 });
 
+// History and favicons are guards inside the tab's event handlers, so they are
+// driven for real in tab-events.test.ts rather than read for here. The two
+// below stay source checks: both live in methods that need a whole TabManager.
 describe('nothing a Hush tab does is written down', () => {
-  it('does not record a visit in history', () => {
-    expect(tabsSource).toMatch(/if \(!tab\.isHush\) \{ this\.store\.recordVisit/);
-  });
-
-  // A favicon cache is a list of sites visited, stored under another name.
-  it('does not cache favicons', () => {
-    expect(tabsSource).toMatch(/faviconUrl && !tab\.isHush/);
-  });
-
   // session.json is on disk, so a Hush URL listed there would be the one place
   // the tab left a trace.
   it('is left out of the session snapshot', () => {

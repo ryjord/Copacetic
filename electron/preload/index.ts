@@ -102,6 +102,9 @@ const api: CopaceticApi = {
   app: {
     getInfo: (): Promise<AppInfo> => ipcRenderer.invoke(INVOKE.appGetInfo),
     openExternal: (url: string) => ipcRenderer.invoke(INVOKE.appOpenExternal, url),
+    revealDiagnostics: () => ipcRenderer.invoke(INVOKE.appRevealDiagnostics),
+    defaultBrowserStatus: () => ipcRenderer.invoke(INVOKE.appDefaultBrowserStatus),
+    makeDefaultBrowser: () => ipcRenderer.invoke(INVOKE.appMakeDefaultBrowser),
   },
 
   /** Subscriptions. Each returns an unsubscribe function. */
@@ -124,6 +127,10 @@ const api: CopaceticApi = {
     get: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperGet),
     preview: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperPreview),
     choose: (): Promise<string> => ipcRenderer.invoke(INVOKE.wallpaperChoose),
+    staged: () => ipcRenderer.invoke(INVOKE.wallpaperStaged),
+    keep: (): Promise<string> => ipcRenderer.invoke(INVOKE.wallpaperKeep),
+    remove: () => ipcRenderer.invoke(INVOKE.wallpaperRemove),
+    discard: () => ipcRenderer.invoke(INVOKE.wallpaperDiscard),
     clear: () => ipcRenderer.invoke(INVOKE.wallpaperClear),
   },
 

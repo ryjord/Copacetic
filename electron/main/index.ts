@@ -8,6 +8,10 @@ import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
 import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './app/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
+import { describeError, log, startDiagnostics } from './system/diagnostics';
+import { allowLocalCertificates } from './security/local-certificates';
+import { urlFromArguments } from './app/default-browser';
+import { isPageNavigableUrl } from '../shared/url';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
@@ -32,21 +36,47 @@ async function start(): Promise<void> {
   app.setName('Copacetic');
   applyDevelopmentIcon();
 
+  // Held when an address arrives before there is anywhere to put it, which on
+  // macOS is the ordinary case: the event fires while the app is still starting.
+  let pendingUrl: string | null = null;
+
+  const openUrl = (url: string) => {
+    // macOS keeps the app alive with no window, and this arrives regardless.
+    if (browser && !browser.window.isDestroyed()) {
+      browser.tabs.create(url, { activate: true });
+      browser.window.focus();
+    } else {
+      pendingUrl = url;
+    }
+  };
+
+  // macOS never puts the address on the command line; it sends this instead.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    if (isPageNavigableUrl(url)) {
+      openUrl(url);
+    }
+  });
+
   app.on('second-instance', (_event, argv) => {
-    if (!browser) {
+    if (!browser || browser.window.isDestroyed()) {
       return;
     }
     if (browser.window.isMinimized()) {
       browser.window.restore();
     }
     browser.window.focus();
-    const url = argv.find((argument) => argument.startsWith('http://') || argument.startsWith('https://'));
+    const url = urlFromArguments(argv);
     if (url) {
       browser.tabs.create(url, { activate: true });
     }
   });
 
   await app.whenReady();
+  // Before anything else that can fail, so that when it does there is a record.
+  startDiagnostics(app.getPath('userData'));
+  allowLocalCertificates();
+  log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
 
   browser = new Browser();
@@ -59,6 +89,14 @@ async function start(): Promise<void> {
   installApplicationMenu(browser);
 
   await browser.start();
+
+  // Cold start: the address is either on the command line, or was handed over
+  // by the system before there was a window to put it in.
+  const requested = pendingUrl ?? urlFromArguments(process.argv);
+  pendingUrl = null;
+  if (requested) {
+    browser.tabs.create(requested, { activate: true });
+  }
 
   app.on('activate', () => {
     if (!browser) {
@@ -105,6 +143,7 @@ function applyDevelopmentIcon(): void {
 
 process.on('uncaughtException', (error) => {
   console.error('[copacetic] uncaught exception in the main process', error);
+  log.error('uncaught exception in the main process', describeError(error));
   if (isDevelopment()) {
     throw error;
   }
@@ -112,4 +151,5 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason) => {
   console.error('[copacetic] unhandled rejection in the main process', reason);
+  log.error('unhandled rejection in the main process', describeError(reason));
 });

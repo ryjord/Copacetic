@@ -127,6 +127,10 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       className={cn(
         'no-drag group relative flex h-[var(--chrome-tab-height)] min-w-[var(--chrome-tab-min-width)] max-w-[220px] shrink-0 items-center gap-2 rounded-tab px-2.5 transition-[background-color,opacity] duration-150',
         isActive ? 'bg-raised' : 'hover:bg-raised/55',
+        // The shape of the tab is what reads across a strip of eight. One small
+        // glyph, the same size as the mute and close glyphs beside it, does not.
+        tab.isHush && 'ring-1 ring-inset ring-active/45',
+        tab.isHush && isActive && 'ring-active/75',
         isDragging && 'opacity-40',
         showDropBefore &&
           'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-active',
@@ -185,7 +189,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
         knowing which tab you are in, and mistaking a normal tab for one is the
         failure that matters.
       */}
-      {tab.isHush && <EyeOff size={12} className="shrink-0 text-active" aria-label="Hush tab" />}
+      {tab.isHush && <EyeOff size={14} className="shrink-0 text-active" aria-label="Hush tab" />}
       <span className={cn('flex-1 truncate text-[12px]', isActive ? 'text-ink' : 'text-ink-dim')}>{title}</span>
 
       {tab.isAudible || tab.isMuted ? (

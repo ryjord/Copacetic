@@ -26,7 +26,6 @@ describe('resolveOmniboxInput', () => {
       ['github.com/ryjord', 'https://github.com/ryjord'],
       ['sub.domain.co.uk/path?q=1', 'https://sub.domain.co.uk/path?q=1'],
       ['https://example.com', 'https://example.com/'],
-      ['192.168.1.1', 'https://192.168.1.1/'],
     ])('treats %s as an address', (input, expected) => {
       expect(resolve(input)).toEqual({ type: 'url', target: expected });
     });
@@ -34,6 +33,8 @@ describe('resolveOmniboxInput', () => {
     it('keeps loopback on http, because a dev server rarely has a certificate', () => {
       expect(resolve('localhost:3000')).toEqual({ type: 'url', target: 'http://localhost:3000/' });
       expect(resolve('127.0.0.1:8080')).toEqual({ type: 'url', target: 'http://127.0.0.1:8080/' });
+      // The rest of the loopback range, not only its first address.
+      expect(resolve('127.0.0.2:8080')).toEqual({ type: 'url', target: 'http://127.0.0.2:8080/' });
       expect(resolve('localhost')).toEqual({ type: 'url', target: 'http://localhost/' });
     });
 
@@ -310,5 +311,61 @@ describe('originOf, which keys every permission decision', () => {
 
   it('is empty for something that is not a URL', () => {
     expect(originOf('nonsense')).toBe('');
+  });
+});
+
+/**
+ * HTTPS-First guards against someone on the path to a public server. A host on
+ * your own network has no such path, is usually http by design, and the upgrade
+ * has nothing to fall back to — so upgrading it only breaks it.
+ */
+describe('upgrading http to https', () => {
+  const typed = (input: string) => resolveOmniboxInput(input, 'brave', { httpsFirst: true });
+
+  it.each([
+    'http://app.pacs.internal:3000/dashboards',
+    'http://nas.local/photos',
+    'http://192.168.1.50:8080/',
+    'http://10.0.0.5/',
+    'http://172.16.4.9/',
+    'http://localhost:3000/x',
+    'http://127.0.0.1:5173/',
+  ])('leaves %s alone, because it is on your own network', (input) => {
+    expect(typed(input)?.target).toBe(input);
+  });
+
+  /**
+   * Typed without a scheme, which is how anyone actually types an address —
+   * and a separate branch from the one above. Writing every case with an
+   * explicit http:// is why the first version of this fix looked complete and
+   * was not.
+   */
+  it.each([
+    ['app.pacs.internal:3000/dashboards', 'http://app.pacs.internal:3000/dashboards'],
+    ['nas.local/photos', 'http://nas.local/photos'],
+    ['192.168.1.50:8080', 'http://192.168.1.50:8080/'],
+    ['10.0.0.5', 'http://10.0.0.5/'],
+  ])('keeps bare %s on http', (input, expected) => {
+    expect(typed(input)?.target).toBe(expected);
+  });
+
+  it.each([
+    ['example.com', 'https://example.com/'],
+    ['github.com/ryjord', 'https://github.com/ryjord'],
+  ])('still reaches bare %s over https', (input, expected) => {
+    expect(typed(input)?.target).toBe(expected);
+  });
+
+  it.each(['http://example.com/', 'http://8.8.8.8/', 'http://internal.example.com/'])(
+    'still upgrades %s, which is out on the internet',
+    (input) => {
+      expect(typed(input)?.target?.startsWith('https://')).toBe(true);
+    },
+  );
+
+  it('leaves everything alone when the setting is off', () => {
+    expect(resolveOmniboxInput('http://example.com/', 'brave', { httpsFirst: false })?.target).toBe(
+      'http://example.com/',
+    );
   });
 });

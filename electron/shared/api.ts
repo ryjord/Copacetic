@@ -1,6 +1,7 @@
 import type { ChromeSurface } from './channels';
 import type {
   AppInfo,
+  DefaultBrowserStatus,
   Bookmark,
   BrowserState,
   ClearRange,
@@ -104,6 +105,12 @@ export interface CopaceticApi {
   app: {
     getInfo(): Promise<AppInfo>;
     openExternal(url: string): Promise<void>;
+    /** Show the diagnostics log in the file manager, so it can be read before it is shared. */
+    revealDiagnostics(): Promise<void>;
+    /** What this platform will actually allow, so the control can say it. */
+    defaultBrowserStatus(): Promise<DefaultBrowserStatus>;
+    /** Empty when it worked or there was nothing to do; otherwise a sentence for the user. */
+    makeDefaultBrowser(): Promise<string>;
   };
   vault: {
     /** Fetched when the pane is open rather than pushed: it is not needed to render a page. */
@@ -135,8 +142,16 @@ export interface CopaceticApi {
     get(): Promise<string | null>;
     /** A small version, for showing what is set without the whole image. */
     preview(): Promise<string | null>;
-    /** Opens a picker. Resolves empty on success, or with a message. */
+    /** Opens a picker. The choice waits to be kept, exactly like the rest of the pane. */
     choose(): Promise<string>;
+    /** What has been picked but not yet kept, as a data URL. */
+    staged(): Promise<string | null>;
+    /** Applies what was staged. Resolves empty, or with what to say if it failed. */
+    keep(): Promise<string>;
+    /** Stages a removal, so it can be undone like anything else on the pane. */
+    remove(): Promise<void>;
+    /** Forgets what was picked, leaving whatever was there before. */
+    discard(): Promise<void>;
     clear(): Promise<void>;
   };
   data: {

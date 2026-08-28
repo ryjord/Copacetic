@@ -68,3 +68,63 @@ describe('what Copacetic claims about a connection', () => {
     }
   });
 });
+
+/**
+ * Accepting a certificate nobody signed and then saying it was checked would be
+ * the one lie in a browser whose whole argument is that it does not tell any.
+ */
+describe('a page loaded on a certificate from this machine', () => {
+  it('does not claim the certificate was checked', () => {
+    const state = describeSecurity('https://localhost:3000/app', null, '', true);
+    expect(state.detail).not.toContain('Chromium checked');
+    expect(state.detail).toContain('was not checked');
+  });
+
+  it('says the traffic stayed on the machine, which is why it is still secure', () => {
+    const state = describeSecurity('https://localhost:3000/app', null, '', true);
+    expect(state.level).toBe('secure');
+    expect(state.detail).toContain('never leaves your machine');
+  });
+
+  // Describing an unverified certificate would dress it up as an informative one.
+  it('describes no certificate at all', () => {
+    const certificate = { issuer: 'Someone', subject: 'localhost', validFrom: 0, validTo: 0, fingerprint: 'x' };
+    const state = describeSecurity('https://localhost:3000/', certificate as never, 'changed', true);
+    expect(state.certificate).toBeNull();
+    expect(state.certificateChange).toBe('');
+  });
+
+  it('leaves an ordinary https page saying exactly what it said before', () => {
+    const state = describeSecurity('https://example.com/', null, '', false);
+    expect(state.detail).toContain('Chromium checked');
+  });
+});
+
+/**
+ * A page that did not load has no connection to describe. Reporting one as
+ * encrypted and checked is the same fault as describing a certificate Chromium
+ * rejected: a failure dressed up as an informative page.
+ */
+describe('a page that did not load', () => {
+  it('does not claim the connection was encrypted and checked', () => {
+    const state = describeSecurity('https://app.pacs.internal:3000/x', null, '', false, true);
+    expect(state.detail).not.toContain('Encrypted');
+    expect(state.detail).toContain('did not load');
+  });
+
+  it('describes no certificate for a connection that never completed', () => {
+    const certificate = { issuer: 'Someone', subject: 'x', validFrom: 0, validTo: 0, fingerprint: 'f' };
+    const state = describeSecurity('https://example.com/', certificate as never, 'changed', false, true);
+    expect(state.certificate).toBeNull();
+    expect(state.certificateChange).toBe('');
+  });
+
+  it('does not warn about plain http either, since nothing was exchanged', () => {
+    const state = describeSecurity('http://example.com/', null, '', false, true);
+    expect(state.detail).toContain('did not load');
+  });
+
+  it('leaves a page that did load saying exactly what it said before', () => {
+    expect(describeSecurity('https://example.com/', null, '', false, false).detail).toContain('Chromium checked');
+  });
+});

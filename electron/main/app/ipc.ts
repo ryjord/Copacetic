@@ -1,11 +1,12 @@
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
-import { readWallpaper, readWallpaperPreview } from '../system/wallpaper';
+import { readWallpaper, readWallpaperPreview, stagedWallpaper } from '../system/wallpaper';
 import { randomBytes } from 'node:crypto';
 import { INVOKE } from '../../shared/channels';
 import { resolverFor } from '../../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import type { Browser } from './browser';
+import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { showNewTabMenu, showTabContextMenu } from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
@@ -139,6 +140,9 @@ export function registerIpcHandlers(browser: Browser): void {
 
   handle(INVOKE.appGetInfo, () => browser.getAppInfo());
   handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
+  handle(INVOKE.appRevealDiagnostics, () => browser.revealDiagnostics());
+  handle(INVOKE.appDefaultBrowserStatus, () => defaultBrowserStatus());
+  handle(INVOKE.appMakeDefaultBrowser, () => makeDefaultBrowser());
 
   // ------------------------------------------------------------------ vault
 
@@ -179,6 +183,10 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());
   handle(INVOKE.wallpaperChoose, () => browser.chooseWallpaper());
   handle(INVOKE.wallpaperClear, () => browser.clearWallpaper());
+  handle(INVOKE.wallpaperStaged, () => stagedWallpaper());
+  handle(INVOKE.wallpaperKeep, () => browser.keepWallpaper());
+  handle(INVOKE.wallpaperRemove, () => browser.removeWallpaper());
+  handle(INVOKE.wallpaperDiscard, () => browser.discardWallpaper());
 
   // ------------------------------------------------------------------- data
 
@@ -250,7 +258,6 @@ function asClearRange(value: unknown): ClearRange {
   return value === 'hour' || value === 'day' || value === 'week' || value === 'all' ? value : 'hour';
 }
 
-/** Only keys the settings schema actually declares survive the trip. */
 /** Everything the renderer is allowed to change, checked one field at a time. */
 export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (!isRecord(value)) {
@@ -286,6 +293,12 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.restoreTabsOnLaunch === 'boolean') {
     patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
+  }
+  if (typeof value.hushNoticeDismissed === 'boolean') {
+    patch.hushNoticeDismissed = value.hushNoticeDismissed;
+  }
+  if (typeof value.ambientHue === 'number' && Number.isFinite(value.ambientHue)) {
+    patch.ambientHue = value.ambientHue;
   }
   if (Array.isArray(value.startPageWidgets)) {
     const allowed = ['clock', 'search', 'topSites', 'bookmarks'];

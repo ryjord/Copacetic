@@ -52,6 +52,60 @@ export function readWallpaperPreview(): string | null {
 }
 
 /** Ask for an image and keep a copy. */
+/**
+ * A wallpaper someone has picked but not yet kept.
+ *
+ * The rest of the appearance pane shows a change before it is saved, and a
+ * wallpaper that wrote itself to disk the moment it was chosen was the one
+ * thing on that pane that could not be taken back. It waits here instead, and
+ * is written only when the rest of the draft is.
+ */
+let staged: Buffer | null = null;
+
+export function stagedWallpaper(): string | null {
+  return staged ? `data:image/jpeg;base64,${staged.toString('base64')}` : null;
+}
+
+export function discardStagedWallpaper(): void {
+  staged = null;
+  removalStaged = false;
+}
+
+/**
+ * Writes what was staged. Nothing staged means nothing to do, not an error.
+ *
+ * Returns what to say when it could not be written. The image stays staged in
+ * that case: reporting the draft as kept and dropping the picture is the worst
+ * of the available outcomes.
+ */
+export function commitStagedWallpaper(): string {
+  if (!staged) {
+    return '';
+  }
+  try {
+    writeFileSync(wallpaperPath(), staged);
+  } catch (error) {
+    return error instanceof Error ? error.message : 'The wallpaper could not be saved.';
+  }
+  staged = null;
+  return '';
+}
+
+/** Everything the pane staged, applied together. */
+export function commitStagedChanges(): string {
+  if (removalStaged) {
+    removalStaged = false;
+    staged = null;
+    try {
+      rmSync(wallpaperPath(), { force: true });
+    } catch {
+      // Already gone is the outcome we wanted.
+    }
+    return '';
+  }
+  return commitStagedWallpaper();
+}
+
 export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
   const { canceled, filePaths } = await dialog.showOpenDialog(window, {
     title: 'Choose a wallpaper',
@@ -80,14 +134,28 @@ export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
       return 'That image could not be converted.';
     }
 
-    writeFileSync(wallpaperPath(), encoded);
+    staged = encoded;
     return '';
   } catch (error) {
     return error instanceof Error ? error.message : 'The wallpaper could not be saved.';
   }
 }
 
+/** A removal waits like a choice does, so that Discard can undo it. */
+let removalStaged = false;
+
+export function removalIsStaged(): boolean {
+  return removalStaged;
+}
+
+export function stageWallpaperRemoval(): void {
+  staged = null;
+  removalStaged = true;
+}
+
 export function clearWallpaper(): void {
+  staged = null;
+  removalStaged = false;
   try {
     rmSync(wallpaperPath(), { force: true });
   } catch {

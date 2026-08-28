@@ -102,7 +102,8 @@ platform expects.
 ## Security
 
 The threat model is the obvious one: Copacetic renders hostile content by
-design. The measures below are the ones that follow from that.
+design. The measures below are the ones that follow from that. To report
+something that gets past them, see [SECURITY.md](SECURITY.md).
 
 | Concern                              | What Copacetic does                                                                                                                                                                                                                                                       |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -116,10 +117,16 @@ design. The measures below are the ones that follow from that.
 | Over-broad permissions               | Device access (serial, HID, USB), ambient signals (idle detection, local fonts, window placement) and cross-site storage are denied outright, without a prompt. Only permissions a user can meaningfully evaluate are ever asked about                                    |
 | Favicon requests leaking             | Favicons are fetched by the main process in the web session and handed to the interface as data URLs, so the chrome renderer never makes a network request. A remote page cannot name a loopback or private-network host and have that request made on its behalf         |
 | Chrome document XSS                  | A strict CSP with `default-src 'none'`, `connect-src 'self'`, `object-src 'none'` and `frame-ancestors 'none'`                                                                                                                                                            |
+| Certificates on this machine         | A development server's unsigned certificate is accepted for `localhost`, `127.0.0.1`, `::1` and `.localhost`, and nowhere else — reaching that traffic means already being on the machine. The badge says the certificate was not checked rather than claiming it was     |
 | Malicious download filenames         | Path components, control characters and bidirectional overrides are stripped before a file is written                                                                                                                                                                     |
 
 Copacetic presents a plain Chrome user agent rather than advertising Electron:
 better site compatibility, and one less signal that fingerprints you as unusual.
+Chromium's client hints are corrected to match it, because Electron otherwise
+describes the browser as Chromium while the user agent says Chrome — and a
+browser that disagrees with itself is both a fingerprinting signal and the
+reason some sign-in pages refuse it. The correction is made in the main process
+through the DevTools protocol; page content still runs no script of ours.
 
 ### What it does not do
 
@@ -142,6 +149,33 @@ things:
   connection must not be dressed up as an informative one.
 - **Not audited.** A personal project built to a high standard, not a browser
   that has been through security review.
+
+## Being the default browser
+
+Copacetic declares that it can open `http` and `https`, so the system will offer
+it. Settings has a control that says what your platform will actually allow:
+macOS and Linux can be asked directly, and **Windows 10 and 11 do not let an
+application make itself the default at all** — there the control opens the
+screen where you choose, rather than claiming to have done something it cannot.
+
+Nothing registers itself at startup. An address handed over by another
+application goes through the same check as a link on a page, so a `file:` or
+`javascript:` argument on the command line does not become a tab.
+
+## Checking a download is what it claims to be
+
+The builds are not code-signed, so nothing in the installer says who made it.
+What can be answered — and for nothing — is whether the file you downloaded is
+the one this repository built. Every release is attested by GitHub, and the
+attestation names the commit and the workflow run it came out of:
+
+```
+gh attestation verify Copacetic-1.3.3.dmg --repo ryjord/Copacetic
+```
+
+That does not make a download trusted. It makes it checkable, which is what an
+unsigned build otherwise cannot offer at all: a file that was tampered with in
+transit, or served from somewhere that is not this repository, fails the check.
 
 ## Architecture
 

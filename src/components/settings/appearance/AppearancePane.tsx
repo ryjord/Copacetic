@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 
 // Components
+import { AppearancePreview } from '@/components/settings/appearance/AppearancePreview';
 import { ChoiceGroup, Note, RowList, Section, Subheading } from '@/components/settings/shared/controls';
 import { IconButton } from '@/components/ui/controls/IconButton';
 
@@ -16,7 +17,14 @@ import { labelledOptions, updateSettings } from '@/components/settings/shared/op
 import { ask, send } from '@/lib/bridge';
 
 // Types
-import { START_PAGE_WIDGETS, type DensityId, type StartPageWidgetId, type ThemeId } from '@shared/types';
+import { ambientHexFor, hueForAmbientHex } from '@shared/ambient';
+import {
+  START_PAGE_WIDGETS,
+  type DensityId,
+  type Settings,
+  type StartPageWidgetId,
+  type ThemeId,
+} from '@shared/types';
 
 const DENSITY_LABELS: Record<DensityId, string> = {
   comfortable: 'Comfortable',
@@ -30,11 +38,155 @@ const THEME_LABELS: Record<ThemeId, string> = {
   moss: 'Moss',
 };
 
+/** The settings this pane stages. Everything else it touches applies at once, and says so. */
+type Draft = Pick<Settings, 'theme' | 'density' | 'ambientHue' | 'startPageWidgets'>;
+
+const draftOf = (settings: Settings): Draft => ({
+  theme: settings.theme,
+  density: settings.density,
+  ambientHue: settings.ambientHue,
+  startPageWidgets: settings.startPageWidgets,
+});
+
+const same = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
+
 export function AppearancePane() {
   const settings = useBrowserStore((state) => state.settings);
+  const saved = draftOf(settings);
+
+  const [draft, setDraft] = useState<Draft>(saved);
+  const [wallpaper, setWallpaper] = useState<string | null>(null);
+  /** A wallpaper picked but not yet kept. It outranks the saved one in the preview. */
+  const [pending, setPending] = useState<string | null>(null);
+  /** A removal picked but not yet kept, which hides the saved one without deleting it. */
+  const [removing, setRemoving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  /*
+   * Anything that changes the saved settings from elsewhere — another window,
+   * the menu — replaces an untouched draft rather than fighting it. A draft
+   * with changes in it is left alone: they are the reason someone is here.
+   */
+  const [base, setBase] = useState(saved);
+  if (!same(base, saved)) {
+    setBase(saved);
+    if (same(draft, base)) {
+      setDraft(saved);
+    }
+  }
+
+  const [reloads, setReloads] = useState(0);
+  useEffect(() => {
+    if (!settings.hasWallpaper) {
+      return;
+    }
+    let cancelled = false;
+    void ask((api) => api.wallpaper.preview(), null).then((image) => {
+      if (!cancelled) {
+        setWallpaper(image);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // `reloads` is bumped after a keep: replacing one wallpaper with another
+    // leaves the setting alone, so nothing else here would notice.
+  }, [settings.hasWallpaper, reloads]);
+
+  // Anything staged belongs to this pane. Leaving it is the same as discarding.
+  useEffect(() => {
+    return () => {
+      send((api) => api.wallpaper.discard());
+    };
+  }, []);
+
+  // Derived rather than cleared: removing a wallpaper should not need a render
+  // to take effect, and a stale one must never outlive the setting.
+  const shownWallpaper = removing ? null : (pending ?? (settings.hasWallpaper ? wallpaper : null));
+
+  const changed = !same(draft, saved) || pending !== null || removing;
+  const set = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
 
   return (
     <>
+      {/*
+        Pinned, because a control that changes what the preview shows is no use
+        while the preview is scrolled off the top — which is exactly what
+        happened to the wallpaper picker at the bottom of this pane. The
+        settings column is around 660px, so the preview cannot sit beside the
+        controls without squeezing them; above and staying put is what fits.
+      */}
+      <div className="sticky top-0 z-10 -mx-1 mb-5 bg-base/95 px-1 pb-3 pt-1 backdrop-blur">
+        <Note>Everything below shows here first. Nothing is kept until you keep it.</Note>
+
+        <div className="mb-3 mt-3">
+          <AppearancePreview
+            theme={draft.theme}
+            density={draft.density}
+            ambientHue={draft.ambientHue}
+            widgets={draft.startPageWidgets}
+            wallpaper={shownWallpaper}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={!changed}
+            onClick={() => {
+              updateSettings(draft);
+              setSaveError('');
+              if (pending || removing) {
+                void ask((api) => api.wallpaper.keep(), '').then((failure) => {
+                  setSaveError(failure);
+                  if (!failure) {
+                    setPending(null);
+                    setRemoving(false);
+                    setReloads((count) => count + 1);
+                  }
+                });
+              }
+            }}
+            className="rounded-field bg-active px-3.5 py-1.5 text-[12.5px] font-medium text-void transition-opacity disabled:opacity-40"
+          >
+            Keep these
+          </button>
+          <button
+            type="button"
+            disabled={!changed}
+            onClick={() => {
+              setDraft(saved);
+              setSaveError('');
+              if (pending || removing) {
+                send((api) => api.wallpaper.discard());
+                setPending(null);
+                setRemoving(false);
+              }
+            }}
+            className="rounded-field border border-line px-3.5 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-40"
+          >
+            Discard
+          </button>
+          <span className="text-[12px] text-ink-faint">{changed ? 'Not saved yet.' : 'This is what is saved.'}</span>
+        </div>
+        {saveError && <p className="mt-1.5 text-[12px] text-alert">{saveError}</p>}
+      </div>
+
+      <Section title="Wallpaper">
+        <WallpaperControl
+          hasWallpaper={settings.hasWallpaper && !removing}
+          pending={pending !== null}
+          onPicked={(image) => {
+            setPending(image);
+            setRemoving(false);
+          }}
+          onRemove={() => {
+            setPending(null);
+            setRemoving(true);
+            send((api) => api.wallpaper.remove());
+          }}
+        />
+      </Section>
       <Section title="Interface">
         <Note>
           How much room the chrome takes. This changes sizing only — colour in this interface means state, so nothing
@@ -42,30 +194,88 @@ export function AppearancePane() {
         </Note>
         <ChoiceGroup
           options={labelledOptions(DENSITY_LABELS)}
-          selected={settings.density}
-          onSelect={(density) => updateSettings({ density })}
+          selected={draft.density}
+          onSelect={(density) => set({ density })}
         />
       </Section>
 
-      <Section title="Start page">
+      <Section title="Atmosphere">
         <div className="mb-3">
           <ChoiceGroup
             options={labelledOptions(THEME_LABELS)}
-            selected={settings.theme}
-            onSelect={(theme) => updateSettings({ theme })}
+            selected={draft.theme}
+            onSelect={(theme) => set(theme === draft.theme ? {} : { theme, ambientHue: 0 })}
           />
         </div>
-        <p className="mb-1 text-[12px] leading-relaxed text-ink-faint">
+        <p className="mb-3 text-[12px] leading-relaxed text-ink-faint">
           The atmosphere only tints the start page. The rest of the interface stays monochrome so colour always means
           the same thing.
         </p>
-        <WallpaperControl hasWallpaper={settings.hasWallpaper} />
-        <WidgetManager
-          widgets={settings.startPageWidgets}
-          onChange={(startPageWidgets) => updateSettings({ startPageWidgets })}
-        />
+        <HueControl theme={draft.theme} hue={draft.ambientHue} onChange={(ambientHue) => set({ ambientHue })} />
+      </Section>
+
+      <Section title="Start page">
+        <WidgetManager widgets={draft.startPageWidgets} onChange={(startPageWidgets) => set({ startPageWidgets })} />
       </Section>
     </>
+  );
+}
+
+/**
+ * One value, two ways of saying it: the slider turns the theme's pair of
+ * colours, and the field shows where the near one landed. Typing a colour works
+ * out the turn that would land there, so the two cannot disagree.
+ */
+function HueControl({ theme, hue, onChange }: { theme: ThemeId; hue: number; onChange: (hue: number) => void }) {
+  const [typed, setTyped] = useState<string | null>(null);
+  const shown = typed ?? ambientHexFor(theme, hue);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={0}
+          max={359}
+          value={hue}
+          aria-label="Atmosphere hue"
+          onChange={(event) => {
+            setTyped(null);
+            onChange(Number(event.target.value));
+          }}
+          className="h-1 flex-1 accent-active"
+        />
+        <span className="w-10 shrink-0 text-right font-mono text-[11.5px] text-ink-faint tabular-nums">
+          {hue}&deg;
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span
+          className="size-6 shrink-0 rounded-field border border-line"
+          style={{ background: shown }}
+          aria-hidden
+        />
+        <input
+          type="text"
+          value={shown}
+          spellCheck={false}
+          aria-label="Atmosphere colour"
+          onChange={(event) => {
+            setTyped(event.target.value);
+            const turn = hueForAmbientHex(theme, event.target.value);
+            if (turn !== null) {
+              onChange(turn);
+            }
+          }}
+          onBlur={() => setTyped(null)}
+          className="w-24 rounded-field border border-line bg-raised px-2 py-1 font-mono text-[12px] text-ink outline-none focus:border-line-strong"
+        />
+        <span className="text-[12px] text-ink-faint">
+          Only the hue is taken — the depth belongs to the atmosphere.
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -153,54 +363,46 @@ function WidgetManager({
   );
 }
 
-function WallpaperControl({ hasWallpaper }: { hasWallpaper: boolean }) {
+/**
+ * The picker and nothing else. What a wallpaper looks like is answered by the
+ * preview at the top of the pane, which shows it dimmed exactly as the start
+ * page dims it — a second, smaller picture here said the same thing worse.
+ */
+function WallpaperControl({
+  hasWallpaper,
+  pending,
+  onPicked,
+  onRemove,
+}: {
+  hasWallpaper: boolean;
+  pending: boolean;
+  onPicked: (image: string | null) => void;
+  onRemove: () => void;
+}) {
   const [message, setMessage] = useState('');
-  const [preview, setPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!hasWallpaper) {
-      return;
-    }
-    let cancelled = false;
-    void ask((api) => api.wallpaper.preview(), null).then((image) => {
-      if (!cancelled) {
-        setPreview(image);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hasWallpaper]);
-
-  const visible = hasWallpaper ? preview : null;
 
   return (
-    <div className="mb-3">
-      {visible && (
-        <div className="mb-2 overflow-hidden rounded-panel border border-line">
-          {/* A data URL already in memory, in a static export with no image loader. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={visible} alt="The current start page wallpaper" className="h-28 w-full object-cover" />
-          {/* Dimmed exactly as the start page dims it, so this is a preview and not a flattering portrait. */}
-          <div className="relative -mt-28 h-28 w-full bg-base/70" aria-hidden />
-        </div>
-      )}
-
+    <div>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => {
             setMessage('');
-            void ask((api) => api.wallpaper.choose(), '').then(setMessage);
+            void ask((api) => api.wallpaper.choose(), '').then(async (error) => {
+              setMessage(error);
+              if (!error) {
+                onPicked(await ask((api) => api.wallpaper.staged(), null));
+              }
+            });
           }}
           className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
         >
-          {hasWallpaper ? 'Change wallpaper' : 'Choose a wallpaper'}
+          {hasWallpaper || pending ? 'Change wallpaper' : 'Choose a wallpaper'}
         </button>
-        {hasWallpaper && (
+        {(hasWallpaper || pending) && (
           <button
             type="button"
-            onClick={() => send((api) => api.wallpaper.clear())}
+            onClick={onRemove}
             className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-faint transition-colors hover:bg-raised hover:text-ink"
           >
             Remove

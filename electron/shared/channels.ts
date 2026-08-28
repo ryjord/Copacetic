@@ -59,6 +59,13 @@ export const INVOKE = {
 
   appGetInfo: 'app:get-info',
   appOpenExternal: 'app:open-external',
+  appRevealDiagnostics: 'app:reveal-diagnostics',
+  appDefaultBrowserStatus: 'app:default-browser-status',
+  appMakeDefaultBrowser: 'app:make-default-browser',
+  wallpaperStaged: 'wallpaper:staged',
+  wallpaperKeep: 'wallpaper:keep',
+  wallpaperDiscard: 'wallpaper:discard',
+  wallpaperRemove: 'wallpaper:remove',
 
   connectionsList: 'connections:list',
 

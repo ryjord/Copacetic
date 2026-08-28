@@ -4,18 +4,13 @@ import type { PermissionDecision, PermissionKind } from '../../electron/shared/t
 // The module reaches electron for the session partition and `shell`; the
 // behaviour under test is all in the handlers it installs.
 vi.mock('electron', () => ({
-  app: { isPackaged: true, getAppPath: () => '/app' },
+  app: { isPackaged: true, getAppPath: () => '/app', getLocale: () => 'en-GB' },
   session: { fromPartition: () => ({}) },
   shell: { openExternal: vi.fn() },
 }));
 
-const {
-  guardChromeWebContents,
-  guardTabWebContents,
-  hardenWebSession,
-  isTransportSecure,
-  stripElectronFromUserAgent,
-} = await import('../../electron/main/security/security');
+const { guardChromeWebContents, guardTabWebContents, hardenWebSession, isTransportSecure } =
+  await import('../../electron/main/security/security');
 
 type Handler = (...args: never[]) => unknown;
 
@@ -31,7 +26,8 @@ function fakeSession() {
       setBluetoothPairingHandler: (fn: Handler) => (captured.bluetooth = fn),
       setCertificateVerifyProc: (fn: Handler) => (captured.certificate = fn),
       setUserAgent: (value: string) => (captured.userAgent = (() => value) as Handler),
-      getUserAgent: () => 'Mozilla/5.0 Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36',
+      getUserAgent: () => 'Mozilla/5.0 (Macintosh) Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36',
+      webRequest: { onBeforeSendHeaders: (fn: Handler) => (captured.beforeSend = fn) },
     },
   };
 }
@@ -264,19 +260,6 @@ describe('the chrome document itself', () => {
   });
 });
 
-describe('what the browser tells sites it is', () => {
-  it('does not advertise Electron', () => {
-    const stripped = stripElectronFromUserAgent('Mozilla/5.0 Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36');
-    expect(stripped).not.toMatch(/electron/i);
-    expect(stripped).toMatch(/Chrome\/120/);
-  });
-
-  it('leaves a user agent without Electron alone', () => {
-    const plain = 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36';
-    expect(stripElectronFromUserAgent(plain)).toBe(plain);
-  });
-});
-
 describe('isTransportSecure', () => {
   it.each(['https://example.com/', 'http://localhost:3000/', 'http://127.0.0.1/'])('accepts %s', (url) => {
     expect(isTransportSecure(url)).toBe(true);
@@ -284,5 +267,40 @@ describe('isTransportSecure', () => {
 
   it.each(['http://example.com/', 'ftp://example.com/', 'nonsense'])('rejects %s', (url) => {
     expect(isTransportSecure(url)).toBe(false);
+  });
+});
+
+/**
+ * Electron sends no client hint headers while the user agent says Chrome. A
+ * server sees that contradiction without running anything, which is why
+ * correcting only the page's copy of the API was not enough.
+ */
+describe('the client hints a request carries', () => {
+  function headersFor(url: string, existing: Record<string, string> = {}) {
+    const { captured, session } = fakeSession();
+    hardenWebSession(session as never, fakeDelegate().delegate as never);
+    let result: Record<string, string> = {};
+    (
+      captured.beforeSend as unknown as (
+        details: unknown,
+        cb: (r: { requestHeaders: Record<string, string> }) => void,
+      ) => void
+    )({ url, requestHeaders: { ...existing } }, (answer) => {
+      result = answer.requestHeaders;
+    });
+    return result;
+  }
+
+  it('sends the brands on a secure request', () => {
+    expect(headersFor('https://example.com/')['sec-ch-ua']).toContain('"Google Chrome";v="120"');
+  });
+
+  // Chrome sends these to secure origins only.
+  it('sends nothing extra over plain http', () => {
+    expect(headersFor('http://example.com/')['sec-ch-ua']).toBeUndefined();
+  });
+
+  it("leaves the request's own headers alone", () => {
+    expect(headersFor('https://example.com/', { accept: 'text/html' }).accept).toBe('text/html');
   });
 });

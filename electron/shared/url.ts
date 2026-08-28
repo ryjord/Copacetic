@@ -111,7 +111,10 @@ export function resolveOmniboxInput(
     }
     try {
       const url = new URL(input);
-      if (httpsFirst && url.protocol === 'http:' && !isLoopbackHost(url.hostname)) {
+      // Not a host on your own network: a dev server, a router, a printer.
+      // Those are http by design, the upgrade has nothing to fall back to, and
+      // the attacker it guards against sits on the path to a public server.
+      if (httpsFirst && url.protocol === 'http:' && !isPrivateHost(url.hostname)) {
         url.protocol = 'https:';
       }
       return { type: 'url', target: url.toString() };
@@ -139,10 +142,10 @@ export function resolveOmniboxInput(
     return search();
   }
 
-  // A bare host is always tried over https — that guess is free to make and
-  // costs nothing when it is wrong. Loopback is the exception: a local dev
-  // server almost never has a certificate.
-  const scheme = isLoopbackHost(bareHost) ? 'http' : 'https';
+  // A bare host is tried over https — a guess that is free to make and costs
+  // nothing when it is wrong. A host on your own network is the exception, for
+  // the same reason it is exempt above: it is usually http by design.
+  const scheme = isPrivateHost(bareHost) ? 'http' : 'https';
   try {
     return { type: 'url', target: new URL(`${scheme}://${input}`).toString() };
   } catch {
@@ -159,7 +162,12 @@ function hasPlausibleTld(host: string): boolean {
 
 export function isLoopbackHost(host: string): boolean {
   const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
-  return bare === 'localhost' || bare === '127.0.0.1' || bare === '::1' || bare.endsWith('.localhost');
+  if (bare === 'localhost' || bare === '::1' || bare.endsWith('.localhost')) {
+    return true;
+  }
+  // The whole of 127.0.0.0/8, not just its first address: a dev setup that
+  // hands each service its own 127.0.0.x is still talking to this machine.
+  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(bare) && bare.split('.').every((part) => Number(part) <= 255);
 }
 
 /** Hosts that only exist inside the user's own network. */

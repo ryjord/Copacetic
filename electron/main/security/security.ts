@@ -1,7 +1,8 @@
-import { type Session, type WebContents, session as electronSession, shell } from 'electron';
+import { type Session, type WebContents, app, session as electronSession, shell } from 'electron';
 import type { PermissionDecision, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
 import { observeCertificates } from './certificates';
+import { describeSession } from '../system/browser-identity';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
 
 /** Web content lives in its own persistent partition, separate from the session that runs Copacetic's own UI. */
@@ -123,10 +124,8 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   session.setDevicePermissionHandler(() => false);
   session.setBluetoothPairingHandler((_details, callback) => callback({ confirmed: false }));
 
-  // A site claiming to be Electron invites bespoke, often broken code paths.
-  // Presenting as plain Chrome is both better for compatibility and one less
-  // signal that fingerprints this user as unusual.
-  session.setUserAgent(stripElectronFromUserAgent(session.getUserAgent()));
+  // What this browser says it is, on the wire and in the languages it offers.
+  describeSession(session, process.platform, app.getLocale());
 }
 
 async function resolvePermission(
@@ -167,13 +166,6 @@ async function resolvePermission(
   });
   delegate.rememberDecision(origin, prompted.kind, decision);
   return decision === 'allow';
-}
-
-export function stripElectronFromUserAgent(userAgent: string): string {
-  return userAgent
-    .replace(/ Electron\/[\d.]+/, '')
-    .replace(/ Copacetic\/[\d.]+/, '')
-    .trim();
 }
 
 /** Guards applied to every tab's webContents. */
