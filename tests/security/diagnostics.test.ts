@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Diagnostics, describeError, scrub } from '../../electron/main/system/diagnostics';
@@ -126,8 +126,15 @@ describe('it cannot grow until it is a problem of its own', () => {
 // Logging is what happens when things are already going wrong.
 describe('logging never becomes the failure', () => {
   it('does not throw when the directory cannot be written', () => {
-    const diagnostics = new Diagnostics('/proc/nowhere-copacetic-could-write');
+    // A regular file standing where a directory would have to be: refused the
+    // same way everywhere, rather than depending on what a given system does
+    // with a path like /proc.
+    const blocked = path.join(dir, 'a-file-not-a-directory');
+    writeFileSync(blocked, 'in the way', 'utf8');
+
+    const diagnostics = new Diagnostics(path.join(blocked, 'logs'));
     expect(() => diagnostics.error('something failed')).not.toThrow();
+    expect(diagnostics.read()).toBe('');
   });
 
   it('reads as empty rather than throwing when there is no log yet', () => {

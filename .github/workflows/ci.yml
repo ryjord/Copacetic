@@ -14,6 +14,8 @@ concurrency:
 jobs:
   verify:
     name: Verify
+    # A job that hangs should fail rather than run until someone notices.
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,6 +44,7 @@ jobs:
 
   build:
     name: Build (${{ matrix.os }})
+    timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
