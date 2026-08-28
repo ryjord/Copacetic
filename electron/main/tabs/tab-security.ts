@@ -7,6 +7,8 @@ export function describeSecurity(
   certificateChange = '',
   /** Set when this page loaded on a certificate Copacetic accepted because it came from this machine. */
   trustedLocally = false,
+  /** Set when the page did not load. */
+  failed = false,
 ): SecurityState {
   let parsed: URL | null = null;
   try {
@@ -28,6 +30,19 @@ export function describeSecurity(
 
   const scheme = parsed.protocol.replace(/:$/, '');
   const host = parsed.hostname;
+
+  // Nothing was exchanged, so there is no connection to describe. Calling it
+  // encrypted and checked would dress a failure up as an informative page.
+  if (failed) {
+    return {
+      level: 'unknown',
+      scheme,
+      host,
+      detail: 'This page did not load, so there is nothing to say about the connection.',
+      certificate: null,
+      certificateChange: '',
+    };
+  }
 
   if (scheme === 'copacetic' || scheme === 'about') {
     return {

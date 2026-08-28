@@ -312,3 +312,37 @@ describe('originOf, which keys every permission decision', () => {
     expect(originOf('nonsense')).toBe('');
   });
 });
+
+/**
+ * HTTPS-First guards against someone on the path to a public server. A host on
+ * your own network has no such path, is usually http by design, and the upgrade
+ * has nothing to fall back to — so upgrading it only breaks it.
+ */
+describe('upgrading http to https', () => {
+  const typed = (input: string) => resolveOmniboxInput(input, 'brave', { httpsFirst: true });
+
+  it.each([
+    'http://app.pacs.internal:3000/dashboards',
+    'http://nas.local/photos',
+    'http://192.168.1.50:8080/',
+    'http://10.0.0.5/',
+    'http://172.16.4.9/',
+    'http://localhost:3000/x',
+    'http://127.0.0.1:5173/',
+  ])('leaves %s alone, because it is on your own network', (input) => {
+    expect(typed(input)?.target).toBe(input);
+  });
+
+  it.each(['http://example.com/', 'http://8.8.8.8/', 'http://internal.example.com/'])(
+    'still upgrades %s, which is out on the internet',
+    (input) => {
+      expect(typed(input)?.target?.startsWith('https://')).toBe(true);
+    },
+  );
+
+  it('leaves everything alone when the setting is off', () => {
+    expect(resolveOmniboxInput('http://example.com/', 'brave', { httpsFirst: false })?.target).toBe(
+      'http://example.com/',
+    );
+  });
+});

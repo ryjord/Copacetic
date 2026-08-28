@@ -138,6 +138,7 @@ export class TabManager {
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
         tab.isStartPage ? '' : this.certificateChangeFor(tab.url),
         !tab.isStartPage && trustedLocally(hostOf(tab.url)),
+        tab.error !== null,
       ),
       error: tab.error,
       blockedCount: alive ? this.blocker.countFor(contents.id) : 0,

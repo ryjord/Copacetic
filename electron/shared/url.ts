@@ -111,7 +111,10 @@ export function resolveOmniboxInput(
     }
     try {
       const url = new URL(input);
-      if (httpsFirst && url.protocol === 'http:' && !isLoopbackHost(url.hostname)) {
+      // Not a host on your own network: a dev server, a router, a printer.
+      // Those are http by design, the upgrade has nothing to fall back to, and
+      // the attacker it guards against sits on the path to a public server.
+      if (httpsFirst && url.protocol === 'http:' && !isPrivateHost(url.hostname)) {
         url.protocol = 'https:';
       }
       return { type: 'url', target: url.toString() };
