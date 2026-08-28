@@ -226,3 +226,42 @@ function groupSubmenu(browser: Browser, tabId: TabId): MenuItemConstructorOption
     ],
   };
 }
+
+/**
+ * A group's own menu.
+ *
+ * Right-clicking a group is the first thing anyone tries, and until this
+ * existed it did nothing at all: renaming lived behind a left-click on the
+ * label and ungrouping behind that, so a group could be made and then not
+ * got rid of.
+ */
+export function showGroupContextMenu(browser: Browser, groupId: string): void {
+  const group = browser.store.groupFor(groupId);
+  if (!group) {
+    return;
+  }
+
+  const items: MenuItemConstructorOptions[] = [
+    { label: `Rename “${group.name}”`, click: () => browser.openGroupPanel(groupId) },
+    {
+      label: 'Colour',
+      submenu: GROUP_COLOURS.map((colour) => ({
+        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        type: 'radio' as const,
+        checked: colour.id === group.colour,
+        click: () => browser.updateGroup(groupId, { colour: colour.id }),
+      })),
+    },
+    { type: 'separator' },
+    {
+      label: group.collapsed ? 'Expand' : 'Collapse',
+      click: () => browser.updateGroup(groupId, { collapsed: !group.collapsed }),
+    },
+    { type: 'separator' },
+    // Said plainly, because "delete" beside a row of tabs reads as deleting them.
+    { label: 'Ungroup these tabs', click: () => browser.removeGroup(groupId) },
+    { label: 'Close these tabs', click: () => browser.closeGroup(groupId) },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}

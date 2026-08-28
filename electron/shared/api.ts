@@ -146,6 +146,8 @@ export interface CopaceticApi {
     remove(id: string): Promise<void>;
     /** Puts a tab in a group, or takes it out with null. */
     setForTab(tabId: TabId, groupId: string | null): Promise<void>;
+    /** The group's own menu: rename, recolour, ungroup. */
+    openContextMenu(id: string): Promise<void>;
   };
   wallpaper: {
     /** The image as a data URL, or null. Fetched on demand, never pushed. */
@@ -191,5 +193,7 @@ export interface CopaceticApi {
     state(listener: (state: BrowserState) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
+    /** The group whose panel should open, so renaming can happen somewhere a native menu cannot. */
+    openGroupPanel(listener: (groupId: string) => void): Unsubscribe;
   };
 }

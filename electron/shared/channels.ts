@@ -70,6 +70,7 @@ export const INVOKE = {
   groupUpdate: 'group:update',
   groupRemove: 'group:remove',
   groupSetForTab: 'group:set-for-tab',
+  groupOpenContextMenu: 'group:open-context-menu',
 
   connectionsList: 'connections:list',
 
@@ -109,6 +110,8 @@ export const PUSH = {
   focusOmnibox: 'push:focus-omnibox',
   /** Fired when a menu item or shortcut wants the chrome to open a surface. */
   openSurface: 'push:open-surface',
+  /** A native menu cannot hold a text field, so renaming asks the chrome to open the group's panel. */
+  openGroupPanel: 'push:open-group-panel',
 } as const;
 
 export type InvokeChannel = (typeof INVOKE)[keyof typeof INVOKE];

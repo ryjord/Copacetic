@@ -7,7 +7,7 @@ import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type Ta
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
 import { GroupPanel } from '@/components/chrome/TabStrip/GroupPanel';
-import { send } from '@/lib/bridge';
+import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 interface TabStripProps {
@@ -263,6 +263,18 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
  */
 function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
   const [panel, setPanel] = useState<{ left: number; top: number } | null>(null);
+  const labelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const api = getBridge();
+    return api?.on.openGroupPanel((id) => {
+      if (id !== group.id) {
+        return;
+      }
+      const box = labelRef.current?.getBoundingClientRect();
+      setPanel(box ? { left: box.left, top: box.bottom + 4 } : { left: 80, top: 80 });
+    });
+  }, [group.id]);
   const claim = claimOf(group, holdsHush);
   const colour = colourOf(group.colour);
 
@@ -270,10 +282,15 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
     <div
       className="relative flex items-center gap-1 rounded-t-[10px] px-1"
       style={{ borderTop: `2px solid ${colour}`, background: `${colour}1a` }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        send((api) => api.groups.openContextMenu(group.id));
+      }}
     >
       <button
+        ref={labelRef}
         type="button"
-        title={describeClaim(claim)}
+        title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
         // Click names it; the chevron collapses it. A click that hid the tabs
         // would make renaming the thing you cannot see.
         onClick={(event) => {

@@ -754,6 +754,20 @@ export class Browser {
     this.scheduleStatePush();
   }
 
+  /** Closes everything in a group and the group with it. */
+  closeGroup(id: string): void {
+    for (const tab of this.tabs.tabsInGroup(id)) {
+      this.tabs.close(tab.id);
+    }
+    this.store.removeGroup(id);
+    this.scheduleStatePush();
+  }
+
+  /** Asks the chrome to open the group's panel, which is where renaming happens. */
+  openGroupPanel(id: string): void {
+    this.pushToChrome(PUSH.openGroupPanel, id);
+  }
+
   setTabGroup(tabId: TabId, groupId: string | null): void {
     this.tabs.setGroup(tabId, groupId);
     this.scheduleStatePush();

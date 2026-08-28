@@ -8,7 +8,7 @@ import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '.
 import type { Browser } from './browser';
 import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
-import { showNewTabMenu, showTabContextMenu } from '../menus/context-menu';
+import { showGroupContextMenu, showNewTabMenu, showTabContextMenu } from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 /** Every handler is registered through `handle`, which drops any message that did not come from the chrome window's own top-level frame. */
@@ -195,6 +195,7 @@ export function registerIpcHandlers(browser: Browser): void {
   );
   handle(INVOKE.groupUpdate, (_event, id, changes) => browser.updateGroup(asString(id), asGroupChanges(changes)));
   handle(INVOKE.groupRemove, (_event, id) => browser.removeGroup(asString(id)));
+  handle(INVOKE.groupOpenContextMenu, (_event, id) => showGroupContextMenu(browser, asString(id)));
   handle(INVOKE.groupSetForTab, (_event, tabId, groupId) =>
     browser.setTabGroup(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
   );
