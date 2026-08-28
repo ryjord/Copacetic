@@ -65,3 +65,59 @@ export function clientHintsFor(userAgent: string, platform: string): ClientHints
     mobile: false,
   };
 }
+
+/**
+ * The header form, built from the same values as the API above.
+ *
+ * Only the three Chrome sends unprompted. The rest are high-entropy hints a
+ * site has to ask for, and sending them unasked is both unlike Chrome and more
+ * than anyone needs to know.
+ */
+export function clientHintHeaders(hints: ClientHints): Record<string, string> {
+  const list = (brands: Brand[]) => brands.map(({ brand, version }) => `"${brand}";v="${version}"`).join(', ');
+  return {
+    'sec-ch-ua': list(hints.brands),
+    'sec-ch-ua-mobile': hints.mobile ? '?1' : '?0',
+    'sec-ch-ua-platform': `"${hints.platform}"`,
+  };
+}
+
+/**
+ * The languages a request offers. Chromium sends only the one locale it was
+ * started with; Chrome widens it to the base language and English, which is
+ * what a site is used to seeing.
+ */
+export function acceptLanguagesFor(locale: string): string {
+  const tag = locale || 'en-US';
+  const base = tag.split('-')[0] ?? 'en';
+  const languages = [tag];
+
+  // A regional English needs no separate base entry: English arrives below
+  // anyway. Any other language keeps its base directly after it.
+  if (base !== tag && base !== 'en') {
+    languages.push(base);
+  }
+  for (const fallback of ['en-US', 'en']) {
+    if (!languages.includes(fallback)) {
+      languages.push(fallback);
+    }
+  }
+  return languages.join(',');
+}
+
+/**
+ * What a real Chrome has on `window.chrome` and Electron leaves empty. It holds
+ * nothing of the browser's: three objects a page can already expect, so that a
+ * site checking for them does not conclude it is somewhere unusual.
+ */
+export const CHROME_OBJECT_SCRIPT = `(() => {
+  if (!window.chrome || Object.keys(window.chrome).length) { return; }
+  const started = Date.now();
+  window.chrome.csi = () => ({ startE: started, onloadT: started, pageT: Date.now() - started, tran: 15 });
+  window.chrome.loadTimes = () => ({ commitLoadTime: started / 1000, finishLoadTime: started / 1000 });
+  window.chrome.app = {
+    isInstalled: false,
+    InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
+    RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
+  };
+})()`;

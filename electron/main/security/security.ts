@@ -1,7 +1,8 @@
-import { type Session, type WebContents, session as electronSession, shell } from 'electron';
+import { type Session, type WebContents, app, session as electronSession, shell } from 'electron';
 import type { PermissionDecision, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
 import { observeCertificates } from './certificates';
+import { acceptLanguagesFor, clientHintHeaders, clientHintsFor } from '../../shared/client-hints';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
 
 /** Web content lives in its own persistent partition, separate from the session that runs Copacetic's own UI. */
@@ -126,7 +127,36 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   // A site claiming to be Electron invites bespoke, often broken code paths.
   // Presenting as plain Chrome is both better for compatibility and one less
   // signal that fingerprints this user as unusual.
-  session.setUserAgent(stripElectronFromUserAgent(session.getUserAgent()));
+  session.setUserAgent(stripElectronFromUserAgent(session.getUserAgent()), acceptLanguagesFor(app.getLocale()));
+
+  sendClientHintHeaders(session, process.platform);
+}
+
+/**
+ * Chromium in Electron sends no client hint headers at all, while the user agent
+ * says Chrome. Every real Chrome sends them on every secure request, so their
+ * absence is a plain contradiction on the wire — visible to a server without any
+ * script running, which is how a sign-in page can refuse a browser that looks
+ * fine from the inside.
+ *
+ * Nothing here is new information: the version and platform are already in the
+ * user agent this same session sends.
+ */
+function sendClientHintHeaders(session: Session, platform: string): void {
+  const hints = clientHintsFor(session.getUserAgent(), platform);
+  if (!hints) {
+    return;
+  }
+
+  const headers = clientHintHeaders(hints);
+  session.webRequest.onBeforeSendHeaders((details, callback) => {
+    // Chrome sends these to secure origins only.
+    if (!details.url.startsWith('https://')) {
+      callback({ requestHeaders: details.requestHeaders });
+      return;
+    }
+    callback({ requestHeaders: { ...details.requestHeaders, ...headers } });
+  });
 }
 
 async function resolvePermission(

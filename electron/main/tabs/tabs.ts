@@ -383,10 +383,18 @@ export class TabManager {
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
     });
     guardTabWebContents(view.webContents, this.securityDelegate);
-    applyClientHints(view.webContents, process.platform);
+    // A view with no document yet answers no DevTools command at all, so it is
+    // given the empty one first. Navigation then waits for the description to
+    // land, because a tab that starts loading before it does is exactly the tab
+    // that needed it. `about:blank` is ignored when a navigation commits, so
+    // none of this reaches the tab's state.
+    const described = view.webContents
+      .loadURL('about:blank')
+      .catch(() => {})
+      .then(() => applyClientHints(view.webContents, process.platform));
 
     if (!isStartPage) {
-      void this.loadUrl(tab, rawUrl);
+      void described.then(() => this.loadUrl(tab, rawUrl));
     }
 
     if (options.activate !== false) {
