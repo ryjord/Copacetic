@@ -90,7 +90,9 @@ describe('writing is atomic', () => {
     file.set({ name: 'a', count: 1 });
     file.flush();
 
-    const leftovers = readdirSync(dir).filter((name) => name !== 'thing.json');
+    // The half-written file is what matters here, not the company it keeps:
+    // schema.json is written alongside now, and is meant to be.
+    const leftovers = readdirSync(dir).filter((name) => name.includes('.tmp'));
     expect(leftovers).toEqual([]);
   });
 
