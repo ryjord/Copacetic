@@ -96,10 +96,17 @@ export function AppearancePane() {
 
   return (
     <>
-      <Section title="Appearance">
+      {/*
+        Pinned, because a control that changes what the preview shows is no use
+        while the preview is scrolled off the top — which is exactly what
+        happened to the wallpaper picker at the bottom of this pane. The
+        settings column is around 660px, so the preview cannot sit beside the
+        controls without squeezing them; above and staying put is what fits.
+      */}
+      <div className="sticky top-0 z-10 -mx-1 mb-5 bg-base/95 px-1 pb-3 pt-1 backdrop-blur">
         <Note>Everything below shows here first. Nothing is kept until you keep it.</Note>
 
-        <div className="mb-4 mt-3">
+        <div className="mb-3 mt-3">
           <AppearancePreview
             theme={draft.theme}
             density={draft.density}
@@ -140,8 +147,11 @@ export function AppearancePane() {
           </button>
           <span className="text-[12px] text-ink-faint">{changed ? 'Not saved yet.' : 'This is what is saved.'}</span>
         </div>
-      </Section>
+      </div>
 
+      <Section title="Wallpaper">
+        <WallpaperControl hasWallpaper={settings.hasWallpaper} pending={pending !== null} onPicked={setPending} />
+      </Section>
       <Section title="Interface">
         <Note>
           How much room the chrome takes. This changes sizing only — colour in this interface means state, so nothing
@@ -171,10 +181,6 @@ export function AppearancePane() {
 
       <Section title="Start page">
         <WidgetManager widgets={draft.startPageWidgets} onChange={(startPageWidgets) => set({ startPageWidgets })} />
-      </Section>
-
-      <Section title="Wallpaper">
-        <WallpaperControl hasWallpaper={settings.hasWallpaper} pending={pending !== null} onPicked={setPending} />
       </Section>
     </>
   );
