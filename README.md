@@ -150,6 +150,21 @@ things:
 - **Not audited.** A personal project built to a high standard, not a browser
   that has been through security review.
 
+## Checking a download is what it claims to be
+
+The builds are not code-signed, so nothing in the installer says who made it.
+What can be answered — and for nothing — is whether the file you downloaded is
+the one this repository built. Every release is attested by GitHub, and the
+attestation names the commit and the workflow run it came out of:
+
+```
+gh attestation verify Copacetic-1.3.3.dmg --repo ryjord/Copacetic
+```
+
+That does not make a download trusted. It makes it checkable, which is what an
+unsigned build otherwise cannot offer at all: a file that was tampered with in
+transit, or served from somewhere that is not this repository, fails the check.
+
 ## Architecture
 
 Page content is owned by the **main process** as one `WebContentsView` per tab.
