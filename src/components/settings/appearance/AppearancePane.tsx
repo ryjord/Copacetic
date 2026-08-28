@@ -56,6 +56,8 @@ export function AppearancePane() {
 
   const [draft, setDraft] = useState<Draft>(saved);
   const [wallpaper, setWallpaper] = useState<string | null>(null);
+  /** A wallpaper picked but not yet kept. It outranks the saved one in the preview. */
+  const [pending, setPending] = useState<string | null>(null);
 
   /*
    * Anything that changes the saved settings from elsewhere — another window,
@@ -87,9 +89,9 @@ export function AppearancePane() {
 
   // Derived rather than cleared: removing a wallpaper should not need a render
   // to take effect, and a stale one must never outlive the setting.
-  const shownWallpaper = settings.hasWallpaper ? wallpaper : null;
+  const shownWallpaper = pending ?? (settings.hasWallpaper ? wallpaper : null);
 
-  const changed = !same(draft, saved);
+  const changed = !same(draft, saved) || pending !== null;
   const set = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
 
   return (
@@ -111,7 +113,13 @@ export function AppearancePane() {
           <button
             type="button"
             disabled={!changed}
-            onClick={() => updateSettings(draft)}
+            onClick={() => {
+              updateSettings(draft);
+              if (pending) {
+                send((api) => api.wallpaper.keep());
+                setPending(null);
+              }
+            }}
             className="rounded-field bg-active px-3.5 py-1.5 text-[12.5px] font-medium text-void transition-opacity disabled:opacity-40"
           >
             Keep these
@@ -119,7 +127,13 @@ export function AppearancePane() {
           <button
             type="button"
             disabled={!changed}
-            onClick={() => setDraft(saved)}
+            onClick={() => {
+              setDraft(saved);
+              if (pending) {
+                send((api) => api.wallpaper.discard());
+                setPending(null);
+              }
+            }}
             className="rounded-field border border-line px-3.5 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-40"
           >
             Discard
@@ -160,8 +174,7 @@ export function AppearancePane() {
       </Section>
 
       <Section title="Wallpaper">
-        <Note>Chosen from a file, so this one applies as soon as you pick it.</Note>
-        <WallpaperControl hasWallpaper={settings.hasWallpaper} />
+        <WallpaperControl hasWallpaper={settings.hasWallpaper} pending={pending !== null} onPicked={setPending} />
       </Section>
     </>
   );
@@ -309,54 +322,47 @@ function WidgetManager({
   );
 }
 
-function WallpaperControl({ hasWallpaper }: { hasWallpaper: boolean }) {
+/**
+ * The picker and nothing else. What a wallpaper looks like is answered by the
+ * preview at the top of the pane, which shows it dimmed exactly as the start
+ * page dims it — a second, smaller picture here said the same thing worse.
+ */
+function WallpaperControl({
+  hasWallpaper,
+  pending,
+  onPicked,
+}: {
+  hasWallpaper: boolean;
+  pending: boolean;
+  onPicked: (image: string | null) => void;
+}) {
   const [message, setMessage] = useState('');
-  const [preview, setPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!hasWallpaper) {
-      return;
-    }
-    let cancelled = false;
-    void ask((api) => api.wallpaper.preview(), null).then((image) => {
-      if (!cancelled) {
-        setPreview(image);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hasWallpaper]);
-
-  const visible = hasWallpaper ? preview : null;
 
   return (
-    <div className="mb-3">
-      {visible && (
-        <div className="mb-2 overflow-hidden rounded-panel border border-line">
-          {/* A data URL already in memory, in a static export with no image loader. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={visible} alt="The current start page wallpaper" className="h-28 w-full object-cover" />
-          {/* Dimmed exactly as the start page dims it, so this is a preview and not a flattering portrait. */}
-          <div className="relative -mt-28 h-28 w-full bg-base/70" aria-hidden />
-        </div>
-      )}
-
+    <div>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => {
             setMessage('');
-            void ask((api) => api.wallpaper.choose(), '').then(setMessage);
+            void ask((api) => api.wallpaper.choose(), '').then(async (error) => {
+              setMessage(error);
+              if (!error) {
+                onPicked(await ask((api) => api.wallpaper.staged(), null));
+              }
+            });
           }}
           className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
         >
-          {hasWallpaper ? 'Change wallpaper' : 'Choose a wallpaper'}
+          {hasWallpaper || pending ? 'Change wallpaper' : 'Choose a wallpaper'}
         </button>
-        {hasWallpaper && (
+        {(hasWallpaper || pending) && (
           <button
             type="button"
-            onClick={() => send((api) => api.wallpaper.clear())}
+            onClick={() => {
+              onPicked(null);
+              send((api) => api.wallpaper.clear());
+            }}
             className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-faint transition-colors hover:bg-raised hover:text-ink"
           >
             Remove

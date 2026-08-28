@@ -35,7 +35,13 @@ import { offerFor } from '../../shared/credential-matching';
 import { fillScriptFor } from '../system/fill-script';
 import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
 import { Vault } from '../data/vault';
-import { chooseWallpaper, clearWallpaper, hasWallpaper } from '../system/wallpaper';
+import {
+  chooseWallpaper,
+  clearWallpaper,
+  commitStagedWallpaper,
+  discardStagedWallpaper,
+  hasWallpaper,
+} from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
 import { chromeEntryUrl, isDevelopment } from './env';
 import {
@@ -685,6 +691,18 @@ export class Browser {
     const error = await chooseWallpaper(this.window);
     this.scheduleStatePush();
     return error;
+  }
+
+  /** Writes the wallpaper that was picked, alongside whatever else the pane kept. */
+  keepWallpaper(): void {
+    commitStagedWallpaper();
+    this.scheduleStatePush();
+  }
+
+  /** Forgets it, leaving whatever was there before exactly as it was. */
+  discardWallpaper(): void {
+    discardStagedWallpaper();
+    this.scheduleStatePush();
   }
 
   clearWallpaper(): void {

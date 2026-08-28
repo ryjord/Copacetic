@@ -142,8 +142,14 @@ export interface CopaceticApi {
     get(): Promise<string | null>;
     /** A small version, for showing what is set without the whole image. */
     preview(): Promise<string | null>;
-    /** Opens a picker. Resolves empty on success, or with a message. */
+    /** Opens a picker. The choice waits to be kept, exactly like the rest of the pane. */
     choose(): Promise<string>;
+    /** What has been picked but not yet kept, as a data URL. */
+    staged(): Promise<string | null>;
+    /** Writes what was picked. */
+    keep(): Promise<void>;
+    /** Forgets what was picked, leaving whatever was there before. */
+    discard(): Promise<void>;
     clear(): Promise<void>;
   };
   data: {

@@ -1,5 +1,5 @@
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
-import { readWallpaper, readWallpaperPreview } from '../system/wallpaper';
+import { readWallpaper, readWallpaperPreview, stagedWallpaper } from '../system/wallpaper';
 import { randomBytes } from 'node:crypto';
 import { INVOKE } from '../../shared/channels';
 import { resolverFor } from '../../shared/dns';
@@ -183,6 +183,9 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());
   handle(INVOKE.wallpaperChoose, () => browser.chooseWallpaper());
   handle(INVOKE.wallpaperClear, () => browser.clearWallpaper());
+  handle(INVOKE.wallpaperStaged, () => stagedWallpaper());
+  handle(INVOKE.wallpaperKeep, () => browser.keepWallpaper());
+  handle(INVOKE.wallpaperDiscard, () => browser.discardWallpaper());
 
   // ------------------------------------------------------------------- data
 

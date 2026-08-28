@@ -28,13 +28,21 @@ vi.mock('electron', () => ({
   },
 }));
 
-const { chooseWallpaper, clearWallpaper, hasWallpaper, readWallpaper } =
-  await import('../../electron/main/system/wallpaper');
+const {
+  chooseWallpaper,
+  clearWallpaper,
+  commitStagedWallpaper,
+  discardStagedWallpaper,
+  hasWallpaper,
+  readWallpaper,
+  stagedWallpaper,
+} = await import('../../electron/main/system/wallpaper');
 
 const wallpaperFile = () => path.join(userDataDir, 'wallpaper.jpg');
 const fakeWindow = {} as Parameters<typeof chooseWallpaper>[0];
 
 beforeEach(() => {
+  discardStagedWallpaper();
   userDataDir = mkdtempSync(path.join(tmpdir(), 'copacetic-wallpaper-'));
   chosenFiles = [];
   dialogCancelled = false;
@@ -73,6 +81,8 @@ describe('choosing one', () => {
     chosenFiles = [source];
 
     expect(await chooseWallpaper(fakeWindow)).toBe('');
+    commitStagedWallpaper();
+
     const written = readFileSync(wallpaperFile());
     expect(written.equals(RE_ENCODED)).toBe(true);
     expect(written.includes('original-file-bytes')).toBe(false);
@@ -83,6 +93,8 @@ describe('choosing one', () => {
   it('keeps its own copy in the profile', async () => {
     chosenFiles = [path.join(userDataDir, 'source.png')];
     await chooseWallpaper(fakeWindow);
+    commitStagedWallpaper();
+
     expect(existsSync(wallpaperFile())).toBe(true);
     expect(hasWallpaper()).toBe(true);
   });
@@ -91,6 +103,8 @@ describe('choosing one', () => {
     sourceWidth = 6000;
     chosenFiles = [path.join(userDataDir, 'huge.png')];
     expect(await chooseWallpaper(fakeWindow)).toBe('');
+    commitStagedWallpaper();
+
     expect(existsSync(wallpaperFile())).toBe(true);
   });
 
@@ -128,5 +142,52 @@ describe('clearing it', () => {
 
   it('is fine when there was nothing to remove', () => {
     expect(() => clearWallpaper()).not.toThrow();
+  });
+});
+
+/**
+ * The rest of the appearance pane shows a change before it is saved. A
+ * wallpaper that wrote itself the moment it was picked was the one thing there
+ * that could not be taken back.
+ */
+describe('a wallpaper waits to be kept', () => {
+  it('writes nothing when it is only picked', async () => {
+    chosenFiles = [path.join(userDataDir, 'source.png')];
+    expect(await chooseWallpaper(fakeWindow)).toBe('');
+
+    expect(existsSync(wallpaperFile())).toBe(false);
+    expect(hasWallpaper()).toBe(false);
+  });
+
+  it('can be looked at before it is kept', async () => {
+    chosenFiles = [path.join(userDataDir, 'source.png')];
+    await chooseWallpaper(fakeWindow);
+
+    expect(stagedWallpaper()).toContain('data:image/jpeg;base64,');
+  });
+
+  it('leaves what was there alone when it is discarded', async () => {
+    writeFileSync(wallpaperFile(), Buffer.from('the one already set'));
+    chosenFiles = [path.join(userDataDir, 'source.png')];
+    await chooseWallpaper(fakeWindow);
+    discardStagedWallpaper();
+
+    expect(readFileSync(wallpaperFile()).toString()).toBe('the one already set');
+    expect(stagedWallpaper()).toBeNull();
+  });
+
+  it('keeping nothing is not an error', () => {
+    expect(() => commitStagedWallpaper()).not.toThrow();
+    expect(existsSync(wallpaperFile())).toBe(false);
+  });
+
+  // Otherwise a picked-then-kept wallpaper would come back after a removal.
+  it('is forgotten when the wallpaper is removed', async () => {
+    chosenFiles = [path.join(userDataDir, 'source.png')];
+    await chooseWallpaper(fakeWindow);
+    clearWallpaper();
+    commitStagedWallpaper();
+
+    expect(existsSync(wallpaperFile())).toBe(false);
   });
 });

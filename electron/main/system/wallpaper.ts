@@ -52,6 +52,37 @@ export function readWallpaperPreview(): string | null {
 }
 
 /** Ask for an image and keep a copy. */
+/**
+ * A wallpaper someone has picked but not yet kept.
+ *
+ * The rest of the appearance pane shows a change before it is saved, and a
+ * wallpaper that wrote itself to disk the moment it was chosen was the one
+ * thing on that pane that could not be taken back. It waits here instead, and
+ * is written only when the rest of the draft is.
+ */
+let staged: Buffer | null = null;
+
+export function stagedWallpaper(): string | null {
+  return staged ? `data:image/jpeg;base64,${staged.toString('base64')}` : null;
+}
+
+export function discardStagedWallpaper(): void {
+  staged = null;
+}
+
+/** Writes what was staged. Nothing staged means nothing to do, not an error. */
+export function commitStagedWallpaper(): void {
+  if (!staged) {
+    return;
+  }
+  try {
+    writeFileSync(wallpaperPath(), staged);
+  } catch {
+    // The pane reports what it can see; a failure here leaves the old one in place.
+  }
+  staged = null;
+}
+
 export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
   const { canceled, filePaths } = await dialog.showOpenDialog(window, {
     title: 'Choose a wallpaper',
@@ -80,7 +111,7 @@ export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
       return 'That image could not be converted.';
     }
 
-    writeFileSync(wallpaperPath(), encoded);
+    staged = encoded;
     return '';
   } catch (error) {
     return error instanceof Error ? error.message : 'The wallpaper could not be saved.';
@@ -88,6 +119,7 @@ export async function chooseWallpaper(window: BrowserWindow): Promise<string> {
 }
 
 export function clearWallpaper(): void {
+  staged = null;
   try {
     rmSync(wallpaperPath(), { force: true });
   } catch {

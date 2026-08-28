@@ -127,6 +127,9 @@ const api: CopaceticApi = {
     get: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperGet),
     preview: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperPreview),
     choose: (): Promise<string> => ipcRenderer.invoke(INVOKE.wallpaperChoose),
+    staged: () => ipcRenderer.invoke(INVOKE.wallpaperStaged),
+    keep: () => ipcRenderer.invoke(INVOKE.wallpaperKeep),
+    discard: () => ipcRenderer.invoke(INVOKE.wallpaperDiscard),
     clear: () => ipcRenderer.invoke(INVOKE.wallpaperClear),
   },
 
