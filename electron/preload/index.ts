@@ -3,6 +3,7 @@ import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
 import type { GroupColourId } from '../shared/tab-groups';
 import type { BookmarkFolder } from '../shared/bookmark-folders';
+import type { Notice } from '../shared/notices';
 import type {
   AppInfo,
   Bookmark,
@@ -60,6 +61,11 @@ const api: CopaceticApi = {
     topSites: (limit = 8): Promise<TopSite[]> => ipcRenderer.invoke(INVOKE.historyTopSites, limit),
   },
 
+  notices: {
+    answer: (id: string, confirmed: boolean) => ipcRenderer.invoke(INVOKE.noticeAnswer, id, confirmed),
+    pending: (): Promise<Notice[]> => ipcRenderer.invoke(INVOKE.noticesPending),
+  },
+
   bookmarks: {
     list: (): Promise<Bookmark[]> => ipcRenderer.invoke(INVOKE.bookmarksList),
     toggle: (url: string, title: string): Promise<boolean> => ipcRenderer.invoke(INVOKE.bookmarksToggle, url, title),
@@ -79,7 +85,7 @@ const api: CopaceticApi = {
       ipcRenderer.invoke(INVOKE.bookmarkFolderMove, id, parentId),
     remove: (id: string): Promise<{ folders: number; bookmarks: number }> =>
       ipcRenderer.invoke(INVOKE.bookmarkFolderDelete, id),
-    openAsGroup: (id: string): Promise<{ opened: number }> =>
+    openAsGroup: (id: string): Promise<{ opened: number; asked: boolean }> =>
       ipcRenderer.invoke(INVOKE.bookmarkFolderOpenAsGroup, id),
     openContextMenu: (id: string) => ipcRenderer.invoke(INVOKE.bookmarkFolderOpenContextMenu, id),
     openMenu: (id: string, x: number, y: number) => ipcRenderer.invoke(INVOKE.bookmarkFolderOpenMenu, id, x, y),
@@ -192,6 +198,7 @@ const api: CopaceticApi = {
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
     renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
     bookmarksChanged: (listener: () => void) => subscribe(PUSH.bookmarksChanged, listener),
+    notice: (listener: (notice: Notice) => void) => subscribe(PUSH.notice, listener),
     renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),
   },
 };

@@ -35,6 +35,8 @@ export const INVOKE = {
   bookmarksFile: 'bookmarks:file',
   bookmarksOpen: 'bookmarks:open',
   bookmarksOpenContextMenu: 'bookmarks:open-context-menu',
+  noticeAnswer: 'notice:answer',
+  noticesPending: 'notice:pending',
   bookmarkFoldersList: 'bookmark-folders:list',
   bookmarkFolderCreate: 'bookmark-folders:create',
   bookmarkFolderUpdate: 'bookmark-folders:update',
@@ -125,6 +127,8 @@ export const PUSH = {
   renameGroup: 'push:rename-group',
   /** Saved bookmarks or folders changed. No tab changes when one is filed, so the tab snapshot cannot say it. */
   bookmarksChanged: 'push:bookmarks-changed',
+  /** Something the app finished, or a question it has to ask before finishing. */
+  notice: 'push:notice',
   /** The same, for a bookmark folder: a native menu cannot hold a text field. */
   renameBookmarkFolder: 'push:rename-bookmark-folder',
 } as const;

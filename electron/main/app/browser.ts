@@ -58,6 +58,14 @@ import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
 import type { GroupColourId } from '../../shared/tab-groups';
 import { type BookmarkFolder, descendantsOf } from '../../shared/bookmark-folders';
+import {
+  OPEN_WITHOUT_ASKING,
+  type Notice,
+  admit,
+  dismiss as dismissNotice,
+  openFolderMessage,
+  savedGroupMessage,
+} from '../../shared/notices';
 import { VaultSession } from './vault-session';
 import { log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
@@ -630,6 +638,9 @@ export class Browser {
     }
 
     const { added, alreadyHad } = this.store.addBookmarks(bookmarks);
+    // An import adds bookmarks without touching a tab, so nothing else would
+    // tell a surface that is already open that its list is now wrong.
+    this.bookmarksChanged();
     this.scheduleStatePush();
 
     const parts = [`added ${added}`];
@@ -752,11 +763,11 @@ export class Browser {
    * The group does not inherit its own session. That is decided when a group is
    * made and never afterwards, so a folder cannot smuggle one in.
    */
-  openFolderAsGroup(id: string): { opened: number } {
+  openFolderAsGroup(id: string): { opened: number; asked: boolean } {
     const folders = this.store.listBookmarkFolders();
     const folder = this.store.folderFor(id);
     if (!folder) {
-      return { opened: 0 };
+      return { opened: 0, asked: false };
     }
 
     const within = new Set([id, ...descendantsOf(folders, id).map((entry) => entry.id)]);
@@ -766,17 +777,41 @@ export class Browser {
       .map((bookmark) => bookmark.url);
 
     if (urls.length === 0) {
-      return { opened: 0 };
+      return { opened: 0, asked: false };
     }
 
+    // Naming the number on a button is not the same as consenting to it: a
+    // folder of two hundred pages opens two hundred tabs from one click, and
+    // no window survives that in a state anyone can use.
+    if (urls.length > OPEN_WITHOUT_ASKING) {
+      this.notify(
+        {
+          id: `open-folder-${id}`,
+          tone: 'ask',
+          key: `open-folder-${id}`,
+          message: openFolderMessage(urls.length, folder.name),
+          confirm: `Open ${urls.length} tabs`,
+        },
+        () => this.openTabsAsGroup(urls, folder.name, folder.colour),
+      );
+      return { opened: 0, asked: true };
+    }
+
+    this.openTabsAsGroup(urls, folder.name, folder.colour);
+    return { opened: urls.length, asked: false };
+  }
+
+  private openTabsAsGroup(urls: readonly string[], name: string, colour: GroupColourId): void {
     const [first, ...rest] = urls;
+    if (!first) {
+      return;
+    }
     const founding = this.tabs.create(first, { activate: true });
-    const groupId = this.createGroup(founding, folder.name, folder.colour, false);
+    const groupId = this.createGroup(founding, name, colour, false);
     for (const url of rest) {
       this.tabs.create(url, { groupId });
     }
     this.scheduleStatePush();
-    return { opened: urls.length };
   }
 
   /**
@@ -814,6 +849,12 @@ export class Browser {
 
     this.bookmarksChanged();
     this.scheduleStatePush();
+    this.notify({
+      id: `saved-group-${folder.id}`,
+      tone: skippedHush > 0 ? 'info' : 'done',
+      key: 'saved-group',
+      message: savedGroupMessage(saved, skippedHush, folder.name),
+    });
     return { saved, skippedHush };
   }
 
@@ -855,6 +896,49 @@ export class Browser {
       this.tabs.create(url, { activate: true });
     }
     this.scheduleStatePush();
+  }
+
+  /** Questions waiting on an answer, by the id the notice carries. */
+  private readonly pendingAnswers = new Map<string, () => void>();
+
+  /**
+   * Notices that have been said but not yet taken.
+   *
+   * The chrome is a page, and a page takes over a second to hydrate and start
+   * listening. Anything said before then reached nobody — a notice pushed
+   * during startup was simply lost, which is the whole failure notices exist to
+   * fix. They are kept here until the chrome collects them.
+   */
+  private outstanding: Notice[] = [];
+
+  /**
+   * Tells the person something, once.
+   *
+   * The main process is where most things finish — a menu click, an import, a
+   * list update — and until now none of them could say so: each ended at a
+   * count that nothing read.
+   */
+  notify(notice: Notice, onConfirm?: () => void): void {
+    if (onConfirm) {
+      this.pendingAnswers.set(notice.id, onConfirm);
+    }
+    this.outstanding = admit(this.outstanding, notice);
+    this.pushToChrome(PUSH.notice, notice);
+  }
+
+  /** What was said before anyone was listening, asked for as the chrome starts. */
+  pendingNotices(): Notice[] {
+    return this.outstanding;
+  }
+
+  /** Answers a question a notice asked. Anything but a yes simply drops it. */
+  answerNotice(id: string, confirmed: boolean): void {
+    const act = this.pendingAnswers.get(id);
+    this.pendingAnswers.delete(id);
+    this.outstanding = dismissNotice(this.outstanding, id);
+    if (confirmed) {
+      act?.();
+    }
   }
 
   /**

@@ -98,6 +98,8 @@ export function registerIpcHandlers(browser: Browser): void {
   });
   handle(INVOKE.bookmarksOpen, (_event, url) => browser.openInActiveTab(asString(url)));
   handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
+  handle(INVOKE.noticeAnswer, (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
+  handle(INVOKE.noticesPending, () => browser.pendingNotices());
   handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
     browser.bookmarksChanged();

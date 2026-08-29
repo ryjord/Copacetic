@@ -1,5 +1,6 @@
 import type { ChromeSurface } from './channels';
 import type { BookmarkFolder } from './bookmark-folders';
+import type { Notice } from './notices';
 import type { GroupColourId } from './tab-groups';
 import type {
   AppInfo,
@@ -69,6 +70,13 @@ export interface CopaceticApi {
     clear(range: ClearRange): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;
   };
+  notices: {
+    /** Answers a question a notice asked. Confirming does the thing; anything else drops it. */
+    answer(id: string, confirmed: boolean): Promise<void>;
+    /** Anything said before the chrome was listening, which is everything said during startup. */
+    pending(): Promise<Notice[]>;
+  };
+
   bookmarks: {
     list(): Promise<Bookmark[]>;
     toggle(url: string, title: string): Promise<boolean>;
@@ -89,7 +97,8 @@ export interface CopaceticApi {
     move(id: string, parentId: string | null): Promise<boolean>;
     /** Deletes the folder and keeps what was in it, reporting what moved up. */
     remove(id: string): Promise<{ folders: number; bookmarks: number }>;
-    openAsGroup(id: string): Promise<{ opened: number }>;
+    /** `asked` when it was large enough to need a decision first, in which case nothing has opened yet. */
+    openAsGroup(id: string): Promise<{ opened: number; asked: boolean }>;
     openContextMenu(id: string): Promise<void>;
     /** The folder's contents as a native menu, at a point on screen — the only kind that can sit above a page. */
     openMenu(id: string, x: number, y: number): Promise<void>;
@@ -214,6 +223,9 @@ export interface CopaceticApi {
     state(listener: (state: BrowserState) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
+    /** Something finished, or something needs deciding before it can. */
+    notice(listener: (notice: Notice) => void): Unsubscribe;
+
     /** Saved bookmarks or folders changed, from anywhere — a menu, another window, an import. */
     bookmarksChanged(listener: () => void): Unsubscribe;
 

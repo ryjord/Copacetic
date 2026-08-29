@@ -109,3 +109,58 @@ describe('a change made outside the surface', () => {
     expect(heard.seen).toBe(true);
   }, 120_000);
 });
+
+/**
+ * Naming a number on a button is not consenting to it. A folder of two hundred
+ * pages opens two hundred tabs from one click, and no window survives that.
+ */
+describe('opening a folder big enough to hurt', () => {
+  it('asks first, and opens nothing until it is answered', async () => {
+    const asked = await copacetic.chrome.evaluate(async () => {
+      const folder = await window.copacetic.bookmarkFolders.create('Everything', 'ocean', null);
+      for (let index = 0; index < 14; index += 1) {
+        await window.copacetic.bookmarks.toggle(`https://example.com/many-${index}`, `Page ${index}`);
+      }
+      const saved = await window.copacetic.bookmarks.list();
+      for (const bookmark of saved.filter((entry) => entry.url.includes('/many-'))) {
+        await window.copacetic.bookmarks.file(bookmark.id, folder.id);
+      }
+
+      const heard = new Promise<{ tone: string; message: string; confirm?: string }>((resolve) => {
+        const stop = window.copacetic.on.notice((notice) => {
+          stop();
+          resolve({ tone: notice.tone, message: notice.message, confirm: notice.confirm });
+        });
+      });
+      const outcome = await window.copacetic.bookmarkFolders.openAsGroup(folder.id);
+      return { outcome, notice: await heard };
+    });
+
+    expect(asked.outcome).toEqual({ opened: 0, asked: true });
+    expect(asked.notice.tone).toBe('ask');
+    expect(asked.notice.message).toContain('14 pages');
+    expect(asked.notice.confirm).toContain('14');
+  }, 120_000);
+
+  it('opens them once the question is answered yes', async () => {
+    const before = onDisk<{ name: string }[]>('groups.json').some((group) => group.name === 'Everything');
+
+    const answered = await copacetic.chrome.evaluate(async () => {
+      const folders = await window.copacetic.bookmarkFolders.list();
+      const everything = folders.find((folder) => folder.name === 'Everything');
+      if (!everything) {
+        return false;
+      }
+      await window.copacetic.notices.answer(`open-folder-${everything.id}`, true);
+      return true;
+    });
+
+    expect(answered).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+
+    // Nothing existed before the answer, which is the whole point of asking.
+    expect(before).toBe(false);
+    const saved = onDisk<{ name: string }[]>('groups.json');
+    expect(saved.some((group) => group.name === 'Everything')).toBe(true);
+  }, 120_000);
+});
