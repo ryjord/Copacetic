@@ -13,7 +13,7 @@ import { DRAG_BOOKMARK, FolderTree, type FolderSelection } from '@/views/Bookmar
 import { EmptyState, SurfaceShell } from '@/views/SurfaceShell/SurfaceShell';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
+import { ask, getBridge, send } from '@/lib/bridge';
 import { formatRelativeTime } from '@/lib/format';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
@@ -47,6 +47,14 @@ export function BookmarksSurface() {
   useEffect(() => {
     reload();
   }, [reload, bookmarkSignature]);
+
+  // Filing a bookmark or recolouring a folder changes no tab, so the tab
+  // snapshot above says nothing about it: without this the tree is only ever
+  // as fresh as the last unrelated thing that happened to a tab.
+  useEffect(() => {
+    const api = getBridge();
+    return api?.on.bookmarksChanged(reload);
+  }, [reload]);
 
   const searching = query.trim().length > 0;
   const needle = query.trim().toLowerCase();

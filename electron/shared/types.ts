@@ -316,6 +316,8 @@ export interface Settings {
   hasWallpaper: boolean;
   sidebarWidth: number;
   defaultZoomFactor: number;
+  /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
+  showBookmarksBar: boolean;
 }
 
 /** The single snapshot the main process pushes to the chrome renderer. */

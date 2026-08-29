@@ -33,6 +33,7 @@ export const INVOKE = {
   bookmarksToggle: 'bookmarks:toggle',
   bookmarksRemove: 'bookmarks:remove',
   bookmarksFile: 'bookmarks:file',
+  bookmarksOpen: 'bookmarks:open',
   bookmarkFoldersList: 'bookmark-folders:list',
   bookmarkFolderCreate: 'bookmark-folders:create',
   bookmarkFolderUpdate: 'bookmark-folders:update',
@@ -40,6 +41,7 @@ export const INVOKE = {
   bookmarkFolderDelete: 'bookmark-folders:delete',
   bookmarkFolderOpenAsGroup: 'bookmark-folders:open-as-group',
   bookmarkFolderOpenContextMenu: 'bookmark-folders:open-context-menu',
+  bookmarkFolderOpenMenu: 'bookmark-folders:open-menu',
 
   downloadsPause: 'downloads:pause',
   downloadsResume: 'downloads:resume',
@@ -120,6 +122,8 @@ export const PUSH = {
   openSurface: 'push:open-surface',
   /** A native menu cannot hold a text field, so renaming asks the chrome to make the group's label editable. */
   renameGroup: 'push:rename-group',
+  /** Saved bookmarks or folders changed. No tab changes when one is filed, so the tab snapshot cannot say it. */
+  bookmarksChanged: 'push:bookmarks-changed',
   /** The same, for a bookmark folder: a native menu cannot hold a text field. */
   renameBookmarkFolder: 'push:rename-bookmark-folder',
 } as const;

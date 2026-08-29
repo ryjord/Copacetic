@@ -73,6 +73,8 @@ export interface CopaceticApi {
     list(): Promise<Bookmark[]>;
     toggle(url: string, title: string): Promise<boolean>;
     remove(id: string): Promise<void>;
+    /** Opens a saved address in the tab in front of you, or a new one when there is none. */
+    openInActiveTab(url: string): Promise<void>;
     /** Files a bookmark in a folder, or unfiles it with null. */
     file(id: string, folderId: string | null): Promise<void>;
   };
@@ -87,6 +89,8 @@ export interface CopaceticApi {
     remove(id: string): Promise<{ folders: number; bookmarks: number }>;
     openAsGroup(id: string): Promise<{ opened: number }>;
     openContextMenu(id: string): Promise<void>;
+    /** The folder's contents as a native menu, at a point on screen — the only kind that can sit above a page. */
+    openMenu(id: string, x: number, y: number): Promise<void>;
   };
   downloads: {
     pause(id: DownloadId): Promise<void>;
@@ -208,6 +212,9 @@ export interface CopaceticApi {
     state(listener: (state: BrowserState) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
+    /** Saved bookmarks or folders changed, from anywhere — a menu, another window, an import. */
+    bookmarksChanged(listener: () => void): Unsubscribe;
+
     /** The bookmark folder whose label should become editable. */
     renameBookmarkFolder(listener: (folderId: string) => void): Unsubscribe;
 

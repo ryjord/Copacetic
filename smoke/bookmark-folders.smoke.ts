@@ -81,3 +81,31 @@ describe('deleting a folder', () => {
     expect(folders.find((folder) => folder.name === 'Long form')?.parentId).toBeNull();
   }, 120_000);
 });
+
+/**
+ * Recolouring a folder happens in a native menu, in the main process, and
+ * changes no tab — so the tab snapshot the surface already watches says nothing
+ * about it. Shipped without this, the colour changed on disk and the screen
+ * kept showing the old one until something unrelated happened to a tab.
+ */
+describe('a change made outside the surface', () => {
+  it('reaches a renderer that is watching', async () => {
+    const heard = await copacetic.chrome.evaluate(async () => {
+      const folder = await window.copacetic.bookmarkFolders.create('Recoloured', 'violet', null);
+      const seen = await new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => resolve(false), 4000);
+        const stop = window.copacetic.on.bookmarksChanged(() => {
+          clearTimeout(timer);
+          stop();
+          resolve(true);
+        });
+        void window.copacetic.bookmarkFolders.update(folder.id, { colour: 'clay' });
+      });
+      const after = await window.copacetic.bookmarkFolders.list();
+      return { seen, colour: after.find((entry) => entry.id === folder.id)?.colour };
+    });
+
+    expect(heard.colour).toBe('clay');
+    expect(heard.seen).toBe(true);
+  }, 120_000);
+});

@@ -315,7 +315,7 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
         label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
         type: 'radio' as const,
         checked: colour.id === folder.colour,
-        click: () => browser.store.updateBookmarkFolder(folderId, { colour: colour.id }),
+        click: () => browser.updateBookmarkFolder(folderId, { colour: colour.id }),
       })),
     },
     { type: 'separator' },
@@ -341,4 +341,54 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * A bookmark folder's contents, opened from the bar under the toolbar.
+ *
+ * Native, and not a matter of taste: a WebContentsView paints above the
+ * chrome's HTML, so a dropdown drawn in the renderer would open underneath the
+ * page and look like nothing happened. Nested folders become submenus, which a
+ * native menu does properly and a hand-built one rarely does.
+ */
+export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: number, y: number): void {
+  const folders = browser.store.listBookmarkFolders();
+  const bookmarks = browser.store.listBookmarks();
+
+  const build = (parentId: string, seen: ReadonlySet<string>): MenuItemConstructorOptions[] => {
+    const here = bookmarks
+      .filter((bookmark) => bookmark.folderId === parentId)
+      .map((bookmark) => ({
+        label: bookmark.title || bookmark.url,
+        click: () => browser.openInActiveTab(bookmark.url),
+      }));
+
+    const inside = folders
+      .filter((folder) => folder.parentId === parentId && !seen.has(folder.id))
+      .map((folder) => ({
+        label: folder.name,
+        submenu: build(folder.id, new Set([...seen, folder.id])),
+      }));
+
+    const items = [...inside, ...here];
+    // An empty submenu on macOS is a dead arrow with nothing behind it, which
+    // reads as a fault rather than as an empty folder.
+    return items.length > 0 ? items : [{ label: 'Empty', enabled: false }];
+  };
+
+  const folder = folders.find((candidate) => candidate.id === folderId);
+  if (!folder) {
+    return;
+  }
+
+  const items: MenuItemConstructorOptions[] = [
+    ...build(folderId, new Set([folderId])),
+    { type: 'separator' },
+    {
+      label: 'Open all as a tab group',
+      click: () => browser.openFolderAsGroup(folderId),
+    },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window, x, y });
 }

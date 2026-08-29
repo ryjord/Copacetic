@@ -12,6 +12,7 @@ import { getBridge, isRunningInShell, send } from '@/lib/bridge';
 import { ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { AuthBanner } from '@/components/chrome/AuthBanner/AuthBanner';
+import { BookmarksBar } from '@/components/chrome/BookmarksBar/BookmarksBar';
 import { ConnectionPanel } from '@/components/chrome/ConnectionPanel/ConnectionPanel';
 import { FindBar } from '@/components/chrome/FindBar/FindBar';
 import { LiveAnnouncer } from '@/components/chrome/LiveAnnouncer/LiveAnnouncer';
@@ -39,6 +40,7 @@ export function Chrome() {
   const density = useBrowserStore((state) => state.settings.density);
   const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
+  const showBookmarksBar = useBrowserStore((state) => state.settings.showBookmarksBar);
   const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
   const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
 
@@ -106,7 +108,7 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length]);
+  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length, showBookmarksBar]);
 
   // The panel describes one particular tab, so it must not linger over another.
   useEffect(() => {
@@ -151,6 +153,8 @@ export function Chrome() {
       </header>
 
       <Toolbar tab={activeTab} />
+
+      {showBookmarksBar && <BookmarksBar />}
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />
 

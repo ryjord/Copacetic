@@ -10,6 +10,7 @@ import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import {
   showBookmarkFolderContextMenu,
+  showBookmarkFolderMenu,
   showGroupContextMenu,
   showNewTabMenu,
   showTabContextMenu,
@@ -85,31 +86,43 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.bookmarksList, () => browser.store.listBookmarks());
   handle(INVOKE.bookmarksToggle, (_event, url, title) => {
     const bookmarked = browser.store.toggleBookmark(asString(url), asString(title));
+    browser.bookmarksChanged();
     browser.scheduleStatePush();
     return bookmarked;
   });
   handle(INVOKE.bookmarksRemove, (_event, id) => {
     browser.store.removeBookmark(asString(id));
+    browser.bookmarksChanged();
     browser.scheduleStatePush();
   });
+  handle(INVOKE.bookmarksOpen, (_event, url) => browser.openInActiveTab(asString(url)));
   handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
+    browser.bookmarksChanged();
     browser.scheduleStatePush();
   });
 
   handle(INVOKE.bookmarkFoldersList, () => browser.store.listBookmarkFolders());
-  handle(INVOKE.bookmarkFolderCreate, (_event, name, colour, parentId) =>
-    browser.store.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
-  );
-  handle(INVOKE.bookmarkFolderUpdate, (_event, id, changes) =>
-    browser.store.updateBookmarkFolder(asString(id), asGroupChanges(changes)),
-  );
-  handle(INVOKE.bookmarkFolderMove, (_event, id, parentId) =>
-    browser.store.moveBookmarkFolder(asString(id), asOptionalId(parentId)),
-  );
+  handle(INVOKE.bookmarkFolderCreate, (_event, name, colour, parentId) => {
+    const folder = browser.store.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId));
+    browser.bookmarksChanged();
+    return folder;
+  });
+  handle(INVOKE.bookmarkFolderUpdate, (_event, id, changes) => {
+    browser.store.updateBookmarkFolder(asString(id), asGroupChanges(changes));
+    browser.bookmarksChanged();
+  });
+  handle(INVOKE.bookmarkFolderMove, (_event, id, parentId) => {
+    const moved = browser.store.moveBookmarkFolder(asString(id), asOptionalId(parentId));
+    browser.bookmarksChanged();
+    return moved;
+  });
   handle(INVOKE.bookmarkFolderDelete, (_event, id) => browser.deleteBookmarkFolder(asString(id)));
   handle(INVOKE.bookmarkFolderOpenAsGroup, (_event, id) => browser.openFolderAsGroup(asString(id)));
   handle(INVOKE.bookmarkFolderOpenContextMenu, (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));
+  handle(INVOKE.bookmarkFolderOpenMenu, (_event, id, x, y) =>
+    showBookmarkFolderMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
+  );
 
   // -------------------------------------------------------------- downloads
 
@@ -359,6 +372,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.hushNoticeDismissed === 'boolean') {
     patch.hushNoticeDismissed = value.hushNoticeDismissed;
+  }
+  if (typeof value.showBookmarksBar === 'boolean') {
+    patch.showBookmarksBar = value.showBookmarksBar;
   }
   if (typeof value.ambientHue === 'number' && Number.isFinite(value.ambientHue)) {
     patch.ambientHue = value.ambientHue;

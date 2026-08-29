@@ -809,6 +809,7 @@ export class Browser {
       }
     }
 
+    this.bookmarksChanged();
     this.scheduleStatePush();
     return { saved, skippedHush };
   }
@@ -836,14 +837,48 @@ export class Browser {
     this.scheduleStatePush();
   }
 
+  /**
+   * Opens a saved address in the tab someone is looking at, or a new one.
+   *
+   * A bookmark opened from the bar replaces what is in front of you, the way
+   * clicking a link does; with no tab to replace, it makes one rather than
+   * doing nothing.
+   */
+  openInActiveTab(url: string): void {
+    const activeId = this.tabs.getActiveTabId();
+    if (activeId) {
+      this.tabs.navigate(activeId, url);
+    } else {
+      this.tabs.create(url, { activate: true });
+    }
+    this.scheduleStatePush();
+  }
+
+  /**
+   * Says that the saved things changed.
+   *
+   * Filing a bookmark or recolouring a folder changes no tab, so the tab
+   * snapshot the chrome already watches says nothing about it — a surface
+   * watching only that shows a stale tree until something unrelated happens.
+   */
+  bookmarksChanged(): void {
+    this.pushToChrome(PUSH.bookmarksChanged);
+  }
+
   /** Asks the surface to put the folder's name into an editable field. */
   renameBookmarkFolder(id: string): void {
     this.pushToChrome(PUSH.renameBookmarkFolder, id);
   }
 
+  updateBookmarkFolder(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    this.store.updateBookmarkFolder(id, changes);
+    this.bookmarksChanged();
+  }
+
   /** Deletes a folder, keeping everything that was in it, and says what moved. */
   deleteBookmarkFolder(id: string): { folders: number; bookmarks: number } {
     const moved = this.store.deleteBookmarkFolder(id);
+    this.bookmarksChanged();
     this.scheduleStatePush();
     return moved;
   }

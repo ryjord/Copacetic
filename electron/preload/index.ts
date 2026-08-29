@@ -64,6 +64,7 @@ const api: CopaceticApi = {
     list: (): Promise<Bookmark[]> => ipcRenderer.invoke(INVOKE.bookmarksList),
     toggle: (url: string, title: string): Promise<boolean> => ipcRenderer.invoke(INVOKE.bookmarksToggle, url, title),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.bookmarksRemove, id),
+    openInActiveTab: (url: string) => ipcRenderer.invoke(INVOKE.bookmarksOpen, url),
     file: (id: string, folderId: string | null) => ipcRenderer.invoke(INVOKE.bookmarksFile, id, folderId),
   },
 
@@ -80,6 +81,7 @@ const api: CopaceticApi = {
     openAsGroup: (id: string): Promise<{ opened: number }> =>
       ipcRenderer.invoke(INVOKE.bookmarkFolderOpenAsGroup, id),
     openContextMenu: (id: string) => ipcRenderer.invoke(INVOKE.bookmarkFolderOpenContextMenu, id),
+    openMenu: (id: string, x: number, y: number) => ipcRenderer.invoke(INVOKE.bookmarkFolderOpenMenu, id, x, y),
   },
 
   downloads: {
@@ -188,6 +190,7 @@ const api: CopaceticApi = {
     focusOmnibox: (listener: () => void) => subscribe(PUSH.focusOmnibox, listener),
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
     renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
+    bookmarksChanged: (listener: () => void) => subscribe(PUSH.bookmarksChanged, listener),
     renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),
   },
 };
