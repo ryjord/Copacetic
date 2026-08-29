@@ -57,6 +57,7 @@ import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
 import type { GroupColourId } from '../../shared/tab-groups';
+import { descendantsOf } from '../../shared/bookmark-folders';
 import { VaultSession } from './vault-session';
 import { log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
@@ -740,6 +741,78 @@ export class Browser {
     return group.id;
   }
 
+  /**
+   * Opens everything in a bookmark folder as one tab group.
+   *
+   * A folder is the resting form of a group — the same name, the same palette,
+   * the same set of pages — so the two convert rather than merely resembling
+   * each other. Everything nested inside comes too, which is why anything that
+   * offers this names the number it is about to open.
+   *
+   * The group does not inherit its own session. That is decided when a group is
+   * made and never afterwards, so a folder cannot smuggle one in.
+   */
+  openFolderAsGroup(id: string): { opened: number } {
+    const folder = this.store.listBookmarkFolders().find((candidate) => candidate.id === id);
+    if (!folder) {
+      return { opened: 0 };
+    }
+
+    const within = new Set([id, ...descendantsOf(this.store.listBookmarkFolders(), id).map((entry) => entry.id)]);
+    const urls = this.store
+      .listBookmarks()
+      .filter((bookmark) => bookmark.folderId !== null && within.has(bookmark.folderId))
+      .map((bookmark) => bookmark.url);
+
+    if (urls.length === 0) {
+      return { opened: 0 };
+    }
+
+    const [first, ...rest] = urls;
+    const founding = this.tabs.create(first, { activate: true });
+    const groupId = this.createGroup(founding, folder.name, folder.colour, false);
+    for (const url of rest) {
+      this.tabs.create(url, { groupId });
+    }
+    this.scheduleStatePush();
+    return { opened: urls.length };
+  }
+
+  /**
+   * Saves a tab group as a bookmark folder, which is the same conversion the
+   * other way round.
+   *
+   * A Hush tab is never saved. Hush makes one promise — that nothing it does
+   * reaches the disk — and a bookmark is a disk. The count of what was left out
+   * comes back so it can be said plainly rather than discovered later.
+   */
+  saveGroupAsFolder(id: string): { saved: number; skippedHush: number } {
+    const group = this.store.groupFor(id);
+    if (!group) {
+      return { saved: 0, skippedHush: 0 };
+    }
+
+    const folder = this.store.createBookmarkFolder(group.name, group.colour, null);
+    let saved = 0;
+    let skippedHush = 0;
+
+    for (const tab of this.tabs.tabsInGroup(id)) {
+      if (tab.isHush) {
+        skippedHush += 1;
+        continue;
+      }
+      this.store.toggleBookmark(tab.url, tab.title);
+      const added = this.store.listBookmarks().find((bookmark) => bookmark.url === tab.url);
+      if (added) {
+        this.store.fileBookmark(added.id, folder.id);
+        saved += 1;
+      }
+    }
+
+    this.scheduleStatePush();
+    return { saved, skippedHush };
+  }
+
   updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
     this.store.updateGroup(id, changes);
     this.scheduleStatePush();
@@ -761,6 +834,18 @@ export class Browser {
     }
     this.store.removeGroup(id);
     this.scheduleStatePush();
+  }
+
+  /** Asks the surface to put the folder's name into an editable field. */
+  renameBookmarkFolder(id: string): void {
+    this.pushToChrome(PUSH.renameBookmarkFolder, id);
+  }
+
+  /** Deletes a folder, keeping everything that was in it, and says what moved. */
+  deleteBookmarkFolder(id: string): { folders: number; bookmarks: number } {
+    const moved = this.store.deleteBookmarkFolder(id);
+    this.scheduleStatePush();
+    return moved;
   }
 
   /** Asks the chrome to put the group's name into an editable field in the strip. */

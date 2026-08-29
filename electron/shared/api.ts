@@ -1,4 +1,5 @@
 import type { ChromeSurface } from './channels';
+import type { BookmarkFolder } from './bookmark-folders';
 import type { GroupColourId } from './tab-groups';
 import type {
   AppInfo,
@@ -72,6 +73,20 @@ export interface CopaceticApi {
     list(): Promise<Bookmark[]>;
     toggle(url: string, title: string): Promise<boolean>;
     remove(id: string): Promise<void>;
+    /** Files a bookmark in a folder, or unfiles it with null. */
+    file(id: string, folderId: string | null): Promise<void>;
+  };
+
+  bookmarkFolders: {
+    list(): Promise<BookmarkFolder[]>;
+    create(name: string, colour: GroupColourId, parentId: string | null): Promise<BookmarkFolder>;
+    update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): Promise<void>;
+    /** Resolves false when the move was refused, which a folder moved into itself always is. */
+    move(id: string, parentId: string | null): Promise<boolean>;
+    /** Deletes the folder and keeps what was in it, reporting what moved up. */
+    remove(id: string): Promise<{ folders: number; bookmarks: number }>;
+    openAsGroup(id: string): Promise<{ opened: number }>;
+    openContextMenu(id: string): Promise<void>;
   };
   downloads: {
     pause(id: DownloadId): Promise<void>;
@@ -193,6 +208,9 @@ export interface CopaceticApi {
     state(listener: (state: BrowserState) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
+    /** The bookmark folder whose label should become editable. */
+    renameBookmarkFolder(listener: (folderId: string) => void): Unsubscribe;
+
     /** The group whose label should become editable, which is the one thing a native menu cannot do. */
     renameGroup(listener: (groupId: string) => void): Unsubscribe;
   };

@@ -8,7 +8,12 @@ import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '.
 import type { Browser } from './browser';
 import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
-import { showGroupContextMenu, showNewTabMenu, showTabContextMenu } from '../menus/context-menu';
+import {
+  showBookmarkFolderContextMenu,
+  showGroupContextMenu,
+  showNewTabMenu,
+  showTabContextMenu,
+} from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 /** Every handler is registered through `handle`, which drops any message that did not come from the chrome window's own top-level frame. */
@@ -87,6 +92,24 @@ export function registerIpcHandlers(browser: Browser): void {
     browser.store.removeBookmark(asString(id));
     browser.scheduleStatePush();
   });
+  handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
+    browser.store.fileBookmark(asString(id), asOptionalId(folderId));
+    browser.scheduleStatePush();
+  });
+
+  handle(INVOKE.bookmarkFoldersList, () => browser.store.listBookmarkFolders());
+  handle(INVOKE.bookmarkFolderCreate, (_event, name, colour, parentId) =>
+    browser.store.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
+  );
+  handle(INVOKE.bookmarkFolderUpdate, (_event, id, changes) =>
+    browser.store.updateBookmarkFolder(asString(id), asGroupChanges(changes)),
+  );
+  handle(INVOKE.bookmarkFolderMove, (_event, id, parentId) =>
+    browser.store.moveBookmarkFolder(asString(id), asOptionalId(parentId)),
+  );
+  handle(INVOKE.bookmarkFolderDelete, (_event, id) => browser.deleteBookmarkFolder(asString(id)));
+  handle(INVOKE.bookmarkFolderOpenAsGroup, (_event, id) => browser.openFolderAsGroup(asString(id)));
+  handle(INVOKE.bookmarkFolderOpenContextMenu, (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));
 
   // -------------------------------------------------------------- downloads
 
@@ -265,6 +288,11 @@ function pickStrings<K extends string>(
     }
   }
   return picked;
+}
+
+/** An id that may be absent. An empty string is not an id, and neither is anything that is not a string. */
+function asOptionalId(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null;
 }
 
 function asGroupColour(value: unknown): GroupColourId {

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
 import type { GroupColourId } from '../shared/tab-groups';
+import type { BookmarkFolder } from '../shared/bookmark-folders';
 import type {
   AppInfo,
   Bookmark,
@@ -63,6 +64,22 @@ const api: CopaceticApi = {
     list: (): Promise<Bookmark[]> => ipcRenderer.invoke(INVOKE.bookmarksList),
     toggle: (url: string, title: string): Promise<boolean> => ipcRenderer.invoke(INVOKE.bookmarksToggle, url, title),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.bookmarksRemove, id),
+    file: (id: string, folderId: string | null) => ipcRenderer.invoke(INVOKE.bookmarksFile, id, folderId),
+  },
+
+  bookmarkFolders: {
+    list: (): Promise<BookmarkFolder[]> => ipcRenderer.invoke(INVOKE.bookmarkFoldersList),
+    create: (name: string, colour: GroupColourId, parentId: string | null): Promise<BookmarkFolder> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderCreate, name, colour, parentId),
+    update: (id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }) =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderUpdate, id, changes),
+    move: (id: string, parentId: string | null): Promise<boolean> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderMove, id, parentId),
+    remove: (id: string): Promise<{ folders: number; bookmarks: number }> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderDelete, id),
+    openAsGroup: (id: string): Promise<{ opened: number }> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderOpenAsGroup, id),
+    openContextMenu: (id: string) => ipcRenderer.invoke(INVOKE.bookmarkFolderOpenContextMenu, id),
   },
 
   downloads: {
@@ -171,6 +188,7 @@ const api: CopaceticApi = {
     focusOmnibox: (listener: () => void) => subscribe(PUSH.focusOmnibox, listener),
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
     renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
+    renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),
   },
 };
 

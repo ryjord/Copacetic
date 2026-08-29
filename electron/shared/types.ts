@@ -125,6 +125,8 @@ export interface Bookmark {
   url: string;
   title: string;
   createdAt: number;
+  /** The folder it is filed in, or null for the ones nobody has filed. */
+  folderId: string | null;
 }
 
 export interface TopSite {

@@ -5,7 +5,8 @@ vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 const { reviveFavicons } = await import('../../electron/main/data/favicons-store');
 const { SESSION_PLAN, reviveSession } = await import('../../electron/main/data/session-store');
 const { migrate } = await import('../../electron/main/data/schema');
-const { reviveBookmarks } = await import('../../electron/main/data/bookmarks-store');
+const { BOOKMARKS_PLAN, reviveBookmarks } = await import('../../electron/main/data/bookmarks-store');
+const { reviveFolders } = await import('../../electron/main/data/bookmark-folders-store');
 
 /**
  * These files are read off disk at startup and can be edited, corrupted, or
@@ -116,5 +117,101 @@ describe('bookmarks, read back off disk', () => {
 
   it('gives an entry an id when the file has none', () => {
     expect(reviveBookmarks([{ url: 'https://a.test/x' }])[0]?.id).toBeTruthy();
+  });
+});
+
+/**
+ * A folder that cannot be read back is a folder full of bookmarks nobody can
+ * reach, so every field falls back rather than dropping the folder — except the
+ * id, which is the only thing a bookmark refers to it by.
+ */
+describe('bookmark folders, read back off disk', () => {
+  it('reads a folder written by this build', () => {
+    expect(reviveFolders([{ id: 'f1', name: 'Work', colour: 'violet', parentId: null, collapsed: false }])).toEqual([
+      { id: 'f1', name: 'Work', colour: 'violet', parentId: null, collapsed: false },
+    ]);
+  });
+
+  it('refuses a file that is not a list', () => {
+    expect(reviveFolders({ id: 'f1' })).toBeNull();
+  });
+
+  it('drops an entry with no id, because nothing could be filed in it', () => {
+    expect(reviveFolders([{ name: 'Nameless' }, { id: 'f1', name: 'Work' }])).toHaveLength(1);
+  });
+
+  it('keeps a folder whose colour this build does not have', () => {
+    const [folder] = reviveFolders([{ id: 'f1', name: 'Work', colour: 'chartreuse' }]) ?? [];
+    expect(folder?.colour).toBe('ash');
+  });
+
+  it('names an unnamed folder rather than showing a blank row', () => {
+    const [folder] = reviveFolders([{ id: 'f1', name: '   ' }]) ?? [];
+    expect(folder?.name).toBe('Folder');
+  });
+
+  it('clamps a name long enough to break the row it is drawn in', () => {
+    const [folder] = reviveFolders([{ id: 'f1', name: 'x'.repeat(400) }]) ?? [];
+    expect(folder?.name).toHaveLength(60);
+  });
+
+  it('treats a non-string parent as the top level', () => {
+    const [folder] = reviveFolders([{ id: 'f1', name: 'Work', parentId: 12 }]) ?? [];
+    expect(folder?.parentId).toBeNull();
+  });
+
+  it('treats anything but true as not collapsed, so nothing hides itself', () => {
+    const [folder] = reviveFolders([{ id: 'f1', name: 'Work', collapsed: 'yes' }]) ?? [];
+    expect(folder?.collapsed).toBe(false);
+  });
+});
+
+/**
+ * Every bookmark saved before folders existed is filed in none of them, which
+ * is what the interface calls Unfiled — not a state anyone has to be told about.
+ */
+describe('bookmarks written by an older version', () => {
+  const migrated = (raw: unknown) => migrate(raw, 1, BOOKMARKS_PLAN);
+
+  it('files every old bookmark nowhere', () => {
+    const outcome = migrated([{ id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5 }]);
+    expect(outcome.status).toBe('migrated');
+    expect(outcome.status === 'migrated' && outcome.data).toEqual([
+      { id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5, folderId: null },
+    ]);
+  });
+
+  it('keeps what the old file already said', () => {
+    const outcome = migrated([{ id: 'b1', url: 'https://example.com/', title: 'Kept', createdAt: 5 }]);
+    const [first] = outcome.status === 'migrated' ? (outcome.data as { title: string }[]) : [];
+    expect(first?.title).toBe('Kept');
+  });
+
+  it('survives a file that is not a list at all', () => {
+    expect(() => migrated({ bookmarks: 'nope' })).not.toThrow();
+  });
+
+  it('leaves entries it cannot read for the reviver to drop', () => {
+    const outcome = migrated(['not-a-bookmark', { id: 'b1', url: 'https://example.com/' }]);
+    const data = outcome.status === 'migrated' ? outcome.data : [];
+    expect(Array.isArray(data) && data).toHaveLength(2);
+    expect(reviveBookmarks(data)).toHaveLength(1);
+  });
+
+  it('does nothing to a file already at this version', () => {
+    const current = [{ id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5, folderId: 'f1' }];
+    expect(migrate(current, 2, BOOKMARKS_PLAN)).toEqual({ status: 'current', data: current });
+  });
+});
+
+describe('a bookmark filed somewhere, read back off disk', () => {
+  it('keeps the folder it was filed in', () => {
+    const [bookmark] = reviveBookmarks([{ id: 'b1', url: 'https://example.com/', folderId: 'f1' }]) ?? [];
+    expect(bookmark?.folderId).toBe('f1');
+  });
+
+  it('treats a non-string folder as unfiled rather than dropping the bookmark', () => {
+    const [bookmark] = reviveBookmarks([{ id: 'b1', url: 'https://example.com/', folderId: 42 }]) ?? [];
+    expect(bookmark?.folderId).toBeNull();
   });
 });

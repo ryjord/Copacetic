@@ -10,6 +10,8 @@ import type {
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, resolveOmniboxInput } from '../../shared/url';
 import type { RememberedCertificate } from '../../shared/certificate-changes';
 import { BookmarksStore } from './bookmarks-store';
+import { BookmarkFoldersStore } from './bookmark-folders-store';
+import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folders';
 import { GroupsStore } from './groups-store';
 import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
@@ -29,6 +31,7 @@ export class BrowserStore {
   private readonly settings = new SettingsStore();
   private readonly history = new HistoryStore();
   private readonly bookmarks = new BookmarksStore();
+  private readonly bookmarkFolders = new BookmarkFoldersStore();
   private readonly groups = new GroupsStore();
   private readonly favicons = new FaviconsStore();
   private readonly session = new SessionStore();
@@ -42,6 +45,7 @@ export class BrowserStore {
     this.settings.flush();
     this.history.flush();
     this.bookmarks.flush();
+    this.bookmarkFolders.flush();
     this.groups.flush();
     this.favicons.flush();
     this.session.flush();
@@ -164,6 +168,45 @@ export class BrowserStore {
 
   removeBookmark(id: string): void {
     this.bookmarks.remove(id);
+  }
+
+  /** Files a bookmark, or unfiles it. A folder that is not there files it nowhere. */
+  fileBookmark(id: string, folderId: string | null): void {
+    const target = folderId && this.bookmarkFolders.find(folderId) ? folderId : null;
+    this.bookmarks.moveTo(id, target);
+  }
+
+  // -------------------------------------------------------- bookmark folders
+
+  listBookmarkFolders(): BookmarkFolder[] {
+    return this.bookmarkFolders.list();
+  }
+
+  createBookmarkFolder(name: string, colour: GroupColourId, parentId: string | null): BookmarkFolder {
+    return this.bookmarkFolders.create(name, colour, parentId);
+  }
+
+  updateBookmarkFolder(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    this.bookmarkFolders.update(id, changes);
+  }
+
+  moveBookmarkFolder(id: string, parentId: string | null): boolean {
+    return this.bookmarkFolders.move(id, parentId);
+  }
+
+  /**
+   * Deletes a folder and keeps everything that was in it.
+   *
+   * Its bookmarks and child folders move up to where it was. That is the
+   * promise the tab strip already makes with "Ungroup these tabs — tabs stay
+   * open", and the counts come back so the confirmation can say what moved
+   * rather than leaving someone to find out.
+   */
+  deleteBookmarkFolder(id: string): { folders: number; bookmarks: number } {
+    const outcome = afterDeleting(this.bookmarkFolders.list(), this.bookmarks.list(), id);
+    this.bookmarkFolders.replace(outcome.folders);
+    this.bookmarks.replaceAll(outcome.bookmarks);
+    return outcome.moved;
   }
 
   // ---------------------------------------------------------------- favicons

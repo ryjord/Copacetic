@@ -4,6 +4,7 @@ import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-
 import { isPageNavigableUrl } from '../../shared/url';
 import type { Browser } from '../app/browser';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tab-groups';
+import { countIn } from '../../shared/bookmark-folders';
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
@@ -264,10 +265,79 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
       label: group.collapsed ? 'Expand' : 'Collapse',
       click: () => browser.updateGroup(groupId, { collapsed: !group.collapsed }),
     },
+    {
+      // The other half of the round trip: a folder is a group at rest, so a
+      // group can be put to rest. A Hush tab is never saved, and the result
+      // says how many were left out rather than leaving it to be noticed.
+      label: 'Save as a bookmark folder',
+      click: () => browser.saveGroupAsFolder(groupId),
+    },
     { type: 'separator' },
     // Said plainly, because "delete" beside a row of tabs reads as deleting them.
     { label: 'Ungroup these tabs', click: () => browser.removeGroup(groupId) },
     { label: 'Close these tabs', click: () => browser.closeGroup(groupId) },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * A bookmark folder's menu, which is the group's menu with the same words.
+ *
+ * Renaming is not here for the same reason it is not on a group's: a native
+ * menu cannot hold a text field, so it asks the surface to make the label
+ * editable instead. Deleting says what it keeps, because a folder full of
+ * bookmarks is exactly the thing someone is afraid of losing.
+ */
+export function showBookmarkFolderContextMenu(browser: Browser, folderId: string): void {
+  const folders = browser.store.listBookmarkFolders();
+  const folder = folders.find((candidate) => candidate.id === folderId);
+  if (!folder) {
+    return;
+  }
+
+  const counted = countIn(browser.store.listBookmarks(), folders, folderId);
+  const children = folders.filter((candidate) => candidate.parentId === folderId).length;
+
+  const items: MenuItemConstructorOptions[] = [
+    {
+      label:
+        counted.here === counted.withDescendants
+          ? `${counted.here} bookmarks`
+          : `${counted.here} here, ${counted.withDescendants} with folders inside`,
+      enabled: false,
+    },
+    { type: 'separator' },
+    { label: `Rename “${folder.name}”`, click: () => browser.renameBookmarkFolder(folderId) },
+    {
+      label: 'Colour',
+      submenu: GROUP_COLOURS.map((colour) => ({
+        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        type: 'radio' as const,
+        checked: colour.id === folder.colour,
+        click: () => browser.store.updateBookmarkFolder(folderId, { colour: colour.id }),
+      })),
+    },
+    { type: 'separator' },
+    {
+      // Names the number it is about to act on: a tree makes every count
+      // ambiguous, and 31 tabs is not what someone expecting 18 wants.
+      label: `Open all ${counted.withDescendants} as a tab group`,
+      enabled: counted.withDescendants > 0,
+      click: () => browser.openFolderAsGroup(folderId),
+    },
+    { type: 'separator' },
+    {
+      label: 'Delete this folder',
+      click: () => browser.deleteBookmarkFolder(folderId),
+    },
+    {
+      label:
+        children > 0
+          ? `Its ${counted.here} bookmarks and ${children} folders move up`
+          : `Its ${counted.here} bookmarks move up`,
+      enabled: false,
+    },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });

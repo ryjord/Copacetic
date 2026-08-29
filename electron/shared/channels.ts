@@ -32,6 +32,14 @@ export const INVOKE = {
   bookmarksList: 'bookmarks:list',
   bookmarksToggle: 'bookmarks:toggle',
   bookmarksRemove: 'bookmarks:remove',
+  bookmarksFile: 'bookmarks:file',
+  bookmarkFoldersList: 'bookmark-folders:list',
+  bookmarkFolderCreate: 'bookmark-folders:create',
+  bookmarkFolderUpdate: 'bookmark-folders:update',
+  bookmarkFolderMove: 'bookmark-folders:move',
+  bookmarkFolderDelete: 'bookmark-folders:delete',
+  bookmarkFolderOpenAsGroup: 'bookmark-folders:open-as-group',
+  bookmarkFolderOpenContextMenu: 'bookmark-folders:open-context-menu',
 
   downloadsPause: 'downloads:pause',
   downloadsResume: 'downloads:resume',
@@ -112,6 +120,8 @@ export const PUSH = {
   openSurface: 'push:open-surface',
   /** A native menu cannot hold a text field, so renaming asks the chrome to make the group's label editable. */
   renameGroup: 'push:rename-group',
+  /** The same, for a bookmark folder: a native menu cannot hold a text field. */
+  renameBookmarkFolder: 'push:rename-bookmark-folder',
 } as const;
 
 export type InvokeChannel = (typeof INVOKE)[keyof typeof INVOKE];
