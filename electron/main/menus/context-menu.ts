@@ -4,7 +4,7 @@ import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-
 import { isPageNavigableUrl } from '../../shared/url';
 import type { Browser } from '../app/browser';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tab-groups';
-import { countIn } from '../../shared/bookmark-folders';
+import { countIn, pathOf } from '../../shared/bookmark-folders';
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
@@ -291,7 +291,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
  */
 export function showBookmarkFolderContextMenu(browser: Browser, folderId: string): void {
   const folders = browser.store.listBookmarkFolders();
-  const folder = folders.find((candidate) => candidate.id === folderId);
+  const folder = browser.store.folderFor(folderId);
   if (!folder) {
     return;
   }
@@ -344,6 +344,60 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
 }
 
 /**
+ * One saved bookmark's menu.
+ *
+ * Filing was reachable only by dragging, which is no use without a mouse and
+ * no use at all to anyone using the keyboard. The tab menu already lists every
+ * group so a tab can join one without a drag; this is the same thing for
+ * folders, and it is where filing stops being a mouse trick.
+ */
+export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): void {
+  const bookmark = browser.store.listBookmarks().find((candidate) => candidate.id === bookmarkId);
+  if (!bookmark) {
+    return;
+  }
+
+  const folders = browser.store.listBookmarkFolders();
+  const withPath = folders.map((folder) => ({
+    folder,
+    // The whole path, because two folders in different places may share a name
+    // and a flat list of them would be a choice between identical labels.
+    label: pathOf(folders, folder.id)
+      .map((entry) => entry.name)
+      .join(' / '),
+  }));
+
+  const items: MenuItemConstructorOptions[] = [
+    { label: bookmark.title || bookmark.url, enabled: false },
+    { type: 'separator' },
+    { label: 'Open', click: () => browser.openInActiveTab(bookmark.url) },
+    { type: 'separator' },
+    {
+      label: 'Move to folder',
+      submenu: [
+        {
+          label: 'Unfiled',
+          type: 'radio' as const,
+          checked: bookmark.folderId === null,
+          click: () => browser.fileBookmark(bookmarkId, null),
+        },
+        ...(withPath.length > 0 ? [{ type: 'separator' as const }] : []),
+        ...withPath.map(({ folder, label }) => ({
+          label,
+          type: 'radio' as const,
+          checked: folder.id === bookmark.folderId,
+          click: () => browser.fileBookmark(bookmarkId, folder.id),
+        })),
+      ],
+    },
+    { type: 'separator' },
+    { label: 'Remove bookmark', click: () => browser.removeBookmark(bookmarkId) },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
  * A bookmark folder's contents, opened from the bar under the toolbar.
  *
  * Native, and not a matter of taste: a WebContentsView paints above the
@@ -376,8 +430,7 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
     return items.length > 0 ? items : [{ label: 'Empty', enabled: false }];
   };
 
-  const folder = folders.find((candidate) => candidate.id === folderId);
-  if (!folder) {
+  if (!browser.store.folderFor(folderId)) {
     return;
   }
 

@@ -57,7 +57,7 @@ import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
 import type { GroupColourId } from '../../shared/tab-groups';
-import { descendantsOf } from '../../shared/bookmark-folders';
+import { type BookmarkFolder, descendantsOf } from '../../shared/bookmark-folders';
 import { VaultSession } from './vault-session';
 import { log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
@@ -753,12 +753,13 @@ export class Browser {
    * made and never afterwards, so a folder cannot smuggle one in.
    */
   openFolderAsGroup(id: string): { opened: number } {
-    const folder = this.store.listBookmarkFolders().find((candidate) => candidate.id === id);
+    const folders = this.store.listBookmarkFolders();
+    const folder = this.store.folderFor(id);
     if (!folder) {
       return { opened: 0 };
     }
 
-    const within = new Set([id, ...descendantsOf(this.store.listBookmarkFolders(), id).map((entry) => entry.id)]);
+    const within = new Set([id, ...descendantsOf(folders, id).map((entry) => entry.id)]);
     const urls = this.store
       .listBookmarks()
       .filter((bookmark) => bookmark.folderId !== null && within.has(bookmark.folderId))
@@ -785,6 +786,9 @@ export class Browser {
    * A Hush tab is never saved. Hush makes one promise — that nothing it does
    * reaches the disk — and a bookmark is a disk. The count of what was left out
    * comes back so it can be said plainly rather than discovered later.
+   *
+   * A page already bookmarked is filed where it is, not saved again. It keeps
+   * the title and date it had, because neither is what this was asked to change.
    */
   saveGroupAsFolder(id: string): { saved: number; skippedHush: number } {
     const group = this.store.groupFor(id);
@@ -801,12 +805,11 @@ export class Browser {
         skippedHush += 1;
         continue;
       }
-      this.store.toggleBookmark(tab.url, tab.title);
-      const added = this.store.listBookmarks().find((bookmark) => bookmark.url === tab.url);
-      if (added) {
-        this.store.fileBookmark(added.id, folder.id);
-        saved += 1;
-      }
+      // Not toggled: a tab whose page was already bookmarked would have had
+      // that bookmark deleted, and the count would not even have said so.
+      const bookmark = this.store.ensureBookmark(tab.url, tab.title);
+      this.store.fileBookmark(bookmark.id, folder.id);
+      saved += 1;
     }
 
     this.bookmarksChanged();
@@ -870,9 +873,33 @@ export class Browser {
     this.pushToChrome(PUSH.renameBookmarkFolder, id);
   }
 
+  createBookmarkFolder(name: string, colour: GroupColourId, parentId: string | null): BookmarkFolder {
+    const folder = this.store.createBookmarkFolder(name, colour, parentId);
+    this.bookmarksChanged();
+    return folder;
+  }
+
+  moveBookmarkFolder(id: string, parentId: string | null): boolean {
+    const moved = this.store.moveBookmarkFolder(id, parentId);
+    this.bookmarksChanged();
+    return moved;
+  }
+
   updateBookmarkFolder(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
     this.store.updateBookmarkFolder(id, changes);
     this.bookmarksChanged();
+  }
+
+  fileBookmark(id: string, folderId: string | null): void {
+    this.store.fileBookmark(id, folderId);
+    this.bookmarksChanged();
+    this.scheduleStatePush();
+  }
+
+  removeBookmark(id: string): void {
+    this.store.removeBookmark(id);
+    this.bookmarksChanged();
+    this.scheduleStatePush();
   }
 
   /** Deletes a folder, keeping everything that was in it, and says what moved. */

@@ -49,9 +49,17 @@ const draw = (selection: Parameters<typeof FolderTree>[0]['selection'] = { kind:
   return onSelect;
 };
 
-/** A drag event carrying what a real one would, since jsdom has no DataTransfer. */
+/**
+ * A drag event carrying what a real one would, since jsdom has no DataTransfer.
+ * setData is part of it: a dragstart handler calls it, and a stub without it
+ * throws before the handler can record what is being dragged.
+ */
 const carrying = (kind: string, id: string) => ({
-  dataTransfer: { types: [kind], getData: (asked: string) => (asked === kind ? id : '') },
+  dataTransfer: {
+    types: [kind],
+    getData: (asked: string) => (asked === kind ? id : ''),
+    setData: () => undefined,
+  },
 });
 
 afterEach(() => {
@@ -130,14 +138,63 @@ describe('clicking a folder', () => {
     expect(update).toHaveBeenCalledWith('work', { name: 'Client work' });
   });
 
-  it('discards the typing on Escape, and the blur that follows does not put it back', () => {
+  it('discards the typing on Escape, and puts the old name back in the field', () => {
     draw({ kind: 'folder', id: 'work' });
     fireEvent.click(screen.getByRole('button', { name: /^work$/ }));
     const field = screen.getByRole('textbox', { name: /Rename work/ }) as HTMLInputElement;
     fireEvent.change(field, { target: { value: 'Thrown away' } });
     fireEvent.keyDown(field, { key: 'Escape' });
+
+    // Asserted on the field itself. Escape unmounts it, so a blur fired after
+    // this lands on a detached node and proves nothing about what was kept —
+    // which is all the previous version of this test was checking.
+    expect(field.value).toBe('work');
     fireEvent.blur(field);
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Whether a drag is allowed to land is decided in dragover, before any drop
+ * happens — it is what shows the drop as possible or refuses it under the
+ * cursor. Every test below this used to fire `drop` directly, so `accepts`
+ * could be stubbed to refuse everything, breaking the feature entirely, and
+ * all of them still passed.
+ */
+describe('dragging over a folder', () => {
+  // fireEvent returns false when the handler called preventDefault, which is
+  // how a drop target says it will take what is being dragged.
+  const dragOver = (name: RegExp, event: ReturnType<typeof carrying>) => {
+    const row = screen.getByRole('button', { name }).parentElement as HTMLElement;
+    return fireEvent.dragOver(row, event) === false;
+  };
+
+  it('takes a bookmark anywhere', () => {
+    draw();
+    expect(dragOver(/^work$/, carrying(DRAG_BOOKMARK, 'b3'))).toBe(true);
+  });
+
+  it('takes a folder dropped somewhere unrelated', () => {
+    draw();
+    fireEvent.dragStart(screen.getByRole('button', { name: /^work$/ }), carrying(DRAG_FOLDER, 'work'));
+    expect(dragOver(/^reading$/, carrying(DRAG_FOLDER, 'work'))).toBe(true);
+  });
+
+  it('refuses a folder over its own child while the cursor is still there', () => {
+    draw();
+    fireEvent.dragStart(screen.getByRole('button', { name: /^work$/ }), carrying(DRAG_FOLDER, 'work'));
+    expect(dragOver(/^pacs$/, carrying(DRAG_FOLDER, 'work'))).toBe(false);
+  });
+
+  it('refuses a folder over itself', () => {
+    draw();
+    fireEvent.dragStart(screen.getByRole('button', { name: /^work$/ }), carrying(DRAG_FOLDER, 'work'));
+    expect(dragOver(/^work$/, carrying(DRAG_FOLDER, 'work'))).toBe(false);
+  });
+
+  it('takes nothing it does not recognise', () => {
+    draw();
+    expect(dragOver(/^work$/, carrying('text/plain', 'anything'))).toBe(false);
   });
 });
 

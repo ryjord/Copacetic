@@ -34,6 +34,7 @@ export const INVOKE = {
   bookmarksRemove: 'bookmarks:remove',
   bookmarksFile: 'bookmarks:file',
   bookmarksOpen: 'bookmarks:open',
+  bookmarksOpenContextMenu: 'bookmarks:open-context-menu',
   bookmarkFoldersList: 'bookmark-folders:list',
   bookmarkFolderCreate: 'bookmark-folders:create',
   bookmarkFolderUpdate: 'bookmark-folders:update',

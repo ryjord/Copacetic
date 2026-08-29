@@ -166,6 +166,12 @@ export function BookmarksSurface() {
                       key={bookmark.id}
                       draggable
                       onDragStart={(event) => event.dataTransfer.setData(DRAG_BOOKMARK, bookmark.id)}
+                      // Dragging is not a route everyone has. The menu lists
+                      // every folder, so filing works from the keyboard too.
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        send((api) => api.bookmarks.openContextMenu(bookmark.id));
+                      }}
                       className="group flex items-center gap-3 px-5 py-2.5 hover:bg-raised"
                     >
                       <Favicon dataUrl={null} seed={bookmark.url} size={16} />

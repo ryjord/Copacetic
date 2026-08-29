@@ -6,6 +6,7 @@ import type { TabState } from '@shared/types';
 import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type TabGroup } from '@shared/tab-groups';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
+import { InlineRenameField } from '@/components/ui/controls/InlineRenameField';
 import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
@@ -284,13 +285,6 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
     });
   }, [group.id]);
 
-  const commit = (next: string) => {
-    const trimmed = next.trim();
-    if (trimmed && trimmed !== group.name) {
-      send((api) => api.groups.update(group.id, { name: trimmed }));
-    }
-    setIsRenaming(false);
-  };
   const claim = claimOf(group, holdsHush);
   const colour = colourOf(group.colour);
 
@@ -309,29 +303,11 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
           style={{ color: colour }}
         >
           <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
-          <input
-            defaultValue={group.name}
-            autoFocus
-            maxLength={60}
-            aria-label={`Rename ${group.name}`}
-            size={Math.max(group.name.length, 8)}
-            // Selected, so typing replaces the name rather than appending to it.
-            onFocus={(event) => event.currentTarget.select()}
-            // Leaving keeps what was typed: clicking away from a field you have
-            // edited means you are done with it, not that you changed your mind.
-            onBlur={(event) => commit(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                commit(event.currentTarget.value);
-              }
-              if (event.key === 'Escape') {
-                // Escape is the one way out that keeps the old name, so it must
-                // not be undone by the blur that follows.
-                event.currentTarget.value = group.name;
-                setIsRenaming(false);
-              }
-            }}
-            className="h-5 min-w-0 rounded-[4px] border border-line-strong bg-base px-1 text-[11.5px] text-ink outline-none"
+          <InlineRenameField
+            value={group.name}
+            label={group.name}
+            onCommit={(next) => send((api) => api.groups.update(group.id, { name: next }))}
+            onCancel={() => setIsRenaming(false)}
           />
         </div>
       ) : (

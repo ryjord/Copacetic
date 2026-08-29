@@ -7,6 +7,7 @@ const { SESSION_PLAN, reviveSession } = await import('../../electron/main/data/s
 const { migrate } = await import('../../electron/main/data/schema');
 const { BOOKMARKS_PLAN, reviveBookmarks } = await import('../../electron/main/data/bookmarks-store');
 const { reviveFolders } = await import('../../electron/main/data/bookmark-folders-store');
+const { GROUP_COLOURS } = await import('../../electron/shared/tab-groups');
 
 /**
  * These files are read off disk at startup and can be edited, corrupted, or
@@ -140,9 +141,21 @@ describe('bookmark folders, read back off disk', () => {
     expect(reviveFolders([{ name: 'Nameless' }, { id: 'f1', name: 'Work' }])).toHaveLength(1);
   });
 
+  // The same fallback groups use, rather than a second opinion about it.
   it('keeps a folder whose colour this build does not have', () => {
     const [folder] = reviveFolders([{ id: 'f1', name: 'Work', colour: 'chartreuse' }]) ?? [];
-    expect(folder?.colour).toBe('ash');
+    expect(folder?.colour).toBe(GROUP_COLOURS[0].id);
+  });
+
+  it('files a folder whose parent is not in the file at the top level', () => {
+    // Otherwise it is neither a root nor anybody's child, and it and everything
+    // under it vanish from every view while staying on disk.
+    const folders = reviveFolders([
+      { id: 'child', name: 'Child', parentId: 'gone' },
+      { id: 'kept', name: 'Kept', parentId: 'child' },
+    ]);
+    expect(folders?.find((entry) => entry.id === 'child')?.parentId).toBeNull();
+    expect(folders?.find((entry) => entry.id === 'kept')?.parentId).toBe('child');
   });
 
   it('names an unnamed folder rather than showing a blank row', () => {

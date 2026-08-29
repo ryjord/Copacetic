@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, Folder, Inbox, List, Plus } from 'lucide-react';
 
 // Utils
+import { InlineRenameField } from '@/components/ui/controls/InlineRenameField';
 import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,7 @@ export function FolderTree({
 }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // The native menu cannot hold a text field, so renaming is asked for from
   // there and answered here — the same arrangement a tab group already uses.
@@ -61,14 +63,20 @@ export function FolderTree({
     if (!event.dataTransfer.types.includes(DRAG_FOLDER)) {
       return false;
     }
-    // The id is unreadable mid-drag, so the only certain refusal is a folder
-    // dropped on itself; the rest is caught on drop, where it can be read.
-    return folderId === null || renamingId !== folderId;
+    // What is being dragged cannot be read from the event mid-drag — only the
+    // kinds it declares — so it is remembered when the drag starts. Without it
+    // a folder dragged onto its own child was shown as an accepted drop and
+    // then silently did nothing, which is worse than refusing it.
+    if (!draggingId) {
+      return true;
+    }
+    return draggingId !== folderId && !wouldCycle(folders, draggingId, folderId);
   };
 
   const handleDrop = (event: React.DragEvent, folderId: string | null) => {
     event.preventDefault();
     setDropTarget(null);
+    setDraggingId(null);
 
     const bookmarkId = event.dataTransfer.getData(DRAG_BOOKMARK);
     if (bookmarkId) {
@@ -148,41 +156,25 @@ export function FolderTree({
             <span className="size-2 shrink-0 rounded-[2px]" style={{ background: colour }} />
 
             {renamingId === folder.id ? (
-              <input
-                defaultValue={folder.name}
-                autoFocus
-                maxLength={60}
-                aria-label={`Rename ${folder.name}`}
-                // Selected, so typing replaces the name rather than appending.
-                onFocus={(event) => event.currentTarget.select()}
-                // Leaving keeps what was typed: clicking away from a field you
-                // have edited means you are done with it.
-                onBlur={(event) => {
-                  const next = event.currentTarget.value.trim();
-                  if (next && next !== folder.name) {
-                    send((api) => api.bookmarkFolders.update(folder.id, { name: next }));
-                    onChanged();
-                  }
-                  setRenamingId(null);
+              <InlineRenameField
+                value={folder.name}
+                label={folder.name}
+                className="h-5 flex-1 px-1 text-[12px]"
+                onCommit={(next) => {
+                  send((api) => api.bookmarkFolders.update(folder.id, { name: next }));
+                  onChanged();
                 }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.currentTarget.blur();
-                  }
-                  if (event.key === 'Escape') {
-                    // Escape is the one way out that keeps the old name, so it
-                    // must not be undone by the blur that follows it.
-                    event.currentTarget.value = folder.name;
-                    setRenamingId(null);
-                  }
-                }}
-                className="h-5 min-w-0 flex-1 rounded-[4px] border border-line-strong bg-base px-1 text-[12px] text-ink outline-none"
+                onCancel={() => setRenamingId(null)}
               />
             ) : (
               <button
                 type="button"
                 draggable
-                onDragStart={(event) => event.dataTransfer.setData(DRAG_FOLDER, folder.id)}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(DRAG_FOLDER, folder.id);
+                  setDraggingId(folder.id);
+                }}
+                onDragEnd={() => setDraggingId(null)}
                 // Selecting and renaming are both a click on the same word, so
                 // the second click renames — the first has to be free to say
                 // which folder is being looked at.

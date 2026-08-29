@@ -75,6 +75,8 @@ export interface CopaceticApi {
     remove(id: string): Promise<void>;
     /** Opens a saved address in the tab in front of you, or a new one when there is none. */
     openInActiveTab(url: string): Promise<void>;
+    /** The bookmark's own menu, which is where filing works without a mouse. */
+    openContextMenu(id: string): Promise<void>;
     /** Files a bookmark in a folder, or unfiles it with null. */
     file(id: string, folderId: string | null): Promise<void>;
   };

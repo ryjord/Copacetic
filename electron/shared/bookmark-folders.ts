@@ -124,20 +124,20 @@ export function visibleTree(
 ): { folder: BookmarkFolder; depth: number; hasChildren: boolean }[] {
   const rows: { folder: BookmarkFolder; depth: number; hasChildren: boolean }[] = [];
 
-  const walk = (parentId: string | null, depth: number, seen: ReadonlySet<string>) => {
+  // No cycle guard here, unlike descendantsOf: this walks down from the top, so
+  // a folder in a loop is never reached at all — it has no ancestor that is a
+  // root. The store repairs those on the way in rather than hiding them here.
+  const walk = (parentId: string | null, depth: number) => {
     for (const folder of childrenOf(folders, parentId)) {
-      if (seen.has(folder.id)) {
-        continue;
-      }
       const hasChildren = folders.some((candidate) => candidate.parentId === folder.id);
       rows.push({ folder, depth, hasChildren });
       if (!folder.collapsed) {
-        walk(folder.id, depth + 1, new Set([...seen, folder.id]));
+        walk(folder.id, depth + 1);
       }
     }
   };
 
-  walk(null, 0, new Set());
+  walk(null, 0);
   return rows;
 }
 

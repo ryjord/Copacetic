@@ -90,6 +90,25 @@ export class BookmarksStore {
     return { added, alreadyHad };
   }
 
+  /**
+   * Makes sure an address is bookmarked, and hands back the bookmark.
+   *
+   * Not `toggle`: asked twice about the same address, toggle removes what it
+   * added. Anything meaning "make sure this is saved" that reaches for toggle
+   * deletes the thing it was asked to keep. An address already saved keeps the
+   * title, the date and the folder it already had — none of which this was
+   * asked to change.
+   */
+  ensure(url: string, title: string): Bookmark {
+    const existing = this.file.get().find((bookmark) => bookmark.url === url);
+    if (existing) {
+      return existing;
+    }
+    const bookmark: Bookmark = { id: newId(), url, title: title || url, createdAt: Date.now(), folderId: null };
+    this.file.update((bookmarks) => [bookmark, ...bookmarks]);
+    return bookmark;
+  }
+
   /** Files one bookmark, or unfiles it. Whether the folder exists is decided by the caller. */
   moveTo(id: string, folderId: string | null): void {
     this.file.update((bookmarks) =>

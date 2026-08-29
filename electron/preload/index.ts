@@ -65,6 +65,7 @@ const api: CopaceticApi = {
     toggle: (url: string, title: string): Promise<boolean> => ipcRenderer.invoke(INVOKE.bookmarksToggle, url, title),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.bookmarksRemove, id),
     openInActiveTab: (url: string) => ipcRenderer.invoke(INVOKE.bookmarksOpen, url),
+    openContextMenu: (id: string) => ipcRenderer.invoke(INVOKE.bookmarksOpenContextMenu, id),
     file: (id: string, folderId: string | null) => ipcRenderer.invoke(INVOKE.bookmarksFile, id, folderId),
   },
 

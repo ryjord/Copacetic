@@ -170,6 +170,11 @@ export class BrowserStore {
     this.bookmarks.remove(id);
   }
 
+  /** Makes sure an address is saved without disturbing one that already is. */
+  ensureBookmark(url: string, title: string): Bookmark {
+    return this.bookmarks.ensure(url, title);
+  }
+
   /** Files a bookmark, or unfiles it. A folder that is not there files it nowhere. */
   fileBookmark(id: string, folderId: string | null): void {
     const target = folderId && this.bookmarkFolders.find(folderId) ? folderId : null;
@@ -180,6 +185,10 @@ export class BrowserStore {
 
   listBookmarkFolders(): BookmarkFolder[] {
     return this.bookmarkFolders.list();
+  }
+
+  folderFor(id: string | null): BookmarkFolder | null {
+    return id ? this.bookmarkFolders.find(id) : null;
   }
 
   createBookmarkFolder(name: string, colour: GroupColourId, parentId: string | null): BookmarkFolder {

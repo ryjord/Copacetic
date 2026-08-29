@@ -9,6 +9,7 @@ import type { Browser } from './browser';
 import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import {
+  showBookmarkContextMenu,
   showBookmarkFolderContextMenu,
   showBookmarkFolderMenu,
   showGroupContextMenu,
@@ -96,6 +97,7 @@ export function registerIpcHandlers(browser: Browser): void {
     browser.scheduleStatePush();
   });
   handle(INVOKE.bookmarksOpen, (_event, url) => browser.openInActiveTab(asString(url)));
+  handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
   handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
     browser.bookmarksChanged();
@@ -103,20 +105,15 @@ export function registerIpcHandlers(browser: Browser): void {
   });
 
   handle(INVOKE.bookmarkFoldersList, () => browser.store.listBookmarkFolders());
-  handle(INVOKE.bookmarkFolderCreate, (_event, name, colour, parentId) => {
-    const folder = browser.store.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId));
-    browser.bookmarksChanged();
-    return folder;
-  });
-  handle(INVOKE.bookmarkFolderUpdate, (_event, id, changes) => {
-    browser.store.updateBookmarkFolder(asString(id), asGroupChanges(changes));
-    browser.bookmarksChanged();
-  });
-  handle(INVOKE.bookmarkFolderMove, (_event, id, parentId) => {
-    const moved = browser.store.moveBookmarkFolder(asString(id), asOptionalId(parentId));
-    browser.bookmarksChanged();
-    return moved;
-  });
+  handle(INVOKE.bookmarkFolderCreate, (_event, name, colour, parentId) =>
+    browser.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
+  );
+  handle(INVOKE.bookmarkFolderUpdate, (_event, id, changes) =>
+    browser.updateBookmarkFolder(asString(id), asGroupChanges(changes)),
+  );
+  handle(INVOKE.bookmarkFolderMove, (_event, id, parentId) =>
+    browser.moveBookmarkFolder(asString(id), asOptionalId(parentId)),
+  );
   handle(INVOKE.bookmarkFolderDelete, (_event, id) => browser.deleteBookmarkFolder(asString(id)));
   handle(INVOKE.bookmarkFolderOpenAsGroup, (_event, id) => browser.openFolderAsGroup(asString(id)));
   handle(INVOKE.bookmarkFolderOpenContextMenu, (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));

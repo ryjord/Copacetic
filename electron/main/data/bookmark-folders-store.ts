@@ -94,7 +94,7 @@ export function reviveFolders(raw: unknown): BookmarkFolder[] | null {
 
   const colours = new Set<string>(GROUP_COLOURS.map((colour) => colour.id));
 
-  return raw.flatMap((item) => {
+  const read = raw.flatMap((item) => {
     if (!isRecord(item)) {
       return [];
     }
@@ -109,10 +109,19 @@ export function reviveFolders(raw: unknown): BookmarkFolder[] | null {
         name: asString(item.name).trim().slice(0, MAX_NAME) || 'Folder',
         // An unknown colour is a colour this build does not have. Falling back
         // keeps the folder; refusing it would lose what someone filed.
-        colour: (colours.has(colour) ? colour : 'ash') as GroupColourId,
+        colour: (colours.has(colour) ? colour : GROUP_COLOURS[0].id) as GroupColourId,
         parentId: asString(item.parentId) || null,
         collapsed: item.collapsed === true,
       },
     ];
   });
+
+  // A folder whose parent is not here is a folder nobody can reach: the tree is
+  // walked down from the top, so it is neither a root nor anybody's child, and
+  // it and everything under it vanish from every view while staying on disk.
+  // Nothing in the app can write that, but a hand-edited file can.
+  const present = new Set(read.map((folder) => folder.id));
+  return read.map((folder) =>
+    folder.parentId && !present.has(folder.parentId) ? { ...folder, parentId: null } : folder,
+  );
 }
