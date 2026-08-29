@@ -35,6 +35,33 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   attested by GitHub, so `gh attestation verify <file> --repo ryjord/Copacetic`
   proves a download came out of this repository. The builds are still unsigned;
   this is the part of that question that can be answered for nothing.
+- **Tab groups.** A run of tabs takes a name, a colour and a place in the strip.
+  Click the name to rename it where it sits; right-click for colour, collapse,
+  ungroup or close. A group can keep its own cookies and logins, decided when it
+  is made and never after — changing it later would sign you out of pages open in
+  front of you. A group holding a Hush tab says so rather than claiming to be
+  separate, because that would be true of only part of what it names.
+- **Bookmark folders, and they nest.** Drag a bookmark onto a folder to file it,
+  or use the bookmark's own menu, which lists every folder by its full path so
+  filing never needs a mouse. Deleting a folder keeps everything inside it — its
+  bookmarks and its child folders move up to where it was. A folder cannot be
+  dropped inside itself; that is refused while the cursor is still over it,
+  because the subtree would detach with nowhere to drag it back from. Counts are
+  given both ways, since a tree makes every number ambiguous.
+- **A folder is a tab group at rest.** A folder opens as a tab group carrying its
+  name and colour, and a group saves as a folder the same way. The group does not
+  inherit its own session — that is decided when a group is made — and a Hush tab
+  is never saved, because a bookmark is written to disk.
+- **A bookmarks bar**, off until switched on in Settings. It carries the top level
+  only: a bar that flattened the tree would put something filed three folders deep
+  beside something filed nowhere. A folder on it opens as a menu.
+- **Notices.** The app can now say what it finished and ask before something
+  costly. Saving a group as a folder says how many Hush tabs were left out, which
+  is the point: the promise Hush makes is only kept if it is also stated. Opening
+  a folder of more than ten pages asks first — naming the number on a button is
+  not the same as consenting to it. Notices are drawn on top of the page rather
+  than pushing it aside, and one said before the window is ready is held until it
+  can be read.
 
 ### Changed
 
@@ -55,6 +82,16 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   encrypted and verified. Nothing was exchanged and no certificate was checked.
 - Stored files can change shape between versions without losing what an older
   build wrote, and a file from a newer version is kept rather than guessed at.
+- Dragging a tab rightward past a group no longer puts it in that group. It came
+  to rest outside the group and joined it anyway, because the drop read the wrong
+  pair of neighbours in one direction of travel.
+- A tab dropped where it already was is no longer re-grouped. One left ungrouped
+  between two of a group's tabs was swallowed by the smallest twitch of a mouse.
+- Saving a tab group as a bookmark folder no longer deletes bookmarks. A page
+  already saved had its bookmark removed rather than filed, and the count did not
+  say so.
+- Recolouring or renaming a folder from its menu now changes what is on screen.
+  It reached the disk and stopped there, because nothing told the open surface.
 
 ## 1.3.3 — 2026-08-13
 
