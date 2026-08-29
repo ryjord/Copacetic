@@ -47,6 +47,7 @@ const api: CopaceticApi = {
     /** Report how much room the chrome is taking, so tab views can fill the rest. */
     setContentInsets: (insets: ContentInsetsInput) => ipcRenderer.invoke(INVOKE.chromeSetContentBounds, insets),
     setOverlayVisible: (visible: boolean) => ipcRenderer.invoke(INVOKE.chromeSetOverlayVisible, visible),
+    setOverlayHeight: (height: number) => ipcRenderer.invoke(INVOKE.chromeSetOverlayHeight, height),
     getState: (): Promise<BrowserState> => ipcRenderer.invoke(INVOKE.chromeGetState),
   },
 

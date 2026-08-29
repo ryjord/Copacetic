@@ -16,7 +16,6 @@ import { BookmarksBar } from '@/components/chrome/BookmarksBar/BookmarksBar';
 import { ConnectionPanel } from '@/components/chrome/ConnectionPanel/ConnectionPanel';
 import { FindBar } from '@/components/chrome/FindBar/FindBar';
 import { LiveAnnouncer } from '@/components/chrome/LiveAnnouncer/LiveAnnouncer';
-import { NoticeStrip } from '@/components/chrome/NoticeStrip/NoticeStrip';
 import { PermissionBanner } from '@/components/chrome/PermissionBanner/PermissionBanner';
 import { TabStrip } from '@/components/chrome/TabStrip/TabStrip';
 import { Toolbar } from '@/components/chrome/Toolbar/Toolbar';
@@ -161,8 +160,6 @@ export function Chrome() {
 
       {authPrompt && <AuthBanner key={authPrompt.id} prompt={authPrompt} />}
       {isConnectionPanelOpen && <ConnectionPanel tab={activeTab} />}
-      <NoticeStrip />
-
       {find.isOpen && <FindBar find={find} />}
       {prompt && <PermissionBanner prompt={prompt} />}
 

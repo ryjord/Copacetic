@@ -18,11 +18,11 @@ import {
 } from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
-/** Every handler is registered through `handle`, which drops any message that did not come from the chrome window's own top-level frame. */
+/** Every handler is registered through `handle`, which drops any message that did not come from one of the browser's own top-level frames — the chrome window or the overlay. */
 export function registerIpcHandlers(browser: Browser): void {
   const handle = <T>(channel: string, handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => T) => {
     ipcMain.handle(channel, (event, ...args) => {
-      if (event.senderFrame !== browser.window.webContents.mainFrame) {
+      if (!browser.isOwnFrame(event.senderFrame)) {
         throw new Error(`Rejected ${channel} from an unexpected frame`);
       }
       return handler(event, ...args);
@@ -100,6 +100,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
   handle(INVOKE.noticeAnswer, (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
   handle(INVOKE.noticesPending, () => browser.pendingNotices());
+  handle(INVOKE.chromeSetOverlayHeight, (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
   handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
     browser.bookmarksChanged();

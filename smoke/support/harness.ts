@@ -17,6 +17,8 @@ export class SmokeApp {
     private readonly app: ElectronApplication,
     readonly chrome: Page,
     readonly profile: string,
+    /** The layer drawn above the page. A view of its own, so a page of its own. */
+    readonly overlay: Page,
   ) {}
 
   static async launch(): Promise<SmokeApp> {
@@ -28,9 +30,23 @@ export class SmokeApp {
       env: { ...process.env, NODE_ENV: 'production' },
     });
 
-    const chrome = await app.firstWindow();
+    // The overlay is a page too, and Playwright hands back whichever it saw
+    // first. The chrome is the one that is not the overlay.
+    const chrome = await (async () => {
+      const deadline = Date.now() + 20_000;
+      while (Date.now() < deadline) {
+        for (const candidate of app.windows()) {
+          if (!candidate.url().includes('/overlay')) {
+            return candidate;
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return app.firstWindow();
+    })();
     await chrome.waitForLoadState('domcontentloaded');
-    return new SmokeApp(app, chrome, profile);
+    const overlay = app.windows().find((candidate) => candidate.url().includes('/overlay'));
+    return new SmokeApp(app, chrome, profile, overlay ?? chrome);
   }
 
   /**

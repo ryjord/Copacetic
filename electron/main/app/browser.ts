@@ -6,6 +6,7 @@ import {
   safeStorage,
   shell,
   systemPreferences,
+  type WebFrameMain,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { PUSH, type ChromeSurface } from '../../shared/channels';
@@ -66,6 +67,7 @@ import {
   openFolderMessage,
   savedGroupMessage,
 } from '../../shared/notices';
+import { OverlayLayer } from './overlay';
 import { VaultSession } from './vault-session';
 import { log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
@@ -155,7 +157,15 @@ export class Browser {
       this.securityDelegate(),
       () => this.scheduleStatePush(),
       (tabId) => this.dropPermissionsForTab(tabId),
+      // Anything drawn over the page has to follow the page. The rectangle
+      // moves whenever a row of the chrome opens or closes, not only on a
+      // resize, and an overlay refreshed only with its own height stayed where
+      // it was while the page moved out from under it.
+      (bounds) => this.overlay?.setContentBounds(bounds),
     );
+
+    this.overlay = new OverlayLayer(this.window);
+    this.overlay.setContentBounds(this.tabs.contentBounds());
 
     this.attachAuthHandler();
     this.window.on('closed', () => this.dispose());
@@ -911,6 +921,9 @@ export class Browser {
    */
   private outstanding: Notice[] = [];
 
+  /** The only layer in this window that can be drawn on top of a page. */
+  private readonly overlay: OverlayLayer;
+
   /**
    * Tells the person something, once.
    *
@@ -923,7 +936,26 @@ export class Browser {
       this.pendingAnswers.set(notice.id, onConfirm);
     }
     this.outstanding = admit(this.outstanding, notice);
-    this.pushToChrome(PUSH.notice, notice);
+    // Said to the overlay, which is the renderer that draws notices. Pushing
+    // to the chrome window reaches every renderer except that one.
+    this.overlay.send(PUSH.notice, notice);
+  }
+
+  /**
+   * Whether a frame asking for something is one of this browser's own.
+   *
+   * The chrome window and the overlay are both trusted chrome with the same
+   * preload; everything else — every page in every tab — is not, and has no
+   * preload to ask with in the first place.
+   */
+  isOwnFrame(frame: WebFrameMain | null): boolean {
+    return frame === this.window.webContents.mainFrame || this.overlay.ownsFrame(frame);
+  }
+
+  /** How tall the overlay's own content is, which only the overlay can measure. */
+  setOverlayHeight(height: number): void {
+    this.overlay.setContentBounds(this.tabs.contentBounds());
+    this.overlay.setHeight(height);
   }
 
   /** What was said before anyone was listening, asked for as the chrome starts. */
@@ -1058,6 +1090,7 @@ export class Browser {
   private dispose(): void {
     this.prepareForQuit();
     this.updates.stop();
+    this.overlay.dispose();
     this.tabs.dispose();
     this.prompts.settleAll();
   }

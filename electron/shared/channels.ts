@@ -37,6 +37,7 @@ export const INVOKE = {
   bookmarksOpenContextMenu: 'bookmarks:open-context-menu',
   noticeAnswer: 'notice:answer',
   noticesPending: 'notice:pending',
+  chromeSetOverlayHeight: 'chrome:set-overlay-height',
   bookmarkFoldersList: 'bookmark-folders:list',
   bookmarkFolderCreate: 'bookmark-folders:create',
   bookmarkFolderUpdate: 'bookmark-folders:update',

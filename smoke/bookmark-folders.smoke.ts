@@ -126,14 +126,15 @@ describe('opening a folder big enough to hurt', () => {
         await window.copacetic.bookmarks.file(bookmark.id, folder.id);
       }
 
-      const heard = new Promise<{ tone: string; message: string; confirm?: string }>((resolve) => {
-        const stop = window.copacetic.on.notice((notice) => {
-          stop();
-          resolve({ tone: notice.tone, message: notice.message, confirm: notice.confirm });
-        });
-      });
       const outcome = await window.copacetic.bookmarkFolders.openAsGroup(folder.id);
-      return { outcome, notice: await heard };
+      // Asked for rather than listened for: a notice is pushed to the overlay,
+      // which is a renderer of its own, so it does not arrive here.
+      const waiting = await window.copacetic.notices.pending();
+      const notice = waiting.find((entry) => entry.message.includes('Everything'));
+      return {
+        outcome,
+        notice: { tone: notice?.tone ?? '', message: notice?.message ?? '', confirm: notice?.confirm },
+      };
     });
 
     expect(asked.outcome).toEqual({ opened: 0, asked: true });

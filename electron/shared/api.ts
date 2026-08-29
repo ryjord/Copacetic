@@ -59,6 +59,8 @@ export interface CopaceticApi {
   chrome: {
     setContentInsets(insets: ContentInsetsInput): Promise<void>;
     setOverlayVisible(visible: boolean): Promise<void>;
+    /** Told by the overlay layer itself, which is the only thing that can measure it. */
+    setOverlayHeight(height: number): Promise<void>;
     getState(): Promise<BrowserState>;
   };
   omnibox: {

@@ -58,6 +58,8 @@ export class TabManager {
     private readonly onChanged: () => void,
     /** Fired once per closed tab so owners can drop state keyed to it. */
     private readonly onTabClosed: (id: TabId) => void = () => {},
+    /** The rectangle the page occupies, for anything drawn over it. */
+    private readonly onContentBounds: (bounds: ContentBounds) => void = () => {},
   ) {
     this.window.on('resize', () => this.applyBounds());
     this.blocker.onCount((webContentsId) => {
@@ -329,6 +331,11 @@ export class TabManager {
     this.applyVisibility();
   }
 
+  /** The rectangle the page occupies, which is also where an overlay sits. */
+  contentBounds(): ContentBounds {
+    return this.currentBounds();
+  }
+
   private currentBounds(): ContentBounds {
     const [width, height] = this.window.getContentSize();
     return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets);
@@ -339,11 +346,18 @@ export class TabManager {
     if (this.isDisposed || this.window.isDestroyed()) {
       return;
     }
+
+    // Told every time, not only when there is a tab to move: anything else
+    // drawn over the page has to follow the same rectangle, and it moves
+    // whenever a row of the chrome opens or closes, not just on a resize.
+    const bounds = this.currentBounds();
+    this.onContentBounds(bounds);
+
     const active = this.activeId ? this.tabs.get(this.activeId) : null;
     if (!active || active.view.webContents.isDestroyed()) {
       return;
     }
-    active.view.setBounds(this.currentBounds());
+    active.view.setBounds(bounds);
   }
 
   private applyVisibility(): void {
