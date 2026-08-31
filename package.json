@@ -47,7 +47,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
     "@testing-library/dom": "^10.4.0",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -59,7 +59,7 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "^16.3.2",
+    "eslint-config-next": "^16.3.3",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
     "postcss": "^8.5.26",
