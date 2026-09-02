@@ -71,14 +71,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Everything a person downloading this release can hold, not only the
+          # installers: the update metadata names the hash electron-updater
+          # checks, and the blockmaps are what a differential update fetches.
+          # Attesting the installer and leaving those unverifiable meant a
+          # release could only be checked in part.
           - os: macos-latest
-            artifacts: release/*.dmg
+            artifacts: |
+              release/*.dmg
+              release/*.blockmap
+              release/latest-mac.yml
           - os: ubuntu-latest
             artifacts: |
               release/*.AppImage
               release/*.deb
+              release/latest-linux.yml
           - os: windows-latest
-            artifacts: release/*.exe
+            artifacts: |
+              release/*.exe
+              release/*.blockmap
+              release/latest.yml
     steps:
       - uses: actions/checkout@v7
 
