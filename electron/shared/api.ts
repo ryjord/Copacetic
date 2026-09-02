@@ -72,6 +72,11 @@ export interface CopaceticApi {
     clear(range: ClearRange): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;
   };
+  filters: {
+    /** Fetches the lists once, now, because someone asked. Never called on a timer. */
+    update(): Promise<{ ok: boolean; message: string }>;
+  };
+
   notices: {
     /** Answers a question a notice asked. Confirming does the thing; anything else drops it. */
     answer(id: string, confirmed: boolean): Promise<void>;

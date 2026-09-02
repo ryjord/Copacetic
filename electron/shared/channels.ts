@@ -38,6 +38,7 @@ export const INVOKE = {
   noticeAnswer: 'notice:answer',
   noticesPending: 'notice:pending',
   chromeSetOverlayHeight: 'chrome:set-overlay-height',
+  filtersUpdate: 'filters:update',
   bookmarkFoldersList: 'bookmark-folders:list',
   bookmarkFolderCreate: 'bookmark-folders:create',
   bookmarkFolderUpdate: 'bookmark-folders:update',

@@ -9,6 +9,7 @@ import {
   type WebFrameMain,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { PUSH, type ChromeSurface } from '../../shared/channels';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import type {
@@ -135,7 +136,11 @@ export class Browser {
     // machine — the shape of the thing being blocked. A failure here is
     // survivable: the curated hostnames are still there, and blocking less is
     // better than not starting.
-    this.blocker.loadShippedLists(filtersRoot());
+    // A list fetched on request is preferred to the one that shipped, and the
+    // shipped one is the floor when there is none.
+    if (!this.blocker.loadShippedLists(path.join(app.getPath('userData'), 'filters'))) {
+      this.blocker.loadShippedLists(filtersRoot());
+    }
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 
@@ -258,6 +263,7 @@ export class Browser {
       platform: process.platform,
       isDevelopment: isDevelopment(),
       blockerRuleCount: this.blocker.ruleCount,
+      filterLists: this.blocker.listInfo().lists,
     };
   }
 
@@ -963,6 +969,31 @@ export class Browser {
    */
   isOwnFrame(frame: WebFrameMain | null): boolean {
     return frame === this.window.webContents.mainFrame || this.overlay.ownsFrame(frame);
+  }
+
+  /**
+   * Fetches the filter lists, because someone asked.
+   *
+   * Named plainly in the interface before it is pressed: this is the one thing
+   * in the browser that talks to a server nobody navigated to, and it happens
+   * once, when asked.
+   */
+  async updateFilterLists(): Promise<{ ok: boolean; message: string }> {
+    const outcome = await this.blocker.fetchNewerLists(app.getPath('userData'), async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(String(response.status));
+      }
+      return response.text();
+    });
+
+    const message = outcome.ok
+      ? `Filter lists updated — ${outcome.rules.toLocaleString()} rules, from ${outcome.lists.map((list) => list.name).join(' and ')}.`
+      : outcome.reason;
+
+    this.notify({ id: 'filters-update', tone: outcome.ok ? 'done' : 'info', key: 'filters-update', message });
+    this.scheduleStatePush();
+    return { ok: outcome.ok, message };
   }
 
   /** How tall the overlay's own content is, which only the overlay can measure. */

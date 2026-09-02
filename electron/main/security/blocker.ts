@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
 import type { Session } from 'electron';
@@ -209,6 +209,68 @@ export class ContentBlocker {
       this.engine = null;
       return null;
     }
+  }
+
+  /**
+   * Fetches the lists again, on request and never otherwise.
+   *
+   * The whole reason blocking here does not update itself is that a background
+   * fetch on a timer is a periodic request from your machine to a server, which
+   * is the shape of the thing being blocked. So this exists, and nothing calls
+   * it except a person pressing a button.
+   *
+   * The result is written where the app can find it next launch and loaded now,
+   * so a list is never half-applied: either the whole fetch worked and the new
+   * rules are running, or nothing changed at all.
+   */
+  async fetchNewerLists(
+    userDataDirectory: string,
+    fetchText: (url: string) => Promise<string>,
+  ): Promise<{ ok: true; rules: number; lists: FilterListInfo[] } | { ok: false; reason: string }> {
+    const sources = this.lists.length > 0 ? this.lists : [];
+    if (sources.length === 0) {
+      return { ok: false, reason: 'There are no lists to update.' };
+    }
+
+    const fetched: { list: FilterListInfo; text: string }[] = [];
+    for (const list of sources) {
+      let text: string;
+      try {
+        text = await fetchText(list.url);
+      } catch {
+        return { ok: false, reason: `${list.name} could not be reached. Nothing was changed.` };
+      }
+      // A truncated list parses and simply blocks less, which is the one
+      // failure nobody would notice. Refuse the whole update instead.
+      if (text.length < 100_000 || !text.startsWith('[Adblock')) {
+        return { ok: false, reason: `${list.name} did not arrive intact. Nothing was changed.` };
+      }
+      fetched.push({
+        list: {
+          ...list,
+          rules: text.split('\n').filter((line) => line && !line.startsWith('!')).length,
+          lastModified: /^! Last modified: (.+)$/m.exec(text)?.[1]?.trim() ?? list.lastModified,
+        },
+        text,
+      });
+    }
+
+    const engine = FiltersEngine.parse(fetched.map((entry) => entry.text).join('\n'));
+    const lists = fetched.map((entry) => entry.list);
+    const directory = path.join(userDataDirectory, 'filters');
+
+    try {
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(path.join(directory, 'engine.bin'), engine.serialize());
+      writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({ lists }, null, 2));
+    } catch {
+      return { ok: false, reason: 'The new lists could not be saved. Nothing was changed.' };
+    }
+
+    this.engine = engine;
+    this.lists = lists;
+    this.listedRules = lists.reduce((total, list) => total + list.rules, 0);
+    return { ok: true, rules: this.listedRules, lists };
   }
 
   /** What is loaded, for a settings pane that has to say which list is running. */

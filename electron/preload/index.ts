@@ -62,6 +62,10 @@ const api: CopaceticApi = {
     topSites: (limit = 8): Promise<TopSite[]> => ipcRenderer.invoke(INVOKE.historyTopSites, limit),
   },
 
+  filters: {
+    update: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke(INVOKE.filtersUpdate),
+  },
+
   notices: {
     answer: (id: string, confirmed: boolean) => ipcRenderer.invoke(INVOKE.noticeAnswer, id, confirmed),
     pending: (): Promise<Notice[]> => ipcRenderer.invoke(INVOKE.noticesPending),

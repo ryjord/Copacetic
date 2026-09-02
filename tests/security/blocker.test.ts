@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { ContentBlocker } from '../../electron/main/security/blocker';
 
 interface CapturedRequest {
@@ -278,5 +281,79 @@ describe('per-site exceptions', () => {
   it('forgets the page site when the tab closes', () => {
     blocker.forget(7);
     expect(blocker.isAllowedOn('example.com')).toBe(false);
+  });
+});
+
+/**
+ * Fetching the lists again.
+ *
+ * The failure that matters is not a fetch that errors — that is loud. It is a
+ * list that arrives short: it parses, it loads, and it silently blocks less
+ * than the one it replaced. Nothing downstream can tell, so this refuses the
+ * whole update rather than accept part of one.
+ */
+describe('updating the filter lists', () => {
+  const realList = (rules: number) =>
+    `[Adblock Plus 2.0]\n! Last modified: 03 Sep 2026 09:00 UTC\n${Array.from({ length: rules }, (_, index) => `||tracker${index}.example^`).join('\n')}\n${'! padding\n'.repeat(12_000)}`;
+
+  const blockerWithLists = () => {
+    const blocker = new ContentBlocker(true);
+    // Pretend a release shipped with these, which is what names the sources.
+    (blocker as unknown as { lists: unknown[] }).lists = [
+      {
+        name: 'easylist',
+        url: 'https://easylist.to/easylist/easylist.txt',
+        describe: 'Ads',
+        rules: 1,
+        lastModified: 'old',
+      },
+    ];
+    return blocker;
+  };
+
+  it('takes a list that arrives whole', async () => {
+    const blocker = blockerWithLists();
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
+    const outcome = await blocker.fetchNewerLists(directory, async () => realList(500));
+
+    expect(outcome.ok).toBe(true);
+    expect(existsSync(path.join(directory, 'filters', 'engine.bin'))).toBe(true);
+  });
+
+  // The dangerous one: short enough to be wrong, whole enough to parse.
+  it('refuses a list that arrives short, and changes nothing', async () => {
+    const blocker = blockerWithLists();
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
+    const outcome = await blocker.fetchNewerLists(directory, async () => '[Adblock Plus 2.0]\n||one.example^');
+
+    expect(outcome.ok).toBe(false);
+    expect(existsSync(path.join(directory, 'filters', 'engine.bin'))).toBe(false);
+  });
+
+  it('refuses something that is not a filter list at all', async () => {
+    const blocker = blockerWithLists();
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
+    const outcome = await blocker.fetchNewerLists(directory, async () => 'x'.repeat(200_000));
+
+    expect(outcome.ok).toBe(false);
+    expect(existsSync(path.join(directory, 'filters', 'engine.bin'))).toBe(false);
+  });
+
+  it('says which list could not be reached, rather than failing silently', async () => {
+    const blocker = blockerWithLists();
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
+    const outcome = await blocker.fetchNewerLists(directory, async () => {
+      throw new Error('offline');
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.ok === false && outcome.reason).toContain('easylist');
+  });
+
+  it('will not update lists it was never given', async () => {
+    const blocker = new ContentBlocker(true);
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
+    const outcome = await blocker.fetchNewerLists(directory, async () => realList(500));
+    expect(outcome.ok).toBe(false);
   });
 });

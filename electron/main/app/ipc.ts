@@ -101,6 +101,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.noticeAnswer, (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
   handle(INVOKE.noticesPending, () => browser.pendingNotices());
   handle(INVOKE.chromeSetOverlayHeight, (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
+  handle(INVOKE.filtersUpdate, () => browser.updateFilterLists());
   handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
     browser.bookmarksChanged();

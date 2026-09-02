@@ -370,8 +370,25 @@ export interface AppInfo {
   chromeVersion: string;
   platform: NodeJS.Platform;
   isDevelopment: boolean;
-  /** How many domains the bundled tracker list covers. */
+  /** How many domains the curated tracker list covers, whatever else is loaded. */
   blockerRuleCount: number;
+  /** The filter lists built into this release, so a pane can name them and their date. */
+  filterLists: FilterList[];
+}
+
+/**
+ * A filter list as it shipped.
+ *
+ * The date is the list's own, not the day the app was built: what matters is how
+ * old the rules are, and a release cut a month after a list was fetched is a
+ * month behind whatever it says here.
+ */
+export interface FilterList {
+  name: string;
+  url: string;
+  describe: string;
+  rules: number;
+  lastModified: string | null;
 }
 
 export interface ContentBounds {
