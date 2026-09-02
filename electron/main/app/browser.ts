@@ -45,7 +45,7 @@ import {
   stageWallpaperRemoval,
 } from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
-import { chromeEntryUrl, isDevelopment } from './env';
+import { chromeEntryUrl, isDevelopment, filtersRoot } from './env';
 import {
   type SecurityDelegate,
   getHushSession,
@@ -130,6 +130,12 @@ export class Browser {
     );
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+    // Built into the release rather than fetched. Every other blocker asks a
+    // server for its lists on a timer, which is a periodic request from your
+    // machine — the shape of the thing being blocked. A failure here is
+    // survivable: the curated hostnames are still there, and blocking less is
+    // better than not starting.
+    this.blocker.loadShippedLists(filtersRoot());
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 

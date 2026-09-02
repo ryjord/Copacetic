@@ -22,6 +22,16 @@ export function rendererRoot(): string {
   return app.isPackaged ? path.join(process.resourcesPath, 'app.asar', 'out') : path.join(app.getAppPath(), 'out');
 }
 
+/**
+ * Where the filter lists live once built.
+ *
+ * Packaged, they sit inside the asar next to the rest of the main process; in
+ * development they sit in dist, which is where the build put them.
+ */
+export function filtersRoot(): string {
+  return path.join(app.getAppPath(), 'dist', 'electron', 'filters');
+}
+
 export function preloadPath(): string {
   // From the app root rather than by counting `../` off __dirname, so moving
   // this file between folders cannot quietly break the preload path.

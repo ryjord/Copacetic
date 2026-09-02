@@ -28,6 +28,12 @@ export interface CertificateSummary {
 
 /** One host a page has contacted, and what happened to those requests. */
 export interface ConnectionEntry {
+  /**
+   * The filter rule that caught this, when a rule did rather than a hostname.
+   * Which of the two stopped something is how a false positive is told apart
+   * from a site that is simply broken.
+   */
+  rule?: string | null;
   host: string;
   requests: number;
   blocked: number;

@@ -73,6 +73,32 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     changed();
   };
 
+  /**
+   * Collapses what a blocked advert leaves behind.
+   *
+   * A refused request still leaves the frame the page laid out for it, so a
+   * page with blocking on looks like a page full of holes. This is the
+   * stylesheet that closes them.
+   *
+   * A stylesheet on purpose. Hiding elements is what other blockers use an
+   * injected script for, and page content in this browser gets no script of
+   * ours — a promise made early and not spent since. insertCSS needs no
+   * preload and adds nothing a page can call.
+   */
+  const hideWhatWasBlocked = (url: string) => {
+    if (!url.startsWith('http')) {
+      return;
+    }
+    const styles = deps.blocker.cosmeticStylesFor(url);
+    if (styles) {
+      void contents.insertCSS(styles).catch(() => {
+        // A page that navigated away before this landed is not a failure.
+      });
+    }
+  };
+
+  contents.on('dom-ready', () => hideWhatWasBlocked(contents.getURL()));
+
   contents.on('did-navigate', (_event, url) => commitNavigation(url, false));
   contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
     if (isMainFrame) {

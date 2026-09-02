@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development concurrently -k -n next,main,preload,electron -c cyan,magenta,yellow,green \"next dev --port 3000\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"npm run build:preload -- --watch\" \"wait-on http://localhost:3000 dist/electron/main/index.js dist/electron/preload/index.js && electron .\"",
     "dev:renderer": "next dev --port 3000",
-    "build": "npm run build:renderer && npm run build:main",
+    "build": "npm run build:renderer && npm run build:main && npm run filters:build",
     "build:renderer": "next build",
     "build:main": "npm run clean:dist && tsc -p tsconfig.electron.json && npm run build:preload",
     "build:preload": "esbuild electron/preload/index.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outfile=dist/electron/preload/index.js",
@@ -30,9 +30,12 @@
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "generate:psl": "node scripts/generate-public-suffix-list.mjs",
     "clean:dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "smoke": "vitest run --config vitest.smoke.config.ts"
+    "smoke": "vitest run --config vitest.smoke.config.ts",
+    "filters:update": "node scripts/update-filters.mjs",
+    "filters:build": "node scripts/build-filters.mjs"
   },
   "dependencies": {
+    "@ghostery/adblocker-electron": "^2.18.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "electron-updater": "^6.8.9",
