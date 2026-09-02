@@ -16,7 +16,8 @@ vi.mock('electron', () => ({
   },
 }));
 
-const { showNewTabMenu, showTabContextMenu } = await import('../../electron/main/menus/context-menu');
+const { showBookmarkFolderContextMenu, showGroupContextMenu, showNewTabMenu, showTabContextMenu } =
+  await import('../../electron/main/menus/context-menu');
 
 const called: string[] = [];
 
@@ -140,5 +141,156 @@ describe('every item in both menus', () => {
       return !new RegExp(`\\b(async )?${method}\\s*[(<]`).test(source);
     });
     expect(missing).toEqual([]);
+  });
+});
+
+/**
+ * A group's menu is where colour, deletion and the conversion to a folder live —
+ * nothing about them is reachable any other way, and the diff that added them
+ * asserted only that building the menu did not throw. A rename wired to the
+ * delete, or Ungroup wired to Close, would have looked exactly the same.
+ */
+describe("a group's menu", () => {
+  const group = { id: 'g1', name: 'Work', colour: 'violet', ownSession: false, collapsed: false };
+
+  function groupBrowser({ holdsHush = false, ownSession = false } = {}) {
+    captured = [];
+    const browser = {
+      ...(fakeBrowser() as unknown as Record<string, unknown>),
+      store: {
+        groupFor: () => ({ ...group, ownSession }),
+        listBookmarks: () => [],
+        listBookmarkFolders: () => [],
+        updateBookmarkFolder: () => {},
+      },
+      tabs: { tabsInGroup: () => [], groupHoldsHush: () => holdsHush },
+      updateGroup: (id: string, changes: Record<string, unknown>) =>
+        called.push(`updateGroup:${JSON.stringify(changes)}`),
+      removeGroup: () => called.push('removeGroup'),
+      closeGroup: () => called.push('closeGroup'),
+      renameGroup: () => called.push('renameGroup'),
+      saveGroupAsFolder: () => called.push('saveGroupAsFolder'),
+      window: {},
+    } as never;
+    showGroupContextMenu(browser, 'g1');
+    return captured;
+  }
+
+  it('offers everything a group can be told to do', () => {
+    const labels = labelsOf(groupBrowser()).map(String);
+    expect(labels).toContain('Rename “Work”');
+    expect(labels).toContain('Colour');
+    expect(labels).toContain('Collapse');
+    expect(labels).toContain('Save as a bookmark folder');
+    expect(labels).toContain('Ungroup these tabs');
+    expect(labels).toContain('Close these tabs');
+  });
+
+  // The claim is the only place a mixed group admits what it is, and it was
+  // moved here when the panel that used to carry it was deleted.
+  it('says what the group can promise, and cannot be clicked', () => {
+    const first = groupBrowser()[0];
+    expect(String(first?.label)).toContain('cookies');
+    expect(first?.enabled).toBe(false);
+  });
+
+  it('says something different when the group holds a Hush tab', () => {
+    const shared = String(groupBrowser({ holdsHush: false })[0]?.label);
+    const mixed = String(groupBrowser({ holdsHush: true })[0]?.label);
+    expect(mixed).not.toBe(shared);
+  });
+
+  it('wires each item to the thing it names', () => {
+    called.length = 0;
+    const items = groupBrowser();
+    (itemNamed(items, 'Rename “Work”') as { click: () => void }).click();
+    (itemNamed(items, 'Ungroup these tabs') as { click: () => void }).click();
+    (itemNamed(items, 'Close these tabs') as { click: () => void }).click();
+    (itemNamed(items, 'Save as a bookmark folder') as { click: () => void }).click();
+    expect(called).toEqual(['renameGroup', 'removeGroup', 'closeGroup', 'saveGroupAsFolder']);
+  });
+
+  it('offers every colour, with the current one marked', () => {
+    const colour = itemNamed(groupBrowser(), 'Colour') as { submenu: Template };
+    expect(colour.submenu).toHaveLength(6);
+    const checked = colour.submenu.filter((entry) => entry.checked);
+    expect(checked).toHaveLength(1);
+    expect(String(checked[0]?.label)).toBe('Violet');
+  });
+
+  it('does nothing at all for a group that is not there', () => {
+    captured = [];
+    showGroupContextMenu({ store: { groupFor: () => null } } as never, 'gone');
+    expect(captured).toEqual([]);
+  });
+});
+
+/**
+ * Deleting a folder is the item most likely to be feared, so the menu says what
+ * it keeps before it is pressed rather than afterwards.
+ */
+describe("a bookmark folder's menu", () => {
+  const folder = { id: 'f1', name: 'Work', colour: 'violet', parentId: null, collapsed: false };
+
+  function folderMenu({ here = 2, inside = 0, children = 0 } = {}) {
+    captured = [];
+    const folders = [
+      folder,
+      ...Array.from({ length: children }, (_, index) => ({ ...folder, id: `c${index}`, parentId: 'f1' })),
+    ];
+    const bookmarks = [
+      ...Array.from({ length: here }, (_, index) => ({
+        id: `b${index}`,
+        url: 'u',
+        title: 't',
+        createdAt: 0,
+        folderId: 'f1',
+      })),
+      ...Array.from({ length: inside }, (_, index) => ({
+        id: `d${index}`,
+        url: 'u',
+        title: 't',
+        createdAt: 0,
+        folderId: 'c0',
+      })),
+    ];
+    showBookmarkFolderContextMenu(
+      {
+        store: {
+          listBookmarkFolders: () => folders,
+          listBookmarks: () => bookmarks,
+          folderFor: (id: string) => folders.find((entry) => entry.id === id) ?? null,
+        },
+        window: {},
+      } as never,
+      'f1',
+    );
+    return captured;
+  }
+
+  it('gives one number when there is only one to give', () => {
+    expect(String(folderMenu({ here: 2 })[0]?.label)).toBe('2 bookmarks');
+  });
+
+  // A tree makes every count ambiguous, so neither number is left to be guessed.
+  it('gives both numbers when they differ', () => {
+    const label = String(folderMenu({ here: 2, inside: 3, children: 1 })[0]?.label);
+    expect(label).toContain('2 here');
+    expect(label).toContain('5 with folders inside');
+  });
+
+  it('says what deleting keeps, before it is pressed', () => {
+    const labels = labelsOf(folderMenu({ here: 2, children: 1 })).map(String);
+    expect(labels).toContain('Delete this folder');
+    expect(labels.some((label) => label.includes('2 bookmarks and 1 folders move up'))).toBe(true);
+  });
+
+  it('will not offer to open an empty folder as a group', () => {
+    const open = labelsOf(folderMenu({ here: 0 }))
+      .map(String)
+      .find((label) => label.startsWith('Open all'));
+    expect(open).toBe('Open all 0 as a tab group');
+    const item = folderMenu({ here: 0 }).find((entry) => String(entry.label).startsWith('Open all'));
+    expect(item?.enabled).toBe(false);
   });
 });

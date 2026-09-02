@@ -7,6 +7,7 @@ const { SESSION_PLAN, reviveSession } = await import('../../electron/main/data/s
 const { migrate } = await import('../../electron/main/data/schema');
 const { BOOKMARKS_PLAN, reviveBookmarks } = await import('../../electron/main/data/bookmarks-store');
 const { reviveFolders } = await import('../../electron/main/data/bookmark-folders-store');
+const { reviveGroups } = await import('../../electron/main/data/groups-store');
 const { GROUP_COLOURS } = await import('../../electron/shared/tab-groups');
 
 /**
@@ -226,5 +227,75 @@ describe('a bookmark filed somewhere, read back off disk', () => {
   it('treats a non-string folder as unfiled rather than dropping the bookmark', () => {
     const [bookmark] = reviveBookmarks([{ id: 'b1', url: 'https://example.com/', folderId: 42 }]) ?? [];
     expect(bookmark?.folderId).toBeNull();
+  });
+});
+
+/**
+ * A group that cannot be read back is a run of tabs with no name and no colour,
+ * and — worse — a session that may have been kept separate losing the fact that
+ * it was. Every field falls back rather than dropping the group, except the id,
+ * which is the only thing a tab refers to it by.
+ */
+describe('tab groups, read back off disk', () => {
+  it('reads a group written by this build', () => {
+    const groups = reviveGroups([{ id: 'g1', name: 'Work', colour: 'violet', ownSession: true, collapsed: false }]);
+    expect(groups).toEqual([{ id: 'g1', name: 'Work', colour: 'violet', ownSession: true, collapsed: false }]);
+  });
+
+  it('refuses a file that is not a list', () => {
+    expect(reviveGroups({ id: 'g1' })).toBeNull();
+  });
+
+  it('drops an entry with no id, because no tab could point at it', () => {
+    expect(reviveGroups([{ name: 'Nameless' }, { id: 'g1', name: 'Work' }])).toHaveLength(1);
+  });
+
+  it('keeps a group whose colour this build does not have', () => {
+    const [group] = reviveGroups([{ id: 'g1', name: 'Work', colour: 'chartreuse' }]) ?? [];
+    expect(group?.colour).toBe(GROUP_COLOURS[0].id);
+  });
+
+  /*
+   * The dangerous direction is only one way round. A group that kept its own
+   * browsing and is read back as sharing would put its tabs in the ordinary
+   * session — signing someone into pages they had deliberately kept apart — so
+   * anything but a literal true has to mean false.
+   */
+  it('treats anything but true as sharing, never the other way round', () => {
+    const [shared] = reviveGroups([{ id: 'g1', name: 'Work', ownSession: 'yes' }]) ?? [];
+    expect(shared?.ownSession).toBe(false);
+    const [separate] = reviveGroups([{ id: 'g2', name: 'Work', ownSession: true }]) ?? [];
+    expect(separate?.ownSession).toBe(true);
+  });
+
+  it('treats anything but true as not collapsed, so nothing hides itself', () => {
+    const [group] = reviveGroups([{ id: 'g1', name: 'Work', collapsed: 'yes' }]) ?? [];
+    expect(group?.collapsed).toBe(false);
+  });
+});
+
+/**
+ * The migration reads whatever is on disk, which is not always what this build
+ * last wrote: a file can be hand-edited, truncated by a full disk, or written by
+ * a version that never existed. It has to survive all of it.
+ */
+describe('a session file that is not what it should be', () => {
+  const migrated = (raw: unknown) => migrate(raw, 1, SESSION_PLAN);
+
+  it('survives a file that is not a record at all', () => {
+    expect(() => migrated('nonsense')).not.toThrow();
+    expect(() => migrated(null)).not.toThrow();
+    expect(() => migrated([1, 2, 3])).not.toThrow();
+  });
+
+  it('survives urls being the wrong shape entirely', () => {
+    expect(() => migrated({ urls: 'https://example.com/' })).not.toThrow();
+    expect(() => migrated({ urls: null })).not.toThrow();
+  });
+
+  it('keeps the addresses it can read and drops the ones it cannot', () => {
+    const outcome = migrated({ urls: ['https://example.com/', 42, null, 'https://two.example/'], activeIndex: 0 });
+    const data = outcome.status === 'migrated' ? (outcome.data as { tabs: unknown[] }) : { tabs: [] };
+    expect(data.tabs).toHaveLength(2);
   });
 });

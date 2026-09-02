@@ -21,7 +21,7 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
-import { partitionFor } from '../../shared/tab-groups';
+import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
 import type { SessionSnapshot, SessionTab } from '../data/session-store';
 import { trustedLocally } from '../security/local-certificates';
 import { describeTab } from '../system/browser-identity';
@@ -207,6 +207,30 @@ export class TabManager {
   }
 
   /** Every tab currently in a group, in strip order. */
+  /**
+   * Moves off a tab that is about to be hidden by its group collapsing.
+   *
+   * Reports whether the group may collapse at all: if every tab is in it there
+   * is nowhere for activation to go, and collapsing would leave the window
+   * showing a page with nothing in the strip pointing at it.
+   */
+  leaveCollapsingGroup(groupId: string): boolean {
+    const activeIndex = this.activeId ? this.order.indexOf(this.activeId) : -1;
+    if (activeIndex === -1) {
+      return true;
+    }
+
+    const inOrder = this.order.map((id) => ({ id, groupId: this.tabs.get(id)?.groupId ?? null }));
+    const next = tabAfterCollapsing(inOrder, activeIndex, groupId);
+    if (!next) {
+      return false;
+    }
+    if (next.id !== this.activeId) {
+      this.activate(next.id);
+    }
+    return true;
+  }
+
   tabsInGroup(groupId: string): TabRecord[] {
     return this.order
       .map((tabId) => this.tabs.get(tabId))

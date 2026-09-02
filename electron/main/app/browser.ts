@@ -869,6 +869,13 @@ export class Browser {
   }
 
   updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    // A collapsed group hides its tabs, and one of them may be the tab being
+    // looked at — its page would stay on screen with nothing in the strip
+    // pointing at it. Activation steps out of the group first, and the group
+    // refuses to collapse at all when there is nowhere for it to step to.
+    if (changes.collapsed === true && !this.tabs.leaveCollapsingGroup(id)) {
+      return;
+    }
     this.store.updateGroup(id, changes);
     this.scheduleStatePush();
   }

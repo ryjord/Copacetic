@@ -7,6 +7,7 @@ import {
   partitionFor,
   segmentByGroup,
 } from '../../electron/shared/tab-groups';
+import { tabAfterCollapsing } from '../../electron/shared/tab-groups';
 import type { TabGroup } from '../../electron/shared/tab-groups';
 
 const PARTITIONS = { web: 'persist:copacetic-web', hush: 'copacetic-hush' };
@@ -237,5 +238,36 @@ describe('where a dragged tab lands', () => {
 
   it('copes with a single tab', () => {
     expect(groupForDrop(strip(null), 0, 0)).toBeNull();
+  });
+});
+
+/**
+ * Collapsing a group hides its tabs. If the tab being looked at is one of them
+ * its page stays on screen with nothing in the strip pointing at it, and the
+ * only way back is to expand the group again.
+ */
+describe('collapsing a group that holds the active tab', () => {
+  const strip = (...ids: (string | null)[]) => ids.map((groupId, index) => ({ groupId, id: String(index) }));
+
+  it('moves to the first tab after the group', () => {
+    // [a, a, null, b] with the second `a` active.
+    expect(tabAfterCollapsing(strip('a', 'a', null, 'b'), 1, 'a')?.id).toBe('2');
+  });
+
+  it('skips the rest of the group rather than landing inside it', () => {
+    expect(tabAfterCollapsing(strip('a', 'a', 'a', null), 0, 'a')?.id).toBe('3');
+  });
+
+  it('falls back to the left when the group ends the strip', () => {
+    expect(tabAfterCollapsing(strip(null, 'a', 'a'), 2, 'a')?.id).toBe('0');
+  });
+
+  it('finds nothing when every tab is in the group', () => {
+    expect(tabAfterCollapsing(strip('a', 'a'), 0, 'a')).toBeNull();
+  });
+
+  it('leaves an active tab outside the group where it is', () => {
+    // Nothing to move: the tab being looked at is not being hidden.
+    expect(tabAfterCollapsing(strip('a', null), 1, 'a')?.id).toBe('1');
   });
 });

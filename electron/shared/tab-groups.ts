@@ -118,6 +118,47 @@ export function segmentByGroup<T extends { groupId: string | null }>(
  * swallowed those would put tabs in a container they never chose — which for a
  * group that keeps its own browsing decides which session they load in.
  */
+/**
+ * Where to look after collapsing a group that holds the tab being looked at.
+ *
+ * A collapsed group hides its tabs, and the active tab is one of them: its page
+ * stays on screen with nothing in the strip to point at it, so there is no way
+ * back to it except expanding the group again. Activation moves out of the
+ * group instead — rightward first, because that is where the eye already is
+ * after collapsing, and leftward only if the group ends the strip.
+ *
+ * Null means every tab is in this group, and there is nowhere to go: the group
+ * must stay open, because collapsing it would leave the window showing a page
+ * it cannot name.
+ */
+export function tabAfterCollapsing<T extends { groupId: string | null }>(
+  tabs: readonly T[],
+  activeIndex: number,
+  groupId: string,
+): T | null {
+  // Nothing is being hidden if the tab being looked at is not in the group, so
+  // nothing moves. Checked here rather than at the call site: a caller that
+  // forgot would silently activate a different tab for no reason.
+  const active = tabs[activeIndex];
+  if (active && active.groupId !== groupId) {
+    return active;
+  }
+
+  for (let index = activeIndex + 1; index < tabs.length; index += 1) {
+    const candidate = tabs[index];
+    if (candidate && candidate.groupId !== groupId) {
+      return candidate;
+    }
+  }
+  for (let index = activeIndex - 1; index >= 0; index -= 1) {
+    const candidate = tabs[index];
+    if (candidate && candidate.groupId !== groupId) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 export function groupForDrop<T extends { groupId: string | null }>(
   tabs: readonly T[],
   fromIndex: number,

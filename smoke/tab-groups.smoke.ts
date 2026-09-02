@@ -93,3 +93,43 @@ describe('renaming a group', () => {
     expect(stored[0]?.name).toBe('Client work');
   }, 90_000);
 });
+
+/**
+ * A collapsed group hides its tabs, and one of them may be the tab being looked
+ * at. Its page stays on screen with nothing in the strip pointing at it, and
+ * the only way back is to expand the group again — so activation steps out of
+ * the group before it closes.
+ */
+describe('collapsing a group that holds the active tab', () => {
+  const selectedIndex = () =>
+    copacetic.chrome.evaluate(() =>
+      Array.from(document.querySelectorAll('[role="tab"]')).findIndex(
+        (tab) => tab.getAttribute('aria-selected') === 'true',
+      ),
+    );
+  const visibleTabs = () => copacetic.chrome.evaluate(() => document.querySelectorAll('[role="tab"]').length);
+
+  it('leaves the selected tab one you can still see', async () => {
+    const groupId = await copacetic.chrome.evaluate(async () => {
+      const first = await window.copacetic.tabs.create('https://example.com/a');
+      const second = await window.copacetic.tabs.create('https://example.com/b');
+      await window.copacetic.tabs.create('https://example.com/outside');
+      const id = await window.copacetic.groups.create(first, 'Collapsing', 'ocean', false);
+      await window.copacetic.groups.setForTab(second, id);
+      await window.copacetic.tabs.activate(second);
+      return id;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const before = { selected: await selectedIndex(), visible: await visibleTabs() };
+    await copacetic.chrome.evaluate((id) => window.copacetic.groups.update(id, { collapsed: true }), groupId);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const after = { selected: await selectedIndex(), visible: await visibleTabs() };
+
+    // The group's tabs are gone from the strip...
+    expect(after.visible).toBeLessThan(before.visible);
+    // ...and what is selected is not one of the tabs that went with them.
+    expect(after.selected).toBeGreaterThanOrEqual(0);
+    expect(after.selected).toBeLessThan(after.visible);
+  }, 120_000);
+});

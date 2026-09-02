@@ -290,6 +290,11 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
 
   return (
     <div
+      // Presentational: a tablist's children are its tabs, and this wrapper
+      // exists to draw a coloured band behind some of them. Announcing it as a
+      // generic group would put a nameless container between the strip and
+      // every tab inside it.
+      role="presentation"
       className="relative flex items-center gap-1 rounded-t-[10px] px-1"
       style={{ borderTop: `2px solid ${colour}`, background: `${colour}1a` }}
       onContextMenu={(event) => {
@@ -313,6 +318,10 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
       ) : (
         <button
           type="button"
+          // Named for what it does, not just what it says. The tooltip is a
+          // mouse-only hint; without this the accessible name is the group's
+          // name alone, which does not suggest that pressing it renames.
+          aria-label={`Rename ${group.name}`}
           title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
           // Click names it; the chevron collapses it. A click that hid the tabs
           // would make renaming the thing you cannot see.

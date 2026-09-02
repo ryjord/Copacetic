@@ -35,3 +35,37 @@ describe('the app starts', () => {
     expect(await copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   });
 });
+
+/**
+ * The chrome measures where the page should go and the main process puts it
+ * there, and the two are measured in different processes from different
+ * sources. When they drift, everything positioned against the page drifts with
+ * it: an overlay lands beside the thing it is covering rather than on it, and
+ * nothing about either number looks wrong on its own.
+ *
+ * Seen once at 9px during the overlay work, on a build where a chrome row had
+ * opened without the rectangle being re-sent.
+ */
+describe('where the page goes', () => {
+  it('is the same rectangle in the chrome and in the main process', async () => {
+    await copacetic.waitForVisible();
+    await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com'));
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+
+    const asDrawn = await copacetic.chrome.evaluate(() => {
+      const rect = document.querySelector('main')!.getBoundingClientRect();
+      return { top: Math.round(rect.top), left: Math.round(rect.left), width: Math.round(rect.width) };
+    });
+
+    const asPlaced = await copacetic.main(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      const visible = window?.contentView.children.filter((view) => view.getVisible?.() !== false) ?? [];
+      return visible.at(-1)?.getBounds() ?? null;
+    });
+
+    expect(asPlaced).not.toBeNull();
+    expect(asPlaced?.y).toBe(asDrawn.top);
+    expect(asPlaced?.x).toBe(asDrawn.left);
+    expect(asPlaced?.width).toBe(asDrawn.width);
+  }, 90_000);
+});
