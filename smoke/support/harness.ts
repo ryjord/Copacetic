@@ -115,6 +115,22 @@ export class SmokeApp {
     );
   }
 
+  /**
+   * Waits until the chrome is listening, not merely painted.
+   *
+   * `waitForVisible` answers a different question. The window is shown as soon
+   * as it can paint; the renderer is a page and takes about another second to
+   * hydrate and subscribe to anything the main process pushes. A test that acts
+   * in that gap sends a push to nobody and then reports the feature broken —
+   * which is exactly what happened to a menu item that turned out to be fine.
+   */
+  async waitForReady(timeoutMs = 20_000): Promise<boolean> {
+    return this.until(
+      async () => (await this.chrome.evaluate(() => Boolean(document.querySelector('[role="tablist"]')))) === true,
+      timeoutMs,
+    );
+  }
+
   /** Whether the app has written a given file into its profile yet. */
   hasProfileFile(name: string): boolean {
     return existsSync(path.join(this.profile, name));

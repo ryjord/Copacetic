@@ -37,6 +37,48 @@ describe('the app starts', () => {
 });
 
 /**
+ * The menu bar is not decoration, and the only way to know an item works is to
+ * press it. This one was reported broken during the blocking work and was not:
+ * the test pressed it before the renderer had hydrated, so the push it sends
+ * arrived at a window that was not yet listening. The fix was the test.
+ */
+describe('the Settings item in the menu bar', () => {
+  it('opens the settings surface', async () => {
+    expect(await copacetic.waitForReady()).toBe(true);
+
+    const clicked = await copacetic.main(({ Menu }) => {
+      const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+        for (const item of items) {
+          if (item.label === 'Settings…') {
+            return item;
+          }
+          const found = item.submenu ? walk(item.submenu.items) : null;
+          if (found) {
+            return found;
+          }
+        }
+        return null;
+      };
+      const item = walk(Menu.getApplicationMenu()?.items ?? []);
+      item?.click();
+      return Boolean(item);
+    });
+
+    expect(clicked).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const opened = await copacetic.chrome.evaluate(() =>
+      document.body.innerText.includes('Everything here is stored'),
+    );
+    expect(opened).toBe(true);
+
+    // Put it back. A surface covers the content area, so leaving it open hides
+    // the page view and the next test finds nothing where the page should be.
+    await copacetic.chrome.getByRole('button', { name: 'Close settings' }).click();
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }, 90_000);
+});
+
+/**
  * The chrome measures where the page should go and the main process puts it
  * there, and the two are measured in different processes from different
  * sources. When they drift, everything positioned against the page drifts with
