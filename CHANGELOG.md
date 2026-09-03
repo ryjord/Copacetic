@@ -19,6 +19,17 @@ Batch 1 of the September audit.
 
 ### Fixed
 
+- **Forgetting a site now signs you out of it.** It cleared the history, the
+  cached icon, the remembered certificate, the zoom, the permissions and the
+  blocking exception, and never touched the session — so the first thing anyone
+  would check afterwards, whether they were still logged in, was the one thing
+  that had not changed, while the menu item said "Forget example.com" and the
+  code said it removed everything known about the site. Cookies and site storage
+  now go too, from ordinary browsing, from Hush, and from every group that keeps
+  its own — a group's cookies are still that site's cookies. The count is named
+  before it happens as well as after, because a warning that leaves out the part
+  people care about is the same problem one step earlier.
+
 - **Settings and About stop denying a feature that ships.** Filling a password
   from the right-click menu arrived in 1.3.2. For four releases afterwards the
   Passwords pane said "Copacetic does not fill them in yet", and, asked

@@ -100,7 +100,7 @@ export function registerIpcHandlers(browser: Browser): void {
   });
   handle(INVOKE.bookmarksOpen, (_event, url) => browser.openInActiveTab(asString(url)));
   handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
-  handle(INVOKE.historyTraces, (_event, address) => browser.store.tracesOf(asString(address)));
+  handle(INVOKE.historyTraces, (_event, address) => browser.tracesOf(asString(address)));
   handle(INVOKE.historyTotalBlocked, () => browser.store.totalBlocked());
   handle(INVOKE.dataKept, () => browser.store.keptAboutSites());
   handle(INVOKE.historyOpenContextMenu, (_event, address) => showSiteContextMenu(browser, asString(address)));

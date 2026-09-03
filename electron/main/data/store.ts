@@ -167,6 +167,9 @@ export class BrowserStore {
       permissions: keysFor(settings.permissionDecisions),
       blockingOff: settings.blockerAllowlist.filter((entry) => sameSite(entry, site)).length,
       certificates: this.certificatesStore.origins().filter((origin) => sameSite(origin, site)).length,
+      // The store does not own the sessions, so it cannot see cookies. The
+      // browser adds that count before either sentence is said.
+      cookies: 0,
     };
   }
 

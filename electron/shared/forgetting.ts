@@ -65,6 +65,15 @@ export interface SiteTraces {
   blockingOff: number;
   /** A certificate accepted for it that nobody else would accept. */
   certificates: number;
+  /**
+   * Cookies held for the site across every session.
+   *
+   * The one that made the rest of the sentence a lie. Forgetting a site removed
+   * its history, its icons, its zoom, its permissions and its certificates, and
+   * left the cookies exactly where they were — so someone who had just been
+   * told the site was forgotten was still signed in to it.
+   */
+  cookies: number;
 }
 
 export const NOTHING: SiteTraces = {
@@ -74,6 +83,7 @@ export const NOTHING: SiteTraces = {
   permissions: 0,
   blockingOff: 0,
   certificates: 0,
+  cookies: 0,
 };
 
 /** Whether two addresses belong to the same site, by registrable domain. */
@@ -154,6 +164,7 @@ export function describeTraces(traces: SiteTraces): string {
   add(traces.permissions, 'permission', 'permissions');
   add(traces.blockingOff, 'blocking exception', 'blocking exceptions');
   add(traces.certificates, 'accepted certificate', 'accepted certificates');
+  add(traces.cookies, 'cookie', 'cookies');
 
   if (parts.length === 0) {
     return 'Nothing is kept about this site.';

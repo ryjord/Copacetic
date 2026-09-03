@@ -96,6 +96,24 @@ describe('what is said before forgetting a site', () => {
   });
 
   /*
+   * The one that was missing, and the one people actually mean. Forgetting a
+   * site removed its history, icons, zoom, permissions and certificates and
+   * left every cookie in place, so someone told the site was forgotten could
+   * open it and still be signed in.
+   */
+  it('names the cookies, which are the part that kept you signed in', () => {
+    expect(describeTraces(traces({ visits: 4, cookies: 12 }))).toBe('4 visits and 12 cookies.');
+  });
+
+  it('says one cookie properly', () => {
+    expect(describeTraces(traces({ cookies: 1 }))).toBe('1 cookie.');
+  });
+
+  it('counts cookies towards what will go', () => {
+    expect(countTraces(traces({ visits: 3, cookies: 12 }))).toBe(15);
+  });
+
+  /*
    * Offering to remove a permission nobody granted makes the rest of the
    * sentence untrustworthy, and this sentence exists to be trusted.
    */

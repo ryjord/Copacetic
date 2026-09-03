@@ -1,4 +1,4 @@
-import { type KeptKind, type SiteTraces, describeTraces, siteOf } from '../../shared/forgetting';
+import { type KeptKind, type SiteTraces, describeTraces, sameSite, siteOf } from '../../shared/forgetting';
 import {
   type BrowserWindow,
   app,
@@ -1121,18 +1121,114 @@ export class Browser {
    * Said afterwards as well as before, because something that vanished quietly
    * is indistinguishable from something that did not work.
    */
-  forgetSite(address: string): SiteTraces {
+  /**
+   * Everything this browser knows about one site, including the part that kept
+   * you signed in to it.
+   *
+   * The store forgets what it wrote down — history, icons, certificates, zoom,
+   * permissions, blocking exceptions. None of that is the session, and the
+   * session is where the sign-in lives: someone told a site had been forgotten
+   * could open it and still be logged in, which made the whole sentence a lie.
+   *
+   * Cookies and site storage go from every session this window has prepared,
+   * which is ordinary browsing, Hush, and each group that keeps its own — a
+   * group's cookies are still that site's cookies.
+   */
+  async forgetSite(address: string): Promise<SiteTraces> {
     const removed = this.store.forgetSite(address);
+    const cookies = await this.forgetSiteInSessions(address);
     // The allowlist may have lost an entry, and the blocker holds its own copy.
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+
+    const complete = { ...removed, cookies };
     this.notify({
       id: `forget-${siteOf(address)}`,
       tone: 'done',
       key: 'forget-site',
-      message: `Forgot ${siteOf(address)} — ${describeTraces(removed).toLowerCase()}`,
+      message: `Forgot ${siteOf(address)} — ${describeTraces(complete).toLowerCase()}`,
     });
     this.scheduleStatePush();
+    return complete;
+  }
+
+  /**
+   * Removes the site's cookies and storage from every prepared session, and
+   * reports how many cookies went.
+   *
+   * Cookies are matched by the site they belong to rather than by origin: a
+   * cookie set on `.example.com` is example.com's, and clearing by exact origin
+   * would leave it. Storage is cleared by origin because that is what the API
+   * takes, using the origins the cookies themselves name.
+   */
+  private async forgetSiteInSessions(address: string): Promise<number> {
+    const site = siteOf(address);
+    if (!site) {
+      return 0;
+    }
+
+    let removed = 0;
+    for (const { session, cookies } of await this.cookiesForSite(site)) {
+      const origins = new Set<string>([`https://${site}`, `https://www.${site}`]);
+      for (const cookie of cookies) {
+        const host = (cookie.domain ?? '').replace(/^\./, '');
+        const scheme = cookie.secure ? 'https' : 'http';
+        origins.add(`${scheme}://${host}`);
+        try {
+          await session.cookies.remove(`${scheme}://${host}${cookie.path ?? '/'}`, cookie.name);
+          removed += 1;
+        } catch {
+          // A cookie the session will not give up is not a reason to abandon
+          // the rest of them, and the count reports what actually went.
+        }
+      }
+
+      try {
+        await session.clearData({ origins: [...origins] });
+      } catch {
+        // An in-memory session can refuse this. The cookies are already gone,
+        // which is the part someone would notice.
+      }
+    }
     return removed;
+  }
+
+  /**
+   * The site's cookies in every session this window has prepared.
+   *
+   * Matched by the site a cookie belongs to rather than by origin: a cookie set
+   * on `.example.com` is example.com's, and matching exact origins would leave
+   * it behind. Used both to count before anything is removed and to remove.
+   */
+  private async cookiesForSite(site: string): Promise<{ session: Session; cookies: Electron.Cookie[] }[]> {
+    const found: { session: Session; cookies: Electron.Cookie[] }[] = [];
+    for (const partition of this.preparedSessions) {
+      const session = electronSession.fromPartition(partition);
+      try {
+        const all = await session.cookies.get({});
+        found.push({ session, cookies: all.filter((cookie) => sameSite(cookie.domain ?? '', site)) });
+      } catch {
+        found.push({ session, cookies: [] });
+      }
+    }
+    return found;
+  }
+
+  /**
+   * What will go, said before it goes.
+   *
+   * The store counts what it wrote down and cannot see a session, so the cookies
+   * are added here. Without them the warning understated what forgetting does by
+   * exactly the thing people care about — and then the sentence afterwards named
+   * a number the sentence before had not mentioned.
+   */
+  async tracesOf(address: string): Promise<SiteTraces> {
+    const site = siteOf(address);
+    const found = this.store.tracesOf(address);
+    if (!site) {
+      return found;
+    }
+    const perSession = await this.cookiesForSite(site);
+    return { ...found, cookies: perSession.reduce((total, entry) => total + entry.cookies.length, 0) };
   }
 
   /** Clears one kind of thing kept about sites, and says it happened. */
