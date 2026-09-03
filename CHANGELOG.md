@@ -19,6 +19,15 @@ Batch 1 of the September audit.
 
 ### Fixed
 
+- **The download is a third of the size.** The application was shipping every
+  package the interface is built with — React, Next, the whole component
+  library, an icon set, and a native Rust compiler — inside itself, where the
+  main process never loaded any of them. They are needed to _build_ the
+  interface; what the application actually runs is the 1.3MB of HTML and
+  JavaScript that build produces. Moving them where they belong takes the
+  archive inside the app from 246MB to 15MB and the whole thing from 625MB to
+  291MB, with nothing removed that anything used.
+
 - **Forgetting a site now signs you out of it.** It cleared the history, the
   cached icon, the remembered certificate, the zoom, the permissions and the
   blocking exception, and never touched the session — so the first thing anyone
