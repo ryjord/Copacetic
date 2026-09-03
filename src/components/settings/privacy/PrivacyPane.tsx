@@ -72,6 +72,11 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
             checking for a newer one is a request to a server, and this browser does not make those on a schedule
             without being asked.
           </Note>
+          <Note>
+            Both lists are maintained by the EasyList project and used under the GPLv3 and CC BY-SA 3.0, which are not
+            Copacetic&apos;s own licence. They are someone else&apos;s work, shipped whole and unmodified, and the
+            NOTICE file in the repository says so in the terms those licences ask for.
+          </Note>
           <RowList>
             {lists.map((list) => (
               <div key={list.name} className="flex items-baseline justify-between gap-4 py-2">

@@ -1,0 +1,47 @@
+Copacetic — third-party notices
+===============================
+
+Copacetic itself is MIT licensed; see LICENSE. It redistributes the material
+below, which is not, and which keeps its own terms.
+
+If you fork, repackage or sell this software, these terms travel with the files
+and are yours to honour. This file records what is here and under what licence;
+it is not legal advice.
+
+
+EasyList
+--------
+
+    Files:    electron/main/security/filters/easylist.txt
+              and the compiled engine built from it at package time
+    Source:   https://easylist.to/easylist/easylist.txt
+    Home:     https://easylist.to
+    Licence:  GNU General Public License v3.0, and
+              Creative Commons Attribution-ShareAlike 3.0 Unported
+              https://easylist.to/pages/licence.html
+
+The list of advertising filters most blockers are built on. Shipped in full and
+loaded at runtime, rather than fetched on a schedule, so that this browser makes
+no periodic request from your machine.
+
+
+EasyPrivacy
+-----------
+
+    Files:    electron/main/security/filters/easyprivacy.txt
+              and the compiled engine built from it at package time
+    Source:   https://easylist.to/easylist/easyprivacy.txt
+    Home:     https://easylist.to
+    Licence:  GNU General Public License v3.0, and
+              Creative Commons Attribution-ShareAlike 3.0 Unported
+              https://easylist.to/pages/licence.html
+
+Tracking and analytics filters, maintained separately from advertising.
+
+
+Everything else
+---------------
+
+The rest of Copacetic's dependencies are installed from npm rather than
+redistributed in this repository, and their licences travel in their own
+packages. `npm ls --all` names them; `npx license-checker` summarises them.

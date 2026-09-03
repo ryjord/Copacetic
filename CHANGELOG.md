@@ -19,6 +19,13 @@ Batch 1 of the September audit.
 
 ### Fixed
 
+- **The filter lists are credited to the people who make them.** EasyList and
+  EasyPrivacy ship inside Copacetic in full, and they are not Copacetic's to
+  license: they carry the GPLv3 and CC BY-SA 3.0, in an MIT repository that had
+  no notice of either. A NOTICE file now names each list, where it came from and
+  under what terms, the README points at it, and Privacy says it on the screen
+  where the lists are already named.
+
 - **The download is a third of the size.** The application was shipping every
   package the interface is built with — React, Next, the whole component
   library, an icon set, and a native Rust compiler — inside itself, where the
