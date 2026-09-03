@@ -1,4 +1,4 @@
-import { type SiteTraces, describeTraces, siteOf } from '../../shared/forgetting';
+import { type KeptKind, type SiteTraces, describeTraces, siteOf } from '../../shared/forgetting';
 import {
   type BrowserWindow,
   app,
@@ -1078,6 +1078,15 @@ export class Browser {
     });
     this.scheduleStatePush();
     return removed;
+  }
+
+  /** Clears one kind of thing kept about sites, and says it happened. */
+  clearKept(kind: KeptKind): void {
+    this.store.clearKept(kind);
+    if (kind === 'blockingOff') {
+      this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+    }
+    this.scheduleStatePush();
   }
 
   fileBookmark(id: string, folderId: string | null): void {

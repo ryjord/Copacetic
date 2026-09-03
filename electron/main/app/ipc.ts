@@ -1,3 +1,4 @@
+import type { KeptKind } from '../../shared/forgetting';
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { readWallpaper, readWallpaperPreview, stagedWallpaper } from '../system/wallpaper';
 import { randomBytes } from 'node:crypto';
@@ -10,6 +11,7 @@ import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import {
   showBookmarkContextMenu,
+  showSiteContextMenu,
   showBookmarkFolderContextMenu,
   showBookmarkFolderMenu,
   showGroupContextMenu,
@@ -100,6 +102,9 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
   handle(INVOKE.historyTraces, (_event, address) => browser.store.tracesOf(asString(address)));
   handle(INVOKE.historyTotalBlocked, () => browser.store.totalBlocked());
+  handle(INVOKE.dataKept, () => browser.store.keptAboutSites());
+  handle(INVOKE.historyOpenContextMenu, (_event, address) => showSiteContextMenu(browser, asString(address)));
+  handle(INVOKE.dataClearKept, (_event, kind) => browser.clearKept(asString(kind) as KeptKind));
   handle(INVOKE.historyForgetSite, (_event, address) => browser.forgetSite(asString(address)));
   handle(INVOKE.noticeAnswer, (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
   handle(INVOKE.noticesPending, () => browser.pendingNotices());

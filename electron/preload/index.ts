@@ -1,4 +1,4 @@
-import type { SiteTraces } from '../shared/forgetting';
+import type { KeptAboutSites, KeptKind, SiteTraces } from '../shared/forgetting';
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
@@ -62,6 +62,7 @@ const api: CopaceticApi = {
     traces: (address: string): Promise<SiteTraces> => ipcRenderer.invoke(INVOKE.historyTraces, address),
     forgetSite: (address: string): Promise<SiteTraces> => ipcRenderer.invoke(INVOKE.historyForgetSite, address),
     totalBlocked: (): Promise<number> => ipcRenderer.invoke(INVOKE.historyTotalBlocked),
+    openContextMenu: (address: string) => ipcRenderer.invoke(INVOKE.historyOpenContextMenu, address),
     clear: (range: ClearRange) => ipcRenderer.invoke(INVOKE.historyClear, range),
     topSites: (limit = 8): Promise<TopSite[]> => ipcRenderer.invoke(INVOKE.historyTopSites, limit),
   },
@@ -183,6 +184,8 @@ const api: CopaceticApi = {
   data: {
     export: (kind: ExportKind): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
     importBookmarks: (): Promise<string> => ipcRenderer.invoke(INVOKE.dataImportBookmarks),
+    kept: (): Promise<KeptAboutSites> => ipcRenderer.invoke(INVOKE.dataKept),
+    clearKept: (kind: KeptKind) => ipcRenderer.invoke(INVOKE.dataClearKept, kind),
   },
 
   auth: {

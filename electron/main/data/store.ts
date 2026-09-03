@@ -7,7 +7,14 @@ import type {
   Suggestion,
   TopSite,
 } from '../../shared/types';
-import { NOTHING, type SiteTraces, sameSite, siteOf } from '../../shared/forgetting';
+import {
+  type KeptAboutSites,
+  type KeptKind,
+  NOTHING,
+  type SiteTraces,
+  sameSite,
+  siteOf,
+} from '../../shared/forgetting';
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, resolveOmniboxInput } from '../../shared/url';
 import type { RememberedCertificate } from '../../shared/certificate-changes';
 import { BookmarksStore } from './bookmarks-store';
@@ -192,6 +199,37 @@ export class BrowserStore {
     });
 
     return found;
+  }
+
+  /**
+   * What is kept about sites in general.
+   *
+   * Listed rather than left to be found: these survive a clear on purpose,
+   * because someone set them on purpose, but they do name the sites and a list
+   * nobody is shown is a list nobody can act on.
+   */
+  keptAboutSites(): KeptAboutSites {
+    const settings = this.settings.getSettings();
+    return {
+      zoom: Object.keys(settings.zoomLevels).length,
+      permissions: Object.keys(settings.permissionDecisions).length,
+      blockingOff: settings.blockerAllowlist.length,
+      certificates: this.certificatesStore.origins().length,
+    };
+  }
+
+  /** Clears one of those kinds, and only that one. */
+  clearKept(kind: KeptKind): void {
+    if (kind === 'certificates') {
+      this.certificatesStore.forgetAll();
+      return;
+    }
+    const patch = {
+      zoom: { zoomLevels: {} },
+      permissions: { permissionDecisions: {} },
+      blockingOff: { blockerAllowlist: [] },
+    }[kind];
+    this.settings.updateSettings(patch);
   }
 
   /** Requests refused across everything still in history. */

@@ -5,6 +5,7 @@ import { isPageNavigableUrl } from '../../shared/url';
 import type { Browser } from '../app/browser';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tab-groups';
 import { countIn, pathOf } from '../../shared/bookmark-folders';
+import { countTraces, describeTraces, siteOf } from '../../shared/forgetting';
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
@@ -392,6 +393,37 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
     },
     { type: 'separator' },
     { label: 'Remove bookmark', click: () => browser.removeBookmark(bookmarkId) },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * One site, and the option to be rid of it everywhere.
+ *
+ * Clearing by time is an afternoon; what someone usually means is a site. The
+ * item says what it is about to remove, counted rather than described, because
+ * something that vanished quietly is indistinguishable from something that did
+ * not work.
+ */
+export function showSiteContextMenu(browser: Browser, address: string): void {
+  const site = siteOf(address);
+  if (!site) {
+    return;
+  }
+  const traces = browser.store.tracesOf(address);
+
+  const items: MenuItemConstructorOptions[] = [
+    { label: site, enabled: false },
+    { type: 'separator' },
+    { label: 'Open', click: () => browser.openInActiveTab(address) },
+    { type: 'separator' },
+    {
+      label: `Forget ${site}`,
+      enabled: countTraces(traces) > 0,
+      click: () => browser.forgetSite(address),
+    },
+    { label: describeTraces(traces), enabled: false },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });

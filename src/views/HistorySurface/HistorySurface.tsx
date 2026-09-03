@@ -97,7 +97,16 @@ export function HistorySurface() {
               <h2 className="label sticky top-0 z-10 bg-base/95 px-6 py-2 backdrop-blur">{heading}</h2>
               <ul>
                 {items.map((entry) => (
-                  <li key={entry.id} className="group flex items-center gap-3 px-6 py-1.5 hover:bg-raised">
+                  <li
+                    key={entry.id}
+                    className="group flex items-center gap-3 px-6 py-1.5 hover:bg-raised"
+                    /* Clearing by time is an afternoon; what someone usually means is a
+                       site, and this is where they are already looking at one. */
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      send((api) => api.history.openContextMenu(entry.url));
+                    }}
+                  >
                     <Favicon dataUrl={null} seed={entry.url} size={15} />
                     <button
                       type="button"

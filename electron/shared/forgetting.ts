@@ -25,6 +25,32 @@ import { registrableDomainOf } from './url';
  * clearing by time is an afternoon, and what someone usually means is a site.
  */
 
+/** What is kept about sites in general, for a pane that has to list it. */
+export interface KeptAboutSites {
+  zoom: number;
+  permissions: number;
+  blockingOff: number;
+  certificates: number;
+}
+
+/** The kinds that can be cleared on their own, named as a person would say them. */
+export const KEPT_KINDS = [
+  { id: 'zoom', one: 'Zoom set on 1 site', many: 'Zoom set on {n} sites' },
+  { id: 'permissions', one: 'Permissions decided for 1 site', many: 'Permissions decided for {n} sites' },
+  { id: 'blockingOff', one: 'Blocking switched off on 1 site', many: 'Blocking switched off on {n} sites' },
+  { id: 'certificates', one: 'Certificate remembered for 1 site', many: 'Certificates remembered for {n} sites' },
+] as const;
+
+export type KeptKind = (typeof KEPT_KINDS)[number]['id'];
+
+export function describeKept(kind: KeptKind, count: number): string {
+  const entry = KEPT_KINDS.find((candidate) => candidate.id === kind);
+  if (!entry) {
+    return '';
+  }
+  return count === 1 ? entry.one : entry.many.replace('{n}', String(count));
+}
+
 /** Everything keyed by a site, in the order a person would think of them. */
 export interface SiteTraces {
   /** History entries whose address belongs to the site. */

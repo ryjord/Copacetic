@@ -122,3 +122,46 @@ describe('forgetting one site', () => {
     expect(settings?.blockerAllowlist).toEqual(['keep-me.example']);
   }, 90_000);
 });
+
+/**
+ * What survives a clear, listed rather than left to be found.
+ *
+ * These are kept on purpose — someone set them — but they name the sites, and
+ * a list nobody is shown is a list nobody can act on.
+ */
+describe('what clearing does not touch', () => {
+  it('names each kind with its count, and only the kinds that exist', async () => {
+    await copacetic.chrome.evaluate(async () => {
+      await window.copacetic.settings.update({
+        blockerAllowlist: ['one.example', 'two.example'],
+        permissionDecisions: {},
+      });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    const kept = await copacetic.chrome.evaluate(() => window.copacetic.data.kept());
+    expect(kept.blockingOff).toBe(2);
+    // Nothing granted a permission, so nothing should claim otherwise.
+    expect(kept.permissions).toBe(0);
+  }, 90_000);
+
+  it('clears one kind without touching the others', async () => {
+    await copacetic.chrome.evaluate(async () => {
+      await window.copacetic.settings.update({ blockerAllowlist: ['one.example'] });
+      const state = await window.copacetic.chrome.getState();
+      const tab = state.tabs.find((entry) => entry.url.includes('example.com'));
+      if (tab) {
+        await window.copacetic.tabs.setZoom(tab.id, 1.25);
+      }
+    });
+    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    await copacetic.chrome.evaluate(() => window.copacetic.data.clearKept('blockingOff'));
+    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    const kept = await copacetic.chrome.evaluate(() => window.copacetic.data.kept());
+    expect(kept.blockingOff).toBe(0);
+    // The counterweight: clearing one kind is not clearing everything.
+    expect(kept.zoom).toBeGreaterThan(0);
+  }, 90_000);
+});

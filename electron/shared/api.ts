@@ -1,4 +1,4 @@
-import type { SiteTraces } from './forgetting';
+import type { KeptAboutSites, KeptKind, SiteTraces } from './forgetting';
 import type { ChromeSurface } from './channels';
 import type { BookmarkFolder } from './bookmark-folders';
 import type { Notice } from './notices';
@@ -73,6 +73,8 @@ export interface CopaceticApi {
     traces(address: string): Promise<SiteTraces>;
     /** Removes everything known about that site, and reports what went. */
     forgetSite(address: string): Promise<SiteTraces>;
+    /** One site's menu, which is where forgetting it lives. */
+    openContextMenu(address: string): Promise<void>;
     /** Requests refused across everything still in history. */
     totalBlocked(): Promise<number>;
     remove(id: string): Promise<void>;
@@ -211,6 +213,10 @@ export interface CopaceticApi {
     clear(): Promise<void>;
   };
   data: {
+    /** What is kept about sites in general, which survives clearing history. */
+    kept(): Promise<KeptAboutSites>;
+    /** Clears one of those kinds, and only that one. */
+    clearKept(kind: KeptKind): Promise<void>;
     /** Write bookmarks or history to a file the user chooses. */
     export(kind: ExportKind): Promise<string>;
     /** Reads the bookmark file any browser exports. Resolves with a summary. */
