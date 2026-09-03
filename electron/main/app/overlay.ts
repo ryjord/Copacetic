@@ -22,6 +22,8 @@ export class OverlayLayer {
   private height = 0;
   private bounds: ContentBounds = { x: 0, y: 0, width: 0, height: 0 };
   private isDisposed = false;
+  /** Set by a question, spent the moment the overlay is actually on screen. */
+  private wantsFocus = false;
 
   constructor(private readonly window: BaseWindow) {
     this.view = new WebContentsView({
@@ -85,6 +87,23 @@ export class OverlayLayer {
   }
 
   /**
+   * Puts the keyboard into the overlay, for a notice that asked something.
+   *
+   * The overlay is a view of its own, so focus does not reach it by tabbing
+   * from the chrome: a question with a button would be answerable by mouse and
+   * by nothing else. Only for questions — taking focus away from a page to say
+   * something informative would be worse than saying nothing.
+   */
+  takeFocus(): void {
+    // Remembered rather than done. A question is announced before the overlay
+    // has drawn it — the height that makes the view visible comes back from the
+    // renderer afterwards — and focusing a view that is not visible yet does
+    // nothing at all, silently.
+    this.wantsFocus = true;
+    this.apply();
+  }
+
+  /**
    * How tall the overlay's own content is, measured by the overlay itself.
    *
    * The main process cannot know how many lines a message wraps to, and a
@@ -129,5 +148,10 @@ export class OverlayLayer {
     // was stacked on top of this, and a layer under the page is no layer.
     this.window.contentView.addChildView(this.view);
     this.view.setVisible(true);
+
+    if (this.wantsFocus) {
+      this.wantsFocus = false;
+      this.view.webContents.focus();
+    }
   }
 }

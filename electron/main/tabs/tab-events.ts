@@ -84,6 +84,13 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
    * injected script for, and page content in this browser gets no script of
    * ours — a promise made early and not spent since. insertCSS needs no
    * preload and adds nothing a page can call.
+   *
+   * It reaches the top document only. Electron's insertCSS takes a webContents
+   * and there is no equivalent on a frame, so collapsing space inside an iframe
+   * would mean running a script in it — which is the promise above. Requests
+   * made from inside frames are still refused, because webRequest sees every
+   * frame; what is left uncollapsed is the space a blocked advert had inside
+   * one, and Settings says so rather than pretending otherwise.
    */
   const hideWhatWasBlocked = (url: string) => {
     if (!url.startsWith('http')) {

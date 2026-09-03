@@ -5,6 +5,7 @@ import {
   Note,
   RowAction,
   RowList,
+  OutlineButton,
   RowValue,
   Section,
   Subheading,
@@ -31,6 +32,13 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
   const lists = info?.filterLists ?? [];
   const listedRules = lists.reduce((total, list) => total + list.rules, 0);
   const hosts = [...new Set(lists.map((list) => new URL(list.url).hostname))];
+
+  // The result arrives as a notice, said once, where everything else the app
+  // finishes is said — so there is nothing to report from here.
+  const checkForNewerLists = () => {
+    setChecking(true);
+    void ask((api) => api.filters.update(), { ok: false, message: '' }).finally(() => setChecking(false));
+  };
 
   const trackerDescription = listedRules
     ? `${listedRules.toLocaleString()} rules from the lists below, and ${info?.blockerRuleCount ?? 0} hostnames Copacetic keeps itself. The count in the address bar is the real number blocked on the page you are on.`
@@ -80,20 +88,9 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
           </RowList>
 
           <div className="mt-1 flex items-center gap-3">
-            <button
-              type="button"
-              disabled={checking}
-              onClick={async () => {
-                setChecking(true);
-                // The result arrives as a notice, said once, where everything
-                // else the app finishes is said.
-                await ask((api) => api.filters.update(), { ok: false, message: '' });
-                setChecking(false);
-              }}
-              className="rounded-field border border-line px-3 py-1.5 text-[12.5px] text-ink-dim transition-colors hover:bg-raised hover:text-ink disabled:opacity-50"
-            >
+            <OutlineButton disabled={checking} onClick={checkForNewerLists}>
               {checking ? 'Checking…' : 'Check for newer lists'}
-            </button>
+            </OutlineButton>
             {/* Named before it is pressed. This is the one thing in the browser
                 that contacts a server nobody navigated to. */}
             <span className="font-mono text-[11px] text-ink-faint">contacts {hosts.join(' and ')}, once</span>
@@ -105,6 +102,11 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
             An advert served from the same address as the page cannot be told apart from the page. One inserted by the
             server is part of the document before it arrives. A sponsored post inside a feed is the feed. None of
             those are blocked here, and a number that implied otherwise would be flattering itself.
+          </Note>
+          <Note>
+            Requests made from inside a frame are refused like any other, but the stylesheet that collapses the space
+            a blocked advert leaves behind reaches the page and not into its frames — doing that would mean running a
+            script inside them, and nothing of Copacetic&rsquo;s runs in a page.
           </Note>
         </Section>
       )}

@@ -955,6 +955,11 @@ export class Browser {
       this.pendingAnswers.set(notice.id, onConfirm);
     }
     this.outstanding = admit(this.outstanding, notice);
+    // A question is answered with a button, and the overlay is a view of its
+    // own: without this the keyboard cannot reach it at all.
+    if (notice.tone === 'ask') {
+      this.overlay.takeFocus();
+    }
     // Said to the overlay, which is the renderer that draws notices. Pushing
     // to the chrome window reaches every renderer except that one.
     this.overlay.send(PUSH.notice, notice);
