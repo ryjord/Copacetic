@@ -15,6 +15,8 @@ import type { TabRecord } from './tab-record';
 export interface TabEventDeps {
   store: BrowserStore;
   blocker: ContentBlocker;
+  /** Forgets what has been written to history for a tab, when its page changes. */
+  forgetBlockedCount: (webContentsId: number) => void;
   onChanged: () => void;
   applyVisibility: () => void;
   cacheFavicon: (tab: TabRecord, faviconUrl: string) => void;
@@ -46,6 +48,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       return;
     }
     deps.blocker.resetCount(contents.id);
+    deps.forgetBlockedCount(contents.id);
     // Set before any subresource request is judged, so an exception applies
     // from the first request of the page rather than the second load.
     const site = hostOf(details.url);

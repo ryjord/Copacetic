@@ -1,3 +1,4 @@
+import type { SiteTraces } from '../shared/forgetting';
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
@@ -58,6 +59,9 @@ const api: CopaceticApi = {
   history: {
     list: (query = '', offset = 0): Promise<HistoryPage> => ipcRenderer.invoke(INVOKE.historyList, query, offset),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.historyRemove, id),
+    traces: (address: string): Promise<SiteTraces> => ipcRenderer.invoke(INVOKE.historyTraces, address),
+    forgetSite: (address: string): Promise<SiteTraces> => ipcRenderer.invoke(INVOKE.historyForgetSite, address),
+    totalBlocked: (): Promise<number> => ipcRenderer.invoke(INVOKE.historyTotalBlocked),
     clear: (range: ClearRange) => ipcRenderer.invoke(INVOKE.historyClear, range),
     topSites: (limit = 8): Promise<TopSite[]> => ipcRenderer.invoke(INVOKE.historyTopSites, limit),
   },

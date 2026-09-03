@@ -1,3 +1,4 @@
+import { type SiteTraces, describeTraces, siteOf } from '../../shared/forgetting';
 import {
   type BrowserWindow,
   app,
@@ -1057,6 +1058,26 @@ export class Browser {
   updateBookmarkFolder(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
     this.store.updateBookmarkFolder(id, changes);
     this.bookmarksChanged();
+  }
+
+  /**
+   * Removes everything known about one site, and says what went.
+   *
+   * Said afterwards as well as before, because something that vanished quietly
+   * is indistinguishable from something that did not work.
+   */
+  forgetSite(address: string): SiteTraces {
+    const removed = this.store.forgetSite(address);
+    // The allowlist may have lost an entry, and the blocker holds its own copy.
+    this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+    this.notify({
+      id: `forget-${siteOf(address)}`,
+      tone: 'done',
+      key: 'forget-site',
+      message: `Forgot ${siteOf(address)} — ${describeTraces(removed).toLowerCase()}`,
+    });
+    this.scheduleStatePush();
+    return removed;
   }
 
   fileBookmark(id: string, folderId: string | null): void {

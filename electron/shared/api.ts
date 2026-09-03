@@ -1,3 +1,4 @@
+import type { SiteTraces } from './forgetting';
 import type { ChromeSurface } from './channels';
 import type { BookmarkFolder } from './bookmark-folders';
 import type { Notice } from './notices';
@@ -68,6 +69,12 @@ export interface CopaceticApi {
   };
   history: {
     list(query?: string, offset?: number): Promise<HistoryPage>;
+    /** What is kept about the site an address belongs to, counted before anything goes. */
+    traces(address: string): Promise<SiteTraces>;
+    /** Removes everything known about that site, and reports what went. */
+    forgetSite(address: string): Promise<SiteTraces>;
+    /** Requests refused across everything still in history. */
+    totalBlocked(): Promise<number>;
     remove(id: string): Promise<void>;
     clear(range: ClearRange): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;

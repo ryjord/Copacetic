@@ -118,6 +118,16 @@ export interface HistoryEntry {
   title: string;
   lastVisitedAt: number;
   visitCount: number;
+  /**
+   * Requests refused on this page, added up across every visit.
+   *
+   * Requests, not adverts: one advert is usually several requests and most of
+   * these are trackers, so the number that is easy to inflate is the one to be
+   * careful with. Absent on entries written before this was counted, which is
+   * why it is optional rather than zero — nothing was measured then, and zero
+   * would be a claim.
+   */
+  blockedCount?: number;
 }
 
 export interface HistoryPage {

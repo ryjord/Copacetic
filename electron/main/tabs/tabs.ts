@@ -48,6 +48,8 @@ export class TabManager {
   private readonly closedTabs = new ClosedTabs();
   private find: FindState = CLOSED_FIND;
   private isDisposed = false;
+  /** What has already been added to history per tab, so only the difference is. */
+  private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
 
   constructor(
@@ -62,10 +64,33 @@ export class TabManager {
     private readonly onContentBounds: (bounds: ContentBounds) => void = () => {},
   ) {
     this.window.on('resize', () => this.applyBounds());
-    this.blocker.onCount((webContentsId) => {
-      if (this.findByWebContentsId(webContentsId)) {
-        this.onChanged();
+    this.blocker.onCount((webContentsId, count) => {
+      const tab = this.findByWebContentsId(webContentsId);
+      if (!tab) {
+        return;
       }
+
+      /*
+       * Counted here rather than when the visit is recorded. A visit is
+       * recorded when the title arrives, which is early: most trackers have
+       * not been refused yet, and sampling then would report almost nothing on
+       * every page in the browser.
+       *
+       * Only the difference is added, because the blocker's number is a
+       * running total for the tab and this is called once per refusal.
+       *
+       * A Hush tab is skipped entirely. Its visits are not written down, and a
+       * count is something written down.
+       */
+      if (!tab.isHush && tab.url.startsWith('http')) {
+        const already = this.countedBlocked.get(webContentsId) ?? 0;
+        if (count > already) {
+          this.countedBlocked.set(webContentsId, count);
+          this.store.addBlocked(tab.url, count - already);
+        }
+      }
+
+      this.onChanged();
     });
   }
 
@@ -483,6 +508,7 @@ export class TabManager {
     attachTabEvents(tab, {
       store: this.store,
       blocker: this.blocker,
+      forgetBlockedCount: (webContentsId: number) => this.countedBlocked.delete(webContentsId),
       onChanged: () => this.onChanged(),
       applyVisibility: () => this.applyVisibility(),
       cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),

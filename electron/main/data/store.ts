@@ -7,6 +7,7 @@ import type {
   Suggestion,
   TopSite,
 } from '../../shared/types';
+import { NOTHING, type SiteTraces, sameSite, siteOf } from '../../shared/forgetting';
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, resolveOmniboxInput } from '../../shared/url';
 import type { RememberedCertificate } from '../../shared/certificate-changes';
 import { BookmarksStore } from './bookmarks-store';
@@ -137,8 +138,78 @@ export class BrowserStore {
     this.history.removeHistory(id);
   }
 
+  /**
+   * What is kept about one site, counted before anything is removed.
+   *
+   * Said before it happens and again afterwards: something that vanished
+   * quietly is indistinguishable from something that did not work.
+   */
+  tracesOf(address: string): SiteTraces {
+    const site = siteOf(address);
+    if (!site) {
+      return NOTHING;
+    }
+    const settings = this.settings.getSettings();
+    const keysFor = (record: Record<string, unknown>) =>
+      Object.keys(record).filter((key) => sameSite(key, site)).length;
+
+    return {
+      visits: this.history.countForSite(site),
+      icons: this.favicons.origins().filter((origin) => sameSite(origin, site)).length,
+      zoom: keysFor(settings.zoomLevels),
+      permissions: keysFor(settings.permissionDecisions),
+      blockingOff: settings.blockerAllowlist.filter((entry) => sameSite(entry, site)).length,
+      certificates: this.certificatesStore.origins().filter((origin) => sameSite(origin, site)).length,
+    };
+  }
+
+  /**
+   * Removes everything this browser knows about one site.
+   *
+   * The axis people actually want. Clearing by time is an afternoon; what
+   * someone usually means is a site — and every place it is known, not the one
+   * place they happened to be looking at.
+   */
+  forgetSite(address: string): SiteTraces {
+    const site = siteOf(address);
+    if (!site) {
+      return NOTHING;
+    }
+    const found = this.tracesOf(address);
+
+    this.history.forgetSite(site);
+    this.favicons.forgetSite(site);
+    this.certificatesStore.forgetSite(site);
+
+    const settings = this.settings.getSettings();
+    const without = <T>(record: Record<string, T>) =>
+      Object.fromEntries(Object.entries(record).filter(([key]) => !sameSite(key, site)));
+
+    this.settings.updateSettings({
+      zoomLevels: without(settings.zoomLevels),
+      permissionDecisions: without(settings.permissionDecisions),
+      blockerAllowlist: settings.blockerAllowlist.filter((entry) => !sameSite(entry, site)),
+    });
+
+    return found;
+  }
+
+  /** Requests refused across everything still in history. */
+  totalBlocked(): number {
+    return this.history.totalBlocked();
+  }
+
+  /** Adds to what one page has refused, as it happens. */
+  addBlocked(url: string, delta: number): void {
+    this.history.addBlocked(url, delta);
+  }
+
   clearHistory(range: ClearRange): void {
     this.history.clearHistory(range);
+    // The icons go with it. Nobody chose to keep one, and a per-origin cache
+    // left behind after clearing history is a readable list of where someone
+    // has been — which is the thing they just asked to be rid of.
+    this.favicons.forgetAll();
   }
 
   topSites(limit = 8): TopSite[] {

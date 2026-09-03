@@ -98,6 +98,9 @@ export function registerIpcHandlers(browser: Browser): void {
   });
   handle(INVOKE.bookmarksOpen, (_event, url) => browser.openInActiveTab(asString(url)));
   handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
+  handle(INVOKE.historyTraces, (_event, address) => browser.store.tracesOf(asString(address)));
+  handle(INVOKE.historyTotalBlocked, () => browser.store.totalBlocked());
+  handle(INVOKE.historyForgetSite, (_event, address) => browser.forgetSite(asString(address)));
   handle(INVOKE.noticeAnswer, (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
   handle(INVOKE.noticesPending, () => browser.pendingNotices());
   handle(INVOKE.chromeSetOverlayHeight, (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
