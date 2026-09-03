@@ -77,8 +77,10 @@ export function AboutPane({ info }: SettingsPaneProps) {
             sandboxing Copacetic relies on. It is a deliberate no rather than a missing feature.
           </Answer>
           <Answer question="Does it remember passwords?">
-            It can keep them, in Passwords, encrypted with a key your operating system holds. It does not yet offer to
-            save what you type or fill anything in — that is deliberate, and comes next.
+            It can keep them, in Passwords, encrypted with a key your operating system holds. Right-click a password
+            box and choose Fill password: one short script runs in that page and leaves nothing behind. It never
+            offers to save what you type, which would need code sitting in every page all the time — that half is
+            deliberate and is not coming.
           </Answer>
         </dl>
       </Section>

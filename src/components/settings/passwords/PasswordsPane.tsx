@@ -80,8 +80,8 @@ export function PasswordsPane() {
     <>
       <Section title="Passwords">
         <Note>
-          Saved on this machine and encrypted with a key your operating system keeps. Copacetic does not fill them in
-          yet — that comes next — so for now this is somewhere to put them and read them back.
+          Saved on this machine and encrypted with a key your operating system keeps. Right-click a password box and
+          choose Fill password to put one in; Copacetic never offers to save what you type.
         </Note>
 
         <VaultCondition vault={vault} />
@@ -203,9 +203,16 @@ function WhatThisDoesNotDo({ facts }: { facts: VaultFacts }) {
           </Answer>
         )}
         <Answer question="Does it fill passwords in for me?">
-          No, and it will not. Watching what you type into a page means running Copacetic&apos;s code inside that
-          page, and this browser ships without any — a guarantee worth more than the convenience. You add passwords
-          here and copy them out yourself.
+          When you ask it to, and only then. Right-click a password box and choose Fill password: Copacetic runs one
+          short script in that page, once, which finds the field and sets it. Nothing is left behind — no listener, no
+          global, nothing the page can call afterwards — and the script only appears in the menu on a site you have a
+          password saved for.
+        </Answer>
+        <Answer question="Does it offer to save passwords as I type them?">
+          No, and that is the half that will not change. Noticing what you type means Copacetic&apos;s code sitting in
+          every page all the time, and this browser ships no such script — the fill above is run when you ask and gone
+          when it returns. Saving on submit was built and then dropped for exactly that reason. You add passwords here
+          yourself.
         </Answer>
         <Answer question="Does anything leave this machine?">
           No. There is no account, no syncing and no server to sync with. The only copy that ever leaves is one you

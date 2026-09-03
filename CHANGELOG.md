@@ -19,6 +19,17 @@ Batch 1 of the September audit.
 
 ### Fixed
 
+- **Settings and About stop denying a feature that ships.** Filling a password
+  from the right-click menu arrived in 1.3.2. For four releases afterwards the
+  Passwords pane said "Copacetic does not fill them in yet", and, asked
+  directly, "No, and it will not" — on the surface this browser points at to be
+  judged. The README still said there was no password manager at all, two
+  releases after the vault shipped. All four now describe what happens: one
+  short script, run when you ask, gone when it returns. The half that was true
+  is kept and said more plainly — nothing ever offers to save what you type,
+  because that needs code sitting in every page permanently, and that is the
+  guarantee save-on-submit was dropped to keep.
+
 - **Following a link out of a Hush tab no longer leaves a record.** The tab kept
   its promise; nothing opened from it did. `target="_blank"`, `window.open`,
   middle-click, "Open link in new tab", "Open image in new tab" and "Search
