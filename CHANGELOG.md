@@ -19,6 +19,16 @@ Batch 1 of the September audit.
 
 ### Fixed
 
+- **Following a link out of a Hush tab no longer leaves a record.** The tab kept
+  its promise; nothing opened from it did. `target="_blank"`, `window.open`,
+  middle-click, "Open link in new tab", "Open image in new tab" and "Search
+  for …" all opened an ordinary, recorded tab — the address went to history, the
+  icon to the cache and the certificate to disk, reached by following a link
+  from the one place that exists not to do that. A new tab now takes Hush, and
+  its group, from the tab that opened it unless it is told otherwise, decided
+  where every tab is created rather than remembered separately by each of the
+  six ways to open one.
+
 - **A group that keeps its own browsing is now protected like everything else.**
   There are three kinds of session — ordinary, Hush, and a group's own — and
   only two of them were ever set up, because the setup was written out by hand

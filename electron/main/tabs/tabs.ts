@@ -21,6 +21,7 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
+import { inheritFromOpener } from '../../shared/opening';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
 import type { SessionSnapshot, SessionTab } from '../data/session-store';
 import { trustedLocally } from '../security/local-certificates';
@@ -473,11 +474,22 @@ export class TabManager {
     // `javascript:` tab by forgetting a check of its own.
     const rawUrl = requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) ? requestedUrl : START_PAGE_URL;
 
+    // What the opener was, this tab is, unless the caller said otherwise. A
+    // link followed out of a Hush tab used to open an ordinary recorded one —
+    // see shared/opening.ts. Applied here because this is the single place
+    // every tab is born, so no caller can forget it.
+    const opener =
+      options.openerWebContentsId === undefined ? null : this.findByWebContentsId(options.openerWebContentsId);
+    const inherited = inheritFromOpener(opener ? { isHush: opener.isHush, groupId: opener.groupId } : null, {
+      hush: options.hush,
+      groupId: options.groupId,
+    });
+
     const id = randomUUID();
     const settings = this.store.getSettings();
     // Hush wins over a group's own session: see shared/tab-groups.ts.
     const partition = partitionFor(
-      { isHush: options.hush === true, group: this.store.groupFor(options.groupId ?? null) },
+      { isHush: inherited.hush, group: this.store.groupFor(inherited.groupId) },
       { web: WEB_PARTITION, hush: HUSH_PARTITION },
     );
     // Before the view exists, not after. A group's own session had nothing
@@ -508,7 +520,7 @@ export class TabManager {
     const tab: TabRecord = {
       id,
       view,
-      isHush: options.hush === true,
+      isHush: inherited.hush,
       isStartPage,
       url: isStartPage ? START_PAGE_URL : rawUrl,
       title: '',
@@ -520,7 +532,7 @@ export class TabManager {
       zoomFactor: settings.defaultZoomFactor,
       isMuted: false,
       pendingFaviconUrl: null,
-      groupId: options.groupId && this.store.groupFor(options.groupId) ? options.groupId : null,
+      groupId: inherited.groupId && this.store.groupFor(inherited.groupId) ? inherited.groupId : null,
     };
 
     this.tabs.set(id, tab);
