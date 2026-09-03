@@ -63,6 +63,8 @@ export interface CopaceticApi {
     /** Told by the overlay layer itself, which is the only thing that can measure it. */
     setOverlayHeight(height: number): Promise<void>;
     getState(): Promise<BrowserState>;
+    /** A surface asked for before this renderer was listening, collected on mount. */
+    pendingSurface(): Promise<ChromeSurface | null>;
   };
   omnibox: {
     suggest(query: string): Promise<Suggestion[]>;

@@ -6,13 +6,25 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Added
 
+- **What it costs to run, measured rather than claimed.** The README now
+  publishes start-up time, what the blocking engine costs to load, and memory
+  with pages open, alongside the machine that produced them and the script that
+  produces yours: `npm run measure` launches the built app on a throwaway
+  profile five times and reports the median. Nothing here was worth stating
+  without a way for someone else to check it.
 - **Signing in to Google works.** It refused before, and the reason turned out to
   be that Copacetic said it was Chrome and then did not behave like one:
   Chromium in Electron sends none of the client-hint headers every real Chrome
   sends on every secure request, and a sign-in page reads those before a single
   script runs. Those, the browser's own description of itself, the languages it
-  offers and `window.chrome` all now say the same thing. Page content still runs
-  no script of Copacetic's — the fix is entirely in the main process.
+  offers and `window.chrome` all now say the same thing. With one difference
+  left on purpose: only the three hints Chrome sends unprompted are sent, so a
+  site that asks for the high-entropy ones through `Accept-CH` gets no answer.
+  That is itself something a determined site can notice, and it is still the
+  right trade — those hints are the full version, the architecture, the
+  bitness and the device model, and nothing needs them to let you sign in.
+  Page content still runs no script of Copacetic's — the fix is entirely in
+  the main process.
 - **Development servers open.** A certificate signed by nobody is accepted from
   `localhost`, `127.0.0.1`, `::1` and `.localhost`, and nowhere else; reaching
   that traffic already means being on the machine. The badge says the
@@ -104,6 +116,13 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **A menu item pressed during start-up now does what it says.** Settings,
+  History, Downloads and the command palette are opened by telling the
+  interface, and the interface is a page: for a couple of hundred milliseconds
+  after the window appears there is nothing there to be told. The request is now
+  held and handed over when the interface starts listening, once, and only if it
+  was recent — a pane that opens a minute later because of a keystroke nobody
+  remembers is its own bug.
 - **A Hush tab no longer writes down the certificate of every site it opens.**
   This happened with no action from anyone, on every https page, and the record
   outlived the tab — the same shape as the favicon cache and the download, and

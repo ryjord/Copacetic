@@ -33,7 +33,7 @@ export function NoticeStrip() {
 
   useEffect(() => {
     const api = getBridge();
-    // Collected as well as subscribed to: this page takes over a second to
+    // Collected as well as subscribed to: this page is listening some time to
     // start listening, so anything said during startup was said to nobody.
     void ask((subject) => subject.notices.pending(), []).then((waiting) =>
       setNotices((current) => waiting.reduce(admit, current)),

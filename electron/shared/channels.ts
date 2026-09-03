@@ -43,6 +43,7 @@ export const INVOKE = {
   historyOpenContextMenu: 'history:open-context-menu',
   noticeAnswer: 'notice:answer',
   noticesPending: 'notice:pending',
+  surfacePending: 'surface:pending',
   chromeSetOverlayHeight: 'chrome:set-overlay-height',
   filtersUpdate: 'filters:update',
   bookmarkFoldersList: 'bookmark-folders:list',

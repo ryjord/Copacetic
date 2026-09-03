@@ -69,6 +69,7 @@ import {
   openFolderMessage,
   savedGroupMessage,
 } from '../../shared/notices';
+import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
 import { OverlayLayer } from './overlay';
 import { VaultSession } from './vault-session';
 import { log } from '../system/diagnostics';
@@ -500,8 +501,27 @@ export class Browser {
     this.scheduleStatePush();
   }
 
+  /**
+   * A surface asked for before the chrome was listening.
+   *
+   * Kept because pushing to a renderer that has not hydrated reaches nobody,
+   * and the menu item then looks broken. See `shared/surfaces.ts` for why it is
+   * bounded and why closing is never held.
+   */
+  private requestedSurface: SurfaceRequest | null = null;
+
   openSurface(surface: ChromeSurface): void {
+    this.requestedSurface = worthHolding(surface) ? { surface, askedAt: Date.now() } : null;
     this.pushToChrome(PUSH.openSurface, surface);
+  }
+
+  /** What was asked for before anyone was listening, collected as the chrome starts. */
+  pendingSurface(): ChromeSurface | null {
+    const surface = stillWanted(this.requestedSurface, Date.now());
+    // Handed over once. A second chrome asking is a reload, not the person
+    // asking again.
+    this.requestedSurface = null;
+    return surface;
   }
 
   focusOmnibox(): void {
@@ -936,8 +956,8 @@ export class Browser {
   /**
    * Notices that have been said but not yet taken.
    *
-   * The chrome is a page, and a page takes over a second to hydrate and start
-   * listening. Anything said before then reached nobody — a notice pushed
+   * The chrome is a page, and a page is listening some time after the window
+   * paints — about 190ms on the machine in the README, more on a cold start. Anything said before then reached nobody — a notice pushed
    * during startup was simply lost, which is the whole failure notices exist to
    * fix. They are kept here until the chrome collects them.
    */

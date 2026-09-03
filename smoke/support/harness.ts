@@ -4,6 +4,21 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 /**
+ * The environment Electron is launched with.
+ *
+ * `ELECTRON_RUN_AS_NODE` is set by some editors' integrated terminals, and it
+ * makes the Electron binary run as a plain Node process — no window, no app,
+ * and a launch failure that says only "Process failed to launch". Inheriting it
+ * means these never run from inside an editor, which is exactly where someone
+ * would try them first.
+ */
+const launchEnvironment = (): Record<string, string> => {
+  const environment: Record<string, string> = { ...process.env, NODE_ENV: 'production' } as Record<string, string>;
+  delete environment.ELECTRON_RUN_AS_NODE;
+  return environment;
+};
+
+/**
  * A running copy of the built app, with a profile of its own.
  *
  * Smoke specs talk to the real thing: the packaged main process, the real
@@ -27,7 +42,7 @@ export class SmokeApp {
     const app = await electron.launch({
       args: ['.', `--user-data-dir=${profile}`],
       cwd: process.cwd(),
-      env: { ...process.env, NODE_ENV: 'production' },
+      env: launchEnvironment(),
     });
 
     // The overlay is a page too, and Playwright hands back whichever it saw
@@ -87,9 +102,23 @@ export class SmokeApp {
     );
   }
 
-  /** Run something in the main process, where Electron's own objects live. */
-  main<T>(fn: (electronModule: typeof import('electron')) => T | Promise<T>): Promise<T> {
-    return this.app.evaluate(fn);
+  /**
+   * Runs something in the main process, where Electron's own objects live.
+   *
+   * The function is serialised and evaluated over there, so it closes over
+   * nothing here — anything it needs from the spec has to be passed as `arg`.
+   */
+  main<T, A = undefined>(
+    fn: (electronModule: typeof import('electron'), arg: A) => T | Promise<T>,
+    arg?: A,
+  ): Promise<T> {
+    // Playwright maps the argument through its own `Unboxed`, which unwraps
+    // handles and which the compiler cannot reduce for a type variable. For
+    // everything a spec sends across a process boundary the two are the same
+    // type, so this narrows to what is actually passed rather than papering
+    // over a mismatch.
+    const run = fn as (electronModule: typeof import('electron'), arg: unknown) => T | Promise<T>;
+    return this.app.evaluate(run, arg);
   }
 
   /** Polls until `condition` holds, for the things the app does on its own schedule. */
@@ -119,8 +148,9 @@ export class SmokeApp {
    * Waits until the chrome is listening, not merely painted.
    *
    * `waitForVisible` answers a different question. The window is shown as soon
-   * as it can paint; the renderer is a page and takes about another second to
-   * hydrate and subscribe to anything the main process pushes. A test that acts
+   * as it can paint; the renderer keeps hydrating for a while after that before
+   * it subscribes to anything the main process pushes — about 190ms on the
+   * machine in the README, and longer on a cold start. A test that acts
    * in that gap sends a push to nobody and then reports the feature broken —
    * which is exactly what happened to a menu item that turned out to be fine.
    */

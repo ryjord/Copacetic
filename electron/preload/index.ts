@@ -50,6 +50,7 @@ const api: CopaceticApi = {
     setOverlayVisible: (visible: boolean) => ipcRenderer.invoke(INVOKE.chromeSetOverlayVisible, visible),
     setOverlayHeight: (height: number) => ipcRenderer.invoke(INVOKE.chromeSetOverlayHeight, height),
     getState: (): Promise<BrowserState> => ipcRenderer.invoke(INVOKE.chromeGetState),
+    pendingSurface: (): Promise<ChromeSurface | null> => ipcRenderer.invoke(INVOKE.surfacePending),
   },
 
   omnibox: {

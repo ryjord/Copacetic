@@ -12,10 +12,15 @@ afterAll(async () => copacetic?.close());
 /**
  * A notice has to survive the chrome not being ready for it.
  *
- * The chrome is a page and takes over a second to hydrate and begin listening.
- * A notice pushed before then reached nobody and was gone — which is exactly
- * the failure notices exist to fix, reproduced one layer up. Measured: the
- * strip mounts ~1.4s after the window is visible.
+ * Notices are drawn by the overlay, which is a second view loaded after the
+ * chrome, and like the chrome it paints before it is listening. A notice pushed
+ * before then reached nobody and was gone — which is exactly the failure
+ * notices exist to fix, reproduced one layer up.
+ *
+ * No figure is quoted for the overlay because there is nothing observable from
+ * out here that says when it started listening; `npm run measure` reports the
+ * chrome's gap, and the overlay's is not smaller. This spec proves the hold
+ * works, which is the part that matters.
  */
 describe('a notice said before anyone was listening', () => {
   it('is still there when the chrome starts', async () => {

@@ -32,7 +32,8 @@
     "clean:dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "smoke": "vitest run --config vitest.smoke.config.ts",
     "filters:update": "node scripts/update-filters.mjs",
-    "filters:build": "node scripts/build-filters.mjs"
+    "filters:build": "node scripts/build-filters.mjs",
+    "measure": "node scripts/measure-performance.mjs"
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "^2.18.2",
@@ -78,7 +79,7 @@
   "build": {
     "appId": "uk.co.ryjord.copacetic",
     "productName": "Copacetic",
-    "copyright": "Copyright \u00a9 2026 Riley Jordan",
+    "copyright": "Copyright © 2026 Riley Jordan",
     "publish": {
       "provider": "github",
       "owner": "ryjord",

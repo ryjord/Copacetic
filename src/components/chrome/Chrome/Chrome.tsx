@@ -61,6 +61,15 @@ export function Chrome() {
       api.on.focusOmnibox(requestOmniboxFocus),
       api.on.openSurface((next) => setSurface(next)),
     ];
+
+    // Anything asked for before this listener existed was pushed to nobody. The
+    // main process holds the last one; collecting it here is what makes Cmd+,
+    // during the second and a half this page takes to hydrate do something.
+    void api.chrome.pendingSurface().then((pending) => {
+      if (pending) {
+        setSurface(pending);
+      }
+    });
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [applyState, requestOmniboxFocus, setSurface]);
 

@@ -4,6 +4,32 @@ import pkg from '../package.json' with { type: 'json' };
 
 let copacetic: SmokeApp;
 
+/**
+ * Presses a menu item by its label, the way the menu bar does.
+ *
+ * `MenuItem.click()` calls the handler directly, which is the only way to reach
+ * these from a test: the menu bar itself is drawn by the operating system and
+ * Playwright cannot see it.
+ */
+const pressMenuItem = (label: string) =>
+  copacetic.main(({ Menu }, wanted) => {
+    const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+      for (const item of items) {
+        if (item.label === wanted) {
+          return item;
+        }
+        const found = item.submenu ? walk(item.submenu.items) : null;
+        if (found) {
+          return found;
+        }
+      }
+      return null;
+    };
+    const item = walk(Menu.getApplicationMenu()?.items ?? []);
+    item?.click();
+    return Boolean(item);
+  }, label);
+
 beforeAll(async () => {
   copacetic = await SmokeApp.launch();
 });
@@ -40,31 +66,15 @@ describe('the app starts', () => {
  * The menu bar is not decoration, and the only way to know an item works is to
  * press it. This one was reported broken during the blocking work and was not:
  * the test pressed it before the renderer had hydrated, so the push it sends
- * arrived at a window that was not yet listening. The fix was the test.
+ * arrived at a window that was not yet listening. At the time the fix was the
+ * test. The request is now held in the main process instead, which is the
+ * subject of the spec below.
  */
 describe('the Settings item in the menu bar', () => {
   it('opens the settings surface', async () => {
     expect(await copacetic.waitForReady()).toBe(true);
 
-    const clicked = await copacetic.main(({ Menu }) => {
-      const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
-        for (const item of items) {
-          if (item.label === 'Settings…') {
-            return item;
-          }
-          const found = item.submenu ? walk(item.submenu.items) : null;
-          if (found) {
-            return found;
-          }
-        }
-        return null;
-      };
-      const item = walk(Menu.getApplicationMenu()?.items ?? []);
-      item?.click();
-      return Boolean(item);
-    });
-
-    expect(clicked).toBe(true);
+    expect(await pressMenuItem('Settings…')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     const opened = await copacetic.chrome.evaluate(() =>
       document.body.innerText.includes('Everything here is stored'),
@@ -75,6 +85,65 @@ describe('the Settings item in the menu bar', () => {
     // the page view and the next test finds nothing where the page should be.
     await copacetic.chrome.getByRole('button', { name: 'Close settings' }).click();
     await new Promise((resolve) => setTimeout(resolve, 800));
+  }, 90_000);
+});
+
+/**
+ * The other half of the item above, and the reason its comment no longer blames
+ * the test.
+ *
+ * The chrome is a page, and the window paints before anything in it is
+ * listening — about 190ms apart on the machine `npm run measure` reports, and
+ * wider on a cold start or slower hardware. A push sent inside that window
+ * reaches a renderer with no listeners attached and is simply gone, so Cmd+, during startup did nothing and looked identical to a
+ * menu item that is broken. The request is now held in the main process and
+ * collected when the renderer starts listening.
+ *
+ * This presses the item after hydration, because the race cannot be forced from
+ * out here. What it proves is the part that a unit test cannot: that the
+ * channel is registered, the preload exposes it, and the main process really is
+ * keeping the request — a rule with nothing wired to it passes its own tests
+ * perfectly.
+ */
+describe('a surface asked for before the chrome is listening', () => {
+  it('is kept for a renderer that starts later, and handed over once', async () => {
+    expect(await copacetic.waitForReady()).toBe(true);
+    expect(await pressMenuItem('Show all history')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    // What a chrome starting now would be given. The push also reached this
+    // already-hydrated renderer, which is not what is being measured here.
+    const held = await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
+    expect(held).toBe('history');
+
+    // Handed over once: a second renderer asking is a reload, not a person
+    // asking again, and it must not reopen a pane that was already closed.
+    const again = await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
+    expect(again).toBeNull();
+
+    // Put it back, or the surface hides the page view for every spec after it.
+    await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }, 90_000);
+
+  /*
+   * The counterweight. Holding a close would mean a chrome that finished
+   * starting a second later opened, and then immediately shut, a pane nobody
+   * had asked for.
+   */
+  it('never keeps a close', async () => {
+    await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
+    expect(await pressMenuItem('Show all history')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // Closing goes through the renderer only, so the request the main process
+    // is holding is still the open. Pressing the item again and letting the
+    // close land is the shape that matters: what is held must never be 'none'.
+    const held = await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
+    expect(held).not.toBe('none');
   }, 90_000);
 });
 

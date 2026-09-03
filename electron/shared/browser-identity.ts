@@ -75,8 +75,15 @@ export function clientHintsFor(userAgent: string, platform: string, arch = 'x64'
  * The header form, built from the same values as the API above.
  *
  * Only the three Chrome sends unprompted. The rest are high-entropy hints a
- * site has to ask for, and sending them unasked is both unlike Chrome and more
- * than anyone needs to know.
+ * site has to ask for through `Accept-CH`, and that request is never answered
+ * — not deferred, never answered. Sending them unasked would be unlike Chrome
+ * and more than anyone needs to know; answering when asked would hand over the
+ * full version, the architecture, the bitness and the device model, which is a
+ * fingerprint, and no sign-in has ever needed one.
+ *
+ * The cost is honest and worth writing down: a site that asks and gets silence
+ * has learned something about this browser. That is a smaller thing to give
+ * away than the answer would be.
  */
 export function clientHintHeaders(hints: ClientHints): Record<string, string> {
   const list = (brands: Brand[]) => brands.map(({ brand, version }) => `"${brand}";v="${version}"`).join(', ');
