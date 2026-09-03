@@ -91,14 +91,42 @@ export function sameSite(a: string, b: string): boolean {
  * they will not think of until it turns up in a list they thought was empty.
  */
 export function siteOf(address: string): string {
+  // A permission is keyed `origin|kind`, which is not an address. Read as one
+  // it matched nothing, so forgetting a site quietly left every permission it
+  // had been granted exactly where it was.
+  const withoutKind = address.split('|')[0] ?? '';
+
   try {
-    const { hostname } = new URL(address);
-    return registrableDomainOf(hostname) ?? hostname;
+    const url = new URL(withoutKind);
+    return authorityOf(url.hostname, url.port);
   } catch {
-    // Not an address. Some settings are keyed by bare host already.
-    return registrableDomainOf(address) ?? address;
+    // A bare host, which is how the blocking allowlist is already keyed.
+    const [host = '', port = ''] = withoutKind.split(':');
+    return host ? authorityOf(host, port) : '';
   }
 }
+
+/**
+ * What counts as one site for a host that has no registrable domain.
+ *
+ * An address is not a domain name, and neither is `localhost`. The
+ * registrable-domain algorithm keeps the last two labels of anything it does
+ * not recognise, which turns every IPv4 address into its last two octets —
+ * `192.168.1.5` and `10.20.1.5` become the same "site", and forgetting one
+ * machine takes the other with it. For those, the host answers for itself, and
+ * the port comes too: two things served from localhost on different ports are
+ * two different projects.
+ */
+function authorityOf(host: string, port: string): string {
+  const lowered = host.toLowerCase();
+  const isAddress = IPV4.test(lowered) || lowered.startsWith('[') || !lowered.includes('.');
+  if (!isAddress) {
+    return registrableDomainOf(lowered) ?? lowered;
+  }
+  return port ? `${lowered}:${port}` : lowered;
+}
+
+const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 export function countTraces(traces: SiteTraces): number {
   return Object.values(traces).reduce((total, count) => total + count, 0);

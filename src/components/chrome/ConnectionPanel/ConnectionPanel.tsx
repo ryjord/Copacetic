@@ -82,7 +82,10 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
           briefly showing one tab's hosts under another tab's heading. Cheaper
           to reason about than resetting state on a change.
         */}
-        <TrackerException url={tab.url} blockedCount={tab.blockedCount} />
+        {/* A blocking exception is kept by site, in a list Settings shows by
+            name. Offering one here would be offering to write down a site
+            opened in a tab whose whole claim is that nothing is written. */}
+        {!tab.isHush && <TrackerException url={tab.url} blockedCount={tab.blockedCount} />}
 
         <SitePermissions url={tab.url} />
 

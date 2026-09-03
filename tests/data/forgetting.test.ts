@@ -38,6 +38,39 @@ describe('which site an address belongs to', () => {
   it('does not match nothing against nothing', () => {
     expect(sameSite('', '')).toBe(false);
   });
+
+  /*
+   * An address is not a domain name. The registrable-domain algorithm keeps the
+   * last two labels of anything it does not recognise, which turns every IPv4
+   * address into its last two octets — so forgetting one machine on a network
+   * would take every other machine whose address happens to end the same way.
+   */
+  it('keeps two unrelated addresses apart', () => {
+    expect(sameSite('http://192.168.1.5/', 'http://10.20.1.5/')).toBe(false);
+  });
+
+  it('treats one address as itself', () => {
+    expect(sameSite('http://192.168.1.5/a', 'http://192.168.1.5/b')).toBe(true);
+  });
+
+  /*
+   * Two things served from localhost on different ports are two different
+   * projects, and forgetting one has no business touching the other.
+   */
+  it('keeps two local servers apart by port', () => {
+    expect(sameSite('http://localhost:3000/', 'http://localhost:8080/')).toBe(false);
+    expect(sameSite('http://localhost:3000/a', 'http://localhost:3000/b')).toBe(true);
+  });
+
+  /*
+   * Permission decisions are keyed `origin|kind`, which is not an address. Read
+   * as one, it matches nothing — so forgetting a site silently left every
+   * permission it had been granted exactly where it was.
+   */
+  it('reads a permission key, which is an origin with a kind stuck on it', () => {
+    expect(siteOf('https://www.example.com|geolocation')).toBe('example.com');
+    expect(sameSite('https://www.example.com|camera', 'https://example.com/')).toBe(true);
+  });
 });
 
 /**

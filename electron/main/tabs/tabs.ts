@@ -166,7 +166,7 @@ export class TabManager {
       security: describeSecurity(
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
-        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url),
+        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url, tab.isHush),
         !tab.isStartPage && trustedLocally(originOf(tab.url)),
         tab.error !== null,
       ),
@@ -186,7 +186,7 @@ export class TabManager {
    * records it. Reading and remembering happen together so a site cannot be
    * flagged twice for the same change.
    */
-  private certificateChangeFor(url: string): string {
+  private certificateChangeFor(url: string, isHush: boolean): string {
     const origin = originOf(url);
     const current = certificateFor(hostOf(url));
     if (!origin || !current) {
@@ -195,7 +195,23 @@ export class TabManager {
 
     const remembered = this.store.rememberedCertificateFor(origin);
     const { detail } = compareCertificate(remembered, current);
-    this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
+
+    /*
+     * Compared, never written, for a Hush tab.
+     *
+     * This runs for every https page with no action from anyone, so it was
+     * putting the origin of everything opened in a Hush tab into
+     * certificates.json, timestamped, where it stayed after the tab closed —
+     * the same shape of leak as the favicon cache and the download record, and
+     * against the same sentence: nothing it does reaches the disk.
+     *
+     * The comparison still happens, so a certificate that changed mid-session
+     * is still reported; there is simply nothing kept afterwards to compare
+     * against next time, which is what a tab that remembers nothing means.
+     */
+    if (!isHush) {
+      this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
+    }
     return detail;
   }
 
@@ -599,6 +615,7 @@ export class TabManager {
     const contents = tab.view.webContents;
     if (!contents.isDestroyed()) {
       this.blocker.forget(contents.id);
+      this.countedBlocked.delete(contents.id);
       contents.stop();
     }
     if (!this.window.isDestroyed()) {
@@ -791,7 +808,10 @@ export class TabManager {
     // Remembered against the origin: a site that needs zooming needs it every
     // visit, and setting it again on every visit is the kind of small friction
     // that makes a browser tiring to use.
-    if (!tab.isStartPage) {
+    // Kept for the tab, not for the site, when the tab is Hush. Settings lists
+    // everywhere zoom was changed, so remembering it would put a site opened in
+    // a Hush tab into a list shown by name.
+    if (!tab.isStartPage && !tab.isHush) {
       this.store.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
     }
 

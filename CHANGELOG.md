@@ -89,6 +89,21 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **A Hush tab no longer writes down the certificate of every site it opens.**
+  This happened with no action from anyone, on every https page, and the record
+  outlived the tab — the same shape as the favicon cache and the download, and
+  against the same sentence. The certificate is still compared, so a change
+  mid-session is still reported; there is simply nothing kept afterwards.
+- **Zoom, permissions and blocking exceptions set in a Hush tab are no longer
+  remembered.** Each is kept against a site, and Settings lists those by name.
+  The cost is being asked again in the same session, which is what a tab that
+  remembers nothing means.
+- **Forgetting a site now removes the permissions granted to it.** They are
+  stored under a key that is an origin with the permission's name stuck on the
+  end, which never matched, so every permission survived being forgotten.
+- **Forgetting a site no longer takes unrelated ones with it.** Two addresses
+  sharing their last two numbers counted as one site, as did two things served
+  from localhost on different ports.
 - **A download started in a Hush tab is no longer written to disk.** Its address,
   its redirect chain and its time were going into `downloads.json`, which
   contradicts what Hush says in this README and on the tab itself — that nothing
