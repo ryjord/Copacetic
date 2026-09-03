@@ -9,10 +9,14 @@
  * the median and says which machine produced it.
  *
  * Run it with `npm run measure` after `npm run build`. It writes nothing except
- * to stdout and its own temporary profiles.
+ * to stdout and its own temporary profiles, which it removes.
+ *
+ * One thing it does that the app never does on its own: the memory measurement
+ * opens five pages on example.com, because memory with nothing loaded is not a
+ * number anybody needs. Nothing else here touches the network.
  */
 import { _electron as electron } from 'playwright';
-import { readFileSync, mkdtempSync, rmSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, mkdtempSync, rmSync, realpathSync } from 'node:fs';
 import { tmpdir, cpus, totalmem } from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -34,6 +38,58 @@ const launchEnvironment = () => {
   delete environment.ELECTRON_RUN_AS_NODE;
   return environment;
 };
+
+/**
+ * Launches the built app on a profile of its own and hands back the chrome
+ * window, the profile path, and a way to shut both down.
+ *
+ * Written once rather than twice: the startup and memory measurements need the
+ * same six steps, and two copies of them drift.
+ */
+async function launch() {
+  const profile = realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-measure-')));
+  const app = await electron.launch({
+    args: ['.', `--user-data-dir=${profile}`],
+    cwd: process.cwd(),
+    env: launchEnvironment(),
+  });
+
+  const deadline = Date.now() + 30_000;
+  let chrome = null;
+  while (!chrome && Date.now() < deadline) {
+    // The overlay is a window too; the chrome is the one that is not it.
+    chrome = app.windows().find((candidate) => !candidate.url().includes('/overlay')) ?? null;
+    if (!chrome) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+  if (!chrome) {
+    await app.close();
+    rmSync(profile, { recursive: true, force: true });
+    throw new Error('the app never opened a chrome window');
+  }
+
+  return {
+    app,
+    chrome,
+    // Listening, not merely painted: the tab strip exists only once the
+    // renderer has hydrated.
+    async waitUntilListening() {
+      while (!(await chrome.evaluate(() => Boolean(document.querySelector('[role="tablist"]'))))) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    },
+    async waitUntilVisible() {
+      while (!(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() === true))) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    },
+    async done() {
+      await app.close();
+      rmSync(profile, { recursive: true, force: true });
+    },
+  };
+}
 
 const median = (values) => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -57,41 +113,18 @@ async function measureStartup() {
   const ready = [];
 
   for (let run = 0; run < RUNS; run += 1) {
-    const profile = realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-measure-')));
     const startedAt = performance.now();
-    const app = await electron.launch({
-      args: ['.', `--user-data-dir=${profile}`],
-      cwd: process.cwd(),
-      env: launchEnvironment(),
-    });
-
-    const chrome = await (async () => {
-      const deadline = Date.now() + 30_000;
-      while (Date.now() < deadline) {
-        for (const candidate of app.windows()) {
-          if (!candidate.url().includes('/overlay')) {
-            return candidate;
-          }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      throw new Error('no chrome window');
-    })();
-
-    while (!(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() === true))) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    const running = await launch();
+    try {
+      await running.waitUntilVisible();
+      visible.push(performance.now() - startedAt);
+      await running.waitUntilListening();
+      ready.push(performance.now() - startedAt);
+    } finally {
+      // A throw here would otherwise leave an Electron process running and a
+      // temporary profile on disk, once per failed run.
+      await running.done();
     }
-    visible.push(performance.now() - startedAt);
-
-    // Listening, not merely painted: the tab strip exists only once the
-    // renderer has hydrated and subscribed.
-    while (!(await chrome.evaluate(() => Boolean(document.querySelector('[role="tablist"]'))))) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-    ready.push(performance.now() - startedAt);
-
-    await app.close();
-    rmSync(profile, { recursive: true, force: true });
   }
 
   return { visible: median(visible), ready: median(ready), visibleAll: visible, readyAll: ready };
@@ -107,6 +140,11 @@ async function measureStartup() {
  */
 async function measureBlocker() {
   const { FiltersEngine } = await import('@ghostery/adblocker');
+  if (!existsSync(path.join(FILTERS, 'engine.bin'))) {
+    throw new Error(
+      'No built engine to measure. Run `npm run build` first — `build:main` clears dist/ on its way through.',
+    );
+  }
   const blob = readFileSync(path.join(FILTERS, 'engine.bin'));
   const manifest = JSON.parse(readFileSync(path.join(FILTERS, 'manifest.json'), 'utf8'));
   const rules = manifest.lists.reduce((total, list) => total + list.rules, 0);
@@ -145,48 +183,34 @@ async function measureBlocker() {
  * a process per tab is the number that flatters.
  */
 async function measureMemory() {
-  const profile = realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-measure-')));
-  const app = await electron.launch({
-    args: ['.', `--user-data-dir=${profile}`],
-    cwd: process.cwd(),
-    env: launchEnvironment(),
-  });
+  const running = await launch();
+  try {
+    await running.waitUntilListening();
 
-  const chrome = await (async () => {
-    const deadline = Date.now() + 30_000;
-    while (Date.now() < deadline) {
-      for (const candidate of app.windows()) {
-        if (!candidate.url().includes('/overlay')) {
-          return candidate;
-        }
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    // Every process the app is running, added together, because that is what
+    // the machine actually gives up. A per-process figure for a browser with a
+    // process per tab is the number that flatters.
+    const total = () =>
+      running.app.evaluate(({ app: electronApp }) =>
+        // Electron reports workingSetSize in kilobytes.
+        electronApp.getAppMetrics().reduce((sum, metric) => sum + (metric.memory?.workingSetSize ?? 0) * 1024, 0),
+      );
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const atRest = await total();
+
+    const TABS = 5;
+    for (let i = 0; i < TABS; i += 1) {
+      await running.chrome.evaluate((n) => window.copacetic.tabs.create(`https://example.com/?measure=${n}`), i);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
-    throw new Error('no chrome window');
-  })();
-  while (!(await chrome.evaluate(() => Boolean(document.querySelector('[role="tablist"]'))))) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    const withTabs = await total();
+
+    return { atRest, withTabs, tabs: TABS, perTab: (withTabs - atRest) / TABS };
+  } finally {
+    await running.done();
   }
-
-  const total = () =>
-    app.evaluate(({ app: electronApp }) =>
-      electronApp.getAppMetrics().reduce((sum, metric) => sum + (metric.memory?.workingSetSize ?? 0) * 1024, 0),
-    );
-
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-  const atRest = await total();
-
-  const TABS = 5;
-  for (let i = 0; i < TABS; i += 1) {
-    await chrome.evaluate((n) => window.copacetic.tabs.create(`https://example.com/?measure=${n}`), i);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
-  await new Promise((resolve) => setTimeout(resolve, 4000));
-  const withTabs = await total();
-
-  await app.close();
-  rmSync(profile, { recursive: true, force: true });
-  return { atRest, withTabs, tabs: TABS, perTab: (withTabs - atRest) / TABS };
 }
 
 const machine = () => {

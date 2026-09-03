@@ -125,8 +125,16 @@ export class SmokeApp {
   private async until(condition: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      if (await condition()) {
-        return true;
+      try {
+        if (await condition()) {
+          return true;
+        }
+      } catch {
+        // A poll that lands mid-navigation throws "Execution context was
+        // destroyed", which means the page is not ready rather than that the
+        // wait has failed. Swallowing it here costs nothing: a condition that
+        // never holds still runs out the clock and returns false, and the
+        // caller's assertion says so.
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -150,8 +158,9 @@ export class SmokeApp {
    * `waitForVisible` answers a different question. The window is shown as soon
    * as it can paint; the renderer keeps hydrating for a while after that before
    * it subscribes to anything the main process pushes — about 190ms on the
-   * machine in the README, and longer on a cold start. A test that acts
-   * in that gap sends a push to nobody and then reports the feature broken —
+   * machine in the README, and later still on a cold start, which is slower
+   * throughout. A test that acts in that gap sends a push to nobody and then
+   * reports the feature broken —
    * which is exactly what happened to a menu item that turned out to be fine.
    */
   async waitForReady(timeoutMs = 20_000): Promise<boolean> {

@@ -11,6 +11,7 @@ import { StartPage } from '@/components/pages/StartPage/StartPage';
 import { getBridge, isRunningInShell, send } from '@/lib/bridge';
 import { ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
+import { reachedForAnotherTab } from '@shared/surfaces';
 import { AuthBanner } from '@/components/chrome/AuthBanner/AuthBanner';
 import { BookmarksBar } from '@/components/chrome/BookmarksBar/BookmarksBar';
 import { ConnectionPanel } from '@/components/chrome/ConnectionPanel/ConnectionPanel';
@@ -120,7 +121,7 @@ export function Chrome() {
   }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length, showBookmarksBar]);
 
   /*
-   * Reaching for a tab is asking to see it.
+   * Reaching for a tab is asking to see it. The first state arriving is not.
    *
    * The panel describes one particular tab, so it must not linger over another.
    * A surface is worse than lingering: it covers the whole content area and
@@ -132,7 +133,13 @@ export function Chrome() {
    * nothing to restore, so closing on the way past is what they are: something
    * opened over the top of what you were doing, and dismissed by returning to it.
    */
+  const previousTabId = useRef<string | null>(null);
   useEffect(() => {
+    const previous = previousTabId.current;
+    previousTabId.current = activeTabId;
+    if (!reachedForAnotherTab(previous, activeTabId)) {
+      return;
+    }
     closeConnectionPanel();
     setSurface('none');
   }, [activeTabId, closeConnectionPanel, setSurface]);

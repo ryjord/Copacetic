@@ -94,7 +94,7 @@ describe('the Settings item in the menu bar', () => {
  *
  * The chrome is a page, and the window paints before anything in it is
  * listening — about 190ms apart on the machine `npm run measure` reports, and
- * wider on a cold start or slower hardware. A push sent inside that window
+ * further into a cold start, which is slower throughout. A push sent inside that window
  * reaches a renderer with no listeners attached and is simply gone, so Cmd+, during startup did nothing and looked identical to a
  * menu item that is broken. The request is now held in the main process and
  * collected when the renderer starts listening.
@@ -125,6 +125,32 @@ describe('a surface asked for before the chrome is listening', () => {
     await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
     await new Promise((resolve) => setTimeout(resolve, 800));
   }, 90_000);
+
+  /*
+   * The one that matters, and the one the two above cannot see.
+   *
+   * They assert what the main process hands back, which is only half the
+   * journey: the renderer still has to collect it and still be showing it once
+   * the first state arrives. Reloading the chrome with a request held is the
+   * only way to reproduce a renderer starting up from out here, and it is a
+   * real case in its own right.
+   */
+  it('is actually on screen once the interface has finished starting', async () => {
+    expect(await pressMenuItem('Show all history')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    await copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.webContents.reload());
+    expect(await copacetic.waitForReady()).toBe(true);
+    // Long enough for the first state push to land and everything it triggers
+    // to settle. The failure this catches happens after hydration, not during.
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
+    const showing = await copacetic.chrome.evaluate(() => document.body.innerText.includes('Kept on this machine'));
+    expect(showing).toBe(true);
+
+    await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }, 120_000);
 
   /*
    * The counterweight. Holding a close would mean a chrome that finished

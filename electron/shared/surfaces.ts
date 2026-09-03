@@ -5,8 +5,9 @@ import type { ChromeSurface } from './channels';
  *
  * A surface is opened by pushing to the chrome renderer, and the chrome is a
  * page: the window paints before anything in it is listening. `npm run measure`
- * puts that gap at about 190ms on the machine in the README and nearly 300ms on
- * a cold first run, and slower hardware widens it. Measured before this existed
+ * puts that gap at about 190ms on the machine in the README. A cold first run
+ * does not widen it much — it makes the whole launch slower, around 900ms to a
+ * window that answers — and slower hardware moves both. Measured before this existed
  * — Cmd+, or Cmd+Y inside that window pushed to a renderer with no listeners
  * attached and nothing happened, which is indistinguishable from a menu item
  * that is simply broken. Notices had the same failure and were
@@ -58,4 +59,21 @@ export function stillWanted(request: SurfaceRequest | null, now: number): Chrome
     return null;
   }
   return request.surface;
+}
+
+/**
+ * Whether moving to a tab is someone reaching for it.
+ *
+ * Reaching for a tab is asking to see it, so anything covering the content area
+ * gets out of the way. The first state arriving is not that: before it there is
+ * no active tab at all, and reading `null -> a real tab` as a switch closes a
+ * surface that was asked for before the interface was listening and handed over
+ * a moment earlier.
+ *
+ * Without this the two are separated only by which of two lines in an effect
+ * runs first — measured by swapping them, which silently stopped a collected
+ * surface ever being seen.
+ */
+export function reachedForAnotherTab(previous: string | null, next: string | null): boolean {
+  return previous !== null && previous !== next;
 }

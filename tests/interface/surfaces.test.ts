@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { STILL_WANTED_MS, stillWanted, worthHolding, type SurfaceRequest } from '../../electron/shared/surfaces';
+import {
+  STILL_WANTED_MS,
+  reachedForAnotherTab,
+  stillWanted,
+  worthHolding,
+  type SurfaceRequest,
+} from '../../electron/shared/surfaces';
 
 const asked = (over: Partial<SurfaceRequest> = {}): SurfaceRequest => ({
   surface: 'settings',
@@ -9,7 +15,8 @@ const asked = (over: Partial<SurfaceRequest> = {}): SurfaceRequest => ({
 
 /**
  * The window paints before anything in it is listening, by about 190ms on the
- * machine `npm run measure` reports and more on a cold start. Measured before
+ * machine `npm run measure` reports, and later still into a cold start, which
+ * is slower throughout. Measured before
  * this existed: Cmd+, inside that window pushed to a renderer with no listeners
  * attached, and the menu item was indistinguishable from one that does nothing
  * at all.
@@ -58,5 +65,30 @@ describe('which requests are worth holding', () => {
 
   it('never holds a close', () => {
     expect(worthHolding('none')).toBe(false);
+  });
+});
+
+/**
+ * Separating these two was worth a rule of its own. Without it, whether a
+ * collected surface is ever seen came down to which of two lines in a mount
+ * effect ran first — measured by swapping them, which made the surface vanish
+ * with every test still green.
+ */
+describe('whether moving to a tab is someone reaching for it', () => {
+  it('is, when the tab changes', () => {
+    expect(reachedForAnotherTab('tab-1', 'tab-2')).toBe(true);
+  });
+
+  it('is not, when the first state arrives and there was no tab before', () => {
+    expect(reachedForAnotherTab(null, 'tab-1')).toBe(false);
+  });
+
+  it('is not, when the same tab is reported again', () => {
+    expect(reachedForAnotherTab('tab-1', 'tab-1')).toBe(false);
+  });
+
+  // Closing the last tab is a change, and what was covering it should still go.
+  it('is, when the last tab closes', () => {
+    expect(reachedForAnotherTab('tab-1', null)).toBe(true);
   });
 });

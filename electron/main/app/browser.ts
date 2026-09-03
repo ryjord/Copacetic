@@ -957,9 +957,11 @@ export class Browser {
    * Notices that have been said but not yet taken.
    *
    * The chrome is a page, and a page is listening some time after the window
-   * paints — about 190ms on the machine in the README, more on a cold start. Anything said before then reached nobody — a notice pushed
-   * during startup was simply lost, which is the whole failure notices exist to
-   * fix. They are kept here until the chrome collects them.
+   * paints — about 190ms on the machine in the README, and the whole launch is
+   * slower than that again on a cold start. Anything said before then reached
+   * nobody: a notice pushed during startup was simply lost, which is the whole
+   * failure notices exist to fix. They are kept here until the chrome collects
+   * them.
    */
   private outstanding: Notice[] = [];
 

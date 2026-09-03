@@ -122,7 +122,9 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   after the window appears there is nothing there to be told. The request is now
   held and handed over when the interface starts listening, once, and only if it
   was recent — a pane that opens a minute later because of a keystroke nobody
-  remembers is its own bug.
+  remembers is its own bug. Switching tabs still closes whatever is covering
+  them; the first state arriving no longer counts as switching, which it was
+  doing, and which threw the collected pane away again on its way past.
 - **A Hush tab no longer writes down the certificate of every site it opens.**
   This happened with no action from anyone, on every https page, and the record
   outlived the tab — the same shape as the favicon cache and the download, and
