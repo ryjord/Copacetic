@@ -57,6 +57,11 @@ export class TabManager {
     private readonly store: BrowserStore,
     private readonly blocker: ContentBlocker,
     private readonly securityDelegate: SecurityDelegate,
+    /**
+     * Hardens a partition and returns its session. Called before a tab exists,
+     * because a session that is hardened afterwards has already been used.
+     */
+    private readonly prepareSession: (partition: string) => unknown,
     private readonly onChanged: () => void,
     /** Fired once per closed tab so owners can drop state keyed to it. */
     private readonly onTabClosed: (id: TabId) => void = () => {},
@@ -470,6 +475,16 @@ export class TabManager {
 
     const id = randomUUID();
     const settings = this.store.getSettings();
+    // Hush wins over a group's own session: see shared/tab-groups.ts.
+    const partition = partitionFor(
+      { isHush: options.hush === true, group: this.store.groupFor(options.groupId ?? null) },
+      { web: WEB_PARTITION, hush: HUSH_PARTITION },
+    );
+    // Before the view exists, not after. A group's own session had nothing
+    // installed on it at all, so its tabs ran with permissions approved by
+    // default, no tracker blocking and no download handling.
+    this.prepareSession(partition);
+
     const view = new WebContentsView({
       webPreferences: {
         // Page content gets no bridge, no Node, and its own persistent
@@ -481,11 +496,7 @@ export class TabManager {
         webviewTag: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
-        // Hush wins over a group's own session: see shared/tab-groups.ts.
-        partition: partitionFor(
-          { isHush: options.hush === true, group: this.store.groupFor(options.groupId ?? null) },
-          { web: WEB_PARTITION, hush: HUSH_PARTITION },
-        ),
+        partition,
         spellcheck: true,
         safeDialogs: true,
       },

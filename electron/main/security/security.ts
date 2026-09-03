@@ -11,6 +11,21 @@ export const WEB_PARTITION = 'persist:copacetic-web';
 /** No `persist:` prefix — that is what keeps the whole session in memory and off the disk. */
 export const HUSH_PARTITION = 'copacetic-hush';
 
+/**
+ * Whether downloads started in a partition are written down.
+ *
+ * Everything is, except Hush. A download's address, its redirect chain and the
+ * time it happened are browsing, and a Hush tab's whole claim is that none of
+ * that reaches the disk — the file itself is on disk because it was asked for.
+ *
+ * This is the only thing that differs between one session and another, which is
+ * why it is a function rather than a branch written out at each call site.
+ * There is now only one call site.
+ */
+export function remembersDownloads(partition: string): boolean {
+  return partition !== HUSH_PARTITION;
+}
+
 export function getWebSession(): Session {
   return electronSession.fromPartition(WEB_PARTITION);
 }

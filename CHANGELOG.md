@@ -2,6 +2,31 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.4.1 — unreleased
+
+Batch 1 of the September audit.
+
+### Fixed
+
+- **A group that keeps its own browsing is now protected like everything else.**
+  There are three kinds of session — ordinary, Hush, and a group's own — and
+  only two of them were ever set up, because the setup was written out by hand
+  twice and nobody wrote it a third time. Tabs in a group with its own session
+  therefore ran with no permission handling at all, which means Electron's
+  default applied and the default is to approve; with no tracker blocking, while
+  the address bar went on showing a blocked count of zero, which reads as a
+  clean page rather than an unprotected one; and with no download handling, so
+  filenames skipped the right-to-left override and path stripping. Every session
+  is now prepared in one place, before the tab that uses it exists, and the
+  tests count the call sites so a second copy cannot appear.
+- **A lost version record no longer destroys what it was meant to protect.**
+  Migration steps ran again whenever `schema.json` went missing — an interrupted
+  write, a half-restored backup, a profile copied without it. Running them twice
+  was not wasteful but destructive: the session step returned a session with no
+  tabs in it, and the bookmarks step un-filed every bookmark from every folder.
+  Both now recognise their own output and leave it alone, and every step is
+  tested by running it twice.
+
 ## 1.4.0 — 2026-09-03
 
 ### Added

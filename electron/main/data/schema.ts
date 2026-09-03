@@ -99,8 +99,10 @@ export class SchemaVersions {
       }
       return versions;
     } catch {
-      // Losing this only means every file is treated as the first version, which
-      // is exactly what it meant before any of them were recorded.
+      // Losing this means every file is treated as the first version and every
+      // step runs again over data that has already had it. That is only safe
+      // because each step is required to recognise its own output and return it
+      // untouched — see the idempotence test, which runs every step twice.
       return {};
     }
   }

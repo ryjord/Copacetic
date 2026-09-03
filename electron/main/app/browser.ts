@@ -4,6 +4,7 @@ import {
   app,
   dialog,
   session as electronSession,
+  type Session,
   safeStorage,
   shell,
   systemPreferences,
@@ -49,11 +50,13 @@ import {
 import { DownloadManager } from '../data/downloads';
 import { chromeEntryUrl, isDevelopment, filtersRoot } from './env';
 import {
+  HUSH_PARTITION,
   type SecurityDelegate,
-  getHushSession,
+  WEB_PARTITION,
   getWebSession,
   hardenChromeSession,
   hardenWebSession,
+  remembersDownloads,
 } from '../security/security';
 import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
@@ -148,21 +151,11 @@ export class Browser {
 
     hardenChromeSession(electronSession.defaultSession);
 
-    const webSession = getWebSession();
-    hardenWebSession(webSession, this.securityDelegate());
-    this.blocker.attach(webSession);
-    this.downloads.attach(webSession);
-
-    // A Hush tab is a different session, so every guard has to be installed on
-    // it separately. Forgetting one would mean the tab that promises the most
-    // is the one running with the least protection — no permission handling,
-    // no tracker blocking, no certificate reporting.
-    const hushSession = getHushSession();
-    hardenWebSession(hushSession, this.securityDelegate());
-    this.blocker.attach(hushSession);
-    // Not remembered: a Hush download's address, redirect chain and time are
-    // browsing, and the tab's whole claim is that none of that is written down.
-    this.downloads.attach(hushSession, false);
+    // Web and Hush are prepared up front because they exist from launch. Every
+    // other partition — a group that keeps its own browsing — is prepared the
+    // first time a tab asks for it, through the same method.
+    this.prepareSession(WEB_PARTITION);
+    this.prepareSession(HUSH_PARTITION);
 
     this.window = createChromeWindow();
     this.tabs = new TabManager(
@@ -170,6 +163,8 @@ export class Browser {
       this.store,
       this.blocker,
       this.securityDelegate(),
+      // No tab is born in a partition this has not hardened first.
+      (partition) => this.prepareSession(partition),
       () => this.scheduleStatePush(),
       (tabId) => this.dropPermissionsForTab(tabId),
       // Anything drawn over the page has to follow the page. The rectangle
@@ -185,6 +180,42 @@ export class Browser {
     this.attachAuthHandler();
     this.window.on('closed', () => this.dispose());
     this.window.webContents.on('did-finish-load', () => this.scheduleStatePush());
+  }
+
+  /** Partitions already hardened, so the work happens once per session. */
+  private readonly preparedSessions = new Set<string>();
+
+  /**
+   * The session for a partition, with every guard installed before anything can
+   * run in it.
+   *
+   * There are three kinds of session, not two, and only two of them were ever
+   * set up. A group that keeps its own browsing gets
+   * `persist:copacetic-group-<id>`, and nothing hardened it: no permission
+   * request handler, so Electron's default applied and the default is to
+   * approve; no tracker blocking, while the address bar went on reporting a
+   * blocked count of zero, which reads as a clean page rather than an
+   * unprotected one; and no download manager, so filenames skipped the
+   * right-to-left override and path stripping the README promises.
+   *
+   * The guards were never the problem. Calling them in two places by hand was.
+   * Everything goes through here now, so a fourth kind of session cannot be
+   * added without being protected — there is nowhere else to make one.
+   */
+  private prepareSession(partition: string): Session {
+    const session = electronSession.fromPartition(partition);
+    if (this.preparedSessions.has(partition)) {
+      return session;
+    }
+    this.preparedSessions.add(partition);
+
+    hardenWebSession(session, this.securityDelegate());
+    this.blocker.attach(session);
+    // Everything but Hush is remembered. A Hush download's address, redirect
+    // chain and time are browsing, and the tab's whole claim is that none of
+    // that is written down.
+    this.downloads.attach(session, remembersDownloads(partition));
+    return session;
   }
 
   // ------------------------------------------------------------------ start
