@@ -3,6 +3,9 @@ import type { TabId } from '../../shared/types';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-text';
 import { isPageNavigableUrl } from '../../shared/url';
 import type { Browser } from '../app/browser';
+import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tab-groups';
+import { countIn, pathOf } from '../../shared/bookmark-folders';
+import { countTraces, describeTraces, siteOf } from '../../shared/forgetting';
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
@@ -130,6 +133,8 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
     { label: 'Reload', click: () => browser.tabs.reload(tabId) },
     { type: 'separator' },
+    groupSubmenu(browser, tabId),
+    { type: 'separator' },
     {
       label: isBookmarked ? 'Remove bookmark' : 'Bookmark this page',
       enabled: url !== null,
@@ -177,4 +182,298 @@ export function showNewTabMenu(browser: Browser): void {
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * Where a group is made and joined.
+ *
+ * A group that keeps its own browsing is offered as a separate choice rather
+ * than a checkbox on the first one, because it cannot be changed afterwards:
+ * it decides which session the tabs load in, and turning it on later would
+ * silently sign someone out of pages already open.
+ */
+function groupSubmenu(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
+  const groups = browser.store.listGroups();
+  const current = browser.tabs.groupIdFor(tabId);
+  const isHush = browser.tabs.isHush(tabId);
+
+  const existing: MenuItemConstructorOptions[] = groups.map((group) => ({
+    label: group.name,
+    type: 'checkbox',
+    checked: group.id === current,
+    click: () => browser.setTabGroup(tabId, group.id === current ? null : group.id),
+  }));
+
+  return {
+    label: 'Group',
+    submenu: [
+      {
+        label: 'New group',
+        click: () => browser.createGroup(tabId, 'Group', GROUP_COLOURS[0].id, false),
+      },
+      {
+        label: 'New group that keeps its own browsing',
+        // A Hush tab would not use it: its session must never be written down,
+        // so the group's separation could not reach it anyway.
+        enabled: !isHush,
+        click: () => browser.createGroup(tabId, 'Group', GROUP_COLOURS[0].id, true),
+      },
+      ...(existing.length > 0 ? [{ type: 'separator' as const }, ...existing] : []),
+      ...(current
+        ? [
+            { type: 'separator' as const },
+            { label: 'Remove from group', click: () => browser.setTabGroup(tabId, null) },
+          ]
+        : []),
+    ],
+  };
+}
+
+/**
+ * A group's own menu.
+ *
+ * Right-clicking a group is the first thing anyone tries, and until this
+ * existed it did nothing at all: renaming lived behind a left-click on the
+ * label and ungrouping behind that, so a group could be made and then not
+ * got rid of.
+ */
+export function showGroupContextMenu(browser: Browser, groupId: string): void {
+  const group = browser.store.groupFor(groupId);
+  if (!group) {
+    return;
+  }
+
+  // What the group can honestly promise about its browsing. It was on the
+  // panel, and the panel is gone; it is not a detail worth losing, because it
+  // is the only place a mixed group admits what it is.
+  const claim = claimOf(group, browser.tabs.groupHoldsHush(groupId));
+
+  const items: MenuItemConstructorOptions[] = [
+    { label: describeClaim(claim), enabled: false },
+    { type: 'separator' },
+    { label: `Rename “${group.name}”`, click: () => browser.renameGroup(groupId) },
+    {
+      label: 'Colour',
+      submenu: GROUP_COLOURS.map((colour) => ({
+        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        type: 'radio' as const,
+        checked: colour.id === group.colour,
+        click: () => browser.updateGroup(groupId, { colour: colour.id }),
+      })),
+    },
+    { type: 'separator' },
+    {
+      label: group.collapsed ? 'Expand' : 'Collapse',
+      click: () => browser.updateGroup(groupId, { collapsed: !group.collapsed }),
+    },
+    {
+      // The other half of the round trip: a folder is a group at rest, so a
+      // group can be put to rest. A Hush tab is never saved, and the result
+      // says how many were left out rather than leaving it to be noticed.
+      label: 'Save as a bookmark folder',
+      click: () => browser.saveGroupAsFolder(groupId),
+    },
+    { type: 'separator' },
+    // Said plainly, because "delete" beside a row of tabs reads as deleting them.
+    { label: 'Ungroup these tabs', click: () => browser.removeGroup(groupId) },
+    { label: 'Close these tabs', click: () => browser.closeGroup(groupId) },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * A bookmark folder's menu, which is the group's menu with the same words.
+ *
+ * Renaming is not here for the same reason it is not on a group's: a native
+ * menu cannot hold a text field, so it asks the surface to make the label
+ * editable instead. Deleting says what it keeps, because a folder full of
+ * bookmarks is exactly the thing someone is afraid of losing.
+ */
+export function showBookmarkFolderContextMenu(browser: Browser, folderId: string): void {
+  const folders = browser.store.listBookmarkFolders();
+  const folder = browser.store.folderFor(folderId);
+  if (!folder) {
+    return;
+  }
+
+  const counted = countIn(browser.store.listBookmarks(), folders, folderId);
+  const children = folders.filter((candidate) => candidate.parentId === folderId).length;
+
+  const items: MenuItemConstructorOptions[] = [
+    {
+      label:
+        counted.here === counted.withDescendants
+          ? `${counted.here} bookmarks`
+          : `${counted.here} here, ${counted.withDescendants} with folders inside`,
+      enabled: false,
+    },
+    { type: 'separator' },
+    { label: `Rename “${folder.name}”`, click: () => browser.renameBookmarkFolder(folderId) },
+    {
+      label: 'Colour',
+      submenu: GROUP_COLOURS.map((colour) => ({
+        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        type: 'radio' as const,
+        checked: colour.id === folder.colour,
+        click: () => browser.updateBookmarkFolder(folderId, { colour: colour.id }),
+      })),
+    },
+    { type: 'separator' },
+    {
+      // Names the number it is about to act on: a tree makes every count
+      // ambiguous, and 31 tabs is not what someone expecting 18 wants.
+      label: `Open all ${counted.withDescendants} as a tab group`,
+      enabled: counted.withDescendants > 0,
+      click: () => browser.openFolderAsGroup(folderId),
+    },
+    { type: 'separator' },
+    {
+      label: 'Delete this folder',
+      click: () => browser.deleteBookmarkFolder(folderId),
+    },
+    {
+      label:
+        children > 0
+          ? `Its ${counted.here} bookmarks and ${children} folders move up`
+          : `Its ${counted.here} bookmarks move up`,
+      enabled: false,
+    },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * One saved bookmark's menu.
+ *
+ * Filing was reachable only by dragging, which is no use without a mouse and
+ * no use at all to anyone using the keyboard. The tab menu already lists every
+ * group so a tab can join one without a drag; this is the same thing for
+ * folders, and it is where filing stops being a mouse trick.
+ */
+export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): void {
+  const bookmark = browser.store.listBookmarks().find((candidate) => candidate.id === bookmarkId);
+  if (!bookmark) {
+    return;
+  }
+
+  const folders = browser.store.listBookmarkFolders();
+  const withPath = folders.map((folder) => ({
+    folder,
+    // The whole path, because two folders in different places may share a name
+    // and a flat list of them would be a choice between identical labels.
+    label: pathOf(folders, folder.id)
+      .map((entry) => entry.name)
+      .join(' / '),
+  }));
+
+  const items: MenuItemConstructorOptions[] = [
+    { label: bookmark.title || bookmark.url, enabled: false },
+    { type: 'separator' },
+    { label: 'Open', click: () => browser.openInActiveTab(bookmark.url) },
+    { type: 'separator' },
+    {
+      label: 'Move to folder',
+      submenu: [
+        {
+          label: 'Unfiled',
+          type: 'radio' as const,
+          checked: bookmark.folderId === null,
+          click: () => browser.fileBookmark(bookmarkId, null),
+        },
+        ...(withPath.length > 0 ? [{ type: 'separator' as const }] : []),
+        ...withPath.map(({ folder, label }) => ({
+          label,
+          type: 'radio' as const,
+          checked: folder.id === bookmark.folderId,
+          click: () => browser.fileBookmark(bookmarkId, folder.id),
+        })),
+      ],
+    },
+    { type: 'separator' },
+    { label: 'Remove bookmark', click: () => browser.removeBookmark(bookmarkId) },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * One site, and the option to be rid of it everywhere.
+ *
+ * Clearing by time is an afternoon; what someone usually means is a site. The
+ * item says what it is about to remove, counted rather than described, because
+ * something that vanished quietly is indistinguishable from something that did
+ * not work.
+ */
+export function showSiteContextMenu(browser: Browser, address: string): void {
+  const site = siteOf(address);
+  if (!site) {
+    return;
+  }
+  const traces = browser.store.tracesOf(address);
+
+  const items: MenuItemConstructorOptions[] = [
+    { label: site, enabled: false },
+    { type: 'separator' },
+    { label: 'Open', click: () => browser.openInActiveTab(address) },
+    { type: 'separator' },
+    {
+      label: `Forget ${site}`,
+      enabled: countTraces(traces) > 0,
+      click: () => browser.forgetSite(address),
+    },
+    { label: describeTraces(traces), enabled: false },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/**
+ * A bookmark folder's contents, opened from the bar under the toolbar.
+ *
+ * Native, and not a matter of taste: a WebContentsView paints above the
+ * chrome's HTML, so a dropdown drawn in the renderer would open underneath the
+ * page and look like nothing happened. Nested folders become submenus, which a
+ * native menu does properly and a hand-built one rarely does.
+ */
+export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: number, y: number): void {
+  const folders = browser.store.listBookmarkFolders();
+  const bookmarks = browser.store.listBookmarks();
+
+  const build = (parentId: string, seen: ReadonlySet<string>): MenuItemConstructorOptions[] => {
+    const here = bookmarks
+      .filter((bookmark) => bookmark.folderId === parentId)
+      .map((bookmark) => ({
+        label: bookmark.title || bookmark.url,
+        click: () => browser.openInActiveTab(bookmark.url),
+      }));
+
+    const inside = folders
+      .filter((folder) => folder.parentId === parentId && !seen.has(folder.id))
+      .map((folder) => ({
+        label: folder.name,
+        submenu: build(folder.id, new Set([...seen, folder.id])),
+      }));
+
+    const items = [...inside, ...here];
+    // An empty submenu on macOS is a dead arrow with nothing behind it, which
+    // reads as a fault rather than as an empty folder.
+    return items.length > 0 ? items : [{ label: 'Empty', enabled: false }];
+  };
+
+  if (!browser.store.folderFor(folderId)) {
+    return;
+  }
+
+  const items: MenuItemConstructorOptions[] = [
+    ...build(folderId, new Set([folderId])),
+    { type: 'separator' },
+    {
+      label: 'Open all as a tab group',
+      click: () => browser.openFolderAsGroup(folderId),
+    },
+  ];
+
+  Menu.buildFromTemplate(items).popup({ window: browser.window, x, y });
 }

@@ -1,6 +1,10 @@
+import type { KeptAboutSites, KeptKind, SiteTraces } from '../shared/forgetting';
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ContentInsetsInput, CopaceticApi } from '../shared/api';
 import { INVOKE, PUSH, PUSH_CHANNELS, type ChromeSurface } from '../shared/channels';
+import type { GroupColourId } from '../shared/tab-groups';
+import type { BookmarkFolder } from '../shared/bookmark-folders';
+import type { Notice } from '../shared/notices';
 import type {
   AppInfo,
   Bookmark,
@@ -44,7 +48,9 @@ const api: CopaceticApi = {
     /** Report how much room the chrome is taking, so tab views can fill the rest. */
     setContentInsets: (insets: ContentInsetsInput) => ipcRenderer.invoke(INVOKE.chromeSetContentBounds, insets),
     setOverlayVisible: (visible: boolean) => ipcRenderer.invoke(INVOKE.chromeSetOverlayVisible, visible),
+    setOverlayHeight: (height: number) => ipcRenderer.invoke(INVOKE.chromeSetOverlayHeight, height),
     getState: (): Promise<BrowserState> => ipcRenderer.invoke(INVOKE.chromeGetState),
+    pendingSurface: (): Promise<ChromeSurface | null> => ipcRenderer.invoke(INVOKE.surfacePending),
   },
 
   omnibox: {
@@ -54,14 +60,46 @@ const api: CopaceticApi = {
   history: {
     list: (query = '', offset = 0): Promise<HistoryPage> => ipcRenderer.invoke(INVOKE.historyList, query, offset),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.historyRemove, id),
+    traces: (address: string): Promise<SiteTraces> => ipcRenderer.invoke(INVOKE.historyTraces, address),
+    forgetSite: (address: string): Promise<SiteTraces> => ipcRenderer.invoke(INVOKE.historyForgetSite, address),
+    totalBlocked: (): Promise<number> => ipcRenderer.invoke(INVOKE.historyTotalBlocked),
+    openContextMenu: (address: string) => ipcRenderer.invoke(INVOKE.historyOpenContextMenu, address),
     clear: (range: ClearRange) => ipcRenderer.invoke(INVOKE.historyClear, range),
     topSites: (limit = 8): Promise<TopSite[]> => ipcRenderer.invoke(INVOKE.historyTopSites, limit),
+  },
+
+  filters: {
+    update: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke(INVOKE.filtersUpdate),
+  },
+
+  notices: {
+    answer: (id: string, confirmed: boolean) => ipcRenderer.invoke(INVOKE.noticeAnswer, id, confirmed),
+    pending: (): Promise<Notice[]> => ipcRenderer.invoke(INVOKE.noticesPending),
   },
 
   bookmarks: {
     list: (): Promise<Bookmark[]> => ipcRenderer.invoke(INVOKE.bookmarksList),
     toggle: (url: string, title: string): Promise<boolean> => ipcRenderer.invoke(INVOKE.bookmarksToggle, url, title),
     remove: (id: string) => ipcRenderer.invoke(INVOKE.bookmarksRemove, id),
+    openInActiveTab: (url: string) => ipcRenderer.invoke(INVOKE.bookmarksOpen, url),
+    openContextMenu: (id: string) => ipcRenderer.invoke(INVOKE.bookmarksOpenContextMenu, id),
+    file: (id: string, folderId: string | null) => ipcRenderer.invoke(INVOKE.bookmarksFile, id, folderId),
+  },
+
+  bookmarkFolders: {
+    list: (): Promise<BookmarkFolder[]> => ipcRenderer.invoke(INVOKE.bookmarkFoldersList),
+    create: (name: string, colour: GroupColourId, parentId: string | null): Promise<BookmarkFolder> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderCreate, name, colour, parentId),
+    update: (id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }) =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderUpdate, id, changes),
+    move: (id: string, parentId: string | null): Promise<boolean> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderMove, id, parentId),
+    remove: (id: string): Promise<{ folders: number; bookmarks: number }> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderDelete, id),
+    openAsGroup: (id: string): Promise<{ opened: number; asked: boolean }> =>
+      ipcRenderer.invoke(INVOKE.bookmarkFolderOpenAsGroup, id),
+    openContextMenu: (id: string) => ipcRenderer.invoke(INVOKE.bookmarkFolderOpenContextMenu, id),
+    openMenu: (id: string, x: number, y: number) => ipcRenderer.invoke(INVOKE.bookmarkFolderOpenMenu, id, x, y),
   },
 
   downloads: {
@@ -123,6 +161,16 @@ const api: CopaceticApi = {
     facts: () => ipcRenderer.invoke(INVOKE.vaultFacts),
   },
 
+  groups: {
+    create: (tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): Promise<string> =>
+      ipcRenderer.invoke(INVOKE.groupCreate, tabId, name, colour, ownSession),
+    update: (id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }) =>
+      ipcRenderer.invoke(INVOKE.groupUpdate, id, changes),
+    remove: (id: string) => ipcRenderer.invoke(INVOKE.groupRemove, id),
+    setForTab: (tabId: TabId, groupId: string | null) => ipcRenderer.invoke(INVOKE.groupSetForTab, tabId, groupId),
+    openContextMenu: (id: string) => ipcRenderer.invoke(INVOKE.groupOpenContextMenu, id),
+  },
+
   wallpaper: {
     get: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperGet),
     preview: (): Promise<string | null> => ipcRenderer.invoke(INVOKE.wallpaperPreview),
@@ -137,6 +185,8 @@ const api: CopaceticApi = {
   data: {
     export: (kind: ExportKind): Promise<string> => ipcRenderer.invoke(INVOKE.dataExport, kind),
     importBookmarks: (): Promise<string> => ipcRenderer.invoke(INVOKE.dataImportBookmarks),
+    kept: (): Promise<KeptAboutSites> => ipcRenderer.invoke(INVOKE.dataKept),
+    clearKept: (kind: KeptKind) => ipcRenderer.invoke(INVOKE.dataClearKept, kind),
   },
 
   auth: {
@@ -159,6 +209,11 @@ const api: CopaceticApi = {
     state: (listener: (state: BrowserState) => void) => subscribe(PUSH.state, listener),
     focusOmnibox: (listener: () => void) => subscribe(PUSH.focusOmnibox, listener),
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
+    renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
+    bookmarksChanged: (listener: () => void) => subscribe(PUSH.bookmarksChanged, listener),
+    notice: (listener: (notice: Notice) => void) => subscribe(PUSH.notice, listener),
+    noticeSettled: (listener: (id: string) => void) => subscribe(PUSH.noticeSettled, listener),
+    renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),
   },
 };
 

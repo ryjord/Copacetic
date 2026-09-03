@@ -6,6 +6,8 @@ import type { ClearRange, HistoryEntry, HistoryPage } from '@shared/types';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
 import { ask, send } from '@/lib/bridge';
+import { describeRefused } from '@shared/forgetting';
+import { cn } from '@/lib/utils';
 import { formatDateHeading, formatRelativeTime } from '@/lib/format';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { EmptyState, SurfaceShell } from '@/views/SurfaceShell/SurfaceShell';
@@ -25,12 +27,17 @@ export function HistorySurface() {
   const [query, setQuery] = useState('');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalBlocked, setTotalBlocked] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const refresh = useCallback(async (search: string) => {
     const page = await ask((api) => api.history.list(search), EMPTY_PAGE);
     setEntries(page.entries);
     setTotal(page.total);
+    // Asked of the whole of history rather than summed from this page, which
+    // is one screenful: a running total that changed as you scrolled would be
+    // a different number every time you looked at it.
+    setTotalBlocked(await ask((api) => api.history.totalBlocked(), 0));
   }, []);
 
   useEffect(() => {
@@ -90,7 +97,16 @@ export function HistorySurface() {
               <h2 className="label sticky top-0 z-10 bg-base/95 px-6 py-2 backdrop-blur">{heading}</h2>
               <ul>
                 {items.map((entry) => (
-                  <li key={entry.id} className="group flex items-center gap-3 px-6 py-1.5 hover:bg-raised">
+                  <li
+                    key={entry.id}
+                    className="group flex items-center gap-3 px-6 py-1.5 hover:bg-raised"
+                    /* Clearing by time is an afternoon; what someone usually means is a
+                       site, and this is where they are already looking at one. */
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      send((api) => api.history.openContextMenu(entry.url));
+                    }}
+                  >
                     <Favicon dataUrl={null} seed={entry.url} size={15} />
                     <button
                       type="button"
@@ -102,6 +118,18 @@ export function HistorySurface() {
                     </button>
                     <span className="hidden max-w-[38%] truncate font-mono text-[11px] text-ink-faint md:block">
                       {entry.url}
+                    </span>
+                    {/* Requests, not adverts. One advert is usually several requests
+                        and most of these are trackers, so the number that is easy to
+                        inflate is the one to be careful with. */}
+                    <span
+                      className={cn(
+                        'hidden w-28 shrink-0 text-right font-mono text-[11px] sm:block',
+                        entry.blockedCount ? 'text-active' : 'text-ink-faint/60',
+                      )}
+                      title="Requests refused on this page, added up across every visit"
+                    >
+                      {describeRefused(entry.blockedCount ?? 0)}
                     </span>
                     <span className="w-24 shrink-0 text-right text-[11px] text-ink-faint">
                       {formatRelativeTime(entry.lastVisitedAt)}
@@ -128,6 +156,9 @@ export function HistorySurface() {
               {entries.length === total
                 ? `${total} ${total === 1 ? 'entry' : 'entries'}`
                 : `Showing ${entries.length} of ${total}`}
+              {totalBlocked > 0 && (
+                <span className="text-active"> · {totalBlocked.toLocaleString()} requests refused</span>
+              )}
             </p>
             {entries.length < total && (
               <button

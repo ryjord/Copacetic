@@ -1,14 +1,15 @@
 // Libs
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 // Components
-import { Note, OutlineButton, Section } from '@/components/settings/shared/controls';
+import { Note, OutlineButton, RowAction, RowList, RowValue, Section } from '@/components/settings/shared/controls';
 
 // Utils
 import { ask, send } from '@/lib/bridge';
 
 // Types
 import type { ClearRange, ExportKind } from '@shared/types';
+import { KEPT_KINDS, type KeptAboutSites, describeKept } from '@shared/forgetting';
 
 const CLEAR_RANGES: { range: ClearRange; label: string }[] = [
   { range: 'hour', label: 'Last hour' },
@@ -23,6 +24,16 @@ const EXPORTS: { kind: ExportKind; label: string }[] = [
 ];
 
 export function DataPane() {
+  const [kept, setKept] = useState<KeptAboutSites | null>(null);
+
+  const reload = useCallback(() => {
+    void ask((api) => api.data.kept(), null).then(setKept);
+  }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
   return (
     <>
       <Section title="Browsing data">
@@ -41,6 +52,32 @@ export function DataPane() {
             </OutlineButton>
           ))}
         </div>
+      </Section>
+
+      <Section title="What clearing does not touch">
+        <Note>
+          Decisions you made about particular sites are kept, because you made them on purpose and a browser that
+          threw them away while tidying up would be losing your work rather than protecting you. They do name those
+          sites, so they are listed here rather than left for you to find.
+        </Note>
+        <RowList>
+          {KEPT_KINDS.filter((entry) => (kept?.[entry.id] ?? 0) > 0).map((entry) => (
+            <li key={entry.id} className="flex items-center gap-3 px-2.5 py-1.5">
+              <RowValue>{describeKept(entry.id, kept?.[entry.id] ?? 0)}</RowValue>
+              <RowAction
+                label="Clear"
+                onClick={() => {
+                  send((api) => api.data.clearKept(entry.id));
+                  reload();
+                }}
+              />
+            </li>
+          ))}
+        </RowList>
+        <Note>
+          Open tabs are not touched by any of this. They are on your screen, and closing them to tidy up would be
+          doing something nobody asked for.
+        </Note>
       </Section>
 
       <Section title="Your data">

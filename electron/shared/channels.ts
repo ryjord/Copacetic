@@ -32,6 +32,28 @@ export const INVOKE = {
   bookmarksList: 'bookmarks:list',
   bookmarksToggle: 'bookmarks:toggle',
   bookmarksRemove: 'bookmarks:remove',
+  bookmarksFile: 'bookmarks:file',
+  bookmarksOpen: 'bookmarks:open',
+  bookmarksOpenContextMenu: 'bookmarks:open-context-menu',
+  historyTraces: 'history:traces',
+  historyForgetSite: 'history:forget-site',
+  historyTotalBlocked: 'history:total-blocked',
+  dataKept: 'data:kept',
+  dataClearKept: 'data:clear-kept',
+  historyOpenContextMenu: 'history:open-context-menu',
+  noticeAnswer: 'notice:answer',
+  noticesPending: 'notice:pending',
+  surfacePending: 'surface:pending',
+  chromeSetOverlayHeight: 'chrome:set-overlay-height',
+  filtersUpdate: 'filters:update',
+  bookmarkFoldersList: 'bookmark-folders:list',
+  bookmarkFolderCreate: 'bookmark-folders:create',
+  bookmarkFolderUpdate: 'bookmark-folders:update',
+  bookmarkFolderMove: 'bookmark-folders:move',
+  bookmarkFolderDelete: 'bookmark-folders:delete',
+  bookmarkFolderOpenAsGroup: 'bookmark-folders:open-as-group',
+  bookmarkFolderOpenContextMenu: 'bookmark-folders:open-context-menu',
+  bookmarkFolderOpenMenu: 'bookmark-folders:open-menu',
 
   downloadsPause: 'downloads:pause',
   downloadsResume: 'downloads:resume',
@@ -66,6 +88,11 @@ export const INVOKE = {
   wallpaperKeep: 'wallpaper:keep',
   wallpaperDiscard: 'wallpaper:discard',
   wallpaperRemove: 'wallpaper:remove',
+  groupCreate: 'group:create',
+  groupUpdate: 'group:update',
+  groupRemove: 'group:remove',
+  groupSetForTab: 'group:set-for-tab',
+  groupOpenContextMenu: 'group:open-context-menu',
 
   connectionsList: 'connections:list',
 
@@ -105,6 +132,16 @@ export const PUSH = {
   focusOmnibox: 'push:focus-omnibox',
   /** Fired when a menu item or shortcut wants the chrome to open a surface. */
   openSurface: 'push:open-surface',
+  /** A native menu cannot hold a text field, so renaming asks the chrome to make the group's label editable. */
+  renameGroup: 'push:rename-group',
+  /** Saved bookmarks or folders changed. No tab changes when one is filed, so the tab snapshot cannot say it. */
+  bookmarksChanged: 'push:bookmarks-changed',
+  /** Something the app finished, or a question it has to ask before finishing. */
+  notice: 'push:notice',
+  /** A notice is finished with. Said so the layer drawing it can stop. */
+  noticeSettled: 'push:notice-settled',
+  /** The same, for a bookmark folder: a native menu cannot hold a text field. */
+  renameBookmarkFolder: 'push:rename-bookmark-folder',
 } as const;
 
 export type InvokeChannel = (typeof INVOKE)[keyof typeof INVOKE];

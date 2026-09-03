@@ -164,7 +164,15 @@ async function resolvePermission(
     kind: prompted.kind,
     description: prompted.description,
   });
-  delegate.rememberDecision(origin, prompted.kind, decision);
+  /*
+   * Not remembered for a Hush tab. A decision is keyed by origin, so keeping it
+   * would put a site opened in a Hush tab into settings.json by name — and
+   * Settings lists those. The cost is being asked again for the same site in
+   * the same Hush session, which is what a tab that remembers nothing means.
+   */
+  if (contents?.session !== getHushSession()) {
+    delegate.rememberDecision(origin, prompted.kind, decision);
+  }
   return decision === 'allow';
 }
 

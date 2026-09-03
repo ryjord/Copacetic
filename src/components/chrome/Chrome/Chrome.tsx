@@ -11,7 +11,9 @@ import { StartPage } from '@/components/pages/StartPage/StartPage';
 import { getBridge, isRunningInShell, send } from '@/lib/bridge';
 import { ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
+import { reachedForAnotherTab } from '@shared/surfaces';
 import { AuthBanner } from '@/components/chrome/AuthBanner/AuthBanner';
+import { BookmarksBar } from '@/components/chrome/BookmarksBar/BookmarksBar';
 import { ConnectionPanel } from '@/components/chrome/ConnectionPanel/ConnectionPanel';
 import { FindBar } from '@/components/chrome/FindBar/FindBar';
 import { LiveAnnouncer } from '@/components/chrome/LiveAnnouncer/LiveAnnouncer';
@@ -37,7 +39,9 @@ export function Chrome() {
 
   const authPrompts = useBrowserStore((state) => state.authPrompts);
   const density = useBrowserStore((state) => state.settings.density);
+  const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
+  const showBookmarksBar = useBrowserStore((state) => state.settings.showBookmarksBar);
   const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
   const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
 
@@ -58,6 +62,15 @@ export function Chrome() {
       api.on.focusOmnibox(requestOmniboxFocus),
       api.on.openSurface((next) => setSurface(next)),
     ];
+
+    // Anything asked for before this listener existed was pushed to nobody. The
+    // main process holds the last one; collecting it here is what makes Cmd+,
+    // during the second and a half this page takes to hydrate do something.
+    void api.chrome.pendingSurface().then((pending) => {
+      if (pending) {
+        setSurface(pending);
+      }
+    });
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [applyState, requestOmniboxFocus, setSurface]);
 
@@ -105,12 +118,31 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length]);
+  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length, showBookmarksBar]);
 
-  // The panel describes one particular tab, so it must not linger over another.
+  /*
+   * Reaching for a tab is asking to see it. The first state arriving is not.
+   *
+   * The panel describes one particular tab, so it must not linger over another.
+   * A surface is worse than lingering: it covers the whole content area and
+   * hides every page view, so clicking a tab switched to it, highlighted it in
+   * the strip, and showed nothing at all — the browser looked like it had
+   * ignored the click.
+   *
+   * These are chrome rather than pages. There is no address to go back to and
+   * nothing to restore, so closing on the way past is what they are: something
+   * opened over the top of what you were doing, and dismissed by returning to it.
+   */
+  const previousTabId = useRef<string | null>(null);
   useEffect(() => {
+    const previous = previousTabId.current;
+    previousTabId.current = activeTabId;
+    if (!reachedForAnotherTab(previous, activeTabId)) {
+      return;
+    }
     closeConnectionPanel();
-  }, [activeTabId, closeConnectionPanel]);
+    setSurface('none');
+  }, [activeTabId, closeConnectionPanel, setSurface]);
 
   // A surface covers the whole content area, so the tab's view has to step
   // aside — a native view always paints above the renderer's HTML.
@@ -145,11 +177,13 @@ export function Chrome() {
       <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 px-2.5 pt-1.5">
         {/* Room for the macOS traffic lights, which sit inside this strip. */}
         {isMac() && <div className="w-[68px] shrink-0" aria-hidden />}
-        <TabStrip tabs={tabs} activeTabId={activeTabId} />
+        <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
         {!isMac() && <WindowControls />}
       </header>
 
       <Toolbar tab={activeTab} />
+
+      {showBookmarksBar && <BookmarksBar />}
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />
 

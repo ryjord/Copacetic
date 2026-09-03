@@ -22,6 +22,15 @@ export function BehaviourPane() {
         />
       </Section>
 
+      <Section title="Bookmarks">
+        <Toggle
+          label="Show a bookmarks bar under the toolbar"
+          description="The folders at the top level, and anything filed nowhere. A folder opens as a menu."
+          checked={settings.showBookmarksBar}
+          onChange={(showBookmarksBar) => updateSettings({ showBookmarksBar })}
+        />
+      </Section>
+
       <Section title="Default browser">
         <DefaultBrowserRow />
       </Section>

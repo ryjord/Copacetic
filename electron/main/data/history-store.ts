@@ -1,3 +1,4 @@
+import { sameSite } from '../../shared/forgetting';
 import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
 import { hostOf, originOf } from '../../shared/url';
 import { PersistedFile, asNumber, asString, isRecord, newId } from './persistence';
@@ -72,6 +73,50 @@ export class HistoryStore {
 
   removeHistory(id: string): void {
     this.file.update((entries) => entries.filter((entry) => entry.id !== id));
+  }
+
+  /**
+   * Adds to what a page has refused.
+   *
+   * Counted as it happens rather than when a visit is recorded: a visit is
+   * recorded when the title arrives, which is early — most trackers have not
+   * been refused yet, and sampling then would report almost nothing on every
+   * page in the browser.
+   */
+  addBlocked(url: string, delta: number): void {
+    if (delta <= 0) {
+      return;
+    }
+    this.file.update((entries) =>
+      entries.map((entry) =>
+        entry.url === url ? { ...entry, blockedCount: (entry.blockedCount ?? 0) + delta } : entry,
+      ),
+    );
+  }
+
+  /** Every visit to one site, subdomains included. Returns how many went. */
+  forgetSite(site: string): number {
+    let removed = 0;
+    this.file.update((entries) =>
+      entries.filter((entry) => {
+        if (sameSite(entry.url, site)) {
+          removed += 1;
+          return false;
+        }
+        return true;
+      }),
+    );
+    return removed;
+  }
+
+  /** How many visits are recorded for one site, without removing them. */
+  countForSite(site: string): number {
+    return this.file.get().filter((entry) => sameSite(entry.url, site)).length;
+  }
+
+  /** Every request this browser has refused, across everything still in history. */
+  totalBlocked(): number {
+    return this.file.get().reduce((total, entry) => total + (entry.blockedCount ?? 0), 0);
   }
 
   clearHistory(range: ClearRange): void {

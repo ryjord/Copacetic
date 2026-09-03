@@ -20,4 +20,6 @@ export interface TabRecord {
   isMuted: boolean;
   /** The favicon URL we last kicked off a fetch for, to avoid refetching. */
   pendingFaviconUrl: string | null;
+  /** Which group this tab belongs to. Never written to disk for a Hush tab. */
+  groupId: string | null;
 }

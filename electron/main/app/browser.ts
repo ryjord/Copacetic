@@ -1,3 +1,4 @@
+import { type KeptKind, type SiteTraces, describeTraces, siteOf } from '../../shared/forgetting';
 import {
   type BrowserWindow,
   app,
@@ -6,8 +7,10 @@ import {
   safeStorage,
   shell,
   systemPreferences,
+  type WebFrameMain,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { PUSH, type ChromeSurface } from '../../shared/channels';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import type {
@@ -44,7 +47,7 @@ import {
   stageWallpaperRemoval,
 } from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
-import { chromeEntryUrl, isDevelopment } from './env';
+import { chromeEntryUrl, isDevelopment, filtersRoot } from './env';
 import {
   type SecurityDelegate,
   getHushSession,
@@ -56,6 +59,18 @@ import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
+import type { GroupColourId } from '../../shared/tab-groups';
+import { type BookmarkFolder, descendantsOf } from '../../shared/bookmark-folders';
+import {
+  OPEN_WITHOUT_ASKING,
+  type Notice,
+  admit,
+  dismiss as dismissNotice,
+  openFolderMessage,
+  savedGroupMessage,
+} from '../../shared/notices';
+import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
+import { OverlayLayer } from './overlay';
 import { VaultSession } from './vault-session';
 import { log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
@@ -118,6 +133,16 @@ export class Browser {
     );
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+    // Built into the release rather than fetched. Every other blocker asks a
+    // server for its lists on a timer, which is a periodic request from your
+    // machine — the shape of the thing being blocked. A failure here is
+    // survivable: the curated hostnames are still there, and blocking less is
+    // better than not starting.
+    // A list fetched on request is preferred to the one that shipped, and the
+    // shipped one is the floor when there is none.
+    if (!this.blocker.loadShippedLists(path.join(app.getPath('userData'), 'filters'))) {
+      this.blocker.loadShippedLists(filtersRoot());
+    }
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 
@@ -135,7 +160,9 @@ export class Browser {
     const hushSession = getHushSession();
     hardenWebSession(hushSession, this.securityDelegate());
     this.blocker.attach(hushSession);
-    this.downloads.attach(hushSession);
+    // Not remembered: a Hush download's address, redirect chain and time are
+    // browsing, and the tab's whole claim is that none of that is written down.
+    this.downloads.attach(hushSession, false);
 
     this.window = createChromeWindow();
     this.tabs = new TabManager(
@@ -145,7 +172,15 @@ export class Browser {
       this.securityDelegate(),
       () => this.scheduleStatePush(),
       (tabId) => this.dropPermissionsForTab(tabId),
+      // Anything drawn over the page has to follow the page. The rectangle
+      // moves whenever a row of the chrome opens or closes, not only on a
+      // resize, and an overlay refreshed only with its own height stayed where
+      // it was while the page moved out from under it.
+      (bounds) => this.overlay?.setContentBounds(bounds),
     );
+
+    this.overlay = new OverlayLayer(this.window);
+    this.overlay.setContentBounds(this.tabs.contentBounds());
 
     this.attachAuthHandler();
     this.window.on('closed', () => this.dispose());
@@ -168,13 +203,15 @@ export class Browser {
     const settings = this.store.getSettings();
     const session = this.store.getSession();
 
-    if (!settings.restoreTabsOnLaunch || session.urls.length === 0) {
+    if (!settings.restoreTabsOnLaunch || session.tabs.length === 0) {
       this.tabs.create(START_PAGE_URL);
       return;
     }
 
-    session.urls.forEach((url, index) => {
-      this.tabs.create(url, { activate: index === session.activeIndex });
+    // A group whose tabs were all Hush comes back empty and is left alone: the
+    // group is remembered, and nothing that was in it was ever written down.
+    session.tabs.forEach((tab, index) => {
+      this.tabs.create(tab.url, { activate: index === session.activeIndex, groupId: tab.groupId });
     });
     if (this.tabs.tabCount === 0) {
       this.tabs.create(START_PAGE_URL);
@@ -189,6 +226,7 @@ export class Browser {
       tabs,
       tabOrder,
       activeTabId,
+      groups: this.store.listGroups(),
       downloads: this.downloads.list(),
       find: this.tabs.getFindState(),
       permissionPrompts: this.prompts.permissionPrompts(),
@@ -229,6 +267,7 @@ export class Browser {
       platform: process.platform,
       isDevelopment: isDevelopment(),
       blockerRuleCount: this.blocker.ruleCount,
+      filterLists: this.blocker.loadedLists(),
     };
   }
 
@@ -462,8 +501,27 @@ export class Browser {
     this.scheduleStatePush();
   }
 
+  /**
+   * A surface asked for before the chrome was listening.
+   *
+   * Kept because pushing to a renderer that has not hydrated reaches nobody,
+   * and the menu item then looks broken. See `shared/surfaces.ts` for why it is
+   * bounded and why closing is never held.
+   */
+  private requestedSurface: SurfaceRequest | null = null;
+
   openSurface(surface: ChromeSurface): void {
+    this.requestedSurface = worthHolding(surface) ? { surface, askedAt: Date.now() } : null;
     this.pushToChrome(PUSH.openSurface, surface);
+  }
+
+  /** What was asked for before anyone was listening, collected as the chrome starts. */
+  pendingSurface(): ChromeSurface | null {
+    const surface = stillWanted(this.requestedSurface, Date.now());
+    // Handed over once. A second chrome asking is a reload, not the person
+    // asking again.
+    this.requestedSurface = null;
+    return surface;
   }
 
   focusOmnibox(): void {
@@ -625,6 +683,9 @@ export class Browser {
     }
 
     const { added, alreadyHad } = this.store.addBookmarks(bookmarks);
+    // An import adds bookmarks without touching a tab, so nothing else would
+    // tell a surface that is already open that its list is now wrong.
+    this.bookmarksChanged();
     this.scheduleStatePush();
 
     const parts = [`added ${added}`];
@@ -726,6 +787,362 @@ export class Browser {
     }
   }
 
+  // -------------------------------------------------------------------- groups
+
+  /** Makes a group and puts the tab that asked for it inside. */
+  createGroup(tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): string {
+    const group = this.store.createGroup(name, colour, ownSession);
+    this.tabs.setGroup(tabId, group.id);
+    this.scheduleStatePush();
+    return group.id;
+  }
+
+  /**
+   * Opens everything in a bookmark folder as one tab group.
+   *
+   * A folder is the resting form of a group — the same name, the same palette,
+   * the same set of pages — so the two convert rather than merely resembling
+   * each other. Everything nested inside comes too, which is why anything that
+   * offers this names the number it is about to open.
+   *
+   * The group does not inherit its own session. That is decided when a group is
+   * made and never afterwards, so a folder cannot smuggle one in.
+   */
+  openFolderAsGroup(id: string): { opened: number; asked: boolean } {
+    const folders = this.store.listBookmarkFolders();
+    const folder = this.store.folderFor(id);
+    if (!folder) {
+      return { opened: 0, asked: false };
+    }
+
+    const within = new Set([id, ...descendantsOf(folders, id).map((entry) => entry.id)]);
+    const urls = this.store
+      .listBookmarks()
+      .filter((bookmark) => bookmark.folderId !== null && within.has(bookmark.folderId))
+      .map((bookmark) => bookmark.url);
+
+    if (urls.length === 0) {
+      return { opened: 0, asked: false };
+    }
+
+    // Naming the number on a button is not the same as consenting to it: a
+    // folder of two hundred pages opens two hundred tabs from one click, and
+    // no window survives that in a state anyone can use.
+    if (urls.length > OPEN_WITHOUT_ASKING) {
+      this.notify(
+        {
+          id: `open-folder-${id}`,
+          tone: 'ask',
+          key: `open-folder-${id}`,
+          message: openFolderMessage(urls.length, folder.name),
+          confirm: `Open ${urls.length} tabs`,
+        },
+        () => this.openTabsAsGroup(urls, folder.name, folder.colour),
+      );
+      return { opened: 0, asked: true };
+    }
+
+    this.openTabsAsGroup(urls, folder.name, folder.colour);
+    return { opened: urls.length, asked: false };
+  }
+
+  private openTabsAsGroup(urls: readonly string[], name: string, colour: GroupColourId): void {
+    const [first, ...rest] = urls;
+    if (!first) {
+      return;
+    }
+    const founding = this.tabs.create(first, { activate: true });
+    const groupId = this.createGroup(founding, name, colour, false);
+    for (const url of rest) {
+      this.tabs.create(url, { groupId });
+    }
+    this.scheduleStatePush();
+  }
+
+  /**
+   * Saves a tab group as a bookmark folder, which is the same conversion the
+   * other way round.
+   *
+   * A Hush tab is never saved. Hush makes one promise — that nothing it does
+   * reaches the disk — and a bookmark is a disk. The count of what was left out
+   * comes back so it can be said plainly rather than discovered later.
+   *
+   * A page already bookmarked is filed where it is, not saved again. It keeps
+   * the title and date it had, because neither is what this was asked to change.
+   */
+  saveGroupAsFolder(id: string): { saved: number; skippedHush: number } {
+    const group = this.store.groupFor(id);
+    if (!group) {
+      return { saved: 0, skippedHush: 0 };
+    }
+
+    const folder = this.store.createBookmarkFolder(group.name, group.colour, null);
+    let saved = 0;
+    let skippedHush = 0;
+
+    for (const tab of this.tabs.tabsInGroup(id)) {
+      if (tab.isHush) {
+        skippedHush += 1;
+        continue;
+      }
+      // Not toggled: a tab whose page was already bookmarked would have had
+      // that bookmark deleted, and the count would not even have said so.
+      const bookmark = this.store.ensureBookmark(tab.url, tab.title);
+      this.store.fileBookmark(bookmark.id, folder.id);
+      saved += 1;
+    }
+
+    this.bookmarksChanged();
+    this.scheduleStatePush();
+    this.notify({
+      id: `saved-group-${folder.id}`,
+      tone: skippedHush > 0 ? 'info' : 'done',
+      key: 'saved-group',
+      message: savedGroupMessage(saved, skippedHush, folder.name),
+    });
+    return { saved, skippedHush };
+  }
+
+  updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    // A collapsed group hides its tabs, and one of them may be the tab being
+    // looked at — its page would stay on screen with nothing in the strip
+    // pointing at it. Activation steps out of the group first, and the group
+    // refuses to collapse at all when there is nowhere for it to step to.
+    if (changes.collapsed === true && !this.tabs.leaveCollapsingGroup(id)) {
+      return;
+    }
+    this.store.updateGroup(id, changes);
+    this.scheduleStatePush();
+  }
+
+  /** The group goes; its tabs stay open with nothing to belong to. */
+  removeGroup(id: string): void {
+    for (const tab of this.tabs.tabsInGroup(id)) {
+      this.tabs.setGroup(tab.id, null);
+    }
+    this.store.removeGroup(id);
+    this.scheduleStatePush();
+  }
+
+  /** Closes everything in a group and the group with it. */
+  closeGroup(id: string): void {
+    for (const tab of this.tabs.tabsInGroup(id)) {
+      this.tabs.close(tab.id);
+    }
+    this.store.removeGroup(id);
+    this.scheduleStatePush();
+  }
+
+  /**
+   * Opens a saved address in the tab someone is looking at, or a new one.
+   *
+   * A bookmark opened from the bar replaces what is in front of you, the way
+   * clicking a link does; with no tab to replace, it makes one rather than
+   * doing nothing.
+   */
+  openInActiveTab(url: string): void {
+    const activeId = this.tabs.getActiveTabId();
+    if (activeId) {
+      this.tabs.navigate(activeId, url);
+    } else {
+      this.tabs.create(url, { activate: true });
+    }
+    this.scheduleStatePush();
+  }
+
+  /** Questions waiting on an answer, by the id the notice carries. */
+  private readonly pendingAnswers = new Map<string, () => void>();
+
+  /**
+   * Notices that have been said but not yet taken.
+   *
+   * The chrome is a page, and a page is listening some time after the window
+   * paints — about 190ms on the machine in the README, and the whole launch is
+   * slower than that again on a cold start. Anything said before then reached
+   * nobody: a notice pushed during startup was simply lost, which is the whole
+   * failure notices exist to fix. They are kept here until the chrome collects
+   * them.
+   */
+  private outstanding: Notice[] = [];
+
+  /** The only layer in this window that can be drawn on top of a page. */
+  private readonly overlay: OverlayLayer;
+
+  /**
+   * Tells the person something, once.
+   *
+   * The main process is where most things finish — a menu click, an import, a
+   * list update — and until now none of them could say so: each ended at a
+   * count that nothing read.
+   */
+  notify(notice: Notice, onConfirm?: () => void): void {
+    if (onConfirm) {
+      this.pendingAnswers.set(notice.id, onConfirm);
+    }
+    this.outstanding = admit(this.outstanding, notice);
+    // A question is answered with a button, and the overlay is a view of its
+    // own: without this the keyboard cannot reach it at all.
+    if (notice.tone === 'ask') {
+      this.overlay.takeFocus();
+    }
+    // Said to the overlay, which is the renderer that draws notices. Pushing
+    // to the chrome window reaches every renderer except that one.
+    this.overlay.send(PUSH.notice, notice);
+  }
+
+  /**
+   * Whether a frame asking for something is one of this browser's own.
+   *
+   * The chrome window and the overlay are both trusted chrome with the same
+   * preload; everything else — every page in every tab — is not, and has no
+   * preload to ask with in the first place.
+   */
+  isOwnFrame(frame: WebFrameMain | null): boolean {
+    return frame === this.window.webContents.mainFrame || this.overlay.ownsFrame(frame);
+  }
+
+  /**
+   * Fetches the filter lists, because someone asked.
+   *
+   * Named plainly in the interface before it is pressed: this is the one thing
+   * in the browser that talks to a server nobody navigated to, and it happens
+   * once, when asked.
+   */
+  async updateFilterLists(): Promise<{ ok: boolean; message: string }> {
+    const outcome = await this.blocker.fetchNewerLists(app.getPath('userData'), async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(String(response.status));
+      }
+      return response.text();
+    });
+
+    const message = outcome.ok
+      ? `Filter lists updated — ${outcome.rules.toLocaleString()} rules, from ${outcome.lists.map((list) => list.name).join(' and ')}.`
+      : outcome.reason;
+
+    this.notify({ id: 'filters-update', tone: outcome.ok ? 'done' : 'info', key: 'filters-update', message });
+    this.scheduleStatePush();
+    return { ok: outcome.ok, message };
+  }
+
+  /** How tall the overlay's own content is, which only the overlay can measure. */
+  setOverlayHeight(height: number): void {
+    this.overlay.setContentBounds(this.tabs.contentBounds());
+    this.overlay.setHeight(height);
+  }
+
+  /** What was said before anyone was listening, asked for as the chrome starts. */
+  pendingNotices(): Notice[] {
+    return this.outstanding;
+  }
+
+  /** Answers a question a notice asked. Anything but a yes simply drops it. */
+  answerNotice(id: string, confirmed: boolean): void {
+    const act = this.pendingAnswers.get(id);
+    this.pendingAnswers.delete(id);
+    this.outstanding = dismissNotice(this.outstanding, id);
+    // The overlay draws notices and keeps its own copy, so an answer given
+    // anywhere else — the API, another window — would leave it on screen with
+    // nothing behind it. It has to be told the question is settled.
+    this.overlay.send(PUSH.noticeSettled, id);
+    if (confirmed) {
+      act?.();
+    }
+  }
+
+  /**
+   * Says that the saved things changed.
+   *
+   * Filing a bookmark or recolouring a folder changes no tab, so the tab
+   * snapshot the chrome already watches says nothing about it — a surface
+   * watching only that shows a stale tree until something unrelated happens.
+   */
+  bookmarksChanged(): void {
+    this.pushToChrome(PUSH.bookmarksChanged);
+  }
+
+  /** Asks the surface to put the folder's name into an editable field. */
+  renameBookmarkFolder(id: string): void {
+    this.pushToChrome(PUSH.renameBookmarkFolder, id);
+  }
+
+  createBookmarkFolder(name: string, colour: GroupColourId, parentId: string | null): BookmarkFolder {
+    const folder = this.store.createBookmarkFolder(name, colour, parentId);
+    this.bookmarksChanged();
+    return folder;
+  }
+
+  moveBookmarkFolder(id: string, parentId: string | null): boolean {
+    const moved = this.store.moveBookmarkFolder(id, parentId);
+    this.bookmarksChanged();
+    return moved;
+  }
+
+  updateBookmarkFolder(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    this.store.updateBookmarkFolder(id, changes);
+    this.bookmarksChanged();
+  }
+
+  /**
+   * Removes everything known about one site, and says what went.
+   *
+   * Said afterwards as well as before, because something that vanished quietly
+   * is indistinguishable from something that did not work.
+   */
+  forgetSite(address: string): SiteTraces {
+    const removed = this.store.forgetSite(address);
+    // The allowlist may have lost an entry, and the blocker holds its own copy.
+    this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+    this.notify({
+      id: `forget-${siteOf(address)}`,
+      tone: 'done',
+      key: 'forget-site',
+      message: `Forgot ${siteOf(address)} — ${describeTraces(removed).toLowerCase()}`,
+    });
+    this.scheduleStatePush();
+    return removed;
+  }
+
+  /** Clears one kind of thing kept about sites, and says it happened. */
+  clearKept(kind: KeptKind): void {
+    this.store.clearKept(kind);
+    if (kind === 'blockingOff') {
+      this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+    }
+    this.scheduleStatePush();
+  }
+
+  fileBookmark(id: string, folderId: string | null): void {
+    this.store.fileBookmark(id, folderId);
+    this.bookmarksChanged();
+    this.scheduleStatePush();
+  }
+
+  removeBookmark(id: string): void {
+    this.store.removeBookmark(id);
+    this.bookmarksChanged();
+    this.scheduleStatePush();
+  }
+
+  /** Deletes a folder, keeping everything that was in it, and says what moved. */
+  deleteBookmarkFolder(id: string): { folders: number; bookmarks: number } {
+    const moved = this.store.deleteBookmarkFolder(id);
+    this.bookmarksChanged();
+    this.scheduleStatePush();
+    return moved;
+  }
+
+  /** Asks the chrome to put the group's name into an editable field in the strip. */
+  renameGroup(id: string): void {
+    this.pushToChrome(PUSH.renameGroup, id);
+  }
+
+  setTabGroup(tabId: TabId, groupId: string | null): void {
+    this.tabs.setGroup(tabId, groupId);
+    this.scheduleStatePush();
+  }
+
   openDownloadsFolder(): void {
     void shell.openPath(app.getPath('downloads'));
   }
@@ -780,6 +1197,7 @@ export class Browser {
   private dispose(): void {
     this.prepareForQuit();
     this.updates.stop();
+    this.overlay.dispose();
     this.tabs.dispose();
     this.prompts.settleAll();
   }

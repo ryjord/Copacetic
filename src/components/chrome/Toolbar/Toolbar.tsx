@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ArrowRight, Clock, Download, RotateCw, Settings, Star, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookMarked, Clock, Download, RotateCw, Settings, Star, X } from 'lucide-react';
 import type { TabState } from '@shared/types';
 import { IconButton } from '@/components/ui/controls/IconButton';
 import { send } from '@/lib/bridge';
@@ -73,6 +73,16 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
           />
         )}
       </div>
+
+      {/* The star saves this page; this opens what has been saved. Without it
+          the whole surface was reachable only from the menu bar. */}
+      <IconButton
+        label="Bookmarks"
+        tone={surface === 'bookmarks' ? 'active' : 'default'}
+        onClick={() => toggleSurface('bookmarks')}
+      >
+        <BookMarked size={15} />
+      </IconButton>
 
       <IconButton
         label="History"

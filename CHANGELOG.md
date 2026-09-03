@@ -2,17 +2,29 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.4.0 — unreleased
+## 1.4.0 — 2026-09-03
 
 ### Added
 
+- **What it costs to run, measured rather than claimed.** The README now
+  publishes start-up time, what the blocking engine costs to load, and memory
+  with pages open, alongside the machine that produced them and the script that
+  produces yours: `npm run measure` launches the built app on a throwaway
+  profile five times and reports the median. Nothing here was worth stating
+  without a way for someone else to check it.
 - **Signing in to Google works.** It refused before, and the reason turned out to
   be that Copacetic said it was Chrome and then did not behave like one:
   Chromium in Electron sends none of the client-hint headers every real Chrome
   sends on every secure request, and a sign-in page reads those before a single
   script runs. Those, the browser's own description of itself, the languages it
-  offers and `window.chrome` all now say the same thing. Page content still runs
-  no script of Copacetic's — the fix is entirely in the main process.
+  offers and `window.chrome` all now say the same thing. With one difference
+  left on purpose: only the three hints Chrome sends unprompted are sent, so a
+  site that asks for the high-entropy ones through `Accept-CH` gets no answer.
+  That is itself something a determined site can notice, and it is still the
+  right trade — those hints are the full version, the architecture, the
+  bitness and the device model, and nothing needs them to let you sign in.
+  Page content still runs no script of Copacetic's — the fix is entirely in
+  the main process.
 - **Development servers open.** A certificate signed by nobody is accepted from
   `localhost`, `127.0.0.1`, `::1` and `.localhost`, and nowhere else; reaching
   that traffic already means being on the machine. The badge says the
@@ -35,8 +47,61 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   attested by GitHub, so `gh attestation verify <file> --repo ryjord/Copacetic`
   proves a download came out of this repository. The builds are still unsigned;
   this is the part of that question that can be answered for nothing.
+- **Tab groups.** A run of tabs takes a name, a colour and a place in the strip.
+  Click the name to rename it where it sits; right-click for colour, collapse,
+  ungroup or close. A group can keep its own cookies and logins, decided when it
+  is made and never after — changing it later would sign you out of pages open in
+  front of you. A group holding a Hush tab says so rather than claiming to be
+  separate, because that would be true of only part of what it names.
+- **Bookmark folders, and they nest.** Drag a bookmark onto a folder to file it,
+  or use the bookmark's own menu, which lists every folder by its full path so
+  filing never needs a mouse. Deleting a folder keeps everything inside it — its
+  bookmarks and its child folders move up to where it was. A folder cannot be
+  dropped inside itself; that is refused while the cursor is still over it,
+  because the subtree would detach with nowhere to drag it back from. Counts are
+  given both ways, since a tree makes every number ambiguous.
+- **A folder is a tab group at rest.** A folder opens as a tab group carrying its
+  name and colour, and a group saves as a folder the same way. The group does not
+  inherit its own session — that is decided when a group is made — and a Hush tab
+  is never saved, because a bookmark is written to disk.
+- **A bookmarks bar**, off until switched on in Settings. It carries the top level
+  only: a bar that flattened the tree would put something filed three folders deep
+  beside something filed nowhere. A folder on it opens as a menu.
+- **Ad and tracker blocking.** EasyList and EasyPrivacy ship inside the app —
+  136,716 rules — with the curated 122 domains underneath as a floor, so a list
+  that fails to load cannot make Copacetic block less than it did before it had
+  one. The lists are in the repository as text and change only with a release or
+  when you press "Check for newer lists"; nothing fetches them on a timer,
+  because that is a periodic request from your machine to a server. What a
+  blocked advert leaves behind is collapsed with a stylesheet, not an injected
+  script — page content still runs none of Copacetic's. The connection panel
+  says whether a hostname or a rule stopped each request, and Settings says
+  plainly what blocking cannot do: same-origin adverts, server-inserted adverts
+  and sponsored posts inside a feed are not blocked and are not counted.
+- **Notices.** The app can now say what it finished and ask before something
+  costly. Saving a group as a folder says how many Hush tabs were left out, which
+  is the point: the promise Hush makes is only kept if it is also stated. Opening
+  a folder of more than ten pages asks first — naming the number on a button is
+  not the same as consenting to it. Notices are drawn on top of the page rather
+  than pushing it aside, and one said before the window is ready is held until it
+  can be read.
 
 ### Changed
+
+- **A new icon.** The mark was a status lamp reading clear; it is now that same
+  lamp held level between two gauge marks, because "copacetic" means everything
+  is in order and a spirit level's bubble is only centred when it is. The rule
+  the interface follows is unchanged and now drawn twice: only the ring and the
+  lamp take colour, the marks are white at 22%, and the tile never moves. The
+  marks wash out below roughly 24px, which is deliberate — at tab-strip size
+  what is left is the lamp on its own. The interface's own icon was still the
+  one Next.js ships with, and is now the mark as well.
+
+- **Building it needs Node 22.22.2 or newer.** The floor said 20.9 and was
+  wrong: jsdom dropped Node 20, so on 20 the test suite does not start at all
+  rather than failing a test. Nothing about the packaged application changed —
+  Electron carries its own Node — but the claim was untrue and is now the one
+  jsdom actually imposes.
 
 - **A Hush tab is no longer easy to overlook.** The tab is outlined rather than
   carrying one small icon among three, the start page atmosphere goes dark, and
@@ -51,10 +116,61 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **The Windows installer builds again.** Git was rewriting the filter lists'
+  line endings when they were checked out on Windows, which changed their bytes,
+  which made them stop matching the hashes the manifest recorded when they were
+  fetched — and the build refuses to use a list it cannot verify. The lists are
+  now marked as content rather than source, so they arrive byte for byte on
+  every platform.
+- **A menu item pressed during start-up now does what it says.** Settings,
+  History, Downloads and the command palette are opened by telling the
+  interface, and the interface is a page: for a couple of hundred milliseconds
+  after the window appears there is nothing there to be told. The request is now
+  held and handed over when the interface starts listening, once, and only if it
+  was recent — a pane that opens a minute later because of a keystroke nobody
+  remembers is its own bug. Switching tabs still closes whatever is covering
+  them; the first state arriving no longer counts as switching, which it was
+  doing, and which threw the collected pane away again on its way past.
+- **A Hush tab no longer writes down the certificate of every site it opens.**
+  This happened with no action from anyone, on every https page, and the record
+  outlived the tab — the same shape as the favicon cache and the download, and
+  against the same sentence. The certificate is still compared, so a change
+  mid-session is still reported; there is simply nothing kept afterwards.
+- **Zoom, permissions and blocking exceptions set in a Hush tab are no longer
+  remembered.** Each is kept against a site, and Settings lists those by name.
+  The cost is being asked again in the same session, which is what a tab that
+  remembers nothing means.
+- **Forgetting a site now removes the permissions granted to it.** They are
+  stored under a key that is an origin with the permission's name stuck on the
+  end, which never matched, so every permission survived being forgotten.
+- **Forgetting a site no longer takes unrelated ones with it.** Two addresses
+  sharing their last two numbers counted as one site, as did two things served
+  from localhost on different ports.
+- **A download started in a Hush tab is no longer written to disk.** Its address,
+  its redirect chain and its time were going into `downloads.json`, which
+  contradicts what Hush says in this README and on the tab itself — that nothing
+  it does reaches the disk and closing it leaves nothing to delete. The file is
+  still saved, because it was asked for; where it came from is browsing, and a
+  Hush tab keeps none of that. It is listed while Copacetic is open, marked as
+  not written down, and gone when Copacetic closes.
+- **Clearing history now clears the icons cached for those sites.** Nobody
+  chooses a favicon, and a per-origin cache left behind after clearing history
+  is a readable list of where you have been.
+
 - The connection badge no longer describes a page that failed to load as
   encrypted and verified. Nothing was exchanged and no certificate was checked.
 - Stored files can change shape between versions without losing what an older
   build wrote, and a file from a newer version is kept rather than guessed at.
+- Dragging a tab rightward past a group no longer puts it in that group. It came
+  to rest outside the group and joined it anyway, because the drop read the wrong
+  pair of neighbours in one direction of travel.
+- A tab dropped where it already was is no longer re-grouped. One left ungrouped
+  between two of a group's tabs was swallowed by the smallest twitch of a mouse.
+- Saving a tab group as a bookmark folder no longer deletes bookmarks. A page
+  already saved had its bookmark removed rather than filed, and the count did not
+  say so.
+- Recolouring or renaming a folder from its menu now changes what is on screen.
+  It reached the disk and stopped there, because nothing told the open surface.
 
 ## 1.3.3 — 2026-08-13
 

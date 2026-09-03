@@ -1,4 +1,5 @@
 import { originOf } from '../../shared/url';
+import { sameSite } from '../../shared/forgetting';
 import { PersistedFile, asNumber, asString, isRecord } from './persistence';
 
 const MAX_FAVICON_ENTRIES = 600;
@@ -39,6 +40,41 @@ export class FaviconsStore {
         .slice(0, MAX_FAVICON_ENTRIES);
       return Object.fromEntries(keep.map((key) => [key, next[key]!]));
     });
+  }
+
+  /** Every origin an icon is cached for, which is a list of places someone has been. */
+  origins(): string[] {
+    return Object.keys(this.file.get());
+  }
+
+  /** Forgets the icons for one site, subdomains included. */
+  forgetSite(site: string): number {
+    let removed = 0;
+    this.file.update((current) => {
+      const kept: Record<string, FaviconRecord> = {};
+      for (const [origin, record] of Object.entries(current)) {
+        if (sameSite(origin, site)) {
+          removed += 1;
+        } else {
+          kept[origin] = record;
+        }
+      }
+      return kept;
+    });
+    return removed;
+  }
+
+  /**
+   * Forgets every icon.
+   *
+   * Called when history is cleared. An icon is a cache — nobody chose to keep
+   * it — and leaving a per-origin cache behind after clearing history leaves a
+   * readable list of where someone had been.
+   */
+  forgetAll(): number {
+    const count = Object.keys(this.file.get()).length;
+    this.file.set({});
+    return count;
   }
 
   flush(): void {

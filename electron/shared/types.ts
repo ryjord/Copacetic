@@ -1,4 +1,5 @@
 import type { DnsMode } from './dns';
+import type { TabGroup } from './tab-groups';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -27,6 +28,12 @@ export interface CertificateSummary {
 
 /** One host a page has contacted, and what happened to those requests. */
 export interface ConnectionEntry {
+  /**
+   * The filter rule that caught this, when a rule did rather than a hostname.
+   * Which of the two stopped something is how a false positive is told apart
+   * from a site that is simply broken.
+   */
+  rule?: string | null;
   host: string;
   requests: number;
   blocked: number;
@@ -78,6 +85,8 @@ export interface TabState {
   isStartPage: boolean;
   /** A Hush tab: nothing it does is written to this machine. */
   isHush: boolean;
+  /** The group this tab is in, if any. */
+  groupId: string | null;
   isBookmarked: boolean;
 }
 
@@ -101,6 +110,14 @@ export interface DownloadState {
   urlChain: string[];
   /** SHA-256 of what actually arrived, so it can be checked against a published one. */
   sha256: string | null;
+  /**
+   * Started from a Hush tab, so nothing about it is written down.
+   *
+   * The file is on disk — it was asked for — but the record of where it came
+   * from is browsing, and a Hush tab keeps none. It is listed while Copacetic
+   * is open and gone when it closes.
+   */
+  isHush?: boolean;
 }
 
 export interface HistoryEntry {
@@ -109,6 +126,16 @@ export interface HistoryEntry {
   title: string;
   lastVisitedAt: number;
   visitCount: number;
+  /**
+   * Requests refused on this page, added up across every visit.
+   *
+   * Requests, not adverts: one advert is usually several requests and most of
+   * these are trackers, so the number that is easy to inflate is the one to be
+   * careful with. Absent on entries written before this was counted, which is
+   * why it is optional rather than zero — nothing was measured then, and zero
+   * would be a claim.
+   */
+  blockedCount?: number;
 }
 
 export interface HistoryPage {
@@ -122,6 +149,8 @@ export interface Bookmark {
   url: string;
   title: string;
   createdAt: number;
+  /** The folder it is filed in, or null for the ones nobody has filed. */
+  folderId: string | null;
 }
 
 export interface TopSite {
@@ -311,11 +340,15 @@ export interface Settings {
   hasWallpaper: boolean;
   sidebarWidth: number;
   defaultZoomFactor: number;
+  /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
+  showBookmarksBar: boolean;
 }
 
 /** The single snapshot the main process pushes to the chrome renderer. */
 export interface BrowserState {
   tabs: TabState[];
+  /** The groups themselves. Which tabs are in them is carried on each tab. */
+  groups: TabGroup[];
   tabOrder: TabId[];
   activeTabId: TabId | null;
   downloads: DownloadState[];
@@ -355,8 +388,25 @@ export interface AppInfo {
   chromeVersion: string;
   platform: NodeJS.Platform;
   isDevelopment: boolean;
-  /** How many domains the bundled tracker list covers. */
+  /** How many domains the curated tracker list covers, whatever else is loaded. */
   blockerRuleCount: number;
+  /** The filter lists built into this release, so a pane can name them and their date. */
+  filterLists: FilterList[];
+}
+
+/**
+ * A filter list as it shipped.
+ *
+ * The date is the list's own, not the day the app was built: what matters is how
+ * old the rules are, and a release cut a month after a list was fetched is a
+ * month behind whatever it says here.
+ */
+export interface FilterList {
+  name: string;
+  url: string;
+  describe: string;
+  rules: number;
+  lastModified: string | null;
 }
 
 export interface ContentBounds {

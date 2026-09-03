@@ -15,6 +15,8 @@ import type { TabRecord } from './tab-record';
 export interface TabEventDeps {
   store: BrowserStore;
   blocker: ContentBlocker;
+  /** Forgets what has been written to history for a tab, when its page changes. */
+  forgetBlockedCount: (webContentsId: number) => void;
   onChanged: () => void;
   applyVisibility: () => void;
   cacheFavicon: (tab: TabRecord, faviconUrl: string) => void;
@@ -46,6 +48,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       return;
     }
     deps.blocker.resetCount(contents.id);
+    deps.forgetBlockedCount(contents.id);
     // Set before any subresource request is judged, so an exception applies
     // from the first request of the page rather than the second load.
     const site = hostOf(details.url);
@@ -72,6 +75,39 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     deps.applyVisibility();
     changed();
   };
+
+  /**
+   * Collapses what a blocked advert leaves behind.
+   *
+   * A refused request still leaves the frame the page laid out for it, so a
+   * page with blocking on looks like a page full of holes. This is the
+   * stylesheet that closes them.
+   *
+   * A stylesheet on purpose. Hiding elements is what other blockers use an
+   * injected script for, and page content in this browser gets no script of
+   * ours — a promise made early and not spent since. insertCSS needs no
+   * preload and adds nothing a page can call.
+   *
+   * It reaches the top document only. Electron's insertCSS takes a webContents
+   * and there is no equivalent on a frame, so collapsing space inside an iframe
+   * would mean running a script in it — which is the promise above. Requests
+   * made from inside frames are still refused, because webRequest sees every
+   * frame; what is left uncollapsed is the space a blocked advert had inside
+   * one, and Settings says so rather than pretending otherwise.
+   */
+  const hideWhatWasBlocked = (url: string) => {
+    if (!url.startsWith('http')) {
+      return;
+    }
+    const styles = deps.blocker.cosmeticStylesFor(url);
+    if (styles) {
+      void contents.insertCSS(styles).catch(() => {
+        // A page that navigated away before this landed is not a failure.
+      });
+    }
+  };
+
+  contents.on('dom-ready', () => hideWhatWasBlocked(contents.getURL()));
 
   contents.on('did-navigate', (_event, url) => commitNavigation(url, false));
   contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {

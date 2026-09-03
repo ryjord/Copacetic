@@ -30,6 +30,25 @@ updates:
         exclude-patterns: ['electron', 'electron-builder', 'electron-updater', 'next']
         update-types: [minor, patch]
     ignore:
+      # ESLint 10 installs and the config loads, but eslint-plugin-react — pulled
+      # in by eslint-config-next — calls an API it removed:
+      # `contextOrFilename.getFilename is not a function`, while loading
+      # react/display-name. 7.37.5 is the latest published version of that plugin
+      # and it peers on `eslint ^3 || ... || ^9.7`, so there is nothing to move
+      # to. Drop this when the plugin declares ESLint 10.
+      - dependency-name: 'eslint'
+        versions: ['>=10']
+      # TypeScript 7 compiles this repo. Measured 2 Sep 2026: all four projects
+      # typecheck, the main process still emits CommonJS, and all 35 smoke tests
+      # pass in a real Electron. The only source change needed is
+      # tsconfig.electron.json moving `"module": "CommonJS"` and
+      # `"moduleResolution": "node"` to `"node16"` for both, because TS 7 removed
+      # node10 resolution. Lint is what blocks it: typescript-eslint refuses with
+      # "does not support TS 7.0", and its latest release peers
+      # `typescript >=4.8.4 <6.1.0`. Drop this when that range opens; the
+      # migration is that one config line.
+      - dependency-name: 'typescript'
+        versions: ['>=7']
       # @types/node describes the APIs of a Node it is versioned against, and
       # types ahead of the runtime let code compile against functions that will
       # not exist when it runs — a failure typecheck cannot see. Pinned to the

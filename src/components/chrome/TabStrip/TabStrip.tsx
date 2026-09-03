@@ -1,30 +1,49 @@
 'use client';
 
-import { ChevronDown, EyeOff, Plus, Volume2, VolumeX, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { TabState } from '@shared/types';
+import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type TabGroup } from '@shared/tab-groups';
 import { Favicon } from '@/components/ui/media/Favicon';
 import { IconButton } from '@/components/ui/controls/IconButton';
-import { send } from '@/lib/bridge';
+import { InlineRenameField } from '@/components/ui/controls/InlineRenameField';
+import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 interface TabStripProps {
   tabs: TabState[];
   activeTabId: string | null;
+  groups: TabGroup[];
 }
 
-export function TabStrip({ tabs, activeTabId }: TabStripProps) {
+export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
 
   const handleDrop = (index: number) => {
-    if (dragId) {
+    const from = dragId ? tabs.findIndex((tab) => tab.id === dragId) : -1;
+    // A tab dropped where it already was has not been moved, so nothing about
+    // it should be re-decided: a tab parked between two of a group's tabs would
+    // otherwise be swallowed by the group on the smallest twitch of the mouse.
+    if (dragId && from !== -1 && from !== index) {
+      // Where it lands decides which group it is in, not just where it sits.
+      const groupId = groupForDrop(tabs, from, index);
       send((api) => api.tabs.move(dragId, index));
+      send((api) => api.groups.setForTab(dragId, groupId));
     }
     setDragId(null);
     setDropIndex(null);
   };
+
+  // segmentByGroup has already visited every tab in order, so where each run
+  // starts falls out of the run lengths — the strip does not need scanning
+  // again for every run.
+  const runs = segmentByGroup(tabs);
+  const runStarts = runs.reduce<number[]>(
+    (starts, run, index) => [...starts, (starts[index - 1] ?? 0) + (runs[index - 1]?.tabs.length ?? 0)],
+    [],
+  );
 
   return (
     <div
@@ -63,22 +82,44 @@ export function TabStrip({ tabs, activeTabId }: TabStripProps) {
       }}
       className="hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     >
-      {tabs.map((tab, index) => (
-        <Tab
-          key={tab.id}
-          tab={tab}
-          isActive={tab.id === activeTabId}
-          isDragging={dragId === tab.id}
-          showDropBefore={dropIndex === index && dragId !== tab.id}
-          onDragStart={() => setDragId(tab.id)}
-          onDragEnd={() => {
-            setDragId(null);
-            setDropIndex(null);
-          }}
-          onDragOver={() => setDropIndex(index)}
-          onDrop={() => handleDrop(index)}
-        />
-      ))}
+      {runs.map((run, runIndex) => {
+        const group = run.groupId ? groups.find((candidate) => candidate.id === run.groupId) : undefined;
+        const startsAt = runStarts[runIndex] ?? 0;
+
+        const rendered = run.tabs.map((tab, offset) => {
+          const index = startsAt + offset;
+          return (
+            <Tab
+              key={tab.id}
+              tab={tab}
+              isActive={tab.id === activeTabId}
+              isDragging={dragId === tab.id}
+              showDropBefore={dropIndex === index && dragId !== tab.id}
+              onDragStart={() => setDragId(tab.id)}
+              onDragEnd={() => {
+                setDragId(null);
+                setDropIndex(null);
+              }}
+              onDragOver={() => setDropIndex(index)}
+              onDrop={() => handleDrop(index)}
+            />
+          );
+        });
+
+        if (!group) {
+          return (
+            <div key={`ungrouped-${runIndex}`} className="flex items-center gap-1">
+              {rendered}
+            </div>
+          );
+        }
+
+        return (
+          <GroupBand key={`${group.id}-${runIndex}`} group={group} holdsHush={run.tabs.some((tab) => tab.isHush)}>
+            {rendered}
+          </GroupBand>
+        );
+      })}
 
       <IconButton label="New tab" size="sm" className="ml-0.5" onClick={() => send((api) => api.tabs.create())}>
         <Plus size={14} />
@@ -220,6 +261,92 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       >
         <X size={11} />
       </button>
+    </div>
+  );
+}
+
+/**
+ * A group's own mark, and the only place its colour appears.
+ *
+ * The colour never fills a tab. That keeps it out of the way of the state
+ * colours, which say whether a connection is encrypted or a tab is Hush, and it
+ * keeps a Hush outline the strongest thing inside a group — which is right,
+ * because in a mixed group it is the only guarantee there is.
+ */
+function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  useEffect(() => {
+    const api = getBridge();
+    return api?.on.renameGroup((id) => {
+      if (id === group.id) {
+        setIsRenaming(true);
+      }
+    });
+  }, [group.id]);
+
+  const claim = claimOf(group, holdsHush);
+  const colour = colourOf(group.colour);
+
+  return (
+    <div
+      // Presentational: a tablist's children are its tabs, and this wrapper
+      // exists to draw a coloured band behind some of them. Announcing it as a
+      // generic group would put a nameless container between the strip and
+      // every tab inside it.
+      role="presentation"
+      className="relative flex items-center gap-1 rounded-t-[10px] px-1"
+      style={{ borderTop: `2px solid ${colour}`, background: `${colour}1a` }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        send((api) => api.groups.openContextMenu(group.id));
+      }}
+    >
+      {isRenaming ? (
+        <div
+          className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 px-2"
+          style={{ color: colour }}
+        >
+          <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
+          <InlineRenameField
+            value={group.name}
+            label={group.name}
+            onCommit={(next) => send((api) => api.groups.update(group.id, { name: next }))}
+            onCancel={() => setIsRenaming(false)}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          // Named for what it does, not just what it says. The tooltip is a
+          // mouse-only hint; without this the accessible name is the group's
+          // name alone, which does not suggest that pressing it renames.
+          aria-label={`Rename ${group.name}`}
+          title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
+          // Click names it; the chevron collapses it. A click that hid the tabs
+          // would make renaming the thing you cannot see.
+          onClick={() => setIsRenaming(true)}
+          className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px] transition-colors hover:bg-hover/60"
+          style={{ color: colour }}
+        >
+          <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
+          <span className="max-w-[14ch] truncate">{group.name}</span>
+          {claim === 'separate' && <Lock size={11} aria-label="Keeps its own browsing" />}
+          {/* A group holding a Hush tab cannot claim to be separate, because that
+              would be true of only part of what it names. */}
+          {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
+        </button>
+      )}
+      <button
+        type="button"
+        aria-label={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+        onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
+        className="shrink-0 rounded px-0.5 text-ink-faint transition-colors hover:text-ink"
+      >
+        <ChevronDown size={11} className={cn('transition-transform', group.collapsed && '-rotate-90')} />
+      </button>
+
+      {!group.collapsed && children}
     </div>
   );
 }

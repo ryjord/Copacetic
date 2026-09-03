@@ -48,3 +48,4 @@ probe.cjs
 
 # Smoke runs launch the built app; nothing they produce belongs in the repo.
 /smoke-results/
+test-results/

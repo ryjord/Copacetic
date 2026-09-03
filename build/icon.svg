@@ -1,10 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <!--
-    Copacetic's mark: an all-clear indicator.
+    Copacetic's mark: a lamp held level.
 
     The name means "everything is in order", and the interface's one rule is
-    that colour appears only where it reports state. So the icon is exactly
-    that — a status lamp reading clear — rather than a letterform.
+    that colour appears only where it reports state. The mark is that rule
+    drawn twice — a status lamp reading clear, sitting dead centre between two
+    gauge marks, the way a spirit level's bubble is only centred when
+    everything actually is level. Not a letterform, and not a shield.
+
+    The marks are the first thing to wash out below about 24px, which is the
+    point of drawing them: what is left at tab-strip size is the lamp on its
+    own, which is a mark this browser has always had.
+
+    Only the ring and the lamp take colour. The gauge marks are white at 7%,
+    and the tile never changes, so if the mark is ever drawn in caution or
+    active the colour is the only thing that moved.
   -->
   <defs>
     <linearGradient id="surface" x1="0" y1="0" x2="0" y2="1">
@@ -12,7 +22,8 @@
       <stop offset="100%" stop-color="#080B0F"/>
     </linearGradient>
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#7FD1AE" stop-opacity="0.42"/>
+      <stop offset="0%" stop-color="#7FD1AE" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#7FD1AE" stop-opacity="0.14"/>
       <stop offset="100%" stop-color="#7FD1AE" stop-opacity="0"/>
     </radialGradient>
   </defs>
@@ -20,7 +31,8 @@
   <rect width="1024" height="1024" rx="228" fill="url(#surface)"/>
   <rect x="4" y="4" width="1016" height="1016" rx="226" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="8"/>
 
-  <circle cx="512" cy="512" r="300" fill="url(#glow)"/>
-  <circle cx="512" cy="512" r="228" fill="none" stroke="#7FD1AE" stroke-opacity="0.34" stroke-width="20"/>
+  <circle cx="512" cy="512" r="416" fill="url(#glow)"/>
+  <path d="M200 288V736M824 288V736" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="228" fill="none" stroke="#7FD1AE" stroke-opacity="0.40" stroke-width="28"/>
   <circle cx="512" cy="512" r="116" fill="#7FD1AE"/>
 </svg>

@@ -1,3 +1,4 @@
+import type { KeptKind } from '../../shared/forgetting';
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { readWallpaper, readWallpaperPreview, stagedWallpaper } from '../system/wallpaper';
 import { randomBytes } from 'node:crypto';
@@ -7,14 +8,23 @@ import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generato
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import type { Browser } from './browser';
 import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
-import { showNewTabMenu, showTabContextMenu } from '../menus/context-menu';
+import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
+import {
+  showBookmarkContextMenu,
+  showSiteContextMenu,
+  showBookmarkFolderContextMenu,
+  showBookmarkFolderMenu,
+  showGroupContextMenu,
+  showNewTabMenu,
+  showTabContextMenu,
+} from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
-/** Every handler is registered through `handle`, which drops any message that did not come from the chrome window's own top-level frame. */
+/** Every handler is registered through `handle`, which drops any message that did not come from one of the browser's own top-level frames — the chrome window or the overlay. */
 export function registerIpcHandlers(browser: Browser): void {
   const handle = <T>(channel: string, handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => T) => {
     ipcMain.handle(channel, (event, ...args) => {
-      if (event.senderFrame !== browser.window.webContents.mainFrame) {
+      if (!browser.isOwnFrame(event.senderFrame)) {
         throw new Error(`Rejected ${channel} from an unexpected frame`);
       }
       return handler(event, ...args);
@@ -79,13 +89,50 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.bookmarksList, () => browser.store.listBookmarks());
   handle(INVOKE.bookmarksToggle, (_event, url, title) => {
     const bookmarked = browser.store.toggleBookmark(asString(url), asString(title));
+    browser.bookmarksChanged();
     browser.scheduleStatePush();
     return bookmarked;
   });
   handle(INVOKE.bookmarksRemove, (_event, id) => {
     browser.store.removeBookmark(asString(id));
+    browser.bookmarksChanged();
     browser.scheduleStatePush();
   });
+  handle(INVOKE.bookmarksOpen, (_event, url) => browser.openInActiveTab(asString(url)));
+  handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
+  handle(INVOKE.historyTraces, (_event, address) => browser.store.tracesOf(asString(address)));
+  handle(INVOKE.historyTotalBlocked, () => browser.store.totalBlocked());
+  handle(INVOKE.dataKept, () => browser.store.keptAboutSites());
+  handle(INVOKE.historyOpenContextMenu, (_event, address) => showSiteContextMenu(browser, asString(address)));
+  handle(INVOKE.dataClearKept, (_event, kind) => browser.clearKept(asString(kind) as KeptKind));
+  handle(INVOKE.historyForgetSite, (_event, address) => browser.forgetSite(asString(address)));
+  handle(INVOKE.noticeAnswer, (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
+  handle(INVOKE.noticesPending, () => browser.pendingNotices());
+  handle(INVOKE.surfacePending, () => browser.pendingSurface());
+  handle(INVOKE.chromeSetOverlayHeight, (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
+  handle(INVOKE.filtersUpdate, () => browser.updateFilterLists());
+  handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
+    browser.store.fileBookmark(asString(id), asOptionalId(folderId));
+    browser.bookmarksChanged();
+    browser.scheduleStatePush();
+  });
+
+  handle(INVOKE.bookmarkFoldersList, () => browser.store.listBookmarkFolders());
+  handle(INVOKE.bookmarkFolderCreate, (_event, name, colour, parentId) =>
+    browser.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
+  );
+  handle(INVOKE.bookmarkFolderUpdate, (_event, id, changes) =>
+    browser.updateBookmarkFolder(asString(id), asGroupChanges(changes)),
+  );
+  handle(INVOKE.bookmarkFolderMove, (_event, id, parentId) =>
+    browser.moveBookmarkFolder(asString(id), asOptionalId(parentId)),
+  );
+  handle(INVOKE.bookmarkFolderDelete, (_event, id) => browser.deleteBookmarkFolder(asString(id)));
+  handle(INVOKE.bookmarkFolderOpenAsGroup, (_event, id) => browser.openFolderAsGroup(asString(id)));
+  handle(INVOKE.bookmarkFolderOpenContextMenu, (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));
+  handle(INVOKE.bookmarkFolderOpenMenu, (_event, id, x, y) =>
+    showBookmarkFolderMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
+  );
 
   // -------------------------------------------------------------- downloads
 
@@ -186,6 +233,18 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.wallpaperStaged, () => stagedWallpaper());
   handle(INVOKE.wallpaperKeep, () => browser.keepWallpaper());
   handle(INVOKE.wallpaperRemove, () => browser.removeWallpaper());
+
+  // ------------------------------------------------------------------ groups
+
+  handle(INVOKE.groupCreate, (_event, tabId, name, colour, ownSession) =>
+    browser.createGroup(asString(tabId), asString(name), asGroupColour(colour), ownSession === true),
+  );
+  handle(INVOKE.groupUpdate, (_event, id, changes) => browser.updateGroup(asString(id), asGroupChanges(changes)));
+  handle(INVOKE.groupRemove, (_event, id) => browser.removeGroup(asString(id)));
+  handle(INVOKE.groupOpenContextMenu, (_event, id) => showGroupContextMenu(browser, asString(id)));
+  handle(INVOKE.groupSetForTab, (_event, tabId, groupId) =>
+    browser.setTabGroup(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
+  );
   handle(INVOKE.wallpaperDiscard, () => browser.discardWallpaper());
 
   // ------------------------------------------------------------------- data
@@ -254,6 +313,33 @@ function pickStrings<K extends string>(
   return picked;
 }
 
+/** An id that may be absent. An empty string is not an id, and neither is anything that is not a string. */
+function asOptionalId(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null;
+}
+
+function asGroupColour(value: unknown): GroupColourId {
+  const known = GROUP_COLOURS.find((colour) => colour.id === value);
+  return known?.id ?? GROUP_COLOURS[0].id;
+}
+
+function asGroupChanges(value: unknown): { name?: string; colour?: GroupColourId; collapsed?: boolean } {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const changes: { name?: string; colour?: GroupColourId; collapsed?: boolean } = {};
+  if (typeof value.name === 'string') {
+    changes.name = value.name.slice(0, 60);
+  }
+  if (GROUP_COLOURS.some((colour) => colour.id === value.colour)) {
+    changes.colour = value.colour as GroupColourId;
+  }
+  if (typeof value.collapsed === 'boolean') {
+    changes.collapsed = value.collapsed;
+  }
+  return changes;
+}
+
 function asClearRange(value: unknown): ClearRange {
   return value === 'hour' || value === 'day' || value === 'week' || value === 'all' ? value : 'hour';
 }
@@ -296,6 +382,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.hushNoticeDismissed === 'boolean') {
     patch.hushNoticeDismissed = value.hushNoticeDismissed;
+  }
+  if (typeof value.showBookmarksBar === 'boolean') {
+    patch.showBookmarksBar = value.showBookmarksBar;
   }
   if (typeof value.ambientHue === 'number' && Number.isFinite(value.ambientHue)) {
     patch.ambientHue = value.ambientHue;

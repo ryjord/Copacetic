@@ -1,8 +1,36 @@
 import type { Bookmark } from '../../shared/types';
+import type { SchemaPlan } from './schema';
 import { PersistedFile, asNumber, asString, isRecord, newId } from './persistence';
 
+/**
+ * Version 2 files a bookmark in a folder. Version 1 was a flat list, so every
+ * bookmark that predates folders belongs to none — which is exactly what the
+ * interface calls Unfiled, rather than a state needing explaining.
+ */
+export const BOOKMARKS_PLAN: SchemaPlan = {
+  current: 2,
+  steps: [
+    {
+      to: 2,
+      describe: 'bookmarks remember which folder they are filed in',
+      up: (raw: unknown) => {
+        if (!Array.isArray(raw)) {
+          return raw;
+        }
+        return raw.map((item) => (isRecord(item) ? { ...item, folderId: null } : item));
+      },
+    },
+  ],
+};
+
 export class BookmarksStore {
-  private readonly file = new PersistedFile<Bookmark[]>('bookmarks.json', () => [], reviveBookmarks);
+  private readonly file = new PersistedFile<Bookmark[]>(
+    'bookmarks.json',
+    () => [],
+    reviveBookmarks,
+    400,
+    BOOKMARKS_PLAN,
+  );
 
   list(): Bookmark[] {
     return this.file.get();
@@ -21,7 +49,7 @@ export class BookmarksStore {
         return bookmarks.filter((_, position) => position !== index);
       }
       bookmarked = true;
-      return [{ id: newId(), url, title: title || url, createdAt: Date.now() }, ...bookmarks];
+      return [{ id: newId(), url, title: title || url, createdAt: Date.now(), folderId: null }, ...bookmarks];
     });
     return bookmarked;
   }
@@ -53,12 +81,44 @@ export class BookmarksStore {
           title: entry.title || entry.url,
           // Seconds in the file, milliseconds here.
           createdAt: entry.addedAt ? entry.addedAt * 1000 : Date.now(),
+          folderId: null,
         });
       }
       return [...fresh, ...bookmarks];
     });
 
     return { added, alreadyHad };
+  }
+
+  /**
+   * Makes sure an address is bookmarked, and hands back the bookmark.
+   *
+   * Not `toggle`: asked twice about the same address, toggle removes what it
+   * added. Anything meaning "make sure this is saved" that reaches for toggle
+   * deletes the thing it was asked to keep. An address already saved keeps the
+   * title, the date and the folder it already had — none of which this was
+   * asked to change.
+   */
+  ensure(url: string, title: string): Bookmark {
+    const existing = this.file.get().find((bookmark) => bookmark.url === url);
+    if (existing) {
+      return existing;
+    }
+    const bookmark: Bookmark = { id: newId(), url, title: title || url, createdAt: Date.now(), folderId: null };
+    this.file.update((bookmarks) => [bookmark, ...bookmarks]);
+    return bookmark;
+  }
+
+  /** Files one bookmark, or unfiles it. Whether the folder exists is decided by the caller. */
+  moveTo(id: string, folderId: string | null): void {
+    this.file.update((bookmarks) =>
+      bookmarks.map((bookmark) => (bookmark.id === id ? { ...bookmark, folderId } : bookmark)),
+    );
+  }
+
+  /** Replaces every bookmark, which is how deleting a folder promotes what was in it. */
+  replaceAll(bookmarks: readonly Bookmark[]): void {
+    this.file.update(() => [...bookmarks]);
   }
 
   remove(id: string): void {
@@ -88,6 +148,10 @@ export function reviveBookmarks(raw: unknown): Bookmark[] | null {
         url,
         title: asString(item.title) || url,
         createdAt: asNumber(item.createdAt, Date.now()),
+        // A folder that no longer exists would hide the bookmark in a place
+        // nothing can open, so the id is only kept if it is a string; whether
+        // it names a real folder is checked where the folders are known.
+        folderId: asString(item.folderId) || null,
       },
     ];
   });

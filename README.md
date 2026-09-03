@@ -53,13 +53,22 @@ which were stopped. The blocked count tells you what was prevented; this tells
 you what was allowed, which is the half no mainstream browser shows without
 opening developer tools.
 
-**Tracker blocking that does not break pages.** A curated list of 122 domains
-that exist only to follow people between sites. Not an EasyList engine — a
-short, honest list, and the count you see is the real number of blocked
-requests, not an estimate. Top-level navigation is never blocked, so you can
-still visit a tracker domain deliberately. If blocking breaks a particular
-site, you can allow it there from the connection panel rather than turning
-blocking off everywhere.
+**Ad and tracker blocking from a list that never phones home.** EasyList and
+EasyPrivacy ship inside the app — 136,716 rules — with a curated list of 122
+domains underneath them as a floor, so a list that fails to load cannot make
+Copacetic block less than it did before it had one. The rules are in the
+repository as text, and the only thing that changes them is a release, or you
+pressing "Check for newer lists" in Settings. Nothing fetches them on a timer:
+that would be a periodic request from your machine to a server, which is the
+shape of the thing being blocked.
+
+The count you see is the real number of blocked requests, not an estimate, and
+the connection panel says whether a hostname or a rule stopped each one. Adverts
+served from the page's own address, inserted by the server, or written into a
+feed are not blocked and cannot be — Settings says so rather than counting past
+them. Top-level navigation is never blocked, so you can still visit a tracker
+domain deliberately, and if blocking breaks a site you can allow it there rather
+than turning blocking off everywhere.
 
 **Local-only suggestions.** As you type, the list under the address bar is
 ranked from your own history and bookmarks, in the main process. No keystroke is
@@ -281,9 +290,48 @@ cannot vouch for any other package.
 If you want updates handled for you on Linux today, use the `.AppImage`, which
 updates itself in place.
 
+## What it costs to run
+
+Measured rather than claimed, with `npm run measure`, which launches the built
+app on a throwaway profile five times and reports the median. The numbers below
+came off one machine and are not a promise about yours — the point is that you
+can produce your own on the same script. The memory figures need pages, so that
+one measurement opens five on example.com; nothing else in it uses the network.
+
+|                                                   |                          |
+| ------------------------------------------------- | ------------------------ |
+| Start to a window you can see                     | 409ms                    |
+| Start to a window that answers                    | 604ms                    |
+| Blocking engine, loaded on launch                 | 6ms, for 136,716 rules   |
+| Blocking engine, built from the raw lists instead | 252ms                    |
+| Memory, just the start page                       | 634MB                    |
+| Memory, five pages open                           | 1,141MB, so 101MB a page |
+
+`Apple M4 Pro, 14 cores, 48GB RAM, Electron 43.4.1, macOS arm64.`
+
+Three of these are worth saying plainly rather than leaving in a table.
+
+The gap between a window you can see and a window that answers is about 190ms,
+and it is a real thing rather than a rounding error: a keystroke or a menu item
+inside it used to reach a renderer that was not listening yet. That is fixed by
+holding the request, not by pretending the gap is not there. A cold first launch
+is slower throughout — around 900ms to a window that answers — rather than
+having a wider gap.
+
+The engine is built when the app is packaged and read back on launch, which is
+why the first blocking number is 6ms and not 250ms. Building it from the lists
+at every start would put a quarter of a second on every launch to arrive at the
+same engine.
+
+Memory is the number most browsers quote in the way that flatters them. This one
+is every process the app is running added together, because that is what the
+machine actually gives up. Most of it is Chromium, and most of the per-page cost
+is a renderer process, which is the price of pages not sharing one.
+
 ## Running it
 
-Requires Node 20.9 or newer.
+Requires Node 22.22.2 or newer. The floor is jsdom's, which the test suite
+uses; the suite does not start at all below it. CI runs Node 22.
 
 ```bash
 npm install

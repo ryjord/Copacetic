@@ -20,7 +20,7 @@ export function DownloadsSurface() {
   return (
     <SurfaceShell
       title="Downloads"
-      subtitle="Files Copacetic saved to your Downloads folder."
+      subtitle="Files Copacetic saved to your Downloads folder. Anything started in a Hush tab is listed until Copacetic closes and never written down."
       actions={
         hasFinished ? (
           <button
@@ -80,6 +80,18 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
           >
             {download.filename}
           </button>
+          {/* The file is on disk — it was asked for. What is not written down
+              is where it came from, because that is browsing and a Hush tab
+              keeps none. Said on the row, since the list looks the same either
+              way until Copacetic closes. */}
+          {download.isHush && (
+            <span
+              className="label shrink-0 text-ink-faint"
+              title="Started in a Hush tab. The file is saved; where it came from is not written down, so this row goes when Copacetic closes."
+            >
+              Not written down
+            </span>
+          )}
           <StatusWord download={download} />
         </div>
 

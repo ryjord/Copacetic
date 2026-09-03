@@ -7,9 +7,21 @@ import type {
   Suggestion,
   TopSite,
 } from '../../shared/types';
+import {
+  type KeptAboutSites,
+  type KeptKind,
+  NOTHING,
+  type SiteTraces,
+  sameSite,
+  siteOf,
+} from '../../shared/forgetting';
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, resolveOmniboxInput } from '../../shared/url';
 import type { RememberedCertificate } from '../../shared/certificate-changes';
 import { BookmarksStore } from './bookmarks-store';
+import { BookmarkFoldersStore } from './bookmark-folders-store';
+import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folders';
+import { GroupsStore } from './groups-store';
+import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
 
 export { HISTORY_PAGE_SIZE };
@@ -27,6 +39,8 @@ export class BrowserStore {
   private readonly settings = new SettingsStore();
   private readonly history = new HistoryStore();
   private readonly bookmarks = new BookmarksStore();
+  private readonly bookmarkFolders = new BookmarkFoldersStore();
+  private readonly groups = new GroupsStore();
   private readonly favicons = new FaviconsStore();
   private readonly session = new SessionStore();
   private readonly certificatesStore = new CertificatesStore();
@@ -39,9 +53,33 @@ export class BrowserStore {
     this.settings.flush();
     this.history.flush();
     this.bookmarks.flush();
+    this.bookmarkFolders.flush();
+    this.groups.flush();
     this.favicons.flush();
     this.session.flush();
     this.certificatesStore.flush();
+  }
+
+  // ----------------------------------------------------------------- groups
+
+  listGroups(): TabGroup[] {
+    return this.groups.list();
+  }
+
+  groupFor(id: string | null): TabGroup | null {
+    return id ? this.groups.find(id) : null;
+  }
+
+  createGroup(name: string, colour: GroupColourId, ownSession: boolean): TabGroup {
+    return this.groups.create(name, colour, ownSession);
+  }
+
+  updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    this.groups.update(id, changes);
+  }
+
+  removeGroup(id: string): void {
+    this.groups.remove(id);
   }
 
   // ------------------------------------------------------------ certificates
@@ -107,8 +145,109 @@ export class BrowserStore {
     this.history.removeHistory(id);
   }
 
+  /**
+   * What is kept about one site, counted before anything is removed.
+   *
+   * Said before it happens and again afterwards: something that vanished
+   * quietly is indistinguishable from something that did not work.
+   */
+  tracesOf(address: string): SiteTraces {
+    const site = siteOf(address);
+    if (!site) {
+      return NOTHING;
+    }
+    const settings = this.settings.getSettings();
+    const keysFor = (record: Record<string, unknown>) =>
+      Object.keys(record).filter((key) => sameSite(key, site)).length;
+
+    return {
+      visits: this.history.countForSite(site),
+      icons: this.favicons.origins().filter((origin) => sameSite(origin, site)).length,
+      zoom: keysFor(settings.zoomLevels),
+      permissions: keysFor(settings.permissionDecisions),
+      blockingOff: settings.blockerAllowlist.filter((entry) => sameSite(entry, site)).length,
+      certificates: this.certificatesStore.origins().filter((origin) => sameSite(origin, site)).length,
+    };
+  }
+
+  /**
+   * Removes everything this browser knows about one site.
+   *
+   * The axis people actually want. Clearing by time is an afternoon; what
+   * someone usually means is a site — and every place it is known, not the one
+   * place they happened to be looking at.
+   */
+  forgetSite(address: string): SiteTraces {
+    const site = siteOf(address);
+    if (!site) {
+      return NOTHING;
+    }
+    const found = this.tracesOf(address);
+
+    this.history.forgetSite(site);
+    this.favicons.forgetSite(site);
+    this.certificatesStore.forgetSite(site);
+
+    const settings = this.settings.getSettings();
+    const without = <T>(record: Record<string, T>) =>
+      Object.fromEntries(Object.entries(record).filter(([key]) => !sameSite(key, site)));
+
+    this.settings.updateSettings({
+      zoomLevels: without(settings.zoomLevels),
+      permissionDecisions: without(settings.permissionDecisions),
+      blockerAllowlist: settings.blockerAllowlist.filter((entry) => !sameSite(entry, site)),
+    });
+
+    return found;
+  }
+
+  /**
+   * What is kept about sites in general.
+   *
+   * Listed rather than left to be found: these survive a clear on purpose,
+   * because someone set them on purpose, but they do name the sites and a list
+   * nobody is shown is a list nobody can act on.
+   */
+  keptAboutSites(): KeptAboutSites {
+    const settings = this.settings.getSettings();
+    return {
+      zoom: Object.keys(settings.zoomLevels).length,
+      permissions: Object.keys(settings.permissionDecisions).length,
+      blockingOff: settings.blockerAllowlist.length,
+      certificates: this.certificatesStore.origins().length,
+    };
+  }
+
+  /** Clears one of those kinds, and only that one. */
+  clearKept(kind: KeptKind): void {
+    if (kind === 'certificates') {
+      this.certificatesStore.forgetAll();
+      return;
+    }
+    const patch = {
+      zoom: { zoomLevels: {} },
+      permissions: { permissionDecisions: {} },
+      blockingOff: { blockerAllowlist: [] },
+    }[kind];
+    this.settings.updateSettings(patch);
+  }
+
+  /** Requests refused across everything still in history. */
+  totalBlocked(): number {
+    return this.history.totalBlocked();
+  }
+
+  /** Adds to what one page has refused, as it happens. */
+  addBlocked(url: string, delta: number): void {
+    this.history.addBlocked(url, delta);
+  }
+
   clearHistory(range: ClearRange): void {
     this.history.clearHistory(range);
+    // The icons go with it. Nobody chose to keep one, and a per-origin cache
+    // left behind after clearing history is a readable list of where someone
+    // has been — which is the thing they just asked to be rid of.
+    this.favicons.forgetAll();
   }
 
   topSites(limit = 8): TopSite[] {
@@ -138,6 +277,54 @@ export class BrowserStore {
 
   removeBookmark(id: string): void {
     this.bookmarks.remove(id);
+  }
+
+  /** Makes sure an address is saved without disturbing one that already is. */
+  ensureBookmark(url: string, title: string): Bookmark {
+    return this.bookmarks.ensure(url, title);
+  }
+
+  /** Files a bookmark, or unfiles it. A folder that is not there files it nowhere. */
+  fileBookmark(id: string, folderId: string | null): void {
+    const target = folderId && this.bookmarkFolders.find(folderId) ? folderId : null;
+    this.bookmarks.moveTo(id, target);
+  }
+
+  // -------------------------------------------------------- bookmark folders
+
+  listBookmarkFolders(): BookmarkFolder[] {
+    return this.bookmarkFolders.list();
+  }
+
+  folderFor(id: string | null): BookmarkFolder | null {
+    return id ? this.bookmarkFolders.find(id) : null;
+  }
+
+  createBookmarkFolder(name: string, colour: GroupColourId, parentId: string | null): BookmarkFolder {
+    return this.bookmarkFolders.create(name, colour, parentId);
+  }
+
+  updateBookmarkFolder(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
+    this.bookmarkFolders.update(id, changes);
+  }
+
+  moveBookmarkFolder(id: string, parentId: string | null): boolean {
+    return this.bookmarkFolders.move(id, parentId);
+  }
+
+  /**
+   * Deletes a folder and keeps everything that was in it.
+   *
+   * Its bookmarks and child folders move up to where it was. That is the
+   * promise the tab strip already makes with "Ungroup these tabs — tabs stay
+   * open", and the counts come back so the confirmation can say what moved
+   * rather than leaving someone to find out.
+   */
+  deleteBookmarkFolder(id: string): { folders: number; bookmarks: number } {
+    const outcome = afterDeleting(this.bookmarkFolders.list(), this.bookmarks.list(), id);
+    this.bookmarkFolders.replace(outcome.folders);
+    this.bookmarks.replaceAll(outcome.bookmarks);
+    return outcome.moved;
   }
 
   // ---------------------------------------------------------------- favicons

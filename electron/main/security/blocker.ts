@@ -1,5 +1,18 @@
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { FiltersEngine, Request } from '@ghostery/adblocker';
 import type { Session } from 'electron';
 import type { ConnectionEntry } from '../../shared/types';
+import { registrableDomainOf } from '../../shared/url';
+
+/** What a shipped list says about itself, for a pane that has to name it. */
+export interface FilterListInfo {
+  name: string;
+  url: string;
+  describe: string;
+  rules: number;
+  lastModified: string | null;
+}
 
 // A small, curated list of domains that exist only to track people across sites.
 const TRACKER_DOMAINS: readonly string[] = [
@@ -142,6 +155,17 @@ const MAX_HOSTS_PER_TAB = 250;
 
 export class ContentBlocker {
   private readonly blocked = new Set(TRACKER_DOMAINS);
+  /**
+   * The filter lists that ship with the app, or null when there are none.
+   *
+   * The curated hostnames above are kept whatever this holds. They are a floor:
+   * a list that failed to load, or a future list that quietly dropped a host,
+   * cannot make this browser block less than it did before it had any list at
+   * all.
+   */
+  private engine: FiltersEngine | null = null;
+  private listedRules = 0;
+  private lists: FilterListInfo[] = [];
   private enabled: boolean;
   /** Per-tab counters, keyed by the webContents id of the tab's view. */
   private readonly counts = new Map<number, number>();
@@ -159,6 +183,135 @@ export class ContentBlocker {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
+  }
+
+  /**
+   * Loads the lists built into this release.
+   *
+   * Deserialized rather than parsed: the same rules cost about 320ms to read
+   * from text and about 10ms in the engine's own format, and that difference
+   * would be paid at every launch.
+   *
+   * A failure is reported and survived. The browser still has its curated
+   * hostnames, and blocking less is better than not starting.
+   */
+  loadShippedLists(directory: string): { rules: number; lists: FilterListInfo[] } | null {
+    try {
+      const blob = readFileSync(path.join(directory, 'engine.bin'));
+      const manifest = JSON.parse(readFileSync(path.join(directory, 'manifest.json'), 'utf8')) as {
+        lists?: FilterListInfo[];
+      };
+      this.engine = FiltersEngine.deserialize(blob);
+      this.lists = manifest.lists ?? [];
+      this.listedRules = this.lists.reduce((total, list) => total + (list.rules ?? 0), 0);
+      return { rules: this.listedRules, lists: this.lists };
+    } catch {
+      this.engine = null;
+      return null;
+    }
+  }
+
+  /**
+   * Fetches the lists again, on request and never otherwise.
+   *
+   * The whole reason blocking here does not update itself is that a background
+   * fetch on a timer is a periodic request from your machine to a server, which
+   * is the shape of the thing being blocked. So this exists, and nothing calls
+   * it except a person pressing a button.
+   *
+   * The result is written where the app can find it next launch and loaded now,
+   * so a list is never half-applied: either the whole fetch worked and the new
+   * rules are running, or nothing changed at all.
+   */
+  async fetchNewerLists(
+    userDataDirectory: string,
+    fetchText: (url: string) => Promise<string>,
+  ): Promise<{ ok: true; rules: number; lists: FilterListInfo[] } | { ok: false; reason: string }> {
+    const sources = this.lists;
+    if (sources.length === 0) {
+      return { ok: false, reason: 'There are no lists to update.' };
+    }
+
+    const fetched: { list: FilterListInfo; text: string }[] = [];
+    for (const list of sources) {
+      let text: string;
+      try {
+        text = await fetchText(list.url);
+      } catch {
+        return { ok: false, reason: `${list.name} could not be reached. Nothing was changed.` };
+      }
+      // A truncated list parses and simply blocks less, which is the one
+      // failure nobody would notice. Refuse the whole update instead.
+      if (text.length < 100_000 || !text.startsWith('[Adblock')) {
+        return { ok: false, reason: `${list.name} did not arrive intact. Nothing was changed.` };
+      }
+      fetched.push({
+        list: {
+          ...list,
+          rules: text.split('\n').filter((line) => line && !line.startsWith('!')).length,
+          lastModified: /^! Last modified: (.+)$/m.exec(text)?.[1]?.trim() ?? list.lastModified,
+        },
+        text,
+      });
+    }
+
+    const engine = FiltersEngine.parse(fetched.map((entry) => entry.text).join('\n'));
+    const lists = fetched.map((entry) => entry.list);
+    const directory = path.join(userDataDirectory, 'filters');
+
+    // Staged and then renamed, because the pair has to agree. Written directly,
+    // a failure between the two leaves the new rules on disk described by the
+    // old manifest, and nothing downstream can tell: the settings pane would
+    // report list dates that do not match the rules actually running.
+    try {
+      mkdirSync(directory, { recursive: true });
+      const engineTemp = path.join(directory, 'engine.bin.new');
+      const manifestTemp = path.join(directory, 'manifest.json.new');
+      writeFileSync(engineTemp, engine.serialize());
+      writeFileSync(manifestTemp, JSON.stringify({ lists }, null, 2));
+      renameSync(engineTemp, path.join(directory, 'engine.bin'));
+      renameSync(manifestTemp, path.join(directory, 'manifest.json'));
+    } catch {
+      return { ok: false, reason: 'The new lists could not be saved. Nothing was changed.' };
+    }
+
+    this.engine = engine;
+    this.lists = lists;
+    this.listedRules = lists.reduce((total, list) => total + list.rules, 0);
+    return { ok: true, rules: this.listedRules, lists };
+  }
+
+  /** The lists that are loaded, for a settings pane that has to name them. */
+  loadedLists(): FilterListInfo[] {
+    return this.lists;
+  }
+
+  /**
+   * What a page should be told to hide.
+   *
+   * A blocked advert leaves a hole the page still lays out around. This is the
+   * stylesheet that collapses it, and it is a stylesheet on purpose: injecting
+   * it needs no preload and runs no script of ours in the page, which is a
+   * promise this browser has already made and has not spent.
+   */
+  cosmeticStylesFor(url: string): string {
+    if (!this.engine || !this.enabled) {
+      return '';
+    }
+    try {
+      const { hostname } = new URL(url);
+      if (this.allowed.has(registrableDomainOf(hostname) ?? hostname)) {
+        return '';
+      }
+      const { styles } = this.engine.getCosmeticsFilters({
+        url,
+        hostname,
+        domain: registrableDomainOf(hostname) ?? hostname,
+      });
+      return styles ?? '';
+    } catch {
+      return '';
+    }
   }
 
   // Sites where blocking is switched off, by registrable domain.
@@ -223,7 +376,12 @@ export class ContentBlocker {
 
       // Top-level navigation is never blocked, so a tracker domain stays
       // visitable on purpose.
-      const isTracker = this.matches(hostname);
+      // Two judgements, and either is enough. The curated hostnames are a floor
+      // no list can lower; the lists catch what a hostname cannot — a path, a
+      // resource type, a first-party script that only ever serves adverts.
+      const caughtByHost = this.matches(hostname);
+      const caughtByRule = caughtByHost ? null : this.ruleFor(details);
+      const isTracker = caughtByHost || caughtByRule !== null;
       const id = details.webContentsId;
       // An exception applies to the site being browsed, not the host being
       // requested: "allow trackers on this site", not "trust this tracker".
@@ -237,7 +395,10 @@ export class ContentBlocker {
       // the other half is everything that was allowed through, which no
       // mainstream browser shows without opening developer tools.
       if (typeof id === 'number') {
-        this.record(id, hostname, isTracker, shouldBlock);
+        // The rule is recorded, not only the fact. Which of the two caught
+        // something is how a false positive is told from a site that is simply
+        // broken, and it is the question you have when a page is wrong.
+        this.record(id, hostname, isTracker, shouldBlock, caughtByRule);
       }
 
       if (!shouldBlock) {
@@ -255,7 +416,49 @@ export class ContentBlocker {
   }
 
   /** Bounded so a page making requests to endless subdomains cannot grow it. */
-  private record(webContentsId: number, host: string, isTracker: boolean, wasBlocked: boolean): void {
+  /**
+   * Whether the lists catch this request, and by which rule.
+   *
+   * Null when nothing matched, so a caller can tell "no rule" from "a rule with
+   * no readable form".
+   */
+  private ruleFor(details: {
+    url: string;
+    resourceType: Electron.OnBeforeRequestListenerDetails['resourceType'];
+    referrer?: string;
+    webContentsId?: number;
+  }): string | null {
+    if (!this.engine) {
+      return null;
+    }
+    try {
+      // The page being browsed, not the Referer header. Most of a filter list
+      // is scoped to third-party requests, and the header is routinely absent —
+      // a no-referrer policy, a scheme downgrade, a beacon. With nothing to
+      // compare against, the engine calls the request first-party and every
+      // third-party rule for it stops applying: blocking that fails open,
+      // silently, on exactly the requests most careful about being seen.
+      const pageSite = typeof details.webContentsId === 'number' ? this.pageHosts.get(details.webContentsId) : '';
+      const { match, filter } = this.engine.match(
+        Request.fromRawDetails({
+          url: details.url,
+          sourceUrl: pageSite ? `https://${pageSite}/` : details.referrer || undefined,
+          type: details.resourceType,
+        }),
+      );
+      return match ? (filter?.toString() ?? 'a filter rule') : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private record(
+    webContentsId: number,
+    host: string,
+    isTracker: boolean,
+    wasBlocked: boolean,
+    rule: string | null = null,
+  ): void {
     let hosts = this.hosts.get(webContentsId);
     if (!hosts) {
       hosts = new Map();
@@ -267,6 +470,7 @@ export class ContentBlocker {
       existing.requests += 1;
       if (wasBlocked) {
         existing.blocked += 1;
+        existing.rule = existing.rule ?? rule;
       }
       return;
     }
@@ -274,7 +478,7 @@ export class ContentBlocker {
     if (hosts.size >= MAX_HOSTS_PER_TAB) {
       return;
     }
-    hosts.set(host, { host, requests: 1, blocked: wasBlocked ? 1 : 0, isTracker });
+    hosts.set(host, { host, requests: 1, blocked: wasBlocked ? 1 : 0, isTracker, rule: wasBlocked ? rule : null });
   }
 
   // Every host this tab has contacted, blocked first and then by volume.

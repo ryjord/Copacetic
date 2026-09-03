@@ -82,7 +82,10 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
           briefly showing one tab's hosts under another tab's heading. Cheaper
           to reason about than resetting state on a change.
         */}
-        <TrackerException url={tab.url} blockedCount={tab.blockedCount} />
+        {/* A blocking exception is kept by site, in a list Settings shows by
+            name. Offering one here would be offering to write down a site
+            opened in a tab whose whole claim is that nothing is written. */}
+        {!tab.isHush && <TrackerException url={tab.url} blockedCount={tab.blockedCount} />}
 
         <SitePermissions url={tab.url} />
 
@@ -227,14 +230,28 @@ function ConnectionLog({ tabId }: { tabId: string }) {
 
       <ul className="max-h-56 divide-y divide-line overflow-y-auto rounded-field border border-line">
         {visible.map((entry) => (
-          <li key={entry.host} className="flex items-center gap-3 px-2.5 py-1.5">
-            <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{entry.host}</span>
-            {entry.blocked > 0 ? (
-              <span className="label shrink-0 text-caution">Blocked {entry.blocked}</span>
-            ) : (
-              entry.isTracker && <span className="label shrink-0 text-ink-faint">Allowed</span>
+          <li key={entry.host} className="flex flex-col gap-0.5 px-2.5 py-1.5">
+            <div className="flex items-center gap-3">
+              <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{entry.host}</span>
+              {entry.blocked > 0 ? (
+                <span className="label shrink-0 text-caution">Blocked {entry.blocked}</span>
+              ) : (
+                entry.isTracker && <span className="label shrink-0 text-ink-faint">Allowed</span>
+              )}
+              <span className="shrink-0 font-mono text-[11px] text-ink-faint">{entry.requests}</span>
+            </div>
+
+            {/*
+             * Which of the two stopped it. A hostname Copacetic keeps itself and
+             * a rule from a filter list fail differently, and when a page is
+             * broken that is the first thing worth knowing: a rule can be wrong
+             * about one URL, a hostname is wrong about a whole company.
+             */}
+            {entry.blocked > 0 && (
+              <span className="truncate font-mono text-[10.5px] text-ink-faint" title={entry.rule ?? undefined}>
+                {entry.rule ? `by rule ${entry.rule}` : 'by hostname'}
+              </span>
             )}
-            <span className="shrink-0 font-mono text-[11px] text-ink-faint">{entry.requests}</span>
           </li>
         ))}
       </ul>

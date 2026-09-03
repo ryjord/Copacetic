@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# The filter lists are hashed against the manifest that recorded what was
+# fetched, and the build refuses to run if they no longer match. Git rewriting
+# their line endings on checkout changes those bytes, which is why the Windows
+# build could not build them at all. They are fetched content rather than
+# source: never converted.
+electron/main/security/filters/*.txt -text

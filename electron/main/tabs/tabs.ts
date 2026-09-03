@@ -21,6 +21,8 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
+import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
+import type { SessionSnapshot, SessionTab } from '../data/session-store';
 import { trustedLocally } from '../security/local-certificates';
 import { describeTab } from '../system/browser-identity';
 import { attachTabEvents } from './tab-events';
@@ -46,6 +48,8 @@ export class TabManager {
   private readonly closedTabs = new ClosedTabs();
   private find: FindState = CLOSED_FIND;
   private isDisposed = false;
+  /** What has already been added to history per tab, so only the difference is. */
+  private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
 
   constructor(
@@ -56,12 +60,37 @@ export class TabManager {
     private readonly onChanged: () => void,
     /** Fired once per closed tab so owners can drop state keyed to it. */
     private readonly onTabClosed: (id: TabId) => void = () => {},
+    /** The rectangle the page occupies, for anything drawn over it. */
+    private readonly onContentBounds: (bounds: ContentBounds) => void = () => {},
   ) {
     this.window.on('resize', () => this.applyBounds());
-    this.blocker.onCount((webContentsId) => {
-      if (this.findByWebContentsId(webContentsId)) {
-        this.onChanged();
+    this.blocker.onCount((webContentsId, count) => {
+      const tab = this.findByWebContentsId(webContentsId);
+      if (!tab) {
+        return;
       }
+
+      /*
+       * Counted here rather than when the visit is recorded. A visit is
+       * recorded when the title arrives, which is early: most trackers have
+       * not been refused yet, and sampling then would report almost nothing on
+       * every page in the browser.
+       *
+       * Only the difference is added, because the blocker's number is a
+       * running total for the tab and this is called once per refusal.
+       *
+       * A Hush tab is skipped entirely. Its visits are not written down, and a
+       * count is something written down.
+       */
+      if (!tab.isHush && tab.url.startsWith('http')) {
+        const already = this.countedBlocked.get(webContentsId) ?? 0;
+        if (count > already) {
+          this.countedBlocked.set(webContentsId, count);
+          this.store.addBlocked(tab.url, count - already);
+        }
+      }
+
+      this.onChanged();
     });
   }
 
@@ -94,29 +123,30 @@ export class TabManager {
     };
   }
 
-  sessionSnapshot(): { urls: string[]; activeIndex: number } {
-    // `urls` skips start-page tabs, so the active tab's index has to be
+  sessionSnapshot(): SessionSnapshot {
+    // The list skips start-page tabs, so the active tab's index has to be
     // counted against the filtered list as it is built. Taking it from
     // `this.order` instead would be off by one for every start-page tab
     // sitting to the left of the active one, and restore the wrong site.
-    const urls: string[] = [];
+    const saved: SessionTab[] = [];
     let activeIndex = 0;
 
     for (const id of this.order) {
       const tab = this.tabs.get(id);
       // A Hush tab is excluded rather than merely not reopened: the session
       // file is on disk, so listing its URL there would be the one place the
-      // tab left a trace.
+      // tab left a trace. Its group membership goes with it, because the tab
+      // it belongs to is never written here at all.
       if (!tab || tab.isStartPage || tab.isHush) {
         continue;
       }
       if (id === this.activeId) {
-        activeIndex = urls.length;
+        activeIndex = saved.length;
       }
-      urls.push(tab.url);
+      saved.push({ url: tab.url, groupId: tab.groupId });
     }
 
-    return { urls, activeIndex };
+    return { tabs: saved, activeIndex };
   }
 
   private toState(tab: TabRecord): TabState {
@@ -136,7 +166,7 @@ export class TabManager {
       security: describeSecurity(
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
-        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url),
+        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url, tab.isHush),
         !tab.isStartPage && trustedLocally(originOf(tab.url)),
         tab.error !== null,
       ),
@@ -146,6 +176,7 @@ export class TabManager {
       zoomFactor: tab.zoomFactor,
       isStartPage: tab.isStartPage,
       isHush: tab.isHush,
+      groupId: tab.groupId,
       isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
     };
   }
@@ -155,7 +186,7 @@ export class TabManager {
    * records it. Reading and remembering happen together so a site cannot be
    * flagged twice for the same change.
    */
-  private certificateChangeFor(url: string): string {
+  private certificateChangeFor(url: string, isHush: boolean): string {
     const origin = originOf(url);
     const current = certificateFor(hostOf(url));
     if (!origin || !current) {
@@ -164,8 +195,101 @@ export class TabManager {
 
     const remembered = this.store.rememberedCertificateFor(origin);
     const { detail } = compareCertificate(remembered, current);
-    this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
+
+    /*
+     * Compared, never written, for a Hush tab.
+     *
+     * This runs for every https page with no action from anyone, so it was
+     * putting the origin of everything opened in a Hush tab into
+     * certificates.json, timestamped, where it stayed after the tab closed —
+     * the same shape of leak as the favicon cache and the download record, and
+     * against the same sentence: nothing it does reaches the disk.
+     *
+     * The comparison still happens, so a certificate that changed mid-session
+     * is still reported; there is simply nothing kept afterwards to compare
+     * against next time, which is what a tab that remembers nothing means.
+     */
+    if (!isHush) {
+      this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
+    }
     return detail;
+  }
+
+  /**
+   * Puts a tab in a group, or takes it out of one.
+   *
+   * The tab keeps the session it was born with. Moving an ordinary tab into a
+   * group that keeps its own browsing does not move its cookies across, and
+   * saying otherwise would be the sort of quiet untruth this browser avoids —
+   * so the group's separation applies to tabs opened in it, and the interface
+   * says so.
+   */
+  setGroup(id: TabId, groupId: string | null): void {
+    const tab = this.tabs.get(id);
+    if (!tab || tab.groupId === groupId) {
+      return;
+    }
+    // A group that does not exist cannot be joined. Without this a stale id
+    // from a session file or a slow renderer sticks to the tab for good: it
+    // draws as ungrouped, so there is no way to see it or shake it off.
+    if (groupId !== null && !this.store.groupFor(groupId)) {
+      return;
+    }
+    tab.groupId = groupId;
+    this.onChanged();
+  }
+
+  groupIdFor(id: TabId): string | null {
+    return this.tabs.get(id)?.groupId ?? null;
+  }
+
+  isHush(id: TabId): boolean {
+    return this.tabs.get(id)?.isHush === true;
+  }
+
+  /** Every tab currently in a group, in strip order. */
+  /**
+   * Moves off a tab that is about to be hidden by its group collapsing.
+   *
+   * Reports whether the group may collapse at all: if every tab is in it there
+   * is nowhere for activation to go, and collapsing would leave the window
+   * showing a page with nothing in the strip pointing at it.
+   */
+  leaveCollapsingGroup(groupId: string): boolean {
+    const activeIndex = this.activeId ? this.order.indexOf(this.activeId) : -1;
+    if (activeIndex === -1) {
+      return true;
+    }
+
+    const inOrder = this.order.map((id) => ({ id, groupId: this.tabs.get(id)?.groupId ?? null }));
+    // Every group that will be hiding its tabs once this one closes, not just
+    // this one. A tab inside a group that is already collapsed has no entry in
+    // the strip either, so activating it would move the fault rather than fix it.
+    const hidden = new Set<string>([groupId]);
+    for (const tab of inOrder) {
+      if (tab.groupId && this.store.groupFor(tab.groupId)?.collapsed) {
+        hidden.add(tab.groupId);
+      }
+    }
+    const next = tabAfterCollapsing(inOrder, activeIndex, hidden);
+    if (!next) {
+      return false;
+    }
+    if (next.id !== this.activeId) {
+      this.activate(next.id);
+    }
+    return true;
+  }
+
+  tabsInGroup(groupId: string): TabRecord[] {
+    return this.order
+      .map((tabId) => this.tabs.get(tabId))
+      .filter((tab): tab is TabRecord => tab !== undefined && tab.groupId === groupId);
+  }
+
+  /** Whether a group is holding anything that keeps nothing, which is what stops it claiming to be separate. */
+  groupHoldsHush(groupId: string): boolean {
+    return this.tabsInGroup(groupId).some((tab) => tab.isHush);
   }
 
   private findByWebContentsId(webContentsId: number): TabRecord | null {
@@ -281,6 +405,11 @@ export class TabManager {
     this.applyVisibility();
   }
 
+  /** The rectangle the page occupies, which is also where an overlay sits. */
+  contentBounds(): ContentBounds {
+    return this.currentBounds();
+  }
+
   private currentBounds(): ContentBounds {
     const [width, height] = this.window.getContentSize();
     return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets);
@@ -291,11 +420,18 @@ export class TabManager {
     if (this.isDisposed || this.window.isDestroyed()) {
       return;
     }
+
+    // Told every time, not only when there is a tab to move: anything else
+    // drawn over the page has to follow the same rectangle, and it moves
+    // whenever a row of the chrome opens or closes, not just on a resize.
+    const bounds = this.currentBounds();
+    this.onContentBounds(bounds);
+
     const active = this.activeId ? this.tabs.get(this.activeId) : null;
     if (!active || active.view.webContents.isDestroyed()) {
       return;
     }
-    active.view.setBounds(this.currentBounds());
+    active.view.setBounds(bounds);
   }
 
   private applyVisibility(): void {
@@ -318,7 +454,13 @@ export class TabManager {
 
   create(
     requestedUrl: string = START_PAGE_URL,
-    options: { activate?: boolean; index?: number; openerWebContentsId?: number; hush?: boolean } = {},
+    options: {
+      activate?: boolean;
+      index?: number;
+      openerWebContentsId?: number;
+      hush?: boolean;
+      groupId?: string | null;
+    } = {},
   ): TabId {
     // Last line of defence. Callers are expected to have already decided the
     // URL is allowed, but this is the single place every tab is born, so
@@ -339,7 +481,11 @@ export class TabManager {
         webviewTag: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
-        partition: options.hush ? HUSH_PARTITION : WEB_PARTITION,
+        // Hush wins over a group's own session: see shared/tab-groups.ts.
+        partition: partitionFor(
+          { isHush: options.hush === true, group: this.store.groupFor(options.groupId ?? null) },
+          { web: WEB_PARTITION, hush: HUSH_PARTITION },
+        ),
         spellcheck: true,
         safeDialogs: true,
       },
@@ -363,6 +509,7 @@ export class TabManager {
       zoomFactor: settings.defaultZoomFactor,
       isMuted: false,
       pendingFaviconUrl: null,
+      groupId: options.groupId && this.store.groupFor(options.groupId) ? options.groupId : null,
     };
 
     this.tabs.set(id, tab);
@@ -377,6 +524,7 @@ export class TabManager {
     attachTabEvents(tab, {
       store: this.store,
       blocker: this.blocker,
+      forgetBlockedCount: (webContentsId: number) => this.countedBlocked.delete(webContentsId),
       onChanged: () => this.onChanged(),
       applyVisibility: () => this.applyVisibility(),
       cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),
@@ -467,6 +615,7 @@ export class TabManager {
     const contents = tab.view.webContents;
     if (!contents.isDestroyed()) {
       this.blocker.forget(contents.id);
+      this.countedBlocked.delete(contents.id);
       contents.stop();
     }
     if (!this.window.isDestroyed()) {
@@ -659,7 +808,10 @@ export class TabManager {
     // Remembered against the origin: a site that needs zooming needs it every
     // visit, and setting it again on every visit is the kind of small friction
     // that makes a browser tiring to use.
-    if (!tab.isStartPage) {
+    // Kept for the tab, not for the site, when the tab is Hush. Settings lists
+    // everywhere zoom was changed, so remembering it would put a site opened in
+    // a Hush tab into a list shown by name.
+    if (!tab.isStartPage && !tab.isHush) {
       this.store.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
     }
 

@@ -1,4 +1,8 @@
+import type { KeptAboutSites, KeptKind, SiteTraces } from './forgetting';
 import type { ChromeSurface } from './channels';
+import type { BookmarkFolder } from './bookmark-folders';
+import type { Notice } from './notices';
+import type { GroupColourId } from './tab-groups';
 import type {
   AppInfo,
   DefaultBrowserStatus,
@@ -56,21 +60,66 @@ export interface CopaceticApi {
   chrome: {
     setContentInsets(insets: ContentInsetsInput): Promise<void>;
     setOverlayVisible(visible: boolean): Promise<void>;
+    /** Told by the overlay layer itself, which is the only thing that can measure it. */
+    setOverlayHeight(height: number): Promise<void>;
     getState(): Promise<BrowserState>;
+    /** A surface asked for before this renderer was listening, collected on mount. */
+    pendingSurface(): Promise<ChromeSurface | null>;
   };
   omnibox: {
     suggest(query: string): Promise<Suggestion[]>;
   };
   history: {
     list(query?: string, offset?: number): Promise<HistoryPage>;
+    /** What is kept about the site an address belongs to, counted before anything goes. */
+    traces(address: string): Promise<SiteTraces>;
+    /** Removes everything known about that site, and reports what went. */
+    forgetSite(address: string): Promise<SiteTraces>;
+    /** One site's menu, which is where forgetting it lives. */
+    openContextMenu(address: string): Promise<void>;
+    /** Requests refused across everything still in history. */
+    totalBlocked(): Promise<number>;
     remove(id: string): Promise<void>;
     clear(range: ClearRange): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;
   };
+  filters: {
+    /** Fetches the lists once, now, because someone asked. Never called on a timer. */
+    update(): Promise<{ ok: boolean; message: string }>;
+  };
+
+  notices: {
+    /** Answers a question a notice asked. Confirming does the thing; anything else drops it. */
+    answer(id: string, confirmed: boolean): Promise<void>;
+    /** Anything said before the chrome was listening, which is everything said during startup. */
+    pending(): Promise<Notice[]>;
+  };
+
   bookmarks: {
     list(): Promise<Bookmark[]>;
     toggle(url: string, title: string): Promise<boolean>;
     remove(id: string): Promise<void>;
+    /** Opens a saved address in the tab in front of you, or a new one when there is none. */
+    openInActiveTab(url: string): Promise<void>;
+    /** The bookmark's own menu, which is where filing works without a mouse. */
+    openContextMenu(id: string): Promise<void>;
+    /** Files a bookmark in a folder, or unfiles it with null. */
+    file(id: string, folderId: string | null): Promise<void>;
+  };
+
+  bookmarkFolders: {
+    list(): Promise<BookmarkFolder[]>;
+    create(name: string, colour: GroupColourId, parentId: string | null): Promise<BookmarkFolder>;
+    update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): Promise<void>;
+    /** Resolves false when the move was refused, which a folder moved into itself always is. */
+    move(id: string, parentId: string | null): Promise<boolean>;
+    /** Deletes the folder and keeps what was in it, reporting what moved up. */
+    remove(id: string): Promise<{ folders: number; bookmarks: number }>;
+    /** `asked` when it was large enough to need a decision first, in which case nothing has opened yet. */
+    openAsGroup(id: string): Promise<{ opened: number; asked: boolean }>;
+    openContextMenu(id: string): Promise<void>;
+    /** The folder's contents as a native menu, at a point on screen — the only kind that can sit above a page. */
+    openMenu(id: string, x: number, y: number): Promise<void>;
   };
   downloads: {
     pause(id: DownloadId): Promise<void>;
@@ -137,6 +186,17 @@ export interface CopaceticApi {
     facts(): Promise<VaultFacts>;
   };
 
+  groups: {
+    /** Makes a group and puts a tab in it. Returns the new group's id. */
+    create(tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): Promise<string>;
+    update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): Promise<void>;
+    /** Removes the group. Its tabs stay open and become ungrouped. */
+    remove(id: string): Promise<void>;
+    /** Puts a tab in a group, or takes it out with null. */
+    setForTab(tabId: TabId, groupId: string | null): Promise<void>;
+    /** The group's own menu: rename, recolour, ungroup. */
+    openContextMenu(id: string): Promise<void>;
+  };
   wallpaper: {
     /** The image as a data URL, or null. Fetched on demand, never pushed. */
     get(): Promise<string | null>;
@@ -155,6 +215,10 @@ export interface CopaceticApi {
     clear(): Promise<void>;
   };
   data: {
+    /** What is kept about sites in general, which survives clearing history. */
+    kept(): Promise<KeptAboutSites>;
+    /** Clears one of those kinds, and only that one. */
+    clearKept(kind: KeptKind): Promise<void>;
     /** Write bookmarks or history to a file the user chooses. */
     export(kind: ExportKind): Promise<string>;
     /** Reads the bookmark file any browser exports. Resolves with a summary. */
@@ -181,5 +245,18 @@ export interface CopaceticApi {
     state(listener: (state: BrowserState) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
+    /** Something finished, or something needs deciding before it can. */
+    notice(listener: (notice: Notice) => void): Unsubscribe;
+    /** A notice was answered or dismissed somewhere else, so stop showing it. */
+    noticeSettled(listener: (id: string) => void): Unsubscribe;
+
+    /** Saved bookmarks or folders changed, from anywhere — a menu, another window, an import. */
+    bookmarksChanged(listener: () => void): Unsubscribe;
+
+    /** The bookmark folder whose label should become editable. */
+    renameBookmarkFolder(listener: (folderId: string) => void): Unsubscribe;
+
+    /** The group whose label should become editable, which is the one thing a native menu cannot do. */
+    renameGroup(listener: (groupId: string) => void): Unsubscribe;
   };
 }

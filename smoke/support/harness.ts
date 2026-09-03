@@ -4,6 +4,21 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 /**
+ * The environment Electron is launched with.
+ *
+ * `ELECTRON_RUN_AS_NODE` is set by some editors' integrated terminals, and it
+ * makes the Electron binary run as a plain Node process — no window, no app,
+ * and a launch failure that says only "Process failed to launch". Inheriting it
+ * means these never run from inside an editor, which is exactly where someone
+ * would try them first.
+ */
+const launchEnvironment = (): Record<string, string> => {
+  const environment: Record<string, string> = { ...process.env, NODE_ENV: 'production' } as Record<string, string>;
+  delete environment.ELECTRON_RUN_AS_NODE;
+  return environment;
+};
+
+/**
  * A running copy of the built app, with a profile of its own.
  *
  * Smoke specs talk to the real thing: the packaged main process, the real
@@ -17,6 +32,8 @@ export class SmokeApp {
     private readonly app: ElectronApplication,
     readonly chrome: Page,
     readonly profile: string,
+    /** The layer drawn above the page. A view of its own, so a page of its own. */
+    readonly overlay: Page,
   ) {}
 
   static async launch(): Promise<SmokeApp> {
@@ -25,12 +42,26 @@ export class SmokeApp {
     const app = await electron.launch({
       args: ['.', `--user-data-dir=${profile}`],
       cwd: process.cwd(),
-      env: { ...process.env, NODE_ENV: 'production' },
+      env: launchEnvironment(),
     });
 
-    const chrome = await app.firstWindow();
+    // The overlay is a page too, and Playwright hands back whichever it saw
+    // first. The chrome is the one that is not the overlay.
+    const chrome = await (async () => {
+      const deadline = Date.now() + 20_000;
+      while (Date.now() < deadline) {
+        for (const candidate of app.windows()) {
+          if (!candidate.url().includes('/overlay')) {
+            return candidate;
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return app.firstWindow();
+    })();
     await chrome.waitForLoadState('domcontentloaded');
-    return new SmokeApp(app, chrome, profile);
+    const overlay = app.windows().find((candidate) => candidate.url().includes('/overlay'));
+    return new SmokeApp(app, chrome, profile, overlay ?? chrome);
   }
 
   /**
@@ -71,17 +102,39 @@ export class SmokeApp {
     );
   }
 
-  /** Run something in the main process, where Electron's own objects live. */
-  main<T>(fn: (electronModule: typeof import('electron')) => T | Promise<T>): Promise<T> {
-    return this.app.evaluate(fn);
+  /**
+   * Runs something in the main process, where Electron's own objects live.
+   *
+   * The function is serialised and evaluated over there, so it closes over
+   * nothing here — anything it needs from the spec has to be passed as `arg`.
+   */
+  main<T, A = undefined>(
+    fn: (electronModule: typeof import('electron'), arg: A) => T | Promise<T>,
+    arg?: A,
+  ): Promise<T> {
+    // Playwright maps the argument through its own `Unboxed`, which unwraps
+    // handles and which the compiler cannot reduce for a type variable. For
+    // everything a spec sends across a process boundary the two are the same
+    // type, so this narrows to what is actually passed rather than papering
+    // over a mismatch.
+    const run = fn as (electronModule: typeof import('electron'), arg: unknown) => T | Promise<T>;
+    return this.app.evaluate(run, arg);
   }
 
   /** Polls until `condition` holds, for the things the app does on its own schedule. */
   private async until(condition: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      if (await condition()) {
-        return true;
+      try {
+        if (await condition()) {
+          return true;
+        }
+      } catch {
+        // A poll that lands mid-navigation throws "Execution context was
+        // destroyed", which means the page is not ready rather than that the
+        // wait has failed. Swallowing it here costs nothing: a condition that
+        // never holds still runs out the clock and returns false, and the
+        // caller's assertion says so.
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -95,6 +148,24 @@ export class SmokeApp {
   waitForVisible(timeoutMs = 30_000): Promise<boolean> {
     return this.until(
       async () => (await this.main(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible())) === true,
+      timeoutMs,
+    );
+  }
+
+  /**
+   * Waits until the chrome is listening, not merely painted.
+   *
+   * `waitForVisible` answers a different question. The window is shown as soon
+   * as it can paint; the renderer keeps hydrating for a while after that before
+   * it subscribes to anything the main process pushes — about 190ms on the
+   * machine in the README, and later still on a cold start, which is slower
+   * throughout. A test that acts in that gap sends a push to nobody and then
+   * reports the feature broken —
+   * which is exactly what happened to a menu item that turned out to be fine.
+   */
+  async waitForReady(timeoutMs = 20_000): Promise<boolean> {
+    return this.until(
+      async () => (await this.chrome.evaluate(() => Boolean(document.querySelector('[role="tablist"]')))) === true,
       timeoutMs,
     );
   }
