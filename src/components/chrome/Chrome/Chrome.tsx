@@ -110,10 +110,23 @@ export function Chrome() {
     // content rectangle the main process needs to match.
   }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length, showBookmarksBar]);
 
-  // The panel describes one particular tab, so it must not linger over another.
+  /*
+   * Reaching for a tab is asking to see it.
+   *
+   * The panel describes one particular tab, so it must not linger over another.
+   * A surface is worse than lingering: it covers the whole content area and
+   * hides every page view, so clicking a tab switched to it, highlighted it in
+   * the strip, and showed nothing at all — the browser looked like it had
+   * ignored the click.
+   *
+   * These are chrome rather than pages. There is no address to go back to and
+   * nothing to restore, so closing on the way past is what they are: something
+   * opened over the top of what you were doing, and dismissed by returning to it.
+   */
   useEffect(() => {
     closeConnectionPanel();
-  }, [activeTabId, closeConnectionPanel]);
+    setSurface('none');
+  }, [activeTabId, closeConnectionPanel, setSurface]);
 
   // A surface covers the whole content area, so the tab's view has to step
   // aside — a native view always paints above the renderer's HTML.
