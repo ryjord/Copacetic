@@ -76,6 +76,21 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Changed
 
+- **A new icon.** The mark was a status lamp reading clear; it is now that same
+  lamp held level between two gauge marks, because "copacetic" means everything
+  is in order and a spirit level's bubble is only centred when it is. The rule
+  the interface follows is unchanged and now drawn twice: only the ring and the
+  lamp take colour, the marks are white at 22%, and the tile never moves. The
+  marks wash out below roughly 24px, which is deliberate — at tab-strip size
+  what is left is the lamp on its own. The interface's own icon was still the
+  one Next.js ships with, and is now the mark as well.
+
+- **Building it needs Node 22.22.2 or newer.** The floor said 20.9 and was
+  wrong: jsdom dropped Node 20, so on 20 the test suite does not start at all
+  rather than failing a test. Nothing about the packaged application changed —
+  Electron carries its own Node — but the claim was untrue and is now the one
+  jsdom actually imposes.
+
 - **A Hush tab is no longer easy to overlook.** The tab is outlined rather than
   carrying one small icon among three, the start page atmosphere goes dark, and
   the page shows what Hush does and does not do instead of the usual widgets.

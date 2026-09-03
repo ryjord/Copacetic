@@ -292,7 +292,8 @@ updates itself in place.
 
 ## Running it
 
-Requires Node 20.9 or newer.
+Requires Node 22.22.2 or newer. The floor is jsdom's, which the test suite
+uses; the suite does not start at all below it. CI runs Node 22.
 
 ```bash
 npm install

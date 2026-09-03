@@ -73,7 +73,7 @@
     "wait-on": "^9.0.4"
   },
   "engines": {
-    "node": ">=20.9"
+    "node": ">=22.22.2"
   },
   "build": {
     "appId": "uk.co.ryjord.copacetic",
