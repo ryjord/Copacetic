@@ -6,6 +6,17 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 Batch 1 of the September audit.
 
+### Changed
+
+- **The apt pool keeps one package per version line.** It kept the newest three,
+  which was about to be wrong: a run of patch releases inside one line would
+  have evicted every older line, and someone still on 1.3 would have found 1.3
+  gone from apt while three 1.4 patches sat in its place. It now keeps the
+  newest 1.2, 1.3, 1.4 and 1.5 — the versions someone might reasonably still be
+  on — and stays at four however many patches each line collects. The bucket it
+  publishes to has limited room and each package is about 150MB, so the pool
+  cannot simply grow.
+
 ### Fixed
 
 - **A group that keeps its own browsing is now protected like everything else.**

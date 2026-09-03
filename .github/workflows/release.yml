@@ -269,23 +269,43 @@ jobs:
       # apt only needs the versions it might install. Every package kept is
       # ~150MB against a 10GB budget, so the pool holds the newest few and the
       # rest are dropped — including from the bucket, via the sync below.
-      - name: Prune the pool to the newest few
+      # The bucket this is published to has limited room and every release adds
+      # a ~150MB package, so the pool cannot simply grow. Keeping the newest few
+      # was wrong for the shape of the work: a run of patch releases inside one
+      # minor line would evict every older line, and someone pinned to 1.3 would
+      # find 1.3 had vanished from apt while 1.4.11, 1.4.12 and 1.4.13 sat there.
+      #
+      # So it keeps the newest package of each minor line instead. That is one
+      # 1.2, one 1.3, one 1.4, one 1.5 — the four a person might reasonably still
+      # be on — and it stays four however many patches each line accumulates.
+      - name: Prune the pool to the newest package of each minor line
         if: steps.gate.outputs.run == 'true'
         working-directory: pages/apt/pool/main
         run: |
-          set -euo pipefail
-          keep=3
-          total=$(ls -1 ./*.deb 2>/dev/null | wc -l | tr -d ' ')
-          if [ "$total" -le "$keep" ]; then
-            echo "$total package(s) in the pool; nothing to prune."
+          set -eu
+          if ! ls ./*.deb >/dev/null 2>&1; then
+            echo "nothing in the pool."
             exit 0
           fi
-          # Sorted by version, newest last, so the head of the list is oldest.
-          ls -1 ./*.deb | sort -V | head -n "-$keep" | while read -r old; do
-            echo "  dropping $(basename "$old")"
-            rm -f "$old"
+
+          # copacetic_1.4.13_amd64.deb -> the line 1.4. The newest package of
+          # each line is kept and the rest go. Written in plain sh rather than
+          # with an associative array so it does not depend on the runner's
+          # bash version.
+          lines=$(ls -1 ./*.deb | sed 's/.*_\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/' | sort -u)
+          keep=""
+          for line in $lines; do
+            newest=$(ls -1 ./*.deb | grep "_${line}\." | sort -V | tail -1)
+            keep="$keep $newest"
           done
-          echo "kept: $(ls -1 ./*.deb | tr '\n' ' ')"
+
+          for package in ./*.deb; do
+            case " $keep " in
+              *" $package "*) ;;
+              *) echo "  dropping $(basename "$package")"; rm -f "$package" ;;
+            esac
+          done
+          echo "kept: $(ls -1 ./*.deb | xargs -n1 basename | tr '\n' ' ')"
 
       - name: Import the signing key
         if: steps.gate.outputs.run == 'true'
