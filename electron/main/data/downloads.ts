@@ -31,6 +31,16 @@ interface LiveDownload {
 export class DownloadManager {
   private readonly file: PersistedFile<DownloadState[]>;
   private readonly live = new Map<string, LiveDownload>();
+  /**
+   * Downloads from a Hush tab, held here and never written.
+   *
+   * Hush says, in the README and on the tab itself, that nothing it does
+   * reaches the disk — and a download was writing its address, its redirect
+   * chain and its time into downloads.json. The file is on disk because it was
+   * asked for; the record of where it came from is browsing, and a Hush tab
+   * keeps none of that.
+   */
+  private ephemeral: DownloadState[] = [];
 
   constructor(private readonly onChanged: () => void) {
     this.file = new PersistedFile<DownloadState[]>('downloads.json', () => [], reviveDownloads, 1_000);
@@ -51,13 +61,19 @@ export class DownloadManager {
   }
 
   list(): DownloadState[] {
-    return this.file.get().map((entry) => ({
-      ...entry,
-      fileExists: entry.status === 'completed' ? existsSync(entry.savePath) : entry.fileExists,
-    }));
+    return [...this.ephemeral, ...this.file.get()]
+      .sort((a, b) => b.startedAt - a.startedAt)
+      .map((entry) => ({
+        ...entry,
+        fileExists: entry.status === 'completed' ? existsSync(entry.savePath) : entry.fileExists,
+      }));
   }
 
-  attach(session: Session): void {
+  /**
+   * @param remember Whether this session's downloads are written down. False
+   * for Hush, whose whole claim is that nothing it does is.
+   */
+  attach(session: Session, remember = true): void {
     session.on('will-download', (_event, item) => {
       const id = newId();
       const directory = app.getPath('downloads');
@@ -67,6 +83,7 @@ export class DownloadManager {
       this.live.set(id, { item, lastSampleAt: Date.now(), lastSampleBytes: 0, lastStatus: 'progressing' });
       this.upsert({
         id,
+        isHush: !remember,
         filename: path.basename(savePath),
         savePath,
         url: item.getURL(),
@@ -213,14 +230,15 @@ export class DownloadManager {
   remove(id: string): void {
     this.live.get(id)?.item.cancel();
     this.live.delete(id);
+    this.ephemeral = this.ephemeral.filter((entry) => entry.id !== id);
     this.file.update((entries) => entries.filter((entry) => entry.id !== id));
     this.onChanged();
   }
 
   clearCompleted(): void {
-    this.file.update((entries) =>
-      entries.filter((entry) => entry.status === 'progressing' || entry.status === 'paused'),
-    );
+    const stillGoing = (entry: DownloadState) => entry.status === 'progressing' || entry.status === 'paused';
+    this.ephemeral = this.ephemeral.filter(stillGoing);
+    this.file.update((entries) => entries.filter(stillGoing));
     this.onChanged();
   }
 
@@ -232,18 +250,35 @@ export class DownloadManager {
   }
 
   private find(id: string): DownloadState | undefined {
-    return this.file.get().find((entry) => entry.id === id);
+    return this.ephemeral.find((entry) => entry.id === id) ?? this.file.get().find((entry) => entry.id === id);
   }
 
   private upsert(entry: DownloadState): void {
-    this.file.update((entries) =>
-      [entry, ...entries.filter((existing) => existing.id !== entry.id)].slice(0, MAX_REMEMBERED),
-    );
+    if (entry.isHush) {
+      this.ephemeral = [entry, ...this.ephemeral.filter((existing) => existing.id !== entry.id)].slice(
+        0,
+        MAX_REMEMBERED,
+      );
+    } else {
+      this.file.update((entries) =>
+        [entry, ...entries.filter((existing) => existing.id !== entry.id)].slice(0, MAX_REMEMBERED),
+      );
+    }
     this.onChanged();
   }
 
   private patch(id: string, mutate: (entry: DownloadState) => DownloadState): void {
     let touched = false;
+
+    // A Hush download lives here and nowhere else, so it is patched here too.
+    // Falling through to the file would silently drop every update to it —
+    // progress, completion, the hash — and leave it stuck at nought bytes.
+    if (this.ephemeral.some((entry) => entry.id === id)) {
+      this.ephemeral = this.ephemeral.map((entry) => (entry.id === id ? mutate(entry) : entry));
+      this.onChanged();
+      return;
+    }
+
     this.file.update((entries) =>
       entries.map((entry) => {
         if (entry.id !== id) {

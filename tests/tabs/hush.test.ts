@@ -49,10 +49,28 @@ describe('nothing a Hush tab does is written down', () => {
   });
 });
 
+/**
+ * The claim, in the README and on the tab itself: nothing it does reaches the
+ * disk, and closing it leaves nothing to delete because nothing was written. A
+ * download was writing its address, its redirect chain and its time into
+ * downloads.json — the file is on disk because it was asked for, but where it
+ * came from is browsing, and this tab keeps none of that.
+ */
+describe('a Hush download is not written down', () => {
+  it('attaches downloads to the hush session without remembering them', () => {
+    expect(browserSource).toContain('downloads.attach(hushSession, false)');
+  });
+
+  // The counterweight, in the same file: ordinary downloads are still written.
+  it('leaves the ordinary session remembering its downloads', () => {
+    expect(browserSource).toContain('downloads.attach(webSession)');
+  });
+});
+
 describe('a Hush tab is not a less protected tab', () => {
   // The tab that promises the most must not be the one running with the least
   // protection: a separate session means every guard has to be installed twice.
-  it.each(['hardenWebSession(hushSession', 'blocker.attach(hushSession)', 'downloads.attach(hushSession)'])(
+  it.each(['hardenWebSession(hushSession', 'blocker.attach(hushSession)', 'downloads.attach(hushSession'])(
     'installs %s on the hush session too',
     (fragment) => {
       expect(browserSource).toContain(fragment);

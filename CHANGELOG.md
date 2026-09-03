@@ -89,6 +89,17 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **A download started in a Hush tab is no longer written to disk.** Its address,
+  its redirect chain and its time were going into `downloads.json`, which
+  contradicts what Hush says in this README and on the tab itself — that nothing
+  it does reaches the disk and closing it leaves nothing to delete. The file is
+  still saved, because it was asked for; where it came from is browsing, and a
+  Hush tab keeps none of that. It is listed while Copacetic is open, marked as
+  not written down, and gone when Copacetic closes.
+- **Clearing history now clears the icons cached for those sites.** Nobody
+  chooses a favicon, and a per-origin cache left behind after clearing history
+  is a readable list of where you have been.
+
 - The connection badge no longer describes a page that failed to load as
   encrypted and verified. Nothing was exchanged and no certificate was checked.
 - Stored files can change shape between versions without losing what an older

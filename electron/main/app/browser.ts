@@ -159,7 +159,9 @@ export class Browser {
     const hushSession = getHushSession();
     hardenWebSession(hushSession, this.securityDelegate());
     this.blocker.attach(hushSession);
-    this.downloads.attach(hushSession);
+    // Not remembered: a Hush download's address, redirect chain and time are
+    // browsing, and the tab's whole claim is that none of that is written down.
+    this.downloads.attach(hushSession, false);
 
     this.window = createChromeWindow();
     this.tabs = new TabManager(
