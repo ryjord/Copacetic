@@ -116,6 +116,12 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **The Windows installer builds again.** Git was rewriting the filter lists'
+  line endings when they were checked out on Windows, which changed their bytes,
+  which made them stop matching the hashes the manifest recorded when they were
+  fetched — and the build refuses to use a list it cannot verify. The lists are
+  now marked as content rather than source, so they arrive byte for byte on
+  every platform.
 - **A menu item pressed during start-up now does what it says.** Settings,
   History, Downloads and the command palette are opened by telling the
   interface, and the interface is a page: for a couple of hundred milliseconds
