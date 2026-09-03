@@ -251,23 +251,38 @@ describe('collapsing a group that holds the active tab', () => {
 
   it('moves to the first tab after the group', () => {
     // [a, a, null, b] with the second `a` active.
-    expect(tabAfterCollapsing(strip('a', 'a', null, 'b'), 1, 'a')?.id).toBe('2');
+    expect(tabAfterCollapsing(strip('a', 'a', null, 'b'), 1, new Set(['a']))?.id).toBe('2');
   });
 
   it('skips the rest of the group rather than landing inside it', () => {
-    expect(tabAfterCollapsing(strip('a', 'a', 'a', null), 0, 'a')?.id).toBe('3');
+    expect(tabAfterCollapsing(strip('a', 'a', 'a', null), 0, new Set(['a']))?.id).toBe('3');
   });
 
   it('falls back to the left when the group ends the strip', () => {
-    expect(tabAfterCollapsing(strip(null, 'a', 'a'), 2, 'a')?.id).toBe('0');
+    expect(tabAfterCollapsing(strip(null, 'a', 'a'), 2, new Set(['a']))?.id).toBe('0');
   });
 
   it('finds nothing when every tab is in the group', () => {
-    expect(tabAfterCollapsing(strip('a', 'a'), 0, 'a')).toBeNull();
+    expect(tabAfterCollapsing(strip('a', 'a'), 0, new Set(['a']))).toBeNull();
+  });
+
+  /*
+   * The tab it moves to has to be one you can see. A group that is already
+   * collapsed hides its tabs too, so landing in one moves the problem along the
+   * strip rather than solving it — the window would still be showing a page
+   * with nothing pointing at it.
+   */
+  it('skips a group that is already collapsed', () => {
+    // [a, a, b, null] collapsing a, where b is collapsed already.
+    expect(tabAfterCollapsing(strip('a', 'a', 'b', null), 0, new Set(['a', 'b']))?.id).toBe('3');
+  });
+
+  it('finds nothing when every other tab is in a collapsed group', () => {
+    expect(tabAfterCollapsing(strip('a', 'b'), 0, new Set(['a', 'b']))).toBeNull();
   });
 
   it('leaves an active tab outside the group where it is', () => {
     // Nothing to move: the tab being looked at is not being hidden.
-    expect(tabAfterCollapsing(strip('a', null), 1, 'a')?.id).toBe('1');
+    expect(tabAfterCollapsing(strip('a', null), 1, new Set(['a']))?.id).toBe('1');
   });
 });

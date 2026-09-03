@@ -1,4 +1,5 @@
 import { WebContentsView, type BaseWindow, type WebFrameMain } from 'electron';
+import { guardChromeWebContents } from '../security/security';
 import { chromeEntryUrl, preloadPath } from './env';
 import type { ContentBounds } from '../tabs/tab-layout';
 
@@ -29,6 +30,10 @@ export class OverlayLayer {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        // Stated rather than inherited, so this view's guarantees are readable
+        // here and cannot drift from the chrome window's by default change.
+        webSecurity: true,
+        allowRunningInsecureContent: false,
         // Transparent so the page shows through everywhere the overlay is not
         // drawing. Without this it is a grey sheet over the whole content area.
         transparent: true,
@@ -36,6 +41,12 @@ export class OverlayLayer {
     });
     this.view.setBackgroundColor('#00000000');
     this.view.setVisible(false);
+
+    // Guarded like the chrome window, and for a sharper reason: this view is
+    // trusted by the IPC layer, which checks the frame rather than the URL. A
+    // frame that navigated somewhere else would keep every privilege the whole
+    // browser has — bookmarks, settings, the vault — so it is not allowed to.
+    guardChromeWebContents(this.view.webContents);
     void this.view.webContents.loadURL(`${chromeEntryUrl()}overlay/`);
   }
 
@@ -87,7 +98,12 @@ export class OverlayLayer {
 
   dispose(): void {
     this.isDisposed = true;
-    this.window.contentView.removeChildView(this.view);
+    // The window is already gone by the time `closed` fires, and touching a
+    // destroyed window's contentView throws — which would abort the rest of
+    // the browser's teardown, leaving tab views and prompts behind.
+    if (!this.window.isDestroyed()) {
+      this.window.contentView.removeChildView(this.view);
+    }
     if (!this.view.webContents.isDestroyed()) {
       this.view.webContents.close();
     }

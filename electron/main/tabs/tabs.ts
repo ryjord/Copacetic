@@ -221,7 +221,16 @@ export class TabManager {
     }
 
     const inOrder = this.order.map((id) => ({ id, groupId: this.tabs.get(id)?.groupId ?? null }));
-    const next = tabAfterCollapsing(inOrder, activeIndex, groupId);
+    // Every group that will be hiding its tabs once this one closes, not just
+    // this one. A tab inside a group that is already collapsed has no entry in
+    // the strip either, so activating it would move the fault rather than fix it.
+    const hidden = new Set<string>([groupId]);
+    for (const tab of inOrder) {
+      if (tab.groupId && this.store.groupFor(tab.groupId)?.collapsed) {
+        hidden.add(tab.groupId);
+      }
+    }
+    const next = tabAfterCollapsing(inOrder, activeIndex, hidden);
     if (!next) {
       return false;
     }

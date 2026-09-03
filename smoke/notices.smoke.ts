@@ -107,3 +107,46 @@ describe('a notice said before anyone was listening', () => {
     expect(left).toEqual([]);
   }, 60_000);
 });
+
+/**
+ * The overlay covers the top of the page whenever it is showing anything, and a
+ * transparent view still takes every click that lands on it. With nothing to
+ * show it has to get out of the way entirely — otherwise the top of every page
+ * in the browser silently stops responding, which is the kind of fault someone
+ * lives with for a week before working out what is wrong.
+ */
+describe('the overlay when it has nothing to say', () => {
+  it('lets a click reach the page underneath', async () => {
+    await copacetic.chrome.evaluate(async () => {
+      for (const notice of await window.copacetic.notices.pending()) {
+        await window.copacetic.notices.answer(notice.id, false);
+      }
+      await window.copacetic.tabs.create('https://example.com');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+
+    const hidden = await copacetic.main(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      const views = window?.contentView.children ?? [];
+      return views.every((view) => view.getVisible?.() !== true || view.getBounds().height > 44);
+    });
+    expect(hidden).toBe(true);
+
+    // Asked of the page: a click landing where the overlay sits must reach it.
+    const landed = await copacetic.inPage<boolean>(
+      'https://example.com',
+      `
+      (() => {
+        const target = document.createElement('button');
+        target.style.cssText = 'position:fixed;top:0;left:0;width:400px;height:40px;z-index:2147483647';
+        let clicked = false;
+        target.addEventListener('click', () => { clicked = true; });
+        document.body.appendChild(target);
+        target.click();
+        return clicked;
+      })()
+    `,
+    );
+    expect(landed).toBe(true);
+  }, 120_000);
+});

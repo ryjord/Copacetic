@@ -204,6 +204,7 @@ const api: CopaceticApi = {
     renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
     bookmarksChanged: (listener: () => void) => subscribe(PUSH.bookmarksChanged, listener),
     notice: (listener: (notice: Notice) => void) => subscribe(PUSH.notice, listener),
+    noticeSettled: (listener: (id: string) => void) => subscribe(PUSH.noticeSettled, listener),
     renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),
   },
 };

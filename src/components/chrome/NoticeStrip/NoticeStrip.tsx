@@ -20,11 +20,13 @@ const LOOK: Record<Notice['tone'], { icon: typeof Info; className: string }> = {
 };
 
 /**
- * What the app has to say, in the chrome and above the page.
+ * What the app has to say.
  *
- * Not floating over the content: a WebContentsView paints above the renderer's
- * HTML, so a notice drawn over the page would be painted behind it and say
- * nothing to anybody. In flow, the page moves down and the notice is read.
+ * Rendered into the overlay layer rather than the chrome — see
+ * `electron/main/app/overlay.ts`. A WebContentsView paints above all of the
+ * chrome's HTML, so a notice drawn there could only take space from the page,
+ * never sit on top of it. In a view of its own it floats, and nothing moves for
+ * something that may last four seconds.
  */
 export function NoticeStrip() {
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -36,7 +38,13 @@ export function NoticeStrip() {
     void ask((subject) => subject.notices.pending(), []).then((waiting) =>
       setNotices((current) => waiting.reduce(admit, current)),
     );
-    return api?.on.notice((notice) => setNotices((current) => admit(current, notice)));
+    const stop = [
+      api?.on.notice((notice) => setNotices((current) => admit(current, notice))),
+      // Settled elsewhere: the main process answers a question from the API or
+      // another window, and this is the only thing that would still be drawing it.
+      api?.on.noticeSettled((id) => setNotices((current) => dismiss(current, id))),
+    ];
+    return () => stop.forEach((unsubscribe) => unsubscribe?.());
   }, []);
 
   // Each notice times itself out, so one arriving does not restart another's

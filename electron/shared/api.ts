@@ -232,6 +232,8 @@ export interface CopaceticApi {
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
     /** Something finished, or something needs deciding before it can. */
     notice(listener: (notice: Notice) => void): Unsubscribe;
+    /** A notice was answered or dismissed somewhere else, so stop showing it. */
+    noticeSettled(listener: (id: string) => void): Unsubscribe;
 
     /** Saved bookmarks or folders changed, from anywhere — a menu, another window, an import. */
     bookmarksChanged(listener: () => void): Unsubscribe;

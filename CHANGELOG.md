@@ -55,6 +55,17 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 - **A bookmarks bar**, off until switched on in Settings. It carries the top level
   only: a bar that flattened the tree would put something filed three folders deep
   beside something filed nowhere. A folder on it opens as a menu.
+- **Ad and tracker blocking.** EasyList and EasyPrivacy ship inside the app —
+  136,716 rules — with the curated 122 domains underneath as a floor, so a list
+  that fails to load cannot make Copacetic block less than it did before it had
+  one. The lists are in the repository as text and change only with a release or
+  when you press "Check for newer lists"; nothing fetches them on a timer,
+  because that is a periodic request from your machine to a server. What a
+  blocked advert leaves behind is collapsed with a stylesheet, not an injected
+  script — page content still runs none of Copacetic's. The connection panel
+  says whether a hostname or a rule stopped each request, and Settings says
+  plainly what blocking cannot do: same-origin adverts, server-inserted adverts
+  and sponsored posts inside a feed are not blocked and are not counted.
 - **Notices.** The app can now say what it finished and ask before something
   costly. Saving a group as a folder says how many Hush tabs were left out, which
   is the point: the promise Hush makes is only kept if it is also stated. Opening

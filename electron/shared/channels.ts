@@ -131,6 +131,8 @@ export const PUSH = {
   bookmarksChanged: 'push:bookmarks-changed',
   /** Something the app finished, or a question it has to ask before finishing. */
   notice: 'push:notice',
+  /** A notice is finished with. Said so the layer drawing it can stop. */
+  noticeSettled: 'push:notice-settled',
   /** The same, for a bookmark folder: a native menu cannot hold a text field. */
   renameBookmarkFolder: 'push:rename-bookmark-folder',
 } as const;

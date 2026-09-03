@@ -14,6 +14,30 @@ afterAll(async () => copacetic?.close());
 /** Asked from inside a real page, because that is the only place it is true. */
 const askPage = <T>(expression: string): Promise<T> => copacetic.inPage<T>('https://example.com', expression);
 
+/**
+ * What the blocker recorded for a host, which is the signal that means what we
+ * mean.
+ *
+ * A fetch that rejects proves nothing on its own: an unreachable host, a DNS
+ * policy or an offline runner all reject too, and every one of those would make
+ * the tests below pass with blocking switched off entirely. This fires the
+ * moment onBeforeRequest cancels a request, and only then.
+ */
+const blockedCounts = async (): Promise<Record<string, number>> =>
+  copacetic.chrome.evaluate(async () => {
+    // Every tab, not the active one: `inPage` runs in the first tab matching a
+    // URL, which is not necessarily the tab in front. Looking only at the
+    // active one found nothing and said the blocker had done nothing.
+    const state = await window.copacetic.chrome.getState();
+    const counts: Record<string, number> = {};
+    for (const tab of state.tabs) {
+      for (const entry of await window.copacetic.connections.list(tab.id)) {
+        counts[entry.host] = (counts[entry.host] ?? 0) + entry.blocked;
+      }
+    }
+    return counts;
+  });
+
 const tryFetch = (url: string) => `
   (async () => {
     try { await fetch(${JSON.stringify(url)}, { mode: 'no-cors' }); return 'allowed'; }
@@ -42,6 +66,7 @@ describe('what a page is allowed to fetch', () => {
 
   it('refuses an analytics endpoint the curated set names', async () => {
     expect(await askPage(tryFetch('https://www.google-analytics.com/analytics.js'))).toBe('refused');
+    expect((await blockedCounts())['www.google-analytics.com']).toBeGreaterThan(0);
   }, 90_000);
 
   /*
@@ -52,6 +77,10 @@ describe('what a page is allowed to fetch', () => {
    */
   it('refuses a tracker only the shipped lists know about', async () => {
     expect(await askPage(tryFetch('https://bat.bing.com/bat.js'))).toBe('refused');
+    // And the blocker says it was the one who refused it. A rejected fetch on
+    // its own proves nothing: an offline runner rejects too, and would make
+    // every test here pass with blocking switched off.
+    expect((await blockedCounts())['bat.bing.com']).toBeGreaterThan(0);
   }, 90_000);
 
   // The counterweight. A blocker that refused everything would pass both tests

@@ -134,25 +134,33 @@ export function segmentByGroup<T extends { groupId: string | null }>(
 export function tabAfterCollapsing<T extends { groupId: string | null }>(
   tabs: readonly T[],
   activeIndex: number,
-  groupId: string,
+  /**
+   * Every group whose tabs are hidden once this collapse happens — the one
+   * being collapsed, and any already collapsed. Landing in one of those moves
+   * the problem along the strip instead of solving it: the window would still
+   * be showing a page with nothing pointing at it.
+   */
+  hidden: ReadonlySet<string>,
 ): T | null {
   // Nothing is being hidden if the tab being looked at is not in the group, so
   // nothing moves. Checked here rather than at the call site: a caller that
   // forgot would silently activate a different tab for no reason.
+  const isHidden = (tab: T) => tab.groupId !== null && hidden.has(tab.groupId);
+
   const active = tabs[activeIndex];
-  if (active && active.groupId !== groupId) {
+  if (active && !isHidden(active)) {
     return active;
   }
 
   for (let index = activeIndex + 1; index < tabs.length; index += 1) {
     const candidate = tabs[index];
-    if (candidate && candidate.groupId !== groupId) {
+    if (candidate && !isHidden(candidate)) {
       return candidate;
     }
   }
   for (let index = activeIndex - 1; index >= 0; index -= 1) {
     const candidate = tabs[index];
-    if (candidate && candidate.groupId !== groupId) {
+    if (candidate && !isHidden(candidate)) {
       return candidate;
     }
   }

@@ -53,13 +53,22 @@ which were stopped. The blocked count tells you what was prevented; this tells
 you what was allowed, which is the half no mainstream browser shows without
 opening developer tools.
 
-**Tracker blocking that does not break pages.** A curated list of 122 domains
-that exist only to follow people between sites. Not an EasyList engine — a
-short, honest list, and the count you see is the real number of blocked
-requests, not an estimate. Top-level navigation is never blocked, so you can
-still visit a tracker domain deliberately. If blocking breaks a particular
-site, you can allow it there from the connection panel rather than turning
-blocking off everywhere.
+**Ad and tracker blocking from a list that never phones home.** EasyList and
+EasyPrivacy ship inside the app — 136,716 rules — with a curated list of 122
+domains underneath them as a floor, so a list that fails to load cannot make
+Copacetic block less than it did before it had one. The rules are in the
+repository as text, and the only thing that changes them is a release, or you
+pressing "Check for newer lists" in Settings. Nothing fetches them on a timer:
+that would be a periodic request from your machine to a server, which is the
+shape of the thing being blocked.
+
+The count you see is the real number of blocked requests, not an estimate, and
+the connection panel says whether a hostname or a rule stopped each one. Adverts
+served from the page's own address, inserted by the server, or written into a
+feed are not blocked and cannot be — Settings says so rather than counting past
+them. Top-level navigation is never blocked, so you can still visit a tracker
+domain deliberately, and if blocking breaks a site you can allow it there rather
+than turning blocking off everywhere.
 
 **Local-only suggestions.** As you type, the list under the address bar is
 ranked from your own history and bookmarks, in the main process. No keystroke is

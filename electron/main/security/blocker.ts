@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
 import type { Session } from 'electron';
@@ -227,7 +227,7 @@ export class ContentBlocker {
     userDataDirectory: string,
     fetchText: (url: string) => Promise<string>,
   ): Promise<{ ok: true; rules: number; lists: FilterListInfo[] } | { ok: false; reason: string }> {
-    const sources = this.lists.length > 0 ? this.lists : [];
+    const sources = this.lists;
     if (sources.length === 0) {
       return { ok: false, reason: 'There are no lists to update.' };
     }
@@ -259,10 +259,18 @@ export class ContentBlocker {
     const lists = fetched.map((entry) => entry.list);
     const directory = path.join(userDataDirectory, 'filters');
 
+    // Staged and then renamed, because the pair has to agree. Written directly,
+    // a failure between the two leaves the new rules on disk described by the
+    // old manifest, and nothing downstream can tell: the settings pane would
+    // report list dates that do not match the rules actually running.
     try {
       mkdirSync(directory, { recursive: true });
-      writeFileSync(path.join(directory, 'engine.bin'), engine.serialize());
-      writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({ lists }, null, 2));
+      const engineTemp = path.join(directory, 'engine.bin.new');
+      const manifestTemp = path.join(directory, 'manifest.json.new');
+      writeFileSync(engineTemp, engine.serialize());
+      writeFileSync(manifestTemp, JSON.stringify({ lists }, null, 2));
+      renameSync(engineTemp, path.join(directory, 'engine.bin'));
+      renameSync(manifestTemp, path.join(directory, 'manifest.json'));
     } catch {
       return { ok: false, reason: 'The new lists could not be saved. Nothing was changed.' };
     }
@@ -273,9 +281,9 @@ export class ContentBlocker {
     return { ok: true, rules: this.listedRules, lists };
   }
 
-  /** What is loaded, for a settings pane that has to say which list is running. */
-  listInfo(): { rules: number; lists: FilterListInfo[]; curatedHosts: number } {
-    return { rules: this.listedRules, lists: this.lists, curatedHosts: this.blocked.size };
+  /** The lists that are loaded, for a settings pane that has to name them. */
+  loadedLists(): FilterListInfo[] {
+    return this.lists;
   }
 
   /**
@@ -414,16 +422,28 @@ export class ContentBlocker {
    * Null when nothing matched, so a caller can tell "no rule" from "a rule with
    * no readable form".
    */
-  private ruleFor(details: { url: string; resourceType: string; referrer?: string }): string | null {
+  private ruleFor(details: {
+    url: string;
+    resourceType: Electron.OnBeforeRequestListenerDetails['resourceType'];
+    referrer?: string;
+    webContentsId?: number;
+  }): string | null {
     if (!this.engine) {
       return null;
     }
     try {
+      // The page being browsed, not the Referer header. Most of a filter list
+      // is scoped to third-party requests, and the header is routinely absent —
+      // a no-referrer policy, a scheme downgrade, a beacon. With nothing to
+      // compare against, the engine calls the request first-party and every
+      // third-party rule for it stops applying: blocking that fails open,
+      // silently, on exactly the requests most careful about being seen.
+      const pageSite = typeof details.webContentsId === 'number' ? this.pageHosts.get(details.webContentsId) : '';
       const { match, filter } = this.engine.match(
         Request.fromRawDetails({
           url: details.url,
-          sourceUrl: details.referrer || undefined,
-          type: details.resourceType as never,
+          sourceUrl: pageSite ? `https://${pageSite}/` : details.referrer || undefined,
+          type: details.resourceType,
         }),
       );
       return match ? (filter?.toString() ?? 'a filter rule') : null;

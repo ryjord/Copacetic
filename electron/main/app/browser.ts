@@ -263,7 +263,7 @@ export class Browser {
       platform: process.platform,
       isDevelopment: isDevelopment(),
       blockerRuleCount: this.blocker.ruleCount,
-      filterLists: this.blocker.listInfo().lists,
+      filterLists: this.blocker.loadedLists(),
     };
   }
 
@@ -1012,6 +1012,10 @@ export class Browser {
     const act = this.pendingAnswers.get(id);
     this.pendingAnswers.delete(id);
     this.outstanding = dismissNotice(this.outstanding, id);
+    // The overlay draws notices and keeps its own copy, so an answer given
+    // anywhere else — the API, another window — would leave it on screen with
+    // nothing behind it. It has to be told the question is settled.
+    this.overlay.send(PUSH.noticeSettled, id);
     if (confirmed) {
       act?.();
     }
