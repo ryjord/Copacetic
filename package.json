@@ -1,7 +1,7 @@
 {
   "name": "copacetic",
   "productName": "Copacetic",
-  "version": "1.4.0",
+  "version": "1.4.1-beta.1",
   "description": "A calm, honest browser that shows you the true state of every page.",
   "author": {
     "name": "Riley Jordan",
@@ -24,7 +24,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json && tsc -p tsconfig.smoke.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json && tsc -p tsconfig.smoke.json && tsc -p tsconfig.tests.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test",
@@ -37,16 +37,7 @@
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "^2.18.2",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "electron-updater": "^6.8.9",
-    "lucide-react": "^0.577.0",
-    "next": "16.3.2",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.15"
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
@@ -57,6 +48,8 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.1",
     "babel-plugin-react-compiler": "1.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^43.4.1",
@@ -65,13 +58,20 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.3",
     "jsdom": "^30.0.1",
+    "lucide-react": "^0.577.0",
+    "next": "16.3.2",
     "playwright": "^1.62.1",
     "postcss": "^8.5.26",
     "prettier": "^3.4.2",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "typescript": "^5",
     "vitest": "^4.1.11",
-    "wait-on": "^9.0.4"
+    "wait-on": "^9.0.4",
+    "zustand": "^5.0.15"
   },
   "engines": {
     "node": ">=22.22.2"

@@ -21,9 +21,18 @@ const tab = (id: string): TabState => ({
   isLoading: false,
   canGoBack: false,
   canGoForward: false,
+  isHush: false,
+  groupId: null,
   isAudible: false,
   isMuted: false,
-  security: { level: 'secure', scheme: 'https', host: `${id}.example`, detail: '', certificate: null },
+  security: {
+    level: 'secure',
+    scheme: 'https',
+    host: `${id}.example`,
+    detail: '',
+    certificate: null,
+    certificateChange: 'none',
+  },
   error: null,
   blockedCount: 0,
   loadMs: null,
@@ -40,6 +49,8 @@ const download = (receivedBytes: number): DownloadState => ({
   receivedBytes,
   totalBytes: 1_000_000,
   bytesPerSecond: 1000,
+  urlChain: [],
+  sha256: null,
   status: 'progressing',
   startedAt: 0,
   completedAt: null,
@@ -47,6 +58,7 @@ const download = (receivedBytes: number): DownloadState => ({
 });
 
 const state = (downloads: DownloadState[]): BrowserState => ({
+  groups: [],
   tabs: [tab('one'), tab('two'), tab('three')],
   tabOrder: ['one', 'two', 'three'],
   activeTabId: 'one',

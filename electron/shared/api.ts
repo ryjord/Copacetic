@@ -168,7 +168,7 @@ export interface CopaceticApi {
     add(input: VaultInput): Promise<{ id: string } | { error: string }>;
     /** Resolves empty on success, or with a message. */
     update(id: string, changes: Partial<VaultInput>): Promise<string>;
-    remove(id: string): Promise<void>;
+    remove(id: string): Promise<{ error: string } | null>;
     /** One password, by id, only when asked. Never part of the listed state. */
     reveal(id: string): Promise<string | null>;
     /** Writes a plain-text CSV where the user chooses. Resolves empty, or with what to tell them. */

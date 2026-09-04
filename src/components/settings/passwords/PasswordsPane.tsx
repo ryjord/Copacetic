@@ -13,7 +13,7 @@ import {
 } from '@/components/settings/shared/controls';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
+import { ask } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
@@ -72,16 +72,20 @@ export function PasswordsPane() {
   };
 
   const remove = (id: string) => {
-    send((api) => api.vault.remove(id));
-    setTimeout(refresh, 60);
+    // The answer is shown rather than dropped: refusing quietly is how a button
+    // becomes something that looks broken.
+    void ask((api) => api.vault.remove(id), null).then((result) => {
+      setMessage(result ? result.error : '');
+      setTimeout(refresh, 60);
+    });
   };
 
   return (
     <>
       <Section title="Passwords">
         <Note>
-          Saved on this machine and encrypted with a key your operating system keeps. Copacetic does not fill them in
-          yet — that comes next — so for now this is somewhere to put them and read them back.
+          Saved on this machine and encrypted with a key your operating system keeps. Right-click a password box and
+          choose Fill password to put one in; Copacetic never offers to save what you type.
         </Note>
 
         <VaultCondition vault={vault} />
@@ -163,7 +167,11 @@ export function PasswordsPane() {
                 ) : (
                   <span className="label shrink-0 text-caution">Unreadable</span>
                 )}
-                <RowAction label="Remove" onClick={() => remove(entry.id)} />
+                {lockState.isUnlocked ? (
+                  <RowAction label="Remove" onClick={() => remove(entry.id)} />
+                ) : (
+                  <span className="label shrink-0 text-ink-faint">Locked</span>
+                )}
               </li>
             ))}
           </RowList>
@@ -203,9 +211,16 @@ function WhatThisDoesNotDo({ facts }: { facts: VaultFacts }) {
           </Answer>
         )}
         <Answer question="Does it fill passwords in for me?">
-          No, and it will not. Watching what you type into a page means running Copacetic&apos;s code inside that
-          page, and this browser ships without any — a guarantee worth more than the convenience. You add passwords
-          here and copy them out yourself.
+          When you ask it to, and only then. Right-click a password box and choose Fill password: Copacetic runs one
+          short script in that page, once, which finds the field and sets it. Nothing is left behind — no listener, no
+          global, nothing the page can call afterwards — and the script only appears in the menu on a site you have a
+          password saved for.
+        </Answer>
+        <Answer question="Does it offer to save passwords as I type them?">
+          No, and that is the half that will not change. Noticing what you type means Copacetic&apos;s code sitting in
+          every page all the time, and this browser ships no such script — the fill above is run when you ask and gone
+          when it returns. Saving on submit was built and then dropped for exactly that reason. You add passwords here
+          yourself.
         </Answer>
         <Answer question="Does anything leave this machine?">
           No. There is no account, no syncing and no server to sync with. The only copy that ever leaves is one you

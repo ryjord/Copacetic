@@ -108,6 +108,7 @@ describe('the file we write ourselves', () => {
       url: 'https://a.test/?q="quoted"&x=1<>',
       title: 'He said "hello" & <b>left</b>',
       createdAt: 1_690_000_000_000,
+      folderId: null,
     };
     const { bookmarks, skipped } = bookmarksFromHtml(bookmarksToHtml([original], Date.now()));
     expect(skipped).toBe(0);
@@ -119,8 +120,8 @@ describe('the file we write ourselves', () => {
   it('reads back what Copacetic exported', () => {
     const html = bookmarksToHtml(
       [
-        { id: 'a', url: 'https://a.test/one', title: 'Tom & Jerry', createdAt: 1_690_000_000_000 },
-        { id: 'b', url: 'https://b.test/two', title: 'Second', createdAt: 1_690_000_100_000 },
+        { id: 'a', url: 'https://a.test/one', title: 'Tom & Jerry', createdAt: 1_690_000_000_000, folderId: null },
+        { id: 'b', url: 'https://b.test/two', title: 'Second', createdAt: 1_690_000_100_000, folderId: null },
       ],
       Date.now(),
     );

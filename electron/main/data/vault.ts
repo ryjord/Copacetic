@@ -108,7 +108,12 @@ export class Vault {
     return { id: entry.id };
   }
 
+  // Overwriting a password you cannot read is losing it, so this is behind the
+  // lock too. Adding a new one is not: nothing is lost by it.
   update(id: string, changes: { origin?: string; username?: string; password?: string }): { error: string } | null {
+    if (!this.isUnlocked()) {
+      return { error: 'Unlock the vault before changing a password.' };
+    }
     const file = this.storage.get();
     const existing = file.entries.find((entry) => entry.id === id);
     if (!existing) {
@@ -147,9 +152,25 @@ export class Vault {
     return null;
   }
 
-  remove(id: string): void {
+  /**
+   * Deleting is behind the lock, like reading.
+   *
+   * It was not, and the two together made a strange promise: locked, the pane
+   * refused to show you a password and offered to delete it in the same row.
+   * Whoever cannot be trusted to read an entry cannot be trusted to destroy one
+   * — and destroying it is the half that cannot be undone.
+   *
+   * The lock is a soft one and this browser says so plainly elsewhere. That is
+   * an argument about how much it is worth, not about which operations it
+   * covers.
+   */
+  remove(id: string): { error: string } | null {
+    if (!this.isUnlocked()) {
+      return { error: 'Unlock the vault before removing a password.' };
+    }
     const file = this.storage.get();
     this.storage.set({ ...file, entries: file.entries.filter((entry) => entry.id !== id) });
+    return null;
   }
 
   /** The only way a password leaves this process, one at a time and only when asked. */
@@ -183,7 +204,12 @@ export class Vault {
   }
 
   /** A site and username already here has its password replaced rather than duplicated. */
+  // An import updates entries that already exist, so it can overwrite a password
+  // nobody can currently read. Behind the lock for the same reason as update.
   importMany(credentials: readonly CsvCredential[]): { added: number; updated: number; skipped: number } {
+    if (!this.isUnlocked()) {
+      return { added: 0, updated: 0, skipped: credentials.length };
+    }
     let added = 0;
     let updated = 0;
     let skipped = 0;

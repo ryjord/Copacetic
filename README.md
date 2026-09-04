@@ -84,8 +84,8 @@ intranets, routers, NAS boxes and plenty of dev servers use — is answered
 through a prompt in the chrome. Copacetic only asks when the challenge comes
 from the site the address bar is showing, or from the proxy for your network;
 a subresource on some other origin asking for a password gives you nothing to
-judge. Nothing is stored, because there is no password manager yet and keeping
-a password somewhere undescribed is not a thing this browser will do.
+judge. What you type into that prompt is not kept: Passwords holds only what
+you put there yourself, and an HTTP challenge is not one of them.
 
 **A start page you assemble.** A clock, a search box, your most-visited sites
 and your recent bookmarks — pick which of them appear and in what order, and
@@ -391,3 +391,9 @@ dropped on launch. A corrupt file is moved aside rather than blocking startup.
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
+
+Not everything in here is Copacetic's to license, though. The EasyList and
+EasyPrivacy filter lists are shipped whole, are someone else's work, and carry
+the GPLv3 or CC BY-SA 3.0, whichever is elected. [NOTICE](NOTICE) names what
+they are, where they came from and under what terms — which matters if you fork this, and matters
+more if you sell it.

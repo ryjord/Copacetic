@@ -12,12 +12,37 @@ permissions:
   id-token: write
   attestations: write
 
+# The bucket and its address reach the shell as environment variables rather
+# than being pasted into the script text before it runs. Interpolated, whatever
+# is in a variable becomes part of the command — a quote or a semicolon in a
+# repository setting is the shell's, not the string's. These are settings only
+# this repository's owner can write, so it is a small door; it is still a door,
+# and closing it costs a block.
+#
+# Only `vars` here. The account id is a secret and is named on the steps that
+# use it: whether a workflow-level `env` may read `secrets` is a rule this file
+# should not be betting on, because being wrong about it fails the whole file to
+# parse and this is the file that publishes releases.
+env:
+  APT_REPO_URL: ${{ vars.APT_REPO_URL }}
+  R2_BUCKET: ${{ vars.R2_BUCKET }}
+
+# Two tags pushed close together would otherwise build and publish into the same
+# bucket at the same time, and the apt index each writes describes only the pool
+# it saw. Queued rather than cancelled: a half-published release is worse than a
+# slow one.
+concurrency:
+  group: release-apt
+  cancel-in-progress: false
+
 jobs:
   guard:
     name: Check the tag matches package.json
+    # A job that hangs should fail rather than hold the runner until someone looks.
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Nothing else enforces this, and a mismatch ships installers whose
       # version disagrees with the tag people downloaded them from.
@@ -39,28 +64,32 @@ jobs:
       - name: Check the package repository is usable
         if: vars.APT_REPO_URL != ''
         env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
         run: |
           set -euo pipefail
-          if [ -z "${{ secrets.R2_ACCOUNT_ID }}" ] || [ -z "${{ vars.R2_BUCKET }}" ]; then
+          if [ -z "${R2_ACCOUNT_ID:-}" ] || [ -z "${R2_BUCKET:-}" ]; then
             echo "::error::APT_REPO_URL is set but the bucket is not configured."
             exit 1
           fi
 
-          aws s3 ls "s3://${{ vars.R2_BUCKET }}/" \
-            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" > /dev/null
+          aws s3 ls "s3://$R2_BUCKET/" \
+            --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" > /dev/null
           echo "  bucket is writable"
 
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${{ vars.APT_REPO_URL }}/")
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$APT_REPO_URL/")
           case "$code" in
             200|404) echo "  public url answers ($code)" ;;
-            *) echo "::error::${{ vars.APT_REPO_URL }} answered $code; is public access on?"; exit 1 ;;
+            *) echo "::error::$APT_REPO_URL answered $code; is public access on?"; exit 1 ;;
           esac
 
   release:
     name: Release (${{ matrix.os }})
+    # Building and publishing three platforms. Generous, because a slow runner
+    # is normal and a hung one is not.
+    timeout-minutes: 60
     needs: guard
     runs-on: ${{ matrix.os }}
     permissions:
@@ -92,9 +121,9 @@ jobs:
               release/*.blockmap
               release/latest.yml
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -118,7 +147,7 @@ jobs:
           mkdir -p build/keyring
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           gpg --export > build/keyring/copacetic-archive-keyring.gpg
-          printf '%s' "${{ vars.APT_REPO_URL }}" > build/keyring/copacetic-apt-source
+          printf '%s' "$APT_REPO_URL" > build/keyring/copacetic-apt-source
           test -s build/keyring/copacetic-archive-keyring.gpg
           test -s build/keyring/copacetic-apt-source
 
@@ -149,7 +178,7 @@ jobs:
       # It does not make a download trusted. It makes it checkable, which is
       # what an unsigned build otherwise cannot offer at all.
       - name: Attest what was built
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: ${{ matrix.artifacts }}
 
@@ -159,6 +188,8 @@ jobs:
   # that way before anyone noticed, so the run now says so itself.
   complete:
     name: Check every platform actually published
+    # A job that hangs should fail rather than hold the runner until someone looks.
+    timeout-minutes: 30
     needs: release
     if: always()
     runs-on: ubuntu-latest
@@ -187,6 +218,8 @@ jobs:
 
   apt:
     name: Publish the apt repository
+    # A job that hangs should fail rather than hold the runner until someone looks.
+    timeout-minutes: 30
     needs: release
     runs-on: ubuntu-latest
     permissions:
@@ -243,13 +276,14 @@ jobs:
       - name: Pull the existing pool
         if: steps.gate.outputs.run == 'true'
         env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
         run: |
           mkdir -p pages/apt/pool/main
-          aws s3 sync "s3://${{ vars.R2_BUCKET }}/pool" pages/apt/pool \
-            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+          aws s3 sync "s3://$R2_BUCKET/pool" pages/apt/pool \
+            --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" \
             --no-progress
           ls -l pages/apt/pool/main || true
 
@@ -269,23 +303,43 @@ jobs:
       # apt only needs the versions it might install. Every package kept is
       # ~150MB against a 10GB budget, so the pool holds the newest few and the
       # rest are dropped — including from the bucket, via the sync below.
-      - name: Prune the pool to the newest few
+      # The bucket this is published to has limited room and every release adds
+      # a ~150MB package, so the pool cannot simply grow. Keeping the newest few
+      # was wrong for the shape of the work: a run of patch releases inside one
+      # minor line would evict every older line, and someone pinned to 1.3 would
+      # find 1.3 had vanished from apt while 1.4.11, 1.4.12 and 1.4.13 sat there.
+      #
+      # So it keeps the newest package of each minor line instead. That is one
+      # 1.2, one 1.3, one 1.4, one 1.5 — the four a person might reasonably still
+      # be on — and it stays four however many patches each line accumulates.
+      - name: Prune the pool to the newest package of each minor line
         if: steps.gate.outputs.run == 'true'
         working-directory: pages/apt/pool/main
         run: |
-          set -euo pipefail
-          keep=3
-          total=$(ls -1 ./*.deb 2>/dev/null | wc -l | tr -d ' ')
-          if [ "$total" -le "$keep" ]; then
-            echo "$total package(s) in the pool; nothing to prune."
+          set -eu
+          if ! ls ./*.deb >/dev/null 2>&1; then
+            echo "nothing in the pool."
             exit 0
           fi
-          # Sorted by version, newest last, so the head of the list is oldest.
-          ls -1 ./*.deb | sort -V | head -n "-$keep" | while read -r old; do
-            echo "  dropping $(basename "$old")"
-            rm -f "$old"
+
+          # copacetic_1.4.13_amd64.deb -> the line 1.4. The newest package of
+          # each line is kept and the rest go. Written in plain sh rather than
+          # with an associative array so it does not depend on the runner's
+          # bash version.
+          lines=$(ls -1 ./*.deb | sed 's/.*_\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/' | sort -u)
+          keep=""
+          for line in $lines; do
+            newest=$(ls -1 ./*.deb | grep "_${line}\." | sort -V | tail -1)
+            keep="$keep $newest"
           done
-          echo "kept: $(ls -1 ./*.deb | tr '\n' ' ')"
+
+          for package in ./*.deb; do
+            case " $keep " in
+              *" $package "*) ;;
+              *) echo "  dropping $(basename "$package")"; rm -f "$package" ;;
+            esac
+          done
+          echo "kept: $(ls -1 ./*.deb | xargs -n1 basename | tr '\n' ' ')"
 
       - name: Import the signing key
         if: steps.gate.outputs.run == 'true'
@@ -336,7 +390,7 @@ jobs:
 
           cat > copacetic.sources <<EOF
           Types: deb
-          URIs: ${{ vars.APT_REPO_URL }}
+          URIs: $APT_REPO_URL
           Suites: stable
           Components: main
           Architectures: amd64 arm64
@@ -352,6 +406,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         working-directory: pages/apt
         env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
@@ -361,14 +416,14 @@ jobs:
           # Packages first, indexes last. An index naming a package that is not
           # there yet makes every apt update in between fail; the other way
           # round is merely a few minutes of not being offered the new version.
-          aws s3 sync pool "s3://${{ vars.R2_BUCKET }}/pool" \
+          aws s3 sync pool "s3://$R2_BUCKET/pool" \
             --endpoint-url "$ENDPOINT" --no-progress --delete \
             --content-type application/vnd.debian.binary-package
-          aws s3 sync dists "s3://${{ vars.R2_BUCKET }}/dists" \
+          aws s3 sync dists "s3://$R2_BUCKET/dists" \
             --endpoint-url "$ENDPOINT" --no-progress --cache-control 'no-cache'
 
           for file in copacetic-archive-keyring.gpg copacetic.sources copacetic-key-fingerprint.txt; do
-            aws s3 cp "$file" "s3://${{ vars.R2_BUCKET }}/$file" \
+            aws s3 cp "$file" "s3://$R2_BUCKET/$file" \
               --endpoint-url "$ENDPOINT" --no-progress --cache-control 'no-cache'
           done
 
@@ -378,7 +433,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
-          base="${{ vars.APT_REPO_URL }}"
+          base="$APT_REPO_URL"
           for file in dists/stable/InRelease dists/stable/Release dists/stable/Release.gpg \
                       copacetic-archive-keyring.gpg copacetic.sources; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$base/$file")

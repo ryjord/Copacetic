@@ -95,18 +95,32 @@ describe('what the vault admits to', () => {
 });
 
 /**
- * The claim that Copacetic never runs code inside a page is the reason
+ * No code of Copacetic's sits in a page permanently, which is the reason
  * save-on-submit was dropped. If a preload is ever added to web content the
  * claim becomes false, and this fails rather than leaving a lie in Settings.
+ *
+ * The distinction this used to blur, and which cost four releases of a false
+ * claim: nothing *persistent* runs in a page, and one short script runs when
+ * you ask it to fill a password and is gone when it returns. The first is the
+ * guarantee; the second is a feature the pane spent four releases denying.
  */
 describe('the promise not to read your pages', () => {
-  it('is still true of the code', () => {
+  it('is still true of the code — no preload reaches web content', () => {
     const tabs = readFileSync('electron/main/tabs/tabs.ts', 'utf8');
     expect(tabs).toMatch(/preload:\s*undefined/);
   });
 
   it('is what the pane tells the user', async () => {
     render(<PasswordsPane />);
-    await waitFor(() => expect(document.body.textContent).toContain('ships without any'));
+    await waitFor(() => expect(document.body.textContent).toContain('ships no such script'));
+  });
+
+  /*
+   * And the pane says which script does run, so the guarantee above is not
+   * doing the work of pretending the fill does not exist.
+   */
+  it('does not use that promise to deny the fill that ships', async () => {
+    render(<PasswordsPane />);
+    await waitFor(() => expect(document.body.textContent).toContain('Fill password'));
   });
 });

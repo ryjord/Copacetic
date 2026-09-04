@@ -1,3 +1,4 @@
+import { isThemeId } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
@@ -105,9 +106,7 @@ function reviveSettings(raw: unknown): Settings | null {
 
   return normaliseSettings({
     searchEngine: engine in SEARCH_ENGINES ? (engine as Settings['searchEngine']) : DEFAULT_SETTINGS.searchEngine,
-    theme: (['deep', 'slate', 'ember', 'moss'] as const).includes(theme as Settings['theme'])
-      ? (theme as Settings['theme'])
-      : DEFAULT_SETTINGS.theme,
+    theme: isThemeId(theme) ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',
     // An unknown resolver falls back to the system rather than to one nobody chose.
     dnsMode: asString(raw.dnsMode) === 'encrypted' ? 'encrypted' : 'system',

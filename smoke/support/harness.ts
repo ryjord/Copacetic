@@ -45,23 +45,32 @@ export class SmokeApp {
       env: launchEnvironment(),
     });
 
-    // The overlay is a page too, and Playwright hands back whichever it saw
-    // first. The chrome is the one that is not the overlay.
-    const chrome = await (async () => {
+    // Both the chrome and the overlay are pages, and Playwright hands back
+    // whichever it saw first, so each is waited for by what its URL says.
+    const windowWhere = async (matches: (url: string) => boolean, what: string): Promise<Page> => {
       const deadline = Date.now() + 20_000;
       while (Date.now() < deadline) {
-        for (const candidate of app.windows()) {
-          if (!candidate.url().includes('/overlay')) {
-            return candidate;
-          }
+        const found = app.windows().find((candidate) => matches(candidate.url()));
+        if (found) {
+          return found;
         }
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      return app.firstWindow();
-    })();
+      throw new Error(`the app never opened its ${what}`);
+    };
+
+    const chrome = await windowWhere((url) => !url.includes('/overlay'), 'chrome window');
     await chrome.waitForLoadState('domcontentloaded');
-    const overlay = app.windows().find((candidate) => candidate.url().includes('/overlay'));
-    return new SmokeApp(app, chrome, profile, overlay ?? chrome);
+
+    // Previously `overlay ?? chrome`, which made an overlay that had not been
+    // created yet indistinguishable from a working one: keystrokes meant for it
+    // went to the chrome, found a button that happened to match, and the spec
+    // failed somewhere else entirely. A missing overlay is a failure with a
+    // name now, not a silent substitution.
+    const overlay = await windowWhere((url) => url.includes('/overlay'), 'overlay layer');
+    await overlay.waitForLoadState('domcontentloaded');
+
+    return new SmokeApp(app, chrome, profile, overlay);
   }
 
   /**

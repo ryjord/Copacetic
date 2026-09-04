@@ -401,6 +401,45 @@ describe('while the vault is locked', () => {
     expect(vault.exportAll()).toEqual({ credentials: [], unreadable: 1 });
   });
 
+  /*
+   * Reading was behind the lock and destroying was not, which made the pane say
+   * two things at once: it refused to show a password and offered to delete it
+   * in the same row. Whoever cannot be trusted to read an entry cannot be
+   * trusted to destroy one, and destroying is the half that cannot be undone.
+   */
+  it('refuses to remove a password, and says why', () => {
+    const { id, vault } = lockedVault();
+    expect(vault.remove(id)).toEqual({ error: 'Unlock the vault before removing a password.' });
+    expect(vault.state().entries).toHaveLength(1);
+  });
+
+  // Overwriting a password nobody can read is losing it.
+  it('refuses to change one', () => {
+    const { id, vault } = lockedVault();
+    expect(vault.update(id, { password: 'something-else' })).toEqual({
+      error: 'Unlock the vault before changing a password.',
+    });
+  });
+
+  // An import updates entries that already exist, so it can overwrite too.
+  it('imports nothing, and counts what it turned away', () => {
+    const { vault } = lockedVault();
+    const result = vault.importMany([{ origin: 'https://example.com', username: 'riley', password: 'new' }]);
+    expect(result).toEqual({ added: 0, updated: 0, skipped: 1 });
+    expect(vault.state().entries).toHaveLength(1);
+  });
+
+  /*
+   * The counterweight, and the line the lock is drawn on: adding a password
+   * loses nothing and reveals nothing, so it is allowed. A lock that stopped
+   * everything would just be a broken vault.
+   */
+  it('still lets a new password be added', () => {
+    const { vault } = lockedVault();
+    expect(vault.add({ origin: 'https://new.example', username: 'a', password: 'b' })).toHaveProperty('id');
+    expect(vault.state().entries).toHaveLength(2);
+  });
+
   // Locked is not the same as gone: the list is how someone knows what is there.
   it('still lists what is saved', () => {
     const { vault } = lockedVault();

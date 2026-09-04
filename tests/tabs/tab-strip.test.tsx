@@ -28,9 +28,17 @@ function tab(id: string, title: string): TabState {
     isLoading: false,
     canGoBack: false,
     canGoForward: false,
+    isHush: false,
     isAudible: false,
     isMuted: false,
-    security: { level: 'secure', scheme: 'https', host: `${id}.example`, detail: '', certificate: null },
+    security: {
+      level: 'secure',
+      scheme: 'https',
+      host: `${id}.example`,
+      detail: '',
+      certificate: null,
+      certificateChange: 'none',
+    },
     error: null,
     blockedCount: 0,
     loadMs: null,
@@ -88,7 +96,7 @@ describe('dropping a tab where it already was', () => {
 
 describe('the tab strip is reachable by keyboard', () => {
   it('is a tablist, so assistive technology knows what it is', () => {
-    render(<TabStrip tabs={TABS} activeTabId="one" />);
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     expect(screen.getByRole('tablist')).toBeTruthy();
     expect(screen.getAllByRole('tab')).toHaveLength(3);
   });
@@ -96,7 +104,7 @@ describe('the tab strip is reachable by keyboard', () => {
   // Roving tabindex: one stop for the strip, not one per tab. Thirty tabs must
   // not mean thirty presses to get past them.
   it('gives exactly one tab stop, on the selected tab', () => {
-    render(<TabStrip tabs={TABS} activeTabId="two" />);
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="two" />);
     const stops = screen.getAllByRole('tab').filter((el) => el.getAttribute('tabindex') === '0');
     expect(stops).toHaveLength(1);
     expect(stops[0]?.textContent).toContain('Two');
@@ -108,32 +116,32 @@ describe('the tab strip is reachable by keyboard', () => {
     ['End', 'three'],
     ['Home', 'one'],
   ])('moves selection with %s', (key, expected) => {
-    render(<TabStrip tabs={TABS} activeTabId="one" />);
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     fireEvent.keyDown(screen.getByRole('tablist'), { key });
     expect(activate).toHaveBeenCalledWith(expected);
   });
 
   it('wraps around rather than stopping at the ends', () => {
-    render(<TabStrip tabs={TABS} activeTabId="three" />);
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="three" />);
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
     expect(activate).toHaveBeenCalledWith('one');
   });
 
   it('closes the selected tab with Delete', () => {
-    render(<TabStrip tabs={TABS} activeTabId="two" />);
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="two" />);
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'Delete' });
     expect(close).toHaveBeenCalledWith('two');
   });
 
   it('activates on Enter and Space', () => {
-    render(<TabStrip tabs={TABS} activeTabId="one" />);
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     const third = screen.getAllByRole('tab')[2]!;
     fireEvent.keyDown(third, { key: 'Enter' });
     expect(activate).toHaveBeenCalledWith('three');
   });
 
   it('does nothing on a key it does not handle', () => {
-    render(<TabStrip tabs={TABS} activeTabId="one" />);
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'a' });
     expect(activate).not.toHaveBeenCalled();
   });

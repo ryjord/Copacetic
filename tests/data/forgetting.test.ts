@@ -26,6 +26,24 @@ describe('which site an address belongs to', () => {
     expect(siteOf('www.example.com')).toBe('example.com');
   });
 
+  /*
+   * A cookie set with `Domain=example.com` is stored by Chromium as
+   * `.example.com`. Read as a host, the leading dot made the registrable-domain
+   * algorithm refuse the whole string, so the site did not match itself — and
+   * forgetting a site skipped every cookie scoped across its subdomains, which
+   * is the kind that keeps you signed in. The fix for cookies was written and
+   * then tested with host-only cookies, which never carry the dot.
+   */
+  it('reads a cookie domain, which carries a leading dot', () => {
+    expect(siteOf('.example.com')).toBe('example.com');
+    expect(sameSite('.example.com', 'example.com')).toBe(true);
+    expect(sameSite('.www.example.com', 'example.com')).toBe(true);
+  });
+
+  it('still keeps a dotted domain from another site apart', () => {
+    expect(sameSite('.example.org', 'example.com')).toBe(false);
+  });
+
   it('treats subdomains of one site as that site', () => {
     expect(sameSite('https://app.example.com/a', 'https://www.example.com/b')).toBe(true);
   });
@@ -93,6 +111,24 @@ describe('what is said before forgetting a site', () => {
   it('joins several with an and, the way a person would', () => {
     const message = describeTraces(traces({ visits: 31, icons: 1, zoom: 1 }));
     expect(message).toBe('31 visits, 1 cached icon and 1 zoom.');
+  });
+
+  /*
+   * The one that was missing, and the one people actually mean. Forgetting a
+   * site removed its history, icons, zoom, permissions and certificates and
+   * left every cookie in place, so someone told the site was forgotten could
+   * open it and still be signed in.
+   */
+  it('names the cookies, which are the part that kept you signed in', () => {
+    expect(describeTraces(traces({ visits: 4, cookies: 12 }))).toBe('4 visits and 12 cookies.');
+  });
+
+  it('says one cookie properly', () => {
+    expect(describeTraces(traces({ cookies: 1 }))).toBe('1 cookie.');
+  });
+
+  it('counts cookies towards what will go', () => {
+    expect(countTraces(traces({ visits: 3, cookies: 12 }))).toBe(15);
   });
 
   /*

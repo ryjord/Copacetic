@@ -5,7 +5,10 @@ const AT = Date.UTC(2026, 7, 11, 9, 0, 0);
 
 describe('bookmarksToHtml', () => {
   it('writes the format every browser imports', () => {
-    const html = bookmarksToHtml([{ id: 'a', url: 'https://example.com/', title: 'Example', createdAt: AT }], AT);
+    const html = bookmarksToHtml(
+      [{ id: 'a', url: 'https://example.com/', title: 'Example', createdAt: AT, folderId: null }],
+      AT,
+    );
     expect(html.startsWith('<!DOCTYPE NETSCAPE-Bookmark-file-1>')).toBe(true);
     expect(html).toContain('<A HREF="https://example.com/"');
     expect(html).toContain('>Example</A>');
@@ -17,7 +20,15 @@ describe('bookmarksToHtml', () => {
   // other browsers will parse.
   it('escapes a title that tries to write markup of its own', () => {
     const html = bookmarksToHtml(
-      [{ id: 'a', url: 'https://example.com/', title: '</A><script>alert(1)</script>', createdAt: AT }],
+      [
+        {
+          id: 'a',
+          url: 'https://example.com/',
+          title: '</A><script>alert(1)</script>',
+          createdAt: AT,
+          folderId: null,
+        },
+      ],
       AT,
     );
     expect(html).not.toContain('<script>');
@@ -26,7 +37,7 @@ describe('bookmarksToHtml', () => {
 
   it('escapes a URL that tries to break out of the attribute', () => {
     const html = bookmarksToHtml(
-      [{ id: 'a', url: 'https://example.com/"><script>x</script>', title: 'x', createdAt: AT }],
+      [{ id: 'a', url: 'https://example.com/"><script>x</script>', title: 'x', createdAt: AT, folderId: null }],
       AT,
     );
     expect(html).not.toContain('"><script>');
@@ -40,9 +51,9 @@ describe('bookmarksToHtml', () => {
   });
 
   it('falls back to the URL when a bookmark has no title', () => {
-    expect(bookmarksToHtml([{ id: 'a', url: 'https://example.com/', title: '', createdAt: AT }], AT)).toContain(
-      '>https://example.com/</A>',
-    );
+    expect(
+      bookmarksToHtml([{ id: 'a', url: 'https://example.com/', title: '', createdAt: AT, folderId: null }], AT),
+    ).toContain('>https://example.com/</A>');
   });
 });
 

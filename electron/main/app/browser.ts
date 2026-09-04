@@ -1,9 +1,17 @@
-import { type KeptKind, type SiteTraces, describeTraces, siteOf } from '../../shared/forgetting';
+import {
+  type KeptAboutSites,
+  type KeptKind,
+  type SiteTraces,
+  describeTraces,
+  sameSite,
+  siteOf,
+} from '../../shared/forgetting';
 import {
   type BrowserWindow,
   app,
   dialog,
   session as electronSession,
+  type Session,
   safeStorage,
   shell,
   systemPreferences,
@@ -49,11 +57,13 @@ import {
 import { DownloadManager } from '../data/downloads';
 import { chromeEntryUrl, isDevelopment, filtersRoot } from './env';
 import {
+  HUSH_PARTITION,
   type SecurityDelegate,
-  getHushSession,
+  WEB_PARTITION,
   getWebSession,
   hardenChromeSession,
   hardenWebSession,
+  remembersDownloads,
 } from '../security/security';
 import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
@@ -148,21 +158,11 @@ export class Browser {
 
     hardenChromeSession(electronSession.defaultSession);
 
-    const webSession = getWebSession();
-    hardenWebSession(webSession, this.securityDelegate());
-    this.blocker.attach(webSession);
-    this.downloads.attach(webSession);
-
-    // A Hush tab is a different session, so every guard has to be installed on
-    // it separately. Forgetting one would mean the tab that promises the most
-    // is the one running with the least protection — no permission handling,
-    // no tracker blocking, no certificate reporting.
-    const hushSession = getHushSession();
-    hardenWebSession(hushSession, this.securityDelegate());
-    this.blocker.attach(hushSession);
-    // Not remembered: a Hush download's address, redirect chain and time are
-    // browsing, and the tab's whole claim is that none of that is written down.
-    this.downloads.attach(hushSession, false);
+    // Web and Hush are prepared up front because they exist from launch. Every
+    // other partition — a group that keeps its own browsing — is prepared the
+    // first time a tab asks for it, through the same method.
+    this.prepareSession(WEB_PARTITION);
+    this.prepareSession(HUSH_PARTITION);
 
     this.window = createChromeWindow();
     this.tabs = new TabManager(
@@ -170,6 +170,8 @@ export class Browser {
       this.store,
       this.blocker,
       this.securityDelegate(),
+      // No tab is born in a partition this has not hardened first.
+      (partition) => this.prepareSession(partition),
       () => this.scheduleStatePush(),
       (tabId) => this.dropPermissionsForTab(tabId),
       // Anything drawn over the page has to follow the page. The rectangle
@@ -185,6 +187,42 @@ export class Browser {
     this.attachAuthHandler();
     this.window.on('closed', () => this.dispose());
     this.window.webContents.on('did-finish-load', () => this.scheduleStatePush());
+  }
+
+  /** Partitions already hardened, so the work happens once per session. */
+  private readonly preparedSessions = new Set<string>();
+
+  /**
+   * The session for a partition, with every guard installed before anything can
+   * run in it.
+   *
+   * There are three kinds of session, not two, and only two of them were ever
+   * set up. A group that keeps its own browsing gets
+   * `persist:copacetic-group-<id>`, and nothing hardened it: no permission
+   * request handler, so Electron's default applied and the default is to
+   * approve; no tracker blocking, while the address bar went on reporting a
+   * blocked count of zero, which reads as a clean page rather than an
+   * unprotected one; and no download manager, so filenames skipped the
+   * right-to-left override and path stripping the README promises.
+   *
+   * The guards were never the problem. Calling them in two places by hand was.
+   * Everything goes through here now, so a fourth kind of session cannot be
+   * added without being protected — there is nowhere else to make one.
+   */
+  private prepareSession(partition: string): Session {
+    const session = electronSession.fromPartition(partition);
+    if (this.preparedSessions.has(partition)) {
+      return session;
+    }
+    this.preparedSessions.add(partition);
+
+    hardenWebSession(session, this.securityDelegate());
+    this.blocker.attach(session);
+    // Everything but Hush is remembered. A Hush download's address, redirect
+    // chain and time are browsing, and the tab's whole claim is that none of
+    // that is written down.
+    this.downloads.attach(session, remembersDownloads(partition));
+    return session;
   }
 
   // ------------------------------------------------------------------ start
@@ -248,6 +286,10 @@ export class Browser {
       if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
         return;
       }
+      // The tabs changed often enough to be worth telling the interface about,
+      // which is exactly when they are worth writing down. The session file has
+      // its own longer debounce, so this is not a write per change.
+      this.saveSession();
       this.window.webContents.send(PUSH.state, this.getState());
     });
   }
@@ -1090,22 +1132,144 @@ export class Browser {
    * Said afterwards as well as before, because something that vanished quietly
    * is indistinguishable from something that did not work.
    */
-  forgetSite(address: string): SiteTraces {
+  /**
+   * Everything this browser knows about one site, including the part that kept
+   * you signed in to it.
+   *
+   * The store forgets what it wrote down — history, icons, certificates, zoom,
+   * permissions, blocking exceptions. None of that is the session, and the
+   * session is where the sign-in lives: someone told a site had been forgotten
+   * could open it and still be logged in, which made the whole sentence a lie.
+   *
+   * Cookies and site storage go from every session this window has prepared,
+   * which is ordinary browsing, Hush, and each group that keeps its own — a
+   * group's cookies are still that site's cookies.
+   */
+  async forgetSite(address: string): Promise<SiteTraces> {
+    // Read before the store forgets, because afterwards nothing names them.
+    const known = this.store.originsForSite(address);
     const removed = this.store.forgetSite(address);
+    const cookies = await this.forgetSiteInSessions(address, known);
     // The allowlist may have lost an entry, and the blocker holds its own copy.
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
+
+    const complete = { ...removed, cookies };
     this.notify({
       id: `forget-${siteOf(address)}`,
       tone: 'done',
       key: 'forget-site',
-      message: `Forgot ${siteOf(address)} — ${describeTraces(removed).toLowerCase()}`,
+      message: `Forgot ${siteOf(address)} — ${describeTraces(complete).toLowerCase()}`,
     });
     this.scheduleStatePush();
+    return complete;
+  }
+
+  /**
+   * Removes the site's cookies and storage from every prepared session, and
+   * reports how many cookies went.
+   *
+   * Cookies are matched by the site they belong to rather than by origin: a
+   * cookie set on `.example.com` is example.com's, and clearing by exact origin
+   * would leave it. Storage is cleared by origin because that is what the API
+   * takes, using the origins the cookies themselves name.
+   */
+  private async forgetSiteInSessions(address: string, known: string[] = []): Promise<number> {
+    const site = siteOf(address);
+    if (!site) {
+      return 0;
+    }
+
+    let removed = 0;
+    for (const { session, cookies } of await this.cookiesForSite(site)) {
+      // `clearData` matches an origin exactly, so every origin the site is known
+      // to have has to be named: the ones a cookie points at, the ones this
+      // browser saw an icon or a certificate for, and the two obvious spellings.
+      // A subdomain that kept storage without a cookie, an icon or a certificate
+      // is not reachable from here and is not cleared.
+      const origins = new Set<string>([`https://${site}`, `https://www.${site}`, ...known]);
+      for (const cookie of cookies) {
+        const host = (cookie.domain ?? '').replace(/^\./, '');
+        const scheme = cookie.secure ? 'https' : 'http';
+        origins.add(`${scheme}://${host}`);
+        try {
+          await session.cookies.remove(`${scheme}://${host}${cookie.path ?? '/'}`, cookie.name);
+          removed += 1;
+        } catch {
+          // A cookie the session will not give up is not a reason to abandon
+          // the rest of them, and the count reports what actually went.
+        }
+      }
+
+      try {
+        await session.clearData({ origins: [...origins] });
+      } catch {
+        // An in-memory session can refuse this. The cookies are already gone,
+        // which is the part someone would notice.
+      }
+    }
     return removed;
   }
 
+  /**
+   * The site's cookies in every session this window has prepared.
+   *
+   * Matched by the site a cookie belongs to rather than by origin: a cookie set
+   * on `.example.com` is example.com's, and matching exact origins would leave
+   * it behind. Used both to count before anything is removed and to remove.
+   */
+  private async cookiesForSite(site: string): Promise<{ session: Session; cookies: Electron.Cookie[] }[]> {
+    const found: { session: Session; cookies: Electron.Cookie[] }[] = [];
+    for (const partition of this.preparedSessions) {
+      const session = electronSession.fromPartition(partition);
+      try {
+        const all = await session.cookies.get({});
+        found.push({ session, cookies: all.filter((cookie) => sameSite(cookie.domain ?? '', site)) });
+      } catch {
+        found.push({ session, cookies: [] });
+      }
+    }
+    return found;
+  }
+
+  /**
+   * What will go, said before it goes.
+   *
+   * The store counts what it wrote down and cannot see a session, so the cookies
+   * are added here. Without them the warning understated what forgetting does by
+   * exactly the thing people care about — and then the sentence afterwards named
+   * a number the sentence before had not mentioned.
+   */
+  async tracesOf(address: string): Promise<SiteTraces> {
+    const site = siteOf(address);
+    const found = this.store.tracesOf(address);
+    if (!site) {
+      return found;
+    }
+    const perSession = await this.cookiesForSite(site);
+    return { ...found, cookies: perSession.reduce((total, entry) => total + entry.cookies.length, 0) };
+  }
+
   /** Clears one kind of thing kept about sites, and says it happened. */
+  /**
+   * What survives a clear, counted where it actually lives.
+   *
+   * The store owns most of it and the download manager owns the rest, so the
+   * two are put together here. Downloads were in neither list: clearing history
+   * left downloads.json holding every address and redirect chain, and the pane
+   * that exists to say what a clear does not touch did not mention it.
+   */
+  keptAboutSites(): KeptAboutSites {
+    return { ...this.store.keptAboutSites(), downloads: this.downloads.remembered() };
+  }
+
   clearKept(kind: KeptKind): void {
+    if (kind === 'downloads') {
+      // The files stay where they were saved. What goes is the record of where
+      // they came from, which is browsing.
+      this.downloads.clearCompleted();
+      this.scheduleStatePush();
+      return;
+    }
     this.store.clearKept(kind);
     if (kind === 'blockingOff') {
       this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
@@ -1178,6 +1342,15 @@ export class Browser {
 
   // -------------------------------------------------------------- teardown
 
+  /**
+   * Records the tabs that are open.
+   *
+   * Called whenever they change rather than only at quit. Writing the session
+   * once, on the way out, meant a crash or a kill lost every open tab — the one
+   * thing someone notices immediately, and the one thing that cannot be
+   * reconstructed. The session file flushes on its own longer debounce, so
+   * saying so on every change costs a write about once a second at worst.
+   */
   saveSession(): void {
     this.store.saveSession(this.tabs.sessionSnapshot());
   }

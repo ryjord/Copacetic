@@ -5,9 +5,13 @@ import type { Settings } from '../../electron/shared/types';
 // `normaliseSettings` is pure, so a minimal stub keeps the import graph happy.
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 
-const { normaliseSettings } = await import('../../electron/main/data/store');
+const { DEFAULT_SETTINGS, normaliseSettings } = await import('../../electron/main/data/store');
 
+// Spread from the defaults rather than written out: listing every field meant
+// the fixture stopped being a Settings the moment one was added, which nothing
+// noticed because the tests were never type-checked.
 const BASE: Settings = {
+  ...DEFAULT_SETTINGS,
   searchEngine: 'duckduckgo',
   theme: 'deep',
   httpsFirst: true,

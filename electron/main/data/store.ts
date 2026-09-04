@@ -167,6 +167,9 @@ export class BrowserStore {
       permissions: keysFor(settings.permissionDecisions),
       blockingOff: settings.blockerAllowlist.filter((entry) => sameSite(entry, site)).length,
       certificates: this.certificatesStore.origins().filter((origin) => sameSite(origin, site)).length,
+      // The store does not own the sessions, so it cannot see cookies. The
+      // browser adds that count before either sentence is said.
+      cookies: 0,
     };
   }
 
@@ -177,6 +180,23 @@ export class BrowserStore {
    * someone usually means is a site — and every place it is known, not the one
    * place they happened to be looking at.
    */
+  /**
+   * The origins this browser has seen for a site, for clearing storage keyed by
+   * origin rather than by site.
+   *
+   * Read before anything is deleted: after `forgetSite` there is nothing left
+   * to name them with, and `clearData` matches origins exactly — clearing
+   * `https://example.com` does not touch `https://app.example.com`.
+   */
+  originsForSite(address: string): string[] {
+    const site = siteOf(address);
+    if (!site) {
+      return [];
+    }
+    const seen = [...this.favicons.origins(), ...this.certificatesStore.origins()];
+    return [...new Set(seen.filter((origin) => sameSite(origin, site)))];
+  }
+
   forgetSite(address: string): SiteTraces {
     const site = siteOf(address);
     if (!site) {
@@ -215,6 +235,8 @@ export class BrowserStore {
       permissions: Object.keys(settings.permissionDecisions).length,
       blockingOff: settings.blockerAllowlist.length,
       certificates: this.certificatesStore.origins().length,
+      // The store does not own the download manager; the browser fills this in.
+      downloads: 0,
     };
   }
 
@@ -228,8 +250,11 @@ export class BrowserStore {
       zoom: { zoomLevels: {} },
       permissions: { permissionDecisions: {} },
       blockingOff: { blockerAllowlist: [] },
-    }[kind];
-    this.settings.updateSettings(patch);
+    }[kind as 'zoom' | 'permissions' | 'blockingOff'] as Partial<Settings> | undefined;
+    // Downloads are the browser's, not the store's, and are cleared there.
+    if (patch) {
+      this.settings.updateSettings(patch);
+    }
   }
 
   /** Requests refused across everything still in history. */

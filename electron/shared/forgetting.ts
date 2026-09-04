@@ -31,6 +31,8 @@ export interface KeptAboutSites {
   permissions: number;
   blockingOff: number;
   certificates: number;
+  /** Completed downloads whose address and time are still recorded. */
+  downloads: number;
 }
 
 /** The kinds that can be cleared on their own, named as a person would say them. */
@@ -39,6 +41,11 @@ export const KEPT_KINDS = [
   { id: 'permissions', one: 'Permissions decided for 1 site', many: 'Permissions decided for {n} sites' },
   { id: 'blockingOff', one: 'Blocking switched off on 1 site', many: 'Blocking switched off on {n} sites' },
   { id: 'certificates', one: 'Certificate remembered for 1 site', many: 'Certificates remembered for {n} sites' },
+  // The file is on disk because it was asked for; where it came from is
+  // browsing. Kept, because someone may need to know where a file they still
+  // have came from — and listed, because clearing history did not touch it and
+  // nothing said so.
+  { id: 'downloads', one: 'Where 1 download came from', many: 'Where {n} downloads came from' },
 ] as const;
 
 export type KeptKind = (typeof KEPT_KINDS)[number]['id'];
@@ -65,6 +72,15 @@ export interface SiteTraces {
   blockingOff: number;
   /** A certificate accepted for it that nobody else would accept. */
   certificates: number;
+  /**
+   * Cookies held for the site across every session.
+   *
+   * The one that made the rest of the sentence a lie. Forgetting a site removed
+   * its history, its icons, its zoom, its permissions and its certificates, and
+   * left the cookies exactly where they were — so someone who had just been
+   * told the site was forgotten was still signed in to it.
+   */
+  cookies: number;
 }
 
 export const NOTHING: SiteTraces = {
@@ -74,6 +90,7 @@ export const NOTHING: SiteTraces = {
   permissions: 0,
   blockingOff: 0,
   certificates: 0,
+  cookies: 0,
 };
 
 /** Whether two addresses belong to the same site, by registrable domain. */
@@ -118,7 +135,12 @@ export function siteOf(address: string): string {
  * two different projects.
  */
 function authorityOf(host: string, port: string): string {
-  const lowered = host.toLowerCase();
+  // A cookie set with `Domain=example.com` is stored by Chromium as
+  // `.example.com`, and that leading dot is a marker rather than part of the
+  // host. Left on, `registrableDomainOf` refuses the whole string and the site
+  // never matches itself — so forgetting a site skipped every cookie scoped
+  // across its subdomains, which is exactly the kind that keeps you signed in.
+  const lowered = host.toLowerCase().replace(/^\./, '');
   const isAddress = IPV4.test(lowered) || lowered.startsWith('[') || !lowered.includes('.');
   if (!isAddress) {
     return registrableDomainOf(lowered) ?? lowered;
@@ -154,6 +176,7 @@ export function describeTraces(traces: SiteTraces): string {
   add(traces.permissions, 'permission', 'permissions');
   add(traces.blockingOff, 'blocking exception', 'blocking exceptions');
   add(traces.certificates, 'accepted certificate', 'accepted certificates');
+  add(traces.cookies, 'cookie', 'cookies');
 
   if (parts.length === 0) {
     return 'Nothing is kept about this site.';

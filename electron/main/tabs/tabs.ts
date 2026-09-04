@@ -21,6 +21,8 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
+import { inheritFromOpener } from '../../shared/opening';
+import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
 import type { SessionSnapshot, SessionTab } from '../data/session-store';
 import { trustedLocally } from '../security/local-certificates';
@@ -57,6 +59,11 @@ export class TabManager {
     private readonly store: BrowserStore,
     private readonly blocker: ContentBlocker,
     private readonly securityDelegate: SecurityDelegate,
+    /**
+     * Hardens a partition and returns its session. Called before a tab exists,
+     * because a session that is hardened afterwards has already been used.
+     */
+    private readonly prepareSession: (partition: string) => unknown,
     private readonly onChanged: () => void,
     /** Fired once per closed tab so owners can drop state keyed to it. */
     private readonly onTabClosed: (id: TabId) => void = () => {},
@@ -468,8 +475,29 @@ export class TabManager {
     // `javascript:` tab by forgetting a check of its own.
     const rawUrl = requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) ? requestedUrl : START_PAGE_URL;
 
+    // What the opener was, this tab is, unless the caller said otherwise. A
+    // link followed out of a Hush tab used to open an ordinary recorded one —
+    // see shared/opening.ts. Applied here because this is the single place
+    // every tab is born, so no caller can forget it.
+    const opener =
+      options.openerWebContentsId === undefined ? null : this.findByWebContentsId(options.openerWebContentsId);
+    const inherited = inheritFromOpener(opener ? { isHush: opener.isHush, groupId: opener.groupId } : null, {
+      hush: options.hush,
+      groupId: options.groupId,
+    });
+
     const id = randomUUID();
     const settings = this.store.getSettings();
+    // Hush wins over a group's own session: see shared/tab-groups.ts.
+    const partition = partitionFor(
+      { isHush: inherited.hush, group: this.store.groupFor(inherited.groupId) },
+      { web: WEB_PARTITION, hush: HUSH_PARTITION },
+    );
+    // Before the view exists, not after. A group's own session had nothing
+    // installed on it at all, so its tabs ran with permissions approved by
+    // default, no tracker blocking and no download handling.
+    this.prepareSession(partition);
+
     const view = new WebContentsView({
       webPreferences: {
         // Page content gets no bridge, no Node, and its own persistent
@@ -481,11 +509,7 @@ export class TabManager {
         webviewTag: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
-        // Hush wins over a group's own session: see shared/tab-groups.ts.
-        partition: partitionFor(
-          { isHush: options.hush === true, group: this.store.groupFor(options.groupId ?? null) },
-          { web: WEB_PARTITION, hush: HUSH_PARTITION },
-        ),
+        partition,
         spellcheck: true,
         safeDialogs: true,
       },
@@ -497,7 +521,7 @@ export class TabManager {
     const tab: TabRecord = {
       id,
       view,
-      isHush: options.hush === true,
+      isHush: inherited.hush,
       isStartPage,
       url: isStartPage ? START_PAGE_URL : rawUrl,
       title: '',
@@ -509,7 +533,7 @@ export class TabManager {
       zoomFactor: settings.defaultZoomFactor,
       isMuted: false,
       pendingFaviconUrl: null,
-      groupId: options.groupId && this.store.groupFor(options.groupId) ? options.groupId : null,
+      groupId: inherited.groupId && this.store.groupFor(inherited.groupId) ? inherited.groupId : null,
     };
 
     this.tabs.set(id, tab);
@@ -802,7 +826,7 @@ export class TabManager {
     if (!tab || !contents) {
       return;
     }
-    tab.zoomFactor = Math.min(5, Math.max(0.25, zoomFactor));
+    tab.zoomFactor = clampZoom(zoomFactor);
     contents.setZoomFactor(tab.zoomFactor);
 
     // Remembered against the origin: a site that needs zooming needs it every

@@ -17,7 +17,10 @@ export const BOOKMARKS_PLAN: SchemaPlan = {
         if (!Array.isArray(raw)) {
           return raw;
         }
-        return raw.map((item) => (isRecord(item) ? { ...item, folderId: null } : item));
+        // `folderId: null` unconditionally meant running this step twice
+        // un-filed every bookmark from every folder while leaving the bookmarks
+        // themselves in place, which reads as the tree silently collapsing.
+        return raw.map((item) => (isRecord(item) && !('folderId' in item) ? { ...item, folderId: null } : item));
       },
     },
   ],

@@ -114,11 +114,11 @@ describe('bookmarks, read back off disk', () => {
   });
 
   it('falls back to the url when there is no title', () => {
-    expect(reviveBookmarks([{ url: 'https://a.test/x' }])[0]?.title).toBe('https://a.test/x');
+    expect(reviveBookmarks([{ url: 'https://a.test/x' }])?.[0]?.title).toBe('https://a.test/x');
   });
 
   it('gives an entry an id when the file has none', () => {
-    expect(reviveBookmarks([{ url: 'https://a.test/x' }])[0]?.id).toBeTruthy();
+    expect(reviveBookmarks([{ url: 'https://a.test/x' }])?.[0]?.id).toBeTruthy();
   });
 });
 
@@ -188,7 +188,9 @@ describe('bookmarks written by an older version', () => {
   const migrated = (raw: unknown) => migrate(raw, 1, BOOKMARKS_PLAN);
 
   it('files every old bookmark nowhere', () => {
-    const outcome = migrated([{ id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5 }]);
+    const outcome = migrated([
+      { id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5, folderId: null },
+    ]);
     expect(outcome.status).toBe('migrated');
     expect(outcome.status === 'migrated' && outcome.data).toEqual([
       { id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5, folderId: null },
@@ -196,7 +198,9 @@ describe('bookmarks written by an older version', () => {
   });
 
   it('keeps what the old file already said', () => {
-    const outcome = migrated([{ id: 'b1', url: 'https://example.com/', title: 'Kept', createdAt: 5 }]);
+    const outcome = migrated([
+      { id: 'b1', url: 'https://example.com/', title: 'Kept', createdAt: 5, folderId: null },
+    ]);
     const [first] = outcome.status === 'migrated' ? (outcome.data as { title: string }[]) : [];
     expect(first?.title).toBe('Kept');
   });

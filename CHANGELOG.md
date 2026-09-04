@@ -2,6 +2,154 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.4.1 — unreleased
+
+Batch 1 of the September audit.
+
+### Changed
+
+- **The apt pool keeps one package per version line.** It kept the newest three,
+  which was about to be wrong: a run of patch releases inside one line would
+  have evicted every older line, and someone still on 1.3 would have found 1.3
+  gone from apt while three 1.4 patches sat in its place. It now keeps the
+  newest 1.2, 1.3, 1.4 and 1.5 — the versions someone might reasonably still be
+  on — and stays at four however many patches each line collects. The bucket it
+  publishes to has limited room and each package is about 150MB, so the pool
+  cannot simply grow.
+
+### Fixed
+
+- **The filter lists are credited to the people who make them.** EasyList and
+  EasyPrivacy ship inside Copacetic in full, and they are not Copacetic's to
+  license: they are offered under the GPLv3 or CC BY-SA 3.0, in an MIT repository
+  that had no notice of either. A NOTICE file now names each list, where it came from and
+  under what terms, the README points at it, and Privacy says it on the screen
+  where the lists are already named.
+
+- **The download is a third of the size.** The application was shipping every
+  package the interface is built with — React, Next, the whole component
+  library, an icon set, and a native Rust compiler — inside itself, where the
+  main process never loaded any of them. They are needed to _build_ the
+  interface; what the application actually runs is the 1.3MB of HTML and
+  JavaScript that build produces. Moving them where they belong takes the
+  archive inside the app from 246MB to 15MB and the whole thing from 625MB to
+  291MB, with nothing removed that anything used.
+
+- **A locked vault no longer lets a password be deleted.** Locked, the pane
+  refused to show a password and offered to remove it in the same row — and
+  removing it is the half that cannot be undone. Removing, changing and
+  importing are behind the lock now, for the same reason reading always was.
+  Adding a new password still works, because nothing is lost by it, and the
+  Remove control is not offered when it would only be refused.
+- **The workflows say what they may touch, and run what they meant to run.**
+  Every action was referenced by a tag, which is a pointer somebody else can
+  move; they are pinned to commits now. The CI workflow asked for no permissions
+  and so took the repository default, which is a write token. Repository
+  settings were pasted into shell scripts rather than passed to them. And two
+  releases tagged close together could publish into the same bucket at once,
+  each writing an index describing only the packages it happened to see.
+
+- **Downloads are listed among the things a clear does not touch, and can be
+  cleared.** Clearing history took the history and the cached icons and left
+  `downloads.json` holding every address and redirect chain, while the pane that
+  exists to say what survives a clear did not mention it. The files you saved
+  stay where they are; what goes is the record of where they came from.
+- **A zoom that is not a number cannot be stored.** The default zoom was checked
+  for being a number and then kept as given, unlike the per-site levels sitting
+  beside it — and clamping carried it through, because the arithmetic that
+  clamps propagates a non-number whichever way round it is written. It reached a
+  tab, and the interface had a zoom of NaN per cent to display.
+
+- **A damaged line in the certificate file no longer costs you the rest of it.**
+  What each site presented last time was asserted to have the right shape rather
+  than read, so one malformed entry reached the comparison as a string or a
+  number — and that comparison is the thing that notices a connection which has
+  started being intercepted. Each entry is now read on its own: a bad one loses
+  only its own site, which means that site is treated as newly seen, rather than
+  taking every remembered certificate with it.
+
+- **The blocked-request total stops resetting every time you start.** The count
+  was recorded against each page correctly and then dropped when the file was
+  read back, so the running total returned to nothing on every launch while the
+  real numbers sat on disk untouched. The store that holds it had no tests at
+  all; it does now.
+- **A setting the interface sends is checked before it is kept.** An unknown
+  theme or search engine was stored as given and used until the next start,
+  when the file's own reader quietly corrected it — a setting that fixed itself
+  overnight with no explanation. A zoom level was stored exactly as sent, so a
+  value far outside anything the controls offer could be written down and read
+  back later as that site's zoom.
+
+- **What you had open survives losing power.** Stored files were written and
+  renamed into place without waiting for the disk to confirm the write, so a
+  machine that lost power in between could make the rename stick and the
+  contents not — publishing an empty file where your bookmarks had been. They
+  are now flushed to the disk before the rename, written readable only by you
+  rather than by every account on the machine, and a rename blocked by an
+  antivirus scanner or a search indexer is retried instead of dropped.
+- **The tabs you have open are written down as they change.** They were saved
+  once, on the way out, so anything that was not a polite quit — a crash, a
+  power cut, a forced shutdown — lost every one of them.
+
+- **Notices can be answered with the keyboard again, reliably.** The smoke
+  harness fell back to the chrome window whenever the overlay had not appeared
+  yet, so keystrokes meant for a question went to the wrong page, found a button
+  that happened to match, and failed somewhere else entirely. It waits for the
+  overlay properly now and says so plainly if it never arrives.
+
+- **Forgetting a site now signs you out of it.** It cleared the history, the
+  cached icon, the remembered certificate, the zoom, the permissions and the
+  blocking exception, and never touched the session — so the first thing anyone
+  would check afterwards, whether they were still logged in, was the one thing
+  that had not changed, while the menu item said "Forget example.com" and the
+  code said it removed everything known about the site. Cookies and site storage
+  now go too, from ordinary browsing, from Hush, and from every group that keeps
+  its own — a group's cookies are still that site's cookies, including the ones
+  scoped across every subdomain, which is the shape a sign-in cookie usually has
+  and the shape the first version of this fix quietly skipped. The count is named
+  before it happens as well as after, because a warning that leaves out the part
+  people care about is the same problem one step earlier.
+
+- **Settings and About stop denying a feature that ships.** Filling a password
+  from the right-click menu arrived in 1.3.2. For four releases afterwards the
+  Passwords pane said "Copacetic does not fill them in yet", and, asked
+  directly, "No, and it will not" — on the surface this browser points at to be
+  judged. The README still said there was no password manager at all, two
+  releases after the vault shipped. All four now describe what happens: one
+  short script, run when you ask, gone when it returns. The half that was true
+  is kept and said more plainly — nothing ever offers to save what you type,
+  because that needs code sitting in every page permanently, and that is the
+  guarantee save-on-submit was dropped to keep.
+
+- **Following a link out of a Hush tab no longer leaves a record.** The tab kept
+  its promise; nothing opened from it did. `target="_blank"`, `window.open`,
+  middle-click, "Open link in new tab", "Open image in new tab" and "Search
+  for …" all opened an ordinary, recorded tab — the address went to history, the
+  icon to the cache and the certificate to disk, reached by following a link
+  from the one place that exists not to do that. A new tab now takes Hush, and
+  its group, from the tab that opened it unless it is told otherwise, decided
+  where every tab is created rather than remembered separately by each of the
+  six ways to open one.
+
+- **A group that keeps its own browsing is now protected like everything else.**
+  There are three kinds of session — ordinary, Hush, and a group's own — and
+  only two of them were ever set up, because the setup was written out by hand
+  twice and nobody wrote it a third time. Tabs in a group with its own session
+  therefore ran with no permission handling at all, which means Electron's
+  default applied and the default is to approve; with no tracker blocking, while
+  the address bar went on showing a blocked count of zero, which reads as a
+  clean page rather than an unprotected one; and with no download handling, so
+  filenames skipped the right-to-left override and path stripping. Every session
+  is now prepared in one place, before the tab that uses it exists, and the
+  tests count the call sites so a second copy cannot appear.
+- **A lost version record no longer destroys what it was meant to protect.**
+  Migration steps ran again whenever `schema.json` went missing — an interrupted
+  write, a half-restored backup, a profile copied without it. Running them twice
+  was not wasteful but destructive: the session step returned a session with no
+  tabs in it, and the bookmarks step un-filed every bookmark from every folder.
+  Both now recognise their own output and leave it alone, and every step is
+  tested by running it twice.
+
 ## 1.4.0 — 2026-09-03
 
 ### Added

@@ -36,7 +36,11 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     });
     push({
       label: 'Open link in background tab',
-      click: () => browser.tabs.create(linkUrl, { activate: false }),
+      click: () =>
+        browser.tabs.create(linkUrl, {
+          activate: false,
+          openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
+        }),
     });
     push({ label: 'Copy link address', click: () => clipboard.writeText(linkUrl) });
     push({ label: 'Download linked file', click: () => browser.downloadUrl(linkUrl) });
@@ -44,7 +48,14 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
   }
 
   if (imageUrl) {
-    push({ label: 'Open image in new tab', click: () => browser.tabs.create(imageUrl, { activate: true }) });
+    push({
+      label: 'Open image in new tab',
+      click: () =>
+        browser.tabs.create(imageUrl, {
+          activate: true,
+          openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
+        }),
+    });
     push({ label: 'Copy image', click: () => browser.tabs.copyImageAt(tabId, params.x, params.y) });
     push({ label: 'Copy image address', click: () => clipboard.writeText(imageUrl) });
     push({ label: 'Save image', click: () => browser.downloadUrl(imageUrl) });
@@ -97,7 +108,11 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     push({ role: 'copy' });
     push({
       label: searchSelectionLabel(selection),
-      click: () => browser.tabs.create(browser.searchUrlFor(selection), { activate: true }),
+      click: () =>
+        browser.tabs.create(browser.searchUrlFor(selection), {
+          activate: true,
+          openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
+        }),
     });
     separate();
   }
