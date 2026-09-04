@@ -35,6 +35,14 @@ Batch 1 of the September audit.
   archive inside the app from 246MB to 15MB and the whole thing from 625MB to
   291MB, with nothing removed that anything used.
 
+- **A damaged line in the certificate file no longer costs you the rest of it.**
+  What each site presented last time was asserted to have the right shape rather
+  than read, so one malformed entry reached the comparison as a string or a
+  number — and that comparison is the thing that notices a connection which has
+  started being intercepted. Each entry is now read on its own: a bad one loses
+  only its own site, which means that site is treated as newly seen, rather than
+  taking every remembered certificate with it.
+
 - **The blocked-request total stops resetting every time you start.** The count
   was recorded against each page correctly and then dropped when the file was
   read back, so the running total returned to nothing on every launch while the
