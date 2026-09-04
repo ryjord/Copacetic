@@ -221,6 +221,35 @@ export class SmokeApp {
   }
 
   /**
+   * Waits until a stored file says what the test is waiting for.
+   *
+   * Sleeping for a fixed moment and then reading is the same wait written
+   * badly: it fails on a machine slower than the one it was written on, and it
+   * says "the feature is broken" when it means "not yet". A file that never
+   * arrives at the expected shape still fails, which is the part worth keeping.
+   */
+  async waitForProfileJson<T>(
+    name: string,
+    matches: (contents: T) => boolean,
+    timeoutMs = 15_000,
+  ): Promise<T | null> {
+    let last: T | null = null;
+    const arrived = await this.until(() => {
+      if (!this.hasProfileFile(name)) {
+        return false;
+      }
+      try {
+        last = JSON.parse(this.readProfileFile(name)) as T;
+      } catch {
+        // Mid-write, which is a moment rather than a failure.
+        return false;
+      }
+      return matches(last);
+    }, timeoutMs);
+    return arrived ? last : last;
+  }
+
+  /**
    * Shuts the app down, and gives up rather than hanging.
    *
    * `close` waits for the application to end, and an application can decline to

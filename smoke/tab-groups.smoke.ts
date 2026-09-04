@@ -62,12 +62,16 @@ describe('renaming a group', () => {
   it('keeps the new name when you click away', async () => {
     await copacetic.chrome.keyboard.type('Client work');
     await copacetic.chrome.locator('main').click({ position: { x: 40, y: 40 }, force: true });
-    await new Promise((resolve) => setTimeout(resolve, 800));
 
-    const stored = JSON.parse(readFileSync(path.join(copacetic.profile, 'groups.json'), 'utf8')) as Array<{
-      name: string;
-    }>;
-    expect(stored[0]?.name).toBe('Client work');
+    // Waited for rather than slept through: the file is written on a debounce,
+    // and a fixed pause is the same wait written badly — it passes here and
+    // fails on a slower machine, saying the rename is broken when it means it
+    // has not landed yet. A rename that never lands still fails.
+    const stored = await copacetic.waitForProfileJson<Array<{ name: string }>>(
+      'groups.json',
+      (groups) => groups[0]?.name === 'Client work',
+    );
+    expect(stored?.[0]?.name).toBe('Client work');
 
     const stillEditing = await copacetic.chrome.evaluate(
       () => (document.activeElement as HTMLElement | null)?.tagName === 'INPUT',

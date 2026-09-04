@@ -6,6 +6,11 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **Renaming a group is checked by waiting for it, not by hoping.** The test
+  paused for a moment and then read the file, which passed here and failed on a
+  slower machine — reporting a rename as broken when it had simply not landed
+  yet. It waits for the rename now, and still fails if one never arrives.
+
 - **The application that gets built is now started before it can be released.**
   Everything the tests ran before this used the source tree, which says the code
   is right and nothing about what is shipped — so a file left out, a dependency
