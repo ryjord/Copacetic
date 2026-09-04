@@ -5,7 +5,7 @@ import path from 'node:path';
 
 vi.mock('electron', () => ({ app: { getPath: () => process.env.COPA_PERSIST_DIR } }));
 
-const { PersistedFile, asBoolean, asNumber, asString, isRecord } =
+const { PersistedFile, asBoolean, asNumber, asString, isRecord, renameOverAnyLock } =
   await import('../../electron/main/data/persistence');
 
 let dir: string;
@@ -157,5 +157,82 @@ describe('the small coercions everything else is built on', () => {
     expect(isRecord({})).toBe(true);
     expect(isRecord([])).toBe(false);
     expect(isRecord(null)).toBe(false);
+  });
+});
+
+/**
+ * What is in these files: every address visited, every bookmark, the tabs left
+ * open, and the vault's own record of what it holds. Getting the write wrong
+ * does not corrupt a preference — it loses browsing, or hands it to another
+ * account on the machine.
+ */
+describe('how a stored file reaches the disk', () => {
+  it('is readable only by the person it belongs to', () => {
+    const file = new PersistedFile<Thing>('thing.json', fallback, revive);
+    file.set({ name: 'private', count: 1 });
+    file.flush();
+
+    // 0600. The default is 0644, which is every other account on the machine.
+    const mode = statSync(filePath()).mode & 0o777;
+    expect(mode.toString(8)).toBe('600');
+  });
+
+  it('leaves no temporary file behind', () => {
+    const file = new PersistedFile<Thing>('thing.json', fallback, revive);
+    file.set({ name: 'clean', count: 2 });
+    file.flush();
+    expect(readdirSync(dir).filter((name) => name.endsWith('.tmp'))).toEqual([]);
+  });
+});
+
+/**
+ * Windows refuses to rename over a file another process holds open, and an
+ * antivirus scanner or the search indexer opens a file the moment it is
+ * written. It is transient, and it lands on the step that publishes the data —
+ * so a scan at the wrong moment used to lose the write outright.
+ */
+describe('renaming over a file something else is holding', () => {
+  it('keeps trying, and succeeds once the lock goes', () => {
+    let attempts = 0;
+    renameOverAnyLock('from', 'to', () => {
+      attempts += 1;
+      if (attempts < 3) {
+        const error = new Error('EPERM') as NodeJS.ErrnoException;
+        error.code = 'EPERM';
+        throw error;
+      }
+    });
+    expect(attempts).toBe(3);
+  });
+
+  it('gives up rather than looping for ever', () => {
+    let attempts = 0;
+    expect(() =>
+      renameOverAnyLock('from', 'to', () => {
+        attempts += 1;
+        const error = new Error('EBUSY') as NodeJS.ErrnoException;
+        error.code = 'EBUSY';
+        throw error;
+      }),
+    ).toThrow();
+    expect(attempts).toBe(5);
+  });
+
+  /*
+   * The counterweight. Retrying a failure that will never clear — a missing
+   * directory, a full disk — turns an error someone can act on into a pause and
+   * then the same error.
+   */
+  it('does not retry a failure that will not clear', () => {
+    let attempts = 0;
+    expect(() =>
+      renameOverAnyLock('from', 'to', () => {
+        attempts += 1;
+        const error = new Error('ENOENT') as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        throw error;
+      }),
+    ).toThrow();
+    expect(attempts).toBe(1);
   });
 });

@@ -279,6 +279,10 @@ export class Browser {
       if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
         return;
       }
+      // The tabs changed often enough to be worth telling the interface about,
+      // which is exactly when they are worth writing down. The session file has
+      // its own longer debounce, so this is not a write per change.
+      this.saveSession();
       this.window.webContents.send(PUSH.state, this.getState());
     });
   }
@@ -1312,6 +1316,15 @@ export class Browser {
 
   // -------------------------------------------------------------- teardown
 
+  /**
+   * Records the tabs that are open.
+   *
+   * Called whenever they change rather than only at quit. Writing the session
+   * once, on the way out, meant a crash or a kill lost every open tab — the one
+   * thing someone notices immediately, and the one thing that cannot be
+   * reconstructed. The session file flushes on its own longer debounce, so
+   * saying so on every change costs a write about once a second at worst.
+   */
   saveSession(): void {
     this.store.saveSession(this.tabs.sessionSnapshot());
   }

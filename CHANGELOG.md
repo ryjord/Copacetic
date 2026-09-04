@@ -35,6 +35,17 @@ Batch 1 of the September audit.
   archive inside the app from 246MB to 15MB and the whole thing from 625MB to
   291MB, with nothing removed that anything used.
 
+- **What you had open survives losing power.** Stored files were written and
+  renamed into place without waiting for the disk to confirm the write, so a
+  machine that lost power in between could make the rename stick and the
+  contents not — publishing an empty file where your bookmarks had been. They
+  are now flushed to the disk before the rename, written readable only by you
+  rather than by every account on the machine, and a rename blocked by an
+  antivirus scanner or a search indexer is retried instead of dropped.
+- **The tabs you have open are written down as they change.** They were saved
+  once, on the way out, so anything that was not a polite quit — a crash, a
+  power cut, a forced shutdown — lost every one of them.
+
 - **Notices can be answered with the keyboard again, reliably.** The smoke
   harness fell back to the chrome window whenever the overlay had not appeared
   yet, so keystrokes meant for a question went to the wrong page, found a button

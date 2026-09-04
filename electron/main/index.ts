@@ -121,6 +121,30 @@ app.on('before-quit', () => {
   browser?.prepareForQuit();
 });
 
+/**
+ * Logging out, shutting down, or being killed is still a quit.
+ *
+ * Every store writes on a debounce, so at any moment there is up to a second of
+ * browsing that exists only in memory: the tabs that were open, the last few
+ * pages visited, a download that had just finished.
+ *
+ * Measured rather than assumed: on macOS, Electron already runs its own quit
+ * path for SIGTERM, so `before-quit` fires and this changes nothing there.
+ * Removing it leaves the durability spec passing. It is kept for SIGINT and
+ * SIGHUP, and for the platforms where that is not true, and the flush is
+ * synchronous because asking the app to quit and hoping the normal path wins is
+ * a race against an operating system that is already closing the process.
+ */
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+  process.on(signal, () => {
+    try {
+      browser?.prepareForQuit();
+    } finally {
+      app.exit(0);
+    }
+  });
+}
+
 app.on('will-quit', () => {
   removeIpcHandlers();
 });
