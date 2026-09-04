@@ -1135,8 +1135,10 @@ export class Browser {
    * group's cookies are still that site's cookies.
    */
   async forgetSite(address: string): Promise<SiteTraces> {
+    // Read before the store forgets, because afterwards nothing names them.
+    const known = this.store.originsForSite(address);
     const removed = this.store.forgetSite(address);
-    const cookies = await this.forgetSiteInSessions(address);
+    const cookies = await this.forgetSiteInSessions(address, known);
     // The allowlist may have lost an entry, and the blocker holds its own copy.
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
 
@@ -1160,7 +1162,7 @@ export class Browser {
    * would leave it. Storage is cleared by origin because that is what the API
    * takes, using the origins the cookies themselves name.
    */
-  private async forgetSiteInSessions(address: string): Promise<number> {
+  private async forgetSiteInSessions(address: string, known: string[] = []): Promise<number> {
     const site = siteOf(address);
     if (!site) {
       return 0;
@@ -1168,7 +1170,12 @@ export class Browser {
 
     let removed = 0;
     for (const { session, cookies } of await this.cookiesForSite(site)) {
-      const origins = new Set<string>([`https://${site}`, `https://www.${site}`]);
+      // `clearData` matches an origin exactly, so every origin the site is known
+      // to have has to be named: the ones a cookie points at, the ones this
+      // browser saw an icon or a certificate for, and the two obvious spellings.
+      // A subdomain that kept storage without a cookie, an icon or a certificate
+      // is not reachable from here and is not cleared.
+      const origins = new Set<string>([`https://${site}`, `https://www.${site}`, ...known]);
       for (const cookie of cookies) {
         const host = (cookie.domain ?? '').replace(/^\./, '');
         const scheme = cookie.secure ? 'https' : 'http';

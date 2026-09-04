@@ -394,6 +394,6 @@ MIT. See [LICENSE](LICENSE).
 
 Not everything in here is Copacetic's to license, though. The EasyList and
 EasyPrivacy filter lists are shipped whole, are someone else's work, and carry
-the GPLv3 and CC BY-SA 3.0. [NOTICE](NOTICE) names what they are, where they
-came from and under what terms — which matters if you fork this, and matters
+the GPLv3 or CC BY-SA 3.0, whichever is elected. [NOTICE](NOTICE) names what
+they are, where they came from and under what terms — which matters if you fork this, and matters
 more if you sell it.

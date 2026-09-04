@@ -180,6 +180,23 @@ export class BrowserStore {
    * someone usually means is a site — and every place it is known, not the one
    * place they happened to be looking at.
    */
+  /**
+   * The origins this browser has seen for a site, for clearing storage keyed by
+   * origin rather than by site.
+   *
+   * Read before anything is deleted: after `forgetSite` there is nothing left
+   * to name them with, and `clearData` matches origins exactly — clearing
+   * `https://example.com` does not touch `https://app.example.com`.
+   */
+  originsForSite(address: string): string[] {
+    const site = siteOf(address);
+    if (!site) {
+      return [];
+    }
+    const seen = [...this.favicons.origins(), ...this.certificatesStore.origins()];
+    return [...new Set(seen.filter((origin) => sameSite(origin, site)))];
+  }
+
   forgetSite(address: string): SiteTraces {
     const site = siteOf(address);
     if (!site) {

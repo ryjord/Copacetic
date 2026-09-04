@@ -16,16 +16,22 @@ const cookiesFor = (domain: string) =>
     return all.filter((cookie) => (cookie.domain ?? '').includes(host)).map((cookie) => cookie.name);
   }, domain);
 
-const setCookie = (url: string, name: string) =>
+/**
+ * `domain` set means a cookie scoped across every subdomain, which Chromium
+ * stores with a leading dot — the shape a sign-in cookie actually has, and the
+ * one the first version of this spec never created.
+ */
+const setCookie = (url: string, name: string, domain?: string) =>
   copacetic.main(
     async ({ session }, options) => {
       await session.fromPartition('persist:copacetic-web').cookies.set({
         url: options.url,
         name: options.name,
         value: 'signed-in',
+        ...(options.domain ? { domain: options.domain } : {}),
       });
     },
-    { url, name },
+    { url, name, domain },
   );
 
 /**
@@ -40,23 +46,32 @@ const setCookie = (url: string, name: string) =>
  */
 describe('forgetting a site', () => {
   it('takes its cookies, which is what kept you signed in', async () => {
-    await setCookie('https://example.com/', 'session_token');
-    await setCookie('https://www.example.com/', 'preferences');
+    // Host-only, and — the one that matters — scoped to every subdomain.
+    await setCookie('https://example.com/', 'preferences');
+    await setCookie('https://example.com/', 'session_token', 'example.com');
     expect((await cookiesFor('example.com')).sort()).toEqual(['preferences', 'session_token']);
+
+    // Stored with a leading dot, which is what the site-matching had to learn
+    // to read. If this stops being true the spec below stops proving anything.
+    const domains = await copacetic.main(async ({ session }) => {
+      const all = await session.fromPartition('persist:copacetic-web').cookies.get({});
+      return all.filter((cookie) => (cookie.domain ?? '').includes('example.com')).map((c) => c.domain);
+    });
+    expect(domains).toContain('.example.com');
 
     // Said before it happens: the warning has to name the cookies too, or it
     // understates the thing people care about and then reports it afterwards.
     const warned = await copacetic.chrome.evaluate(() =>
       window.copacetic.history.traces('https://www.example.com/anything'),
     );
-    expect(warned.cookies).toBeGreaterThanOrEqual(2);
+    expect(warned.cookies).toBe(2);
 
     const removed = await copacetic.chrome.evaluate(() => window.copacetic.history.forgetSite('https://example.com'));
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     expect(await cookiesFor('example.com')).toEqual([]);
     // And it says how many went, rather than going quiet about it.
-    expect(removed.cookies).toBeGreaterThanOrEqual(2);
+    expect(removed.cookies).toBe(2);
   }, 120_000);
 
   /*

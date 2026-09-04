@@ -82,15 +82,38 @@ describe('every migration step is idempotent', () => {
    */
   it('covers every plan in the data folder', () => {
     const directory = path.join(process.cwd(), 'electron', 'main', 'data');
-    const declared = readdirSync(directory)
+    const declared = readdirSync(directory, { recursive: true, encoding: 'utf8' })
       .filter((name) => name.endsWith('.ts'))
       .flatMap((name) => {
         const source = readFileSync(path.join(directory, name), 'utf8');
-        return [...source.matchAll(/export const (\w+): SchemaPlan =/g)].map((match) => match[1]);
+        // Both spellings: the annotated form and `satisfies`, which is the same
+        // declaration and would otherwise walk straight past this check.
+        return [
+          ...source.matchAll(/export const (\w+)(?::\s*SchemaPlan\s*=|\s*=[\s\S]{0,400}?satisfies SchemaPlan)/g),
+        ].map((match) => match[1]);
       })
       // UNVERSIONED is the empty plan every unmigrated file uses; it has no steps.
       .filter((name) => name !== 'UNVERSIONED');
 
-    expect(declared.sort()).toEqual(['BOOKMARKS_PLAN', 'SESSION_PLAN']);
+    expect([...new Set(declared)].sort()).toEqual(['BOOKMARKS_PLAN', 'SESSION_PLAN']);
+  });
+
+  /*
+   * The check above only says a plan is listed in PLANS. A plan listed there
+   * with no samples produces no `it()` at all — a green run that tested nothing,
+   * which is the failure mode this whole file exists to prevent.
+   */
+  it('has samples for every plan it covers', () => {
+    for (const file of Object.keys(PLANS)) {
+      expect(SAMPLES[file] ?? []).not.toHaveLength(0);
+    }
+  });
+
+  // And every plan's steps are actually reached, rather than a plan with an
+  // empty `steps` array quietly contributing nothing.
+  it('has at least one step to run twice', () => {
+    for (const [file, plan] of Object.entries(PLANS)) {
+      expect(plan.steps.length, `${file} has no migration steps`).toBeGreaterThan(0);
+    }
   });
 });

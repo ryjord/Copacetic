@@ -21,8 +21,8 @@ Batch 1 of the September audit.
 
 - **The filter lists are credited to the people who make them.** EasyList and
   EasyPrivacy ship inside Copacetic in full, and they are not Copacetic's to
-  license: they carry the GPLv3 and CC BY-SA 3.0, in an MIT repository that had
-  no notice of either. A NOTICE file now names each list, where it came from and
+  license: they are offered under the GPLv3 or CC BY-SA 3.0, in an MIT repository
+  that had no notice of either. A NOTICE file now names each list, where it came from and
   under what terms, the README points at it, and Privacy says it on the screen
   where the lists are already named.
 
@@ -35,6 +35,12 @@ Batch 1 of the September audit.
   archive inside the app from 246MB to 15MB and the whole thing from 625MB to
   291MB, with nothing removed that anything used.
 
+- **Notices can be answered with the keyboard again, reliably.** The smoke
+  harness fell back to the chrome window whenever the overlay had not appeared
+  yet, so keystrokes meant for a question went to the wrong page, found a button
+  that happened to match, and failed somewhere else entirely. It waits for the
+  overlay properly now and says so plainly if it never arrives.
+
 - **Forgetting a site now signs you out of it.** It cleared the history, the
   cached icon, the remembered certificate, the zoom, the permissions and the
   blocking exception, and never touched the session — so the first thing anyone
@@ -42,7 +48,9 @@ Batch 1 of the September audit.
   that had not changed, while the menu item said "Forget example.com" and the
   code said it removed everything known about the site. Cookies and site storage
   now go too, from ordinary browsing, from Hush, and from every group that keeps
-  its own — a group's cookies are still that site's cookies. The count is named
+  its own — a group's cookies are still that site's cookies, including the ones
+  scoped across every subdomain, which is the shape a sign-in cookie usually has
+  and the shape the first version of this fix quietly skipped. The count is named
   before it happens as well as after, because a warning that leaves out the part
   people care about is the same problem one step earlier.
 

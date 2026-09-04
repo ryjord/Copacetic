@@ -128,7 +128,12 @@ export function siteOf(address: string): string {
  * two different projects.
  */
 function authorityOf(host: string, port: string): string {
-  const lowered = host.toLowerCase();
+  // A cookie set with `Domain=example.com` is stored by Chromium as
+  // `.example.com`, and that leading dot is a marker rather than part of the
+  // host. Left on, `registrableDomainOf` refuses the whole string and the site
+  // never matches itself — so forgetting a site skipped every cookie scoped
+  // across its subdomains, which is exactly the kind that keeps you signed in.
+  const lowered = host.toLowerCase().replace(/^\./, '');
   const isAddress = IPV4.test(lowered) || lowered.startsWith('[') || !lowered.includes('.');
   if (!isAddress) {
     return registrableDomainOf(lowered) ?? lowered;

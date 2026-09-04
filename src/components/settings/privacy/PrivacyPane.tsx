@@ -73,9 +73,9 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
             without being asked.
           </Note>
           <Note>
-            Both lists are maintained by the EasyList project and used under the GPLv3 and CC BY-SA 3.0, which are not
-            Copacetic&apos;s own licence. They are someone else&apos;s work, shipped whole and unmodified, and the
-            NOTICE file in the repository says so in the terms those licences ask for.
+            Both lists are maintained by the EasyList project and offered under the GPLv3 or CC BY-SA 3.0, neither of
+            which is Copacetic&apos;s own licence. They are someone else&apos;s work, shipped whole and unmodified,
+            and the NOTICE file in the repository says so in the terms those licences ask for.
           </Note>
           <RowList>
             {lists.map((list) => (

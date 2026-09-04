@@ -26,6 +26,24 @@ describe('which site an address belongs to', () => {
     expect(siteOf('www.example.com')).toBe('example.com');
   });
 
+  /*
+   * A cookie set with `Domain=example.com` is stored by Chromium as
+   * `.example.com`. Read as a host, the leading dot made the registrable-domain
+   * algorithm refuse the whole string, so the site did not match itself — and
+   * forgetting a site skipped every cookie scoped across its subdomains, which
+   * is the kind that keeps you signed in. The fix for cookies was written and
+   * then tested with host-only cookies, which never carry the dot.
+   */
+  it('reads a cookie domain, which carries a leading dot', () => {
+    expect(siteOf('.example.com')).toBe('example.com');
+    expect(sameSite('.example.com', 'example.com')).toBe(true);
+    expect(sameSite('.www.example.com', 'example.com')).toBe(true);
+  });
+
+  it('still keeps a dotted domain from another site apart', () => {
+    expect(sameSite('.example.org', 'example.com')).toBe(false);
+  });
+
   it('treats subdomains of one site as that site', () => {
     expect(sameSite('https://app.example.com/a', 'https://www.example.com/b')).toBe(true);
   });

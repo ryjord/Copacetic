@@ -6,7 +6,10 @@ below, which is not, and which keeps its own terms.
 
 If you fork, repackage or sell this software, these terms travel with the files
 and are yours to honour. This file records what is here and under what licence;
-it is not legal advice.
+it is not legal advice, and it does not elect between the two licences the lists
+offer — that choice has not been made, and it should be made deliberately, with
+advice, before this is sold. CC BY-SA 3.0 asks for attribution and share-alike
+on the list itself; GPLv3 is the alternative and reaches further.
 
 
 EasyList
@@ -16,8 +19,9 @@ EasyList
               and the compiled engine built from it at package time
     Source:   https://easylist.to/easylist/easylist.txt
     Home:     https://easylist.to
-    Licence:  GNU General Public License v3.0, and
-              Creative Commons Attribution-ShareAlike 3.0 Unported
+    Licence:  Dual-licensed. Either the GNU General Public License v3.0
+              or Creative Commons Attribution-ShareAlike 3.0 Unported,
+              at the recipient's election.
               https://easylist.to/pages/licence.html
 
 The list of advertising filters most blockers are built on. Shipped in full and
@@ -32,8 +36,9 @@ EasyPrivacy
               and the compiled engine built from it at package time
     Source:   https://easylist.to/easylist/easyprivacy.txt
     Home:     https://easylist.to
-    Licence:  GNU General Public License v3.0, and
-              Creative Commons Attribution-ShareAlike 3.0 Unported
+    Licence:  Dual-licensed. Either the GNU General Public License v3.0
+              or Creative Commons Attribution-ShareAlike 3.0 Unported,
+              at the recipient's election.
               https://easylist.to/pages/licence.html
 
 Tracking and analytics filters, maintained separately from advertising.

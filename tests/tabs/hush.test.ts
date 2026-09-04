@@ -97,6 +97,21 @@ describe('every session is hardened in exactly one place', () => {
     },
   );
 
+  /*
+   * Counting the installers catches a second copy of the setup. It cannot catch
+   * the other direction — a brand-new way of making a session that calls none
+   * of them — so the sessions themselves are counted too. Every one of these is
+   * a partition that has already been through prepareSession; a new call here
+   * is a new session, and it has to be justified rather than appear.
+   */
+  it('creates a session in only the places that are accounted for', () => {
+    const calls = [...mainSources.matchAll(/(?<!function )fromPartition\(/g)];
+    // prepareSession itself, cookiesForSite iterating prepared partitions, and
+    // getWebSession/getHushSession, which both name partitions prepared at
+    // startup.
+    expect(calls).toHaveLength(4);
+  });
+
   // And that one place is reached before the tab exists, not after: a session
   // hardened once a page is already loading in it has been used unprotected.
   it('prepares the partition before the view that uses it is made', () => {
