@@ -68,7 +68,7 @@
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5",
+    "typescript": "^6",
     "vitest": "^4.1.11",
     "wait-on": "^9.0.4",
     "zustand": "^5.0.15"
