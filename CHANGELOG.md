@@ -6,6 +6,14 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **Settings can be opened from the menu bar on Windows and Linux.** It lived in
+  the application menu, which only macOS has, so on the other two there was no
+  menu item for it at all — and the smoke test that presses it had been failing
+  on both for months, read as a flaky test rather than as a missing feature,
+  because an item that cannot be found and an item that does not work fail the
+  same way. It is in Edit now, on one shortcut that means Cmd on macOS and Ctrl
+  elsewhere.
+
 - **A release publishes as one release.** The three platforms published at the
   same time, each asked GitHub whether the release existed, each was told no,
   and more than one created it — GitHub permits two releases on one tag. 1.4.1

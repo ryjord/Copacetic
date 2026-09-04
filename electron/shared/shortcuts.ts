@@ -50,7 +50,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { accelerator: 'CmdOrCtrl+Y', description: 'History' },
       { accelerator: 'CmdOrCtrl+Shift+J', description: 'Downloads' },
       { accelerator: 'CmdOrCtrl+Shift+B', description: 'Bookmarks' },
-      { accelerator: 'Cmd+,', description: 'Settings' },
+      { accelerator: 'CmdOrCtrl+,', description: 'Settings' },
     ],
   },
   {

@@ -96,3 +96,53 @@ describe('the application menu', () => {
     expect(labels).toContain('New Hush tab');
   });
 });
+
+/**
+ * The menu is built differently on each platform and was only ever checked on
+ * the one it happened to be built on.
+ *
+ * Settings lived in the application menu, which exists only on macOS, so on
+ * Windows and Linux there was no way to open Settings from the menu bar at all.
+ * The smoke test that presses the item failed on both for months and read as a
+ * flaky test rather than as a missing feature, because "the item could not be
+ * found" and "the item did not work" fail the same way.
+ */
+describe('what every platform can reach', () => {
+  const menuOn = async (platform: string): Promise<Record<string, unknown>[]> => {
+    const original = process.platform;
+    Object.defineProperty(process, 'platform', { value: platform, configurable: true });
+    try {
+      vi.resetModules();
+      const { buildApplicationMenu: build } = await import('../../electron/main/menus/menu');
+      build(recorder('') as Parameters<typeof build>[0]);
+      return everyItem(captured);
+    } finally {
+      Object.defineProperty(process, 'platform', { value: original, configurable: true });
+    }
+  };
+
+  it.each(['darwin', 'win32', 'linux'])('can open Settings on %s', async (platform) => {
+    const labels = (await menuOn(platform)).map((item) => item.label);
+    expect(labels).toContain('Settings…');
+  });
+
+  it.each(['darwin', 'win32', 'linux'])('can quit on %s', async (platform) => {
+    const built = await menuOn(platform);
+    const canQuit = built.some((item) => item.role === 'quit' || item.label === 'Quit');
+    expect(canQuit).toBe(true);
+  });
+
+  it.each(['darwin', 'win32', 'linux'])('offers a Hush tab on %s', async (platform) => {
+    const labels = (await menuOn(platform)).map((item) => item.label);
+    expect(labels).toContain('New Hush tab');
+  });
+
+  /*
+   * The counterweight: macOS puts Settings in the application menu and the
+   * others put it in Edit, and neither should end up with two of them.
+   */
+  it.each(['darwin', 'win32', 'linux'])('offers Settings exactly once on %s', async (platform) => {
+    const labels = (await menuOn(platform)).map((item) => item.label);
+    expect(labels.filter((label) => label === 'Settings…')).toHaveLength(1);
+  });
+});

@@ -13,7 +13,7 @@ export function buildApplicationMenu(browser: Browser): Menu {
       submenu: [
         { role: 'about' },
         { type: 'separator' },
-        { label: 'Settings…', accelerator: 'Cmd+,', click: () => browser.openSurface('settings') },
+        { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => browser.openSurface('settings') },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -56,6 +56,19 @@ export function buildApplicationMenu(browser: Browser): Menu {
       { role: 'delete' },
       { role: 'selectAll' },
       { type: 'separator' },
+      // Settings lives in the application menu on macOS, which does not exist
+      // anywhere else — so on Windows and Linux there was no way to open it
+      // from the menu bar at all. Edit is where both conventions put it.
+      ...(isMac
+        ? []
+        : ([
+            {
+              label: 'Settings…',
+              accelerator: 'CmdOrCtrl+,',
+              click: () => browser.openSurface('settings'),
+            },
+            { type: 'separator' },
+          ] as MenuItemConstructorOptions[])),
       {
         label: 'Open address bar',
         accelerator: 'CmdOrCtrl+L',
