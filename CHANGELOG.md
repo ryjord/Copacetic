@@ -35,6 +35,18 @@ Batch 1 of the September audit.
   archive inside the app from 246MB to 15MB and the whole thing from 625MB to
   291MB, with nothing removed that anything used.
 
+- **The blocked-request total stops resetting every time you start.** The count
+  was recorded against each page correctly and then dropped when the file was
+  read back, so the running total returned to nothing on every launch while the
+  real numbers sat on disk untouched. The store that holds it had no tests at
+  all; it does now.
+- **A setting the interface sends is checked before it is kept.** An unknown
+  theme or search engine was stored as given and used until the next start,
+  when the file's own reader quietly corrected it — a setting that fixed itself
+  overnight with no explanation. A zoom level was stored exactly as sent, so a
+  value far outside anything the controls offer could be written down and read
+  back later as that site's zoom.
+
 - **What you had open survives losing power.** Stored files were written and
   renamed into place without waiting for the disk to confirm the write, so a
   machine that lost power in between could make the rename stick and the

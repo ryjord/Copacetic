@@ -5,7 +5,9 @@ import { randomBytes } from 'node:crypto';
 import { INVOKE } from '../../shared/channels';
 import { resolverFor } from '../../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
+import { clampZoom, isThemeId } from '../../shared/types';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
+import { SEARCH_ENGINES } from '../../shared/url';
 import type { Browser } from './browser';
 import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
@@ -351,11 +353,15 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   const patch: Partial<Settings> = {};
 
-  if (typeof value.searchEngine === 'string') {
+  // Checked rather than cast. A cast satisfies the compiler and stores whatever
+  // arrived, so an unknown engine or theme was kept in memory and applied until
+  // the next start, when the store's own reviver quietly corrected it — a
+  // setting that fixes itself overnight and nobody can explain.
+  if (typeof value.searchEngine === 'string' && value.searchEngine in SEARCH_ENGINES) {
     patch.searchEngine = value.searchEngine as Settings['searchEngine'];
   }
-  if (typeof value.theme === 'string') {
-    patch.theme = value.theme as Settings['theme'];
+  if (typeof value.theme === 'string' && isThemeId(value.theme)) {
+    patch.theme = value.theme;
   }
   // Stored the moment it is chosen; Chromium only reads it at the next start,
   // which the interface says rather than pretending the change is immediate.
@@ -420,7 +426,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     const levels: Settings['zoomLevels'] = {};
     for (const [origin, level] of Object.entries(value.zoomLevels)) {
       if (typeof level === 'number' && Number.isFinite(level)) {
-        levels[origin] = level;
+        // Clamped on the way in as well as when applied. Stored unclamped, a
+        // level of 1000 was written down and read back as that site's zoom.
+        levels[origin] = clampZoom(level);
       }
     }
     patch.zoomLevels = levels;

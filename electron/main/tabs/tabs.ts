@@ -22,6 +22,7 @@ import {
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
 import { inheritFromOpener } from '../../shared/opening';
+import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
 import type { SessionSnapshot, SessionTab } from '../data/session-store';
 import { trustedLocally } from '../security/local-certificates';
@@ -825,7 +826,7 @@ export class TabManager {
     if (!tab || !contents) {
       return;
     }
-    tab.zoomFactor = Math.min(5, Math.max(0.25, zoomFactor));
+    tab.zoomFactor = clampZoom(zoomFactor);
     contents.setZoomFactor(tab.zoomFactor);
 
     // Remembered against the origin: a site that needs zooming needs it every

@@ -72,3 +72,44 @@ describe('but only settings, and only sane ones', () => {
     expect(asSettingsPatch('compact')).toEqual({});
   });
 });
+
+/**
+ * A patch arrives from the renderer, and the renderer is where a bug lives.
+ * Casting a string to a union satisfies the compiler and stores whatever came:
+ * the value was then applied until the next start, when the store's own reviver
+ * corrected it — a setting that fixes itself overnight and nobody can explain.
+ */
+describe('what the settings patch refuses', () => {
+  it('takes a theme that exists', () => {
+    expect(asSettingsPatch({ theme: 'ember' }).theme).toBe('ember');
+  });
+
+  it('drops one that does not, rather than storing it', () => {
+    expect(asSettingsPatch({ theme: 'neon' }).theme).toBeUndefined();
+    expect(asSettingsPatch({ theme: '' }).theme).toBeUndefined();
+  });
+
+  it('takes a search engine it knows', () => {
+    expect(asSettingsPatch({ searchEngine: 'duckduckgo' }).searchEngine).toBe('duckduckgo');
+  });
+
+  it('drops one it does not', () => {
+    expect(asSettingsPatch({ searchEngine: 'https://evil.example/?q=' }).searchEngine).toBeUndefined();
+  });
+
+  /*
+   * Zoom was stored exactly as given and applied unclamped, so a level of 1000
+   * could be written down and read back later as that site's zoom — legible
+   * only as a page that will not display.
+   */
+  it('clamps a zoom level on the way in, not only when it is applied', () => {
+    const patch = asSettingsPatch({ zoomLevels: { 'https://a.example': 1000, 'https://b.example': 0.001 } });
+    expect(patch.zoomLevels?.['https://a.example']).toBe(5);
+    expect(patch.zoomLevels?.['https://b.example']).toBe(0.25);
+  });
+
+  // The counterweight: an ordinary zoom is left exactly as it was chosen.
+  it('leaves a sensible zoom alone', () => {
+    expect(asSettingsPatch({ zoomLevels: { 'https://a.example': 1.5 } }).zoomLevels?.['https://a.example']).toBe(1.5);
+  });
+});

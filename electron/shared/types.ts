@@ -242,7 +242,33 @@ export interface SearchEngine {
   suggestHost: string | null;
 }
 
-export type ThemeId = 'deep' | 'slate' | 'ember' | 'moss';
+/**
+ * The themes, as a list rather than only a type, because two places have to
+ * check a string against them at runtime and a union cannot be checked. The
+ * type is derived from the list so the two cannot disagree.
+ */
+export const THEME_IDS = ['deep', 'slate', 'ember', 'moss'] as const;
+
+export type ThemeId = (typeof THEME_IDS)[number];
+
+export function isThemeId(value: string): value is ThemeId {
+  return (THEME_IDS as readonly string[]).includes(value);
+}
+
+/**
+ * What a page may be zoomed to.
+ *
+ * Applied when a tab zooms, and now also when a level is stored: a level
+ * arriving through the settings patch was kept exactly as given, so a value of
+ * 0.001 or 1000 could be written down and read back later as the zoom for a
+ * site — legible only as a page that will not display.
+ */
+export const MIN_ZOOM = 0.25;
+export const MAX_ZOOM = 5;
+
+export function clampZoom(factor: number): number {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, factor));
+}
 
 /** How much room the chrome takes. Only sizing — never colour. */
 export type DensityId = 'comfortable' | 'compact';

@@ -187,6 +187,10 @@ function reviveHistory(raw: unknown): HistoryEntry[] | null {
         title: asString(item.title),
         lastVisitedAt: asNumber(item.lastVisitedAt, Date.now()),
         visitCount: Math.max(1, asNumber(item.visitCount, 1)),
+        // Read back, not just written. Without this the count was saved
+        // faithfully and dropped on the way in, so the running total reset to
+        // nothing every time the browser started while the numbers sat on disk.
+        blockedCount: Math.max(0, asNumber(item.blockedCount, 0)),
       },
     ];
   });
