@@ -206,6 +206,22 @@ export class SmokeApp {
     );
   }
 
+  /**
+   * Waits until the interface says what the test is waiting for.
+   *
+   * The suite is full of `setTimeout(resolve, 1500)` followed by an assertion,
+   * which is a wait made of hope: it passes on the machine it was written on and
+   * fails on a slower one, reporting the feature as broken when it means it has
+   * not happened yet. Three separate CI failures during one afternoon were this
+   * and nothing else.
+   *
+   * A condition that never becomes true still fails, which is the part worth
+   * keeping — it just takes the deadline to say so instead of guessing early.
+   */
+  waitForChrome(says: () => boolean | Promise<boolean>, timeoutMs = 15_000): Promise<boolean> {
+    return this.until(() => this.chrome.evaluate(says), timeoutMs);
+  }
+
   /** Whether the app has written a given file into its profile yet. */
   hasProfileFile(name: string): boolean {
     return existsSync(path.join(this.profile, name));

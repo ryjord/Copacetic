@@ -75,10 +75,11 @@ describe('the Settings item in the menu bar', () => {
     expect(await copacetic.waitForReady()).toBe(true);
 
     expect(await pressMenuItem('Settings…')).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const opened = await copacetic.chrome.evaluate(() =>
-      document.body.innerText.includes('Everything here is stored'),
-    );
+
+    // Waited for rather than slept through: the push crosses a process boundary
+    // and then React renders, and a fixed pause is a guess about how long that
+    // takes on a machine nobody has measured.
+    const opened = await copacetic.waitForChrome(() => document.body.innerText.includes('Everything here is stored'));
     expect(opened).toBe(true);
 
     // Put it back. A surface covers the content area, so leaving it open hides

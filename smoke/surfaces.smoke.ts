@@ -32,8 +32,7 @@ const pageVisible = () =>
 describe('a surface when a tab is chosen', () => {
   it('gets out of the way, and the page comes back', async () => {
     await copacetic.chrome.getByRole('button', { name: 'History' }).click();
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    expect(await surfaceOpen()).toBe(true);
+    expect(await copacetic.waitForChrome(() => document.body.innerText.includes('Kept on this machine'))).toBe(true);
     // The surface is up, so nothing is showing the page.
     expect(await pageVisible()).toBe(false);
 
@@ -44,8 +43,8 @@ describe('a surface when a tab is chosen', () => {
       .getByRole('tab', { name: /Example/ })
       .first()
       .click();
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
+    // The surface closing is the thing under test, so it is waited for.
+    expect(await copacetic.waitForChrome(() => !document.body.innerText.includes('Kept on this machine'))).toBe(true);
     expect(await surfaceOpen()).toBe(false);
     // And the page it switched to is actually on screen, which is the whole
     // point: closing the surface without showing the page would look the same
@@ -60,7 +59,7 @@ describe('a surface when a tab is chosen', () => {
    */
   it('stays open while it is being used', async () => {
     await copacetic.chrome.getByRole('button', { name: 'History' }).click();
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(await copacetic.waitForChrome(() => document.body.innerText.includes('Kept on this machine'))).toBe(true);
 
     await copacetic.chrome.getByRole('textbox', { name: /Search history/ }).fill('example');
     await new Promise((resolve) => setTimeout(resolve, 800));

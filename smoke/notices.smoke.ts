@@ -67,7 +67,51 @@ describe('a notice said before anyone was listening', () => {
     const chromeTop = () =>
       copacetic.chrome.evaluate(() => Math.round(document.querySelector('main')!.getBoundingClientRect().top));
 
-    const before = await chromeTop();
+    /*
+     * Settled first, rather than measured on the way past.
+     *
+     * The chrome above `main` moves while a page is loading and while the strip
+     * takes its final shape, and this used to read once, do something else, and
+     * read again — so on a machine slower than the one it was written on the
+     * layout finished in between and the two disagreed by nine pixels. That
+     * says nothing about whether a notice moves the chrome, which is the claim.
+     * Written first as a fixed four-second pause, which is the same wait made
+     * of hope.
+     */
+    const settled = async () => {
+      let last = await chromeTop();
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const now = await chromeTop();
+        if (now === last) {
+          return now;
+        }
+        last = now;
+      }
+      return last;
+    };
+
+    const before = await settled();
+
+    /*
+     * A second notice, so the measurement brackets the overlay actually
+     * changing. Before this it bracketed a read of the layer bounds — which
+     * moves nothing, so the assertion held whatever the overlay did and only
+     * ever caught the layout settling underneath it.
+     */
+    await copacetic.chrome.evaluate(async () => {
+      const folder = await window.copacetic.bookmarkFolders.create('Second', 'plum', null);
+      for (let index = 0; index < 12; index += 1) {
+        await window.copacetic.bookmarks.toggle(`https://example.com/second-${index}`, `Second ${index}`);
+      }
+      const saved = await window.copacetic.bookmarks.list();
+      for (const bookmark of saved.filter((entry) => entry.url.includes('/second-'))) {
+        await window.copacetic.bookmarks.file(bookmark.id, folder.id);
+      }
+      await window.copacetic.bookmarkFolders.openAsGroup(folder.id);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
     const layers = await copacetic.main(({ BrowserWindow }) => {
       const window = BrowserWindow.getAllWindows()[0];
       return (

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { closeSync, mkdtempSync, openSync, readFileSync, statSync } from 'node:fs';
+import { closeSync, mkdtempSync, openSync, readFileSync, statSync, type PathLike } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -64,7 +64,7 @@ describe('the write path a flush actually takes', () => {
     const file = new PersistedFile<Thing>('retried.json', fallback, revive, 400, undefined, {
       write: REAL_DISK.write,
       rename: (from, to) =>
-        renameOverAnyLock(from, to, (a, b) => {
+        renameOverAnyLock(from, to, (a: PathLike, b: PathLike) => {
           refused += 1;
           if (refused === 1) {
             const error = new Error('EPERM: operation not permitted') as NodeJS.ErrnoException;
