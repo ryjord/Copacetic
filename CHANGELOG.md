@@ -2,7 +2,7 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.4.1 — unreleased
+## 1.4.1 — 2026-09-04
 
 Batch 1 of the September audit.
 
