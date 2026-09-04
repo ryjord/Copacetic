@@ -2,6 +2,21 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 1.4.2 — unreleased
+
+### Fixed
+
+- **A release publishes as one release.** The three platforms published at the
+  same time, each asked GitHub whether the release existed, each was told no,
+  and more than one created it — GitHub permits two releases on one tag. 1.4.1
+  went out as two objects with the files split between them and neither
+  complete, while every job reported success, because every job had uploaded
+  everything it built. Platforms publish one at a time now: the first creates
+  the release and the rest find it, which is what the publisher always assumed.
+  The check that runs afterwards counts the releases before it counts the files,
+  because "assets are missing" describes this badly and "two releases exist"
+  describes it exactly.
+
 ## 1.4.1 — 2026-09-04
 
 Batch 1 of the September audit.

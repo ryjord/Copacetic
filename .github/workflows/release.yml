@@ -98,6 +98,16 @@ jobs:
       attestations: write
     strategy:
       fail-fast: false
+      # One platform publishes at a time. Concurrently, all three ask GitHub for
+      # the release, all three are told it does not exist, and more than one
+      # creates it — GitHub permits two releases on one tag, so 1.4.1 published
+      # as two objects with the assets split between them and neither complete.
+      # Each job reported success, because each had uploaded everything it built.
+      #
+      # Serial costs about ten minutes of wall clock. The first job creates the
+      # release and the other two find it, which is the behaviour the publisher
+      # was always assuming.
+      max-parallel: 1
       matrix:
         include:
           # Everything a person downloading this release can hold, not only the
@@ -203,6 +213,18 @@ jobs:
           expected="Copacetic-$version.dmg Copacetic-$version-arm64.dmg Copacetic-Setup-$version.exe \
                     Copacetic-$version.AppImage copacetic_${version}_amd64.deb \
                     latest.yml latest-mac.yml latest-linux.yml"
+
+          # One tag, one release. GitHub permits two, and when the platforms
+          # published in parallel it got two — with the assets split between
+          # them, neither complete, and every job reporting success. Read as
+          # "assets are missing" that is a confusing hunt; said plainly it is
+          # one sentence. Checked before the assets, because it explains them.
+          count=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq "[.[] | select(.tag_name == \"$GITHUB_REF_NAME\")] | length")
+          if [ "$count" -ne 1 ]; then
+            echo "::error::$count releases exist for $GITHUB_REF_NAME; there must be exactly one."
+            exit 1
+          fi
 
           assets=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
           missing=""
