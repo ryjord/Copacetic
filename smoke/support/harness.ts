@@ -220,8 +220,32 @@ export class SmokeApp {
     return this.until(() => this.hasProfileFile(name), timeoutMs);
   }
 
+  /**
+   * Shuts the app down, and gives up rather than hanging.
+   *
+   * `close` waits for the application to end, and an application can decline to
+   * — a window created after Playwright attached is one it is not watching for.
+   * On a build machine that turned a working spec into a suite that failed in
+   * its teardown with every test passed, which says nothing about the product
+   * and takes an hour to read.
+   *
+   * So it asks, waits a while, and then stops asking. The process goes either
+   * way; only the politeness is optional.
+   */
   async close(): Promise<void> {
-    await this.app.close();
+    const politely = this.app.close().then(
+      () => true,
+      () => false,
+    );
+    const gaveUp = new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), 15_000);
+      timer.unref?.();
+    });
+
+    if (!(await Promise.race([politely, gaveUp]))) {
+      this.app.process().kill('SIGKILL');
+    }
+
     rmSync(this.profile, { recursive: true, force: true });
     abandonedProfiles.delete(this.profile);
   }
