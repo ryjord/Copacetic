@@ -6,6 +6,12 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **Running the tests on too old a Node says so, in a sentence.** Below the
+  supported version the suite does not fail — it does not start, and prints
+  seventy-three copies of a message about jsdom's internals that names nothing
+  anyone can act on. It now says which Node is needed and which one is running,
+  before anything else has a chance to fail in its own way.
+
 - **Renaming a group is checked by waiting for it, not by hoping.** The test
   paused for a moment and then read the file, which passed here and failed on a
   slower machine — reporting a rename as broken when it had simply not landed
