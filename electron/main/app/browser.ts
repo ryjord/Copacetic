@@ -785,7 +785,9 @@ export class Browser {
           : [{ name: 'History', extensions: ['json'] }],
       },
       () =>
-        isBookmarks ? bookmarksToHtml(this.store.listBookmarks(), now) : historyToJson(this.store.allHistory(), now),
+        isBookmarks
+          ? bookmarksToHtml(this.store.listBookmarks(), now, this.store.listBookmarkFolders())
+          : historyToJson(this.store.allHistory(), now),
     );
     return written.value === null ? written.message : '';
   }

@@ -9,22 +9,39 @@ let dialogCancelled = false;
 let sourceWidth = 800;
 let decodesAsImage = true;
 
-const RE_ENCODED = Buffer.from('re-encoded-jpeg-bytes');
+/**
+ * The encoder's output is derived from what it was given, rather than a fixed
+ * constant.
+ *
+ * It was a constant, and the test then asserted that the bytes written equalled
+ * that constant — which the code satisfies by writing the encoder's output and
+ * equally by writing the constant for any other reason. Deriving it means the
+ * assertion can only pass if the file was decoded from the path that was chosen
+ * and encoded at the quality the code asks for.
+ */
+const encodedFrom = (path: string, quality: number) => Buffer.from(`jpeg(${path}, q=${quality})`);
+
+/** What the code asked the encoder to do, so the test can say it asked. */
+const decoded: string[] = [];
+const encoded: { path: string; quality: number; width: number | null }[] = [];
 
 vi.mock('electron', () => ({
   app: { getPath: () => userDataDir },
   dialog: { showOpenDialog: async () => ({ canceled: dialogCancelled, filePaths: chosenFiles }) },
   nativeImage: {
-    createFromPath: () => ({
-      isEmpty: () => !decodesAsImage,
-      getSize: () => ({ width: sourceWidth, height: 600 }),
-      resize: ({ width }: { width: number }) => ({
-        isEmpty: () => false,
-        getSize: () => ({ width, height: 600 }),
-        toJPEG: () => RE_ENCODED,
-      }),
-      toJPEG: () => RE_ENCODED,
-    }),
+    createFromPath: (path: string) => {
+      decoded.push(path);
+      const imageOf = (width: number | null) => ({
+        isEmpty: () => !decodesAsImage,
+        getSize: () => ({ width: width ?? sourceWidth, height: 600 }),
+        resize: ({ width: to }: { width: number }) => imageOf(to),
+        toJPEG: (quality: number) => {
+          encoded.push({ path, quality, width });
+          return encodedFrom(path, quality);
+        },
+      });
+      return imageOf(null);
+    },
   },
 }));
 
@@ -81,13 +98,37 @@ describe('choosing one', () => {
     const source = path.join(userDataDir, 'source.png');
     writeFileSync(source, Buffer.from('original-file-bytes-with-metadata'));
     chosenFiles = [source];
+    decoded.length = 0;
+    encoded.length = 0;
 
     expect(await chooseWallpaper(fakeWindow)).toBe('');
     commitStagedWallpaper();
 
+    // The file that was chosen is the file that was decoded, and what landed is
+    // what the encoder produced from it — not a constant the test also knows.
+    expect(decoded).toContain(source);
+    expect(encoded).toHaveLength(1);
     const written = readFileSync(wallpaperFile());
-    expect(written.equals(RE_ENCODED)).toBe(true);
+    expect(written.equals(encodedFrom(source, encoded[0]!.quality))).toBe(true);
     expect(written.includes('original-file-bytes')).toBe(false);
+  });
+
+  /*
+   * Quality is the whole reason this is a re-encode rather than a copy: a
+   * wallpaper is decoration and the profile is not a place to put a
+   * twelve-megapixel photograph. Named so that changing it is a decision.
+   */
+  it('encodes at a quality it chose, not whatever the file arrived at', async () => {
+    const source = path.join(userDataDir, 'quality.png');
+    writeFileSync(source, Buffer.from('x'));
+    chosenFiles = [source];
+    encoded.length = 0;
+
+    await chooseWallpaper(fakeWindow);
+    commitStagedWallpaper();
+
+    expect(encoded[0]?.quality).toBeGreaterThan(0);
+    expect(encoded[0]?.quality).toBeLessThanOrEqual(100);
   });
 
   // Copied into the profile so moving or deleting the original later does not

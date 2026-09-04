@@ -6,6 +6,13 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **Exporting bookmarks keeps the folders you put them in.** Folders arrived in
+  1.4.0 and the export threw them away: everything came out flattened into one
+  list, so someone exporting to move to another browser lost the arrangement
+  they had made. The format has had nested folders since it was invented; they
+  are written now, and a bookmark whose folder has gone is still exported rather
+  than lost with it.
+
 - **A start that fails says so.** It used to disappear: no window, no message,
   no log line, and an application sitting in the dock doing nothing.
 - **Closing the last window on macOS no longer leaves the app unusable.** macOS
