@@ -13,7 +13,7 @@ import {
 } from '@/components/settings/shared/controls';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
+import { ask } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
@@ -72,8 +72,12 @@ export function PasswordsPane() {
   };
 
   const remove = (id: string) => {
-    send((api) => api.vault.remove(id));
-    setTimeout(refresh, 60);
+    // The answer is shown rather than dropped: refusing quietly is how a button
+    // becomes something that looks broken.
+    void ask((api) => api.vault.remove(id), null).then((result) => {
+      setMessage(result ? result.error : '');
+      setTimeout(refresh, 60);
+    });
   };
 
   return (
@@ -163,7 +167,11 @@ export function PasswordsPane() {
                 ) : (
                   <span className="label shrink-0 text-caution">Unreadable</span>
                 )}
-                <RowAction label="Remove" onClick={() => remove(entry.id)} />
+                {lockState.isUnlocked ? (
+                  <RowAction label="Remove" onClick={() => remove(entry.id)} />
+                ) : (
+                  <span className="label shrink-0 text-ink-faint">Locked</span>
+                )}
               </li>
             ))}
           </RowList>

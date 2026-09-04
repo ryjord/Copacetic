@@ -35,6 +35,20 @@ Batch 1 of the September audit.
   archive inside the app from 246MB to 15MB and the whole thing from 625MB to
   291MB, with nothing removed that anything used.
 
+- **A locked vault no longer lets a password be deleted.** Locked, the pane
+  refused to show a password and offered to remove it in the same row — and
+  removing it is the half that cannot be undone. Removing, changing and
+  importing are behind the lock now, for the same reason reading always was.
+  Adding a new password still works, because nothing is lost by it, and the
+  Remove control is not offered when it would only be refused.
+- **The workflows say what they may touch, and run what they meant to run.**
+  Every action was referenced by a tag, which is a pointer somebody else can
+  move; they are pinned to commits now. The CI workflow asked for no permissions
+  and so took the repository default, which is a write token. Repository
+  settings were pasted into shell scripts rather than passed to them. And two
+  releases tagged close together could publish into the same bucket at once,
+  each writing an index describing only the packages it happened to see.
+
 - **Downloads are listed among the things a clear does not touch, and can be
   cleared.** Clearing history took the history and the cached icons and left
   `downloads.json` holding every address and redirect chain, while the pane that
