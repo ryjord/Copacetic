@@ -33,7 +33,8 @@
     "smoke": "vitest run --config vitest.smoke.config.ts",
     "filters:update": "node scripts/update-filters.mjs",
     "filters:build": "node scripts/build-filters.mjs",
-    "measure": "node scripts/measure-performance.mjs"
+    "measure": "node scripts/measure-performance.mjs",
+    "check:packaged": "node scripts/check-packaged-app.mjs"
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "^2.18.2",

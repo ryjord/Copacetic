@@ -6,6 +6,14 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **The application that gets built is now started before it can be released.**
+  Everything the tests ran before this used the source tree, which says the code
+  is right and nothing about what is shipped — so a file left out, a dependency
+  pruned that was needed, or a preload the packaged app cannot find would reach
+  a release. The installers themselves are built too, on the branches a release
+  is tagged from, because a tree is not a `.dmg` and the difference has already
+  broken a release once.
+
 - **The icon cache has a size, not just a count.** Six hundred icons were kept
   and nothing bounded how big each could be, so the file could reach about
   160MB — read from the disk, all of it, before the first window appears. It is

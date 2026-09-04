@@ -88,6 +88,33 @@ jobs:
       - name: Check the packaged tree assembles
         run: npx electron-builder --dir --publish never
 
+      # Assembling it is not the same as it working. Everything above runs
+      # `electron .` against the source tree, which proves the code is right and
+      # says nothing about what is shipped — a file left out of `files`, a
+      # dependency pruned that was needed, a preload the packaged app cannot
+      # find. All of those reach a release otherwise, and one of them did: the
+      # app carried 246MB of build tools it never loaded, and taking them out was
+      # only safe because the packaged binary was started by hand afterwards.
+      - name: Start the packaged app
+        if: runner.os != 'Linux'
+        run: npm run check:packaged
+
+      - name: Start the packaged app
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run check:packaged
+
+      # The installers themselves, on the branches a tag is cut from. `--dir`
+      # produces a tree, not a .dmg, .exe or .deb, so anything that only breaks
+      # while building an installer was first seen during a release — which is
+      # how a line-ending change to the filter lists came to fail the Windows
+      # build of 1.4.0 and not a single run before it.
+      #
+      # Not on pull requests: it is ten minutes a platform, and the branches
+      # below are the only ones a release is ever tagged from.
+      - name: Build the installers
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development')
+        run: npx electron-builder --publish never
+
       # Without this a platform-specific packaging failure can only be
       # reproduced by building locally on that platform, which for two of the
       # three is not something anyone here can do.
