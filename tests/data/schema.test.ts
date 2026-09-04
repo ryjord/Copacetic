@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -204,11 +204,7 @@ describe('how the version record reaches the disk', () => {
     versions.record('thing.json', 2);
     const leftovers = readFileSync(path.join(dataDir, 'schema.json'), 'utf8');
     expect(leftovers).toContain('thing.json');
-    expect(
-      require('node:fs')
-        .readdirSync(dataDir)
-        .filter((name: string) => name.endsWith('.tmp')),
-    ).toEqual([]);
+    expect(readdirSync(dataDir).filter((name) => name.endsWith('.tmp'))).toEqual([]);
   });
 
   it('reads back what it recorded', () => {
