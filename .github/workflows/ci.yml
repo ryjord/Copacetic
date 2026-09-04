@@ -5,11 +5,22 @@ on:
     branches: [main, development]
   pull_request:
 
+# Read-only, stated rather than inherited. Without a block here a workflow gets
+# whatever the repository's default is, which is a write token in a repository
+# that has never changed the setting — handed to every action in every job, for
+# a workflow that only needs to read the code it is checking.
+permissions:
+  contents: read
+
 # Work lands on `development` in a stream of commits before it reaches `main`.
 # Without this, every push queues a fresh three-OS matrix behind the last one.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+# Actions are pinned to a commit, with the tag beside it for reading. A tag is a
+# pointer someone else can move: `@v7` today and `@v7` after a compromised
+# release are the same line in this file and different code on the runner.
 
 jobs:
   verify:
@@ -18,9 +29,9 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -51,9 +62,9 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -82,7 +93,7 @@ jobs:
       # three is not something anyone here can do.
       - name: Keep the packaged tree for inspection
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: packaged-${{ matrix.os }}
           path: release/**/*
