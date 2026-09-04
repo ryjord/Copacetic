@@ -22,9 +22,10 @@ import {
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
 import { inheritFromOpener } from '../../shared/opening';
+import { type SessionCandidate, sessionFrom, tabAfterClosing } from './tab-choices';
 import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
-import type { SessionSnapshot, SessionTab } from '../data/session-store';
+import type { SessionSnapshot } from '../data/session-store';
 import { trustedLocally } from '../security/local-certificates';
 import { describeTab } from '../system/browser-identity';
 import { attachTabEvents } from './tab-events';
@@ -130,30 +131,22 @@ export class TabManager {
     };
   }
 
+  /** What to reopen next launch. The rules are in tab-choices.ts, where they can be tested. */
   sessionSnapshot(): SessionSnapshot {
-    // The list skips start-page tabs, so the active tab's index has to be
-    // counted against the filtered list as it is built. Taking it from
-    // `this.order` instead would be off by one for every start-page tab
-    // sitting to the left of the active one, and restore the wrong site.
-    const saved: SessionTab[] = [];
-    let activeIndex = 0;
-
+    const candidates: SessionCandidate[] = [];
     for (const id of this.order) {
       const tab = this.tabs.get(id);
-      // A Hush tab is excluded rather than merely not reopened: the session
-      // file is on disk, so listing its URL there would be the one place the
-      // tab left a trace. Its group membership goes with it, because the tab
-      // it belongs to is never written here at all.
-      if (!tab || tab.isStartPage || tab.isHush) {
-        continue;
+      if (tab) {
+        candidates.push({
+          id,
+          url: tab.url,
+          groupId: tab.groupId,
+          isStartPage: tab.isStartPage,
+          isHush: tab.isHush,
+        });
       }
-      if (id === this.activeId) {
-        activeIndex = saved.length;
-      }
-      saved.push({ url: tab.url, groupId: tab.groupId });
     }
-
-    return { tabs: saved, activeIndex };
+    return sessionFrom(candidates, this.activeId);
   }
 
   private toState(tab: TabRecord): TabState {
@@ -616,9 +609,7 @@ export class TabManager {
     this.onTabClosed(id);
 
     if (this.activeId === id) {
-      // Select the neighbour on the right, matching every other browser, and
-      // fall back to the left when the closed tab was last.
-      const next = this.order[Math.min(index, this.order.length - 1)] ?? null;
+      const next = tabAfterClosing(this.order, index);
       this.activeId = null;
       if (next) {
         this.activate(next);

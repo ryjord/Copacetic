@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
+import { sessionFrom } from '../../electron/main/tabs/tab-choices';
 import path from 'node:path';
 
 vi.mock('electron', () => ({
@@ -35,13 +36,26 @@ describe('the partition is what makes the promise true', () => {
 });
 
 // History and favicons are guards inside the tab's event handlers, so they are
-// driven for real in tab-events.test.ts rather than read for here. The two
-// below stay source checks: both live in methods that need a whole TabManager.
+// driven for real in tab-events.test.ts rather than read for here.
 describe('nothing a Hush tab does is written down', () => {
-  // session.json is on disk, so a Hush URL listed there would be the one place
-  // the tab left a trace.
+  /*
+   * session.json is on disk, so a Hush URL listed there would be the one place
+   * the tab left a trace.
+   *
+   * This used to read the source of `tabs.ts` for the guard, which broke the
+   * moment the rule moved into a function of its own — and would have passed
+   * just as happily if the guard had been reworded rather than moved. The rule
+   * is a function now, so this runs it.
+   */
   it('is left out of the session snapshot', () => {
-    expect(tabsSource).toMatch(/tab\.isStartPage \|\| tab\.isHush\) \{ continue/);
+    const written = sessionFrom(
+      [
+        { id: 'a', url: 'https://ordinary.example/', groupId: null, isStartPage: false, isHush: false },
+        { id: 'h', url: 'https://secret.example/', groupId: 'work', isStartPage: false, isHush: true },
+      ],
+      'a',
+    );
+    expect(written.tabs.map((tab) => tab.url)).toEqual(['https://ordinary.example/']);
   });
 
   it('cannot be brought back with reopen-closed', () => {
