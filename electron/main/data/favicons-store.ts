@@ -4,7 +4,55 @@ import { PersistedFile, asNumber, asString, isRecord } from './persistence';
 
 const MAX_FAVICON_ENTRIES = 600;
 
-interface FaviconRecord {
+/**
+ * How much disk the icon cache may take, in total.
+ *
+ * The count was bounded and the size was not. A favicon may be fetched at up to
+ * 200KB, which is about 267KB once it is a data URL, so six hundred of them is
+ * roughly 160MB — read from disk, synchronously, before the first window
+ * appears. Almost every real favicon is a few kilobytes; the cap exists for the
+ * handful that are not, and for the arithmetic that follows from them.
+ *
+ * Bounding the total rather than each icon means a large one is still kept
+ * while there is room for it, and the file stays a size a browser can read at
+ * startup without anyone noticing.
+ */
+const MAX_FAVICON_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Drops the least recently updated until the cache is inside both bounds.
+ *
+ * A stale favicon costs one small request to fetch again, which is why this can
+ * afford to be blunt.
+ */
+export function withinBounds(
+  entries: Record<string, FaviconRecord>,
+  maxEntries = MAX_FAVICON_ENTRIES,
+  maxBytes = MAX_FAVICON_BYTES,
+): Record<string, FaviconRecord> {
+  const newestFirst = Object.entries(entries).sort(([, a], [, b]) => (b?.updatedAt ?? 0) - (a?.updatedAt ?? 0));
+
+  const kept: Record<string, FaviconRecord> = {};
+  let bytes = 0;
+  for (const [origin, record] of newestFirst) {
+    if (Object.keys(kept).length >= maxEntries) {
+      break;
+    }
+    // The data URL is the whole cost of an entry; the origin beside it is noise
+    // by comparison.
+    const cost = record.dataUrl.length;
+    if (bytes + cost > maxBytes) {
+      // Skipped rather than stopped: a single enormous icon should not evict
+      // every smaller one behind it.
+      continue;
+    }
+    kept[origin] = record;
+    bytes += cost;
+  }
+  return kept;
+}
+
+export interface FaviconRecord {
   dataUrl: string;
   updatedAt: number;
 }
@@ -28,18 +76,7 @@ export class FaviconsStore {
     if (!origin) {
       return;
     }
-    this.file.update((current) => {
-      const next = { ...current, [origin]: { dataUrl, updatedAt: Date.now() } };
-      const keys = Object.keys(next);
-      if (keys.length <= MAX_FAVICON_ENTRIES) {
-        return next;
-      }
-      // Evict least-recently-updated first; a stale favicon is refetched cheaply.
-      const keep = keys
-        .sort((a, b) => (next[b]?.updatedAt ?? 0) - (next[a]?.updatedAt ?? 0))
-        .slice(0, MAX_FAVICON_ENTRIES);
-      return Object.fromEntries(keep.map((key) => [key, next[key]!]));
-    });
+    this.file.update((current) => withinBounds({ ...current, [origin]: { dataUrl, updatedAt: Date.now() } }));
   }
 
   /** Every origin an icon is cached for, which is a list of places someone has been. */

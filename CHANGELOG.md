@@ -6,6 +6,17 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **The icon cache has a size, not just a count.** Six hundred icons were kept
+  and nothing bounded how big each could be, so the file could reach about
+  160MB — read from the disk, all of it, before the first window appears. It is
+  held to 8MB now, dropping the least recently seen, and a single enormous icon
+  no longer evicts every smaller one behind it.
+- **The downloads list stops asking the disk the same question hundreds of times
+  a second.** Whether each saved file is still where you put it was checked
+  every time anything at all changed — a tab title arriving, a page finishing.
+  The answer is remembered for a few seconds, which is still far more often than
+  anyone moves a file.
+
 - **Exporting bookmarks keeps the folders you put them in.** Folders arrived in
   1.4.0 and the export threw them away: everything came out flattened into one
   list, so someone exporting to move to another browser lost the arrangement

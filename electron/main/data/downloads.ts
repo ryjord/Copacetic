@@ -3,6 +3,9 @@ import { createReadStream, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type { DownloadState, DownloadStatus } from '../../shared/types';
+/** How long an answer about a file on disk is worth reusing. */
+const EXISTS_REMEMBERED_MS = 5_000;
+
 import { PersistedFile, asNumber, asString, isRecord, newId } from './persistence';
 
 /** How often a download's speed sample is refreshed. */
@@ -42,7 +45,12 @@ export class DownloadManager {
    */
   private ephemeral: DownloadState[] = [];
 
-  constructor(private readonly onChanged: () => void) {
+  constructor(
+    private readonly onChanged: () => void,
+    /** Injected so a test can move time and answer for the filesystem itself. */
+    private readonly clock: () => number = Date.now,
+    private readonly fileExistsAt: (savePath: string) => boolean = existsSync,
+  ) {
     this.file = new PersistedFile<DownloadState[]>('downloads.json', () => [], reviveDownloads, 1_000);
     // Anything still in flight when the app last quit cannot be resumed: the
     // DownloadItem it belonged to is gone. Report that honestly rather than
@@ -60,13 +68,45 @@ export class DownloadManager {
     this.file.flush();
   }
 
+  /**
+   * Whether a saved file is still where it was put, remembered for a moment.
+   *
+   * `list` is built inside every state push, and a state push happens on almost
+   * anything: a tab title arriving, a page finishing, a download ticking. Asking
+   * the filesystem about every completed download each time meant hundreds of
+   * synchronous stat calls a second on the main thread, for an answer that
+   * changes when someone moves a file — which is not something that happens
+   * hundreds of times a second.
+   */
+  private readonly existsChecked = new Map<string, { exists: boolean; at: number }>();
+
+  private stillThere(savePath: string): boolean {
+    const remembered = this.existsChecked.get(savePath);
+    const now = this.clock();
+    if (remembered && now - remembered.at < EXISTS_REMEMBERED_MS) {
+      return remembered.exists;
+    }
+    const exists = this.fileExistsAt(savePath);
+    this.existsChecked.set(savePath, { exists, at: now });
+    return exists;
+  }
+
   list(): DownloadState[] {
     return [...this.ephemeral, ...this.file.get()]
       .sort((a, b) => b.startedAt - a.startedAt)
       .map((entry) => ({
         ...entry,
-        fileExists: entry.status === 'completed' ? existsSync(entry.savePath) : entry.fileExists,
+        fileExists: entry.status === 'completed' ? this.stillThere(entry.savePath) : entry.fileExists,
       }));
+  }
+
+  /** Forgets what it remembered about a path, for when the answer has just changed. */
+  recheck(savePath?: string): void {
+    if (savePath === undefined) {
+      this.existsChecked.clear();
+      return;
+    }
+    this.existsChecked.delete(savePath);
   }
 
   /**

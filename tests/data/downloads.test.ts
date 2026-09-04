@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 // under test do not touch it, so a minimal stub keeps the import graph happy.
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' }, shell: {} }));
 
-const { sanitiseFilename } = await import('../../electron/main/data/downloads');
+const { DownloadManager, sanitiseFilename } = await import('../../electron/main/data/downloads');
 
 describe('sanitiseFilename', () => {
   it('keeps an ordinary filename intact', () => {
@@ -80,5 +80,86 @@ describe('sanitiseFilename, Windows-specific traps', () => {
   it('never returns an empty name', () => {
     expect(sanitiseFilename('...')).toBe('download');
     expect(sanitiseFilename('   ')).toBe('download');
+  });
+});
+
+/**
+ * `list` is built inside every state push, and a state push happens on almost
+ * anything: a tab title arriving, a page finishing, a download ticking. Asking
+ * the filesystem about every completed download each time meant hundreds of
+ * synchronous stat calls a second on the main thread — for an answer that
+ * changes when someone moves a file, which is not something they do hundreds of
+ * times a second.
+ */
+describe('checking whether a downloaded file is still there', () => {
+  const managerWith = (now: () => number) => {
+    const asked: string[] = [];
+    const manager = new DownloadManager(
+      () => {},
+      now,
+      (savePath: string) => {
+        asked.push(savePath);
+        return true;
+      },
+    );
+    return { manager, asked };
+  };
+
+  it('asks the filesystem once, not once per state push', () => {
+    const clock = 1_000;
+    const { manager, asked } = managerWith(() => clock);
+    manager.attach({
+      on: () => {},
+    } as unknown as Parameters<typeof manager.attach>[0]);
+
+    // Nothing recorded yet, so nothing to ask about.
+    manager.list();
+    expect(asked).toHaveLength(0);
+  });
+
+  it('answers from what it remembered until that goes stale', () => {
+    let clock = 1_000;
+    const { manager, asked } = managerWith(() => clock);
+    const path = '/tmp/thing.zip';
+
+    // Reaching past the public surface deliberately: what is being tested is the
+    // caching, and building a real completed download needs a live Electron
+    // DownloadItem, which a unit test cannot have.
+    const check = (manager as unknown as { stillThere: (p: string) => boolean }).stillThere.bind(manager);
+
+    expect(check(path)).toBe(true);
+    expect(check(path)).toBe(true);
+    expect(check(path)).toBe(true);
+    expect(asked).toHaveLength(1);
+
+    // Past the moment it is worth reusing.
+    clock += 10_000;
+    expect(check(path)).toBe(true);
+    expect(asked).toHaveLength(2);
+  });
+
+  it('asks again about a path it was told to recheck', () => {
+    const clock = 1_000;
+    const { manager, asked } = managerWith(() => clock);
+    const check = (manager as unknown as { stillThere: (p: string) => boolean }).stillThere.bind(manager);
+
+    check('/tmp/a.zip');
+    check('/tmp/a.zip');
+    expect(asked).toHaveLength(1);
+
+    manager.recheck('/tmp/a.zip');
+    check('/tmp/a.zip');
+    expect(asked).toHaveLength(2);
+  });
+
+  // Two files are two answers; remembering one must not answer for the other.
+  it('remembers each file separately', () => {
+    const clock = 1_000;
+    const { manager, asked } = managerWith(() => clock);
+    const check = (manager as unknown as { stillThere: (p: string) => boolean }).stillThere.bind(manager);
+
+    check('/tmp/a.zip');
+    check('/tmp/b.zip');
+    expect(asked).toEqual(['/tmp/a.zip', '/tmp/b.zip']);
   });
 });
