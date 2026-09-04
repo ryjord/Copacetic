@@ -2,8 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { PendingPrompts } from '../../electron/main/app/pending-prompts';
 import type { AuthPrompt, PermissionPrompt } from '../../electron/shared/types';
 
-const permission = (id: string, tabId: string): PermissionPrompt =>
-  ({ id, tabId, origin: 'https://example.com', kind: 'camera', description: 'use the camera' }) as PermissionPrompt;
+const permission = (id: string, tabId: string): PermissionPrompt => ({
+  id,
+  tabId,
+  origin: 'https://example.com',
+  kind: 'media',
+  description: 'use the camera',
+});
 
 const auth = (id: string, tabId: string): AuthPrompt => ({ id, tabId }) as AuthPrompt;
 

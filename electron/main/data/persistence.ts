@@ -31,6 +31,16 @@ export class PersistedFile<T> {
     private readonly flushDelayMs = 400,
     /** How this file's shape has changed over time. Files that have never changed shape need nothing here. */
     private readonly plan: SchemaPlan = UNVERSIONED,
+    /**
+     * The two disk operations a flush performs.
+     *
+     * A seam, and it exists for one reason: the durability of this write is the
+     * whole point of the class, and nothing could check it. Mocking `node:fs`
+     * does not reach this module under the test runner — measured, not assumed
+     * — so a revert to a plain unflushed write would have left every test
+     * green. Production passes nothing and gets the real ones.
+     */
+    private readonly disk: DiskOperations = REAL_DISK,
   ) {
     const dir = app.getPath('userData');
     if (!existsSync(dir)) {
@@ -134,8 +144,8 @@ export class PersistedFile<T> {
     }
     const tempPath = `${this.filePath}.${randomBytes(4).toString('hex')}.tmp`;
     try {
-      writeTheWholeFile(tempPath, JSON.stringify(this.value));
-      renameOverAnyLock(tempPath, this.filePath);
+      this.disk.write(tempPath, JSON.stringify(this.value));
+      this.disk.rename(tempPath, this.filePath);
       this.dirty = false;
       // Recorded only once the write it describes has actually happened.
       this.versions.record(this.filename, this.plan.current);
@@ -171,6 +181,12 @@ export function asBoolean(value: unknown, fallback: boolean): boolean {
 
 export function newId(): string {
   return randomBytes(9).toString('base64url');
+}
+
+/** What a flush does to the disk, so it can be watched. */
+export interface DiskOperations {
+  write(filePath: string, contents: string): void;
+  rename(from: string, to: string): void;
 }
 
 /**
@@ -229,3 +245,9 @@ function writeTheWholeFile(filePath: string, contents: string): void {
     closeSync(handle);
   }
 }
+
+/** The real ones. Everything uses these unless a test says otherwise. */
+export const REAL_DISK: DiskOperations = {
+  write: writeTheWholeFile,
+  rename: (from, to) => renameOverAnyLock(from, to),
+};

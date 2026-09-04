@@ -112,4 +112,23 @@ describe('what the settings patch refuses', () => {
   it('leaves a sensible zoom alone', () => {
     expect(asSettingsPatch({ zoomLevels: { 'https://a.example': 1.5 } }).zoomLevels?.['https://a.example']).toBe(1.5);
   });
+
+  /*
+   * The default zoom sat beside the per-site levels doing something different:
+   * checked for being a number and then stored as given. IPC uses structured
+   * clone rather than JSON, so NaN really can arrive from the renderer, and
+   * clamping carried it through — Math.min and Math.max propagate NaN whichever
+   * way round they are written. It reached a tab and the interface had a zoom
+   * of NaN per cent to show.
+   */
+  it('refuses a default zoom that is not a number', () => {
+    expect(asSettingsPatch({ defaultZoomFactor: Number.NaN }).defaultZoomFactor).toBeUndefined();
+    expect(asSettingsPatch({ defaultZoomFactor: Number.POSITIVE_INFINITY }).defaultZoomFactor).toBeUndefined();
+  });
+
+  it('clamps a default zoom the same way as the per-site ones', () => {
+    expect(asSettingsPatch({ defaultZoomFactor: 1000 }).defaultZoomFactor).toBe(5);
+    expect(asSettingsPatch({ defaultZoomFactor: 0.001 }).defaultZoomFactor).toBe(0.25);
+    expect(asSettingsPatch({ defaultZoomFactor: 1.25 }).defaultZoomFactor).toBe(1.25);
+  });
 });

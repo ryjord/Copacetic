@@ -1,5 +1,6 @@
 import type { ContextMenuParams } from 'electron';
 import type { TabId } from '../../shared/types';
+import { clampZoom } from '../../shared/types';
 import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/url';
 import type { ContentBlocker } from '../security/blocker';
 import type { BrowserStore } from '../data/store';
@@ -69,7 +70,12 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     // A stored level for this origin wins over whatever the tab was showing,
     // so following a link to a site you zoomed once arrives zoomed.
     if (!isInPage) {
-      tab.zoomFactor = deps.store.getZoomForOrigin(originOf(url)) ?? deps.store.getSettings().defaultZoomFactor;
+      // Clamped here too: this reads a stored value straight onto the tab
+      // without going through setZoom, so it is the one path that could put a
+      // level on screen that no control can produce.
+      tab.zoomFactor = clampZoom(
+        deps.store.getZoomForOrigin(originOf(url)) ?? deps.store.getSettings().defaultZoomFactor,
+      );
     }
     contents.setZoomFactor(tab.zoomFactor);
     deps.applyVisibility();

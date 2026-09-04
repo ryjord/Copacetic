@@ -1,4 +1,11 @@
-import { type KeptKind, type SiteTraces, describeTraces, sameSite, siteOf } from '../../shared/forgetting';
+import {
+  type KeptAboutSites,
+  type KeptKind,
+  type SiteTraces,
+  describeTraces,
+  sameSite,
+  siteOf,
+} from '../../shared/forgetting';
 import {
   type BrowserWindow,
   app,
@@ -1243,7 +1250,26 @@ export class Browser {
   }
 
   /** Clears one kind of thing kept about sites, and says it happened. */
+  /**
+   * What survives a clear, counted where it actually lives.
+   *
+   * The store owns most of it and the download manager owns the rest, so the
+   * two are put together here. Downloads were in neither list: clearing history
+   * left downloads.json holding every address and redirect chain, and the pane
+   * that exists to say what a clear does not touch did not mention it.
+   */
+  keptAboutSites(): KeptAboutSites {
+    return { ...this.store.keptAboutSites(), downloads: this.downloads.remembered() };
+  }
+
   clearKept(kind: KeptKind): void {
+    if (kind === 'downloads') {
+      // The files stay where they were saved. What goes is the record of where
+      // they came from, which is browsing.
+      this.downloads.clearCompleted();
+      this.scheduleStatePush();
+      return;
+    }
     this.store.clearKept(kind);
     if (kind === 'blockingOff') {
       this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);

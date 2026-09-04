@@ -130,13 +130,13 @@ describe('every item in both menus', () => {
     };
 
     const paths = [
-      ...new Set([...menuSource.matchAll(/browser\.((?:tabs\.|store\.)?[a-zA-Z]+)\(/g)].map((m) => m[1])),
+      ...new Set([...menuSource.matchAll(/browser\.((?:tabs\.|store\.)?[a-zA-Z]+)\(/g)].map((m) => m[1] ?? '')),
     ];
     expect(paths.length).toBeGreaterThan(8);
 
     const missing = paths.filter((path) => {
       const method = path.split('.').pop() ?? '';
-      const prefix = path.includes('.') ? `${path.split('.')[0]}.` : '';
+      const prefix = path.includes('.') ? `${path.split('.')[0] ?? ''}.` : '';
       const source = sources[prefix as keyof typeof sources] ?? sources[''];
       return !new RegExp(`\\b(async )?${method}\\s*[(<]`).test(source);
     });

@@ -235,6 +235,17 @@ export class DownloadManager {
     this.onChanged();
   }
 
+  /**
+   * How many finished downloads still have their address and time recorded.
+   *
+   * Only the persisted ones: a Hush download is held in memory and was never
+   * written down, so counting it would offer to clear something that is not
+   * there.
+   */
+  remembered(): number {
+    return this.file.get().filter((entry) => entry.status !== 'progressing' && entry.status !== 'paused').length;
+  }
+
   clearCompleted(): void {
     const stillGoing = (entry: DownloadState) => entry.status === 'progressing' || entry.status === 'paused';
     this.ephemeral = this.ephemeral.filter(stillGoing);

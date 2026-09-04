@@ -104,7 +104,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
   handle(INVOKE.historyTraces, (_event, address) => browser.tracesOf(asString(address)));
   handle(INVOKE.historyTotalBlocked, () => browser.store.totalBlocked());
-  handle(INVOKE.dataKept, () => browser.store.keptAboutSites());
+  handle(INVOKE.dataKept, () => browser.keptAboutSites());
   handle(INVOKE.historyOpenContextMenu, (_event, address) => showSiteContextMenu(browser, asString(address)));
   handle(INVOKE.dataClearKept, (_event, kind) => browser.clearKept(asString(kind) as KeptKind));
   handle(INVOKE.historyForgetSite, (_event, address) => browser.forgetSite(asString(address)));
@@ -408,8 +408,11 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.sidebarWidth === 'number') {
     patch.sidebarWidth = value.sidebarWidth;
   }
-  if (typeof value.defaultZoomFactor === 'number') {
-    patch.defaultZoomFactor = value.defaultZoomFactor;
+  // Checked and clamped like the per-site levels below it, which it was not:
+  // the two sat beside each other doing different things, and this one let a
+  // value through that no control can produce.
+  if (typeof value.defaultZoomFactor === 'number' && Number.isFinite(value.defaultZoomFactor)) {
+    patch.defaultZoomFactor = clampZoom(value.defaultZoomFactor);
   }
 
   if (isRecord(value.permissionDecisions)) {

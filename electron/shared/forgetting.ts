@@ -31,6 +31,8 @@ export interface KeptAboutSites {
   permissions: number;
   blockingOff: number;
   certificates: number;
+  /** Completed downloads whose address and time are still recorded. */
+  downloads: number;
 }
 
 /** The kinds that can be cleared on their own, named as a person would say them. */
@@ -39,6 +41,11 @@ export const KEPT_KINDS = [
   { id: 'permissions', one: 'Permissions decided for 1 site', many: 'Permissions decided for {n} sites' },
   { id: 'blockingOff', one: 'Blocking switched off on 1 site', many: 'Blocking switched off on {n} sites' },
   { id: 'certificates', one: 'Certificate remembered for 1 site', many: 'Certificates remembered for {n} sites' },
+  // The file is on disk because it was asked for; where it came from is
+  // browsing. Kept, because someone may need to know where a file they still
+  // have came from — and listed, because clearing history did not touch it and
+  // nothing said so.
+  { id: 'downloads', one: 'Where 1 download came from', many: 'Where {n} downloads came from' },
 ] as const;
 
 export type KeptKind = (typeof KEPT_KINDS)[number]['id'];

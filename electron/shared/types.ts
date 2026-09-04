@@ -266,7 +266,19 @@ export function isThemeId(value: string): value is ThemeId {
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 5;
 
+/**
+ * `Math.min` and `Math.max` carry NaN straight through whichever way round they
+ * are written, so clamping a NaN produced a NaN — and IPC uses structured
+ * clone, not JSON, so a NaN really can arrive from the renderer. It reached a
+ * tab's zoom and the interface then had a zoom of NaN per cent to display.
+ *
+ * Anything that is not a number is not a zoom, and the answer is the default
+ * rather than the nearest bound: there is no nearest bound to a NaN.
+ */
 export function clampZoom(factor: number): number {
+  if (!Number.isFinite(factor)) {
+    return 1;
+  }
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, factor));
 }
 

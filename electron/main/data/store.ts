@@ -235,6 +235,8 @@ export class BrowserStore {
       permissions: Object.keys(settings.permissionDecisions).length,
       blockingOff: settings.blockerAllowlist.length,
       certificates: this.certificatesStore.origins().length,
+      // The store does not own the download manager; the browser fills this in.
+      downloads: 0,
     };
   }
 
@@ -248,8 +250,11 @@ export class BrowserStore {
       zoom: { zoomLevels: {} },
       permissions: { permissionDecisions: {} },
       blockingOff: { blockerAllowlist: [] },
-    }[kind];
-    this.settings.updateSettings(patch);
+    }[kind as 'zoom' | 'permissions' | 'blockingOff'] as Partial<Settings> | undefined;
+    // Downloads are the browser's, not the store's, and are cleared there.
+    if (patch) {
+      this.settings.updateSettings(patch);
+    }
   }
 
   /** Requests refused across everything still in history. */

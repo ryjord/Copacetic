@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { clampZoom } from '../../electron/shared/types';
 import {
   STILL_WANTED_MS,
   reachedForAnotherTab,
@@ -90,5 +91,25 @@ describe('whether moving to a tab is someone reaching for it', () => {
   // Closing the last tab is a change, and what was covering it should still go.
   it('is, when the last tab closes', () => {
     expect(reachedForAnotherTab('tab-1', null)).toBe(true);
+  });
+});
+
+/**
+ * Clamping carried a NaN straight through, because Math.min and Math.max
+ * propagate it whichever way round they are written. There is no nearest bound
+ * to a NaN, so the answer is the default rather than an edge.
+ */
+describe('what counts as a zoom', () => {
+  it('holds a level that is already sensible', () => {
+    expect(clampZoom(1.5)).toBe(1.5);
+  });
+
+  it('brings an extreme one to the nearest bound', () => {
+    expect(clampZoom(1000)).toBe(5);
+    expect(clampZoom(0.001)).toBe(0.25);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])('answers 1 for %p', (value) => {
+    expect(clampZoom(value)).toBe(1);
   });
 });

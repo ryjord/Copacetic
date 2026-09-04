@@ -12,9 +12,18 @@ const tab = (id: string, over: Partial<TabState> = {}): TabState => ({
   isLoading: false,
   canGoBack: false,
   canGoForward: false,
+  isHush: false,
+  groupId: null,
   isAudible: false,
   isMuted: false,
-  security: { level: 'secure', scheme: 'https', host: `${id}.example`, detail: '', certificate: null },
+  security: {
+    level: 'secure',
+    scheme: 'https',
+    host: `${id}.example`,
+    detail: '',
+    certificate: null,
+    certificateChange: 'none',
+  },
   error: null,
   blockedCount: 0,
   loadMs: null,
@@ -25,6 +34,7 @@ const tab = (id: string, over: Partial<TabState> = {}): TabState => ({
 });
 
 const state = (over: Partial<BrowserState> = {}): BrowserState => ({
+  groups: [],
   tabs: [tab('one'), tab('two')],
   tabOrder: ['one', 'two'],
   activeTabId: 'one',
@@ -127,6 +137,8 @@ describe('stabiliseState', () => {
         receivedBytes: 10,
         totalBytes: 100,
         bytesPerSecond: null,
+        urlChain: [],
+        sha256: null,
         status: 'progressing',
         startedAt: 0,
         completedAt: null,

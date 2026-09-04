@@ -35,6 +35,17 @@ Batch 1 of the September audit.
   archive inside the app from 246MB to 15MB and the whole thing from 625MB to
   291MB, with nothing removed that anything used.
 
+- **Downloads are listed among the things a clear does not touch, and can be
+  cleared.** Clearing history took the history and the cached icons and left
+  `downloads.json` holding every address and redirect chain, while the pane that
+  exists to say what survives a clear did not mention it. The files you saved
+  stay where they are; what goes is the record of where they came from.
+- **A zoom that is not a number cannot be stored.** The default zoom was checked
+  for being a number and then kept as given, unlike the per-site levels sitting
+  beside it — and clamping carried it through, because the arithmetic that
+  clamps propagates a non-number whichever way round it is written. It reached a
+  tab, and the interface had a zoom of NaN per cent to display.
+
 - **A damaged line in the certificate file no longer costs you the rest of it.**
   What each site presented last time was asserted to have the right shape rather
   than read, so one malformed entry reached the comparison as a string or a
