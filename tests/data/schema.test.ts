@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -181,5 +181,40 @@ describe('a persisted file that has changed shape', () => {
 
     expect(file.get().title).toBe('fresh');
     expect(JSON.parse(readFileSync(path.join(dataDir, 'thing.json.newer'), 'utf8'))).toEqual({ somethingNew: true });
+  });
+});
+
+/**
+ * The record saying how to read every other file was written the plain way —
+ * no flush to the disk, no permissions, no retry — while the data it describes
+ * had all three. The note was less safe than the files it explains, which is
+ * the wrong way round: losing it makes every store look like its first version.
+ */
+describe('how the version record reaches the disk', () => {
+  it('is readable only by the person it belongs to', () => {
+    const versions = schemaVersionsFor(dataDir);
+    versions.record('thing.json', 3);
+
+    const mode = statSync(path.join(dataDir, 'schema.json')).mode & 0o777;
+    expect(mode.toString(8)).toBe('600');
+  });
+
+  it('leaves no temporary file behind', () => {
+    const versions = schemaVersionsFor(dataDir);
+    versions.record('thing.json', 2);
+    const leftovers = readFileSync(path.join(dataDir, 'schema.json'), 'utf8');
+    expect(leftovers).toContain('thing.json');
+    expect(
+      require('node:fs')
+        .readdirSync(dataDir)
+        .filter((name: string) => name.endsWith('.tmp')),
+    ).toEqual([]);
+  });
+
+  it('reads back what it recorded', () => {
+    const versions = schemaVersionsFor(dataDir);
+    versions.record('thing.json', 4);
+    forgetSchemaVersions();
+    expect(schemaVersionsFor(dataDir).versionOf('thing.json')).toBe(4);
   });
 });

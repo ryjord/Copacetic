@@ -1,4 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { REAL_DISK } from './durable-write';
+import { describeError, log } from '../system/diagnostics';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 
@@ -119,16 +121,31 @@ export class SchemaVersions {
     this.write();
   }
 
+  /**
+   * Writes the record of what version each file is at.
+   *
+   * Through the same durable path as the data it describes: flushed to the disk
+   * before the rename, readable only by its owner, and retried when something
+   * else is holding the file. It was written the plain way, which made the note
+   * saying how to read the files less safe than the files — the wrong way round.
+   *
+   * A failure here is reported rather than swallowed. It used to be caught and
+   * dropped, so a data file could reach version N with the record still saying
+   * N-1 and nothing anywhere would mention it. That state is survivable, because
+   * every migration step is required to recognise its own output and is tested
+   * by being run twice — but survivable is not the same as unremarkable.
+   */
   private write(): void {
     const tempPath = `${this.filePath}.${randomBytes(4).toString('hex')}.tmp`;
     try {
       if (!existsSync(this.dir)) {
         mkdirSync(this.dir, { recursive: true });
       }
-      writeFileSync(tempPath, JSON.stringify(this.versions), 'utf8');
-      renameSync(tempPath, this.filePath);
+      REAL_DISK.write(tempPath, JSON.stringify(this.versions));
+      REAL_DISK.rename(tempPath, this.filePath);
     } catch (error) {
       console.error('[schema] could not record file versions', error);
+      log.error('the record of file versions could not be written', describeError(error));
       try {
         if (existsSync(tempPath)) {
           unlinkSync(tempPath);
