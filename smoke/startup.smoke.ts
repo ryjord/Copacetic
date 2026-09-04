@@ -206,3 +206,13 @@ describe('where the page goes', () => {
     expect(asPlaced?.width).toBe(asDrawn.width);
   }, 90_000);
 });
+
+/**
+ * macOS keeps an application running after its last window closes, and clicking
+ * the dock icon is how a person asks for it back.
+ *
+ * The handler for that returned early when the window was gone, so the app sat
+ * in the dock, alive, with no window and no way to open one — usable only by
+ * force-quitting it. Everywhere else the last window closing quits, so this is
+ * the one platform where it matters and the one platform it was broken on.
+ */

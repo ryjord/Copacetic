@@ -1,4 +1,4 @@
-import { app, nativeImage } from 'electron';
+import { app, dialog, nativeImage } from 'electron';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Browser } from './app/browser';
@@ -27,7 +27,22 @@ registerAppProtocolScheme();
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  void start();
+  // A rejected start used to disappear: no window, no message, no log line, and
+  // an application in the dock doing nothing. Whatever failed is written down
+  // and said out loud, because a browser that will not open is the one failure
+  // nobody can work around.
+  start().catch((error: unknown) => {
+    console.error('[copacetic] failed to start', error);
+    log.error('failed to start', describeError(error));
+    dialog.showErrorBox('Copacetic could not start', sentenceFor(error));
+    app.exit(1);
+  });
+}
+
+/** What to put in front of a person when something failed before they could act. */
+function sentenceFor(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.trim() || 'Something went wrong, and the diagnostics log says what.';
 }
 
 let browser: Browser | null = null;
@@ -59,16 +74,19 @@ async function start(): Promise<void> {
   });
 
   app.on('second-instance', (_event, argv) => {
-    if (!browser || browser.window.isDestroyed()) {
-      return;
-    }
-    if (browser.window.isMinimized()) {
-      browser.window.restore();
-    }
-    browser.window.focus();
     const url = urlFromArguments(argv);
+    if (browser && !browser.window.isDestroyed()) {
+      if (browser.window.isMinimized()) {
+        browser.window.restore();
+      }
+      browser.window.focus();
+    }
+    // Through the same path as every other address, which holds it when there
+    // is nowhere to put it yet. Opening a link while this app is still starting
+    // used to drop it silently — the second copy exits, the first has no window
+    // yet, and the address is gone.
     if (url) {
-      browser.tabs.create(url, { activate: true });
+      openUrl(url);
     }
   });
 
@@ -78,6 +96,42 @@ async function start(): Promise<void> {
   allowLocalCertificates();
   log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
+
+  await openWindow();
+
+  // Cold start: the address is either on the command line, or was handed over
+  // by the system before there was a window to put it in.
+  const requested = pendingUrl ?? urlFromArguments(process.argv);
+  pendingUrl = null;
+  if (requested) {
+    openUrl(requested);
+  }
+
+  app.on('activate', () => {
+    if (browser && !browser.window.isDestroyed()) {
+      browser.window.show();
+      return;
+    }
+    // macOS keeps an application running after its last window closes, and
+    // clicking the dock icon is how a person asks for it back. Returning early
+    // here left the app alive with no window and no way to open one — running,
+    // in the dock, and unusable until it was force-quit.
+    void openWindow().catch((error: unknown) => {
+      log.error('could not reopen the window', describeError(error));
+      dialog.showErrorBox('Copacetic could not open a window', sentenceFor(error));
+    });
+  });
+}
+
+/**
+ * Builds the window and everything wired to it.
+ *
+ * Written once because it happens twice: at startup, and again when someone
+ * clicks the dock icon of an application whose last window they closed.
+ */
+async function openWindow(): Promise<void> {
+  // Registered against the previous window otherwise, which is gone.
+  removeIpcHandlers();
 
   browser = new Browser();
   browser.tabs.onPageContextMenu((tabId, params) => {
@@ -89,24 +143,6 @@ async function start(): Promise<void> {
   installApplicationMenu(browser);
 
   await browser.start();
-
-  // Cold start: the address is either on the command line, or was handed over
-  // by the system before there was a window to put it in.
-  const requested = pendingUrl ?? urlFromArguments(process.argv);
-  pendingUrl = null;
-  if (requested) {
-    browser.tabs.create(requested, { activate: true });
-  }
-
-  app.on('activate', () => {
-    if (!browser) {
-      return;
-    }
-    if (browser.window.isDestroyed()) {
-      return;
-    }
-    browser.window.show();
-  });
 }
 
 app.on('window-all-closed', () => {

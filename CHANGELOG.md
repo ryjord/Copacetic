@@ -6,6 +6,16 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 ### Fixed
 
+- **A start that fails says so.** It used to disappear: no window, no message,
+  no log line, and an application sitting in the dock doing nothing.
+- **Closing the last window on macOS no longer leaves the app unusable.** macOS
+  keeps an application running after its last window closes, and clicking the
+  dock icon is how you ask for it back — that did nothing, so the app stayed in
+  the dock, alive, with no window and no way to open one.
+- **An address opened while Copacetic is still starting is not lost.** Handing a
+  link to a second copy while the first was still starting dropped it: the
+  second copy exits, the first has no window yet, and the address went nowhere.
+
 - **Settings can be opened from the menu bar on Windows and Linux.** It lived in
   the application menu, which only macOS has, so on the other two there was no
   menu item for it at all — and the smoke test that presses it had been failing

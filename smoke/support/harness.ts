@@ -19,6 +19,28 @@ const launchEnvironment = (): Record<string, string> => {
 };
 
 /**
+ * Profiles created but not yet cleaned up.
+ *
+ * Removed on the way out however the process ends, because the ordinary
+ * teardown does not run when a suite is cancelled — and an interrupted smoke
+ * run is a normal thing to do while developing.
+ */
+const abandonedProfiles = new Set<string>();
+
+for (const ending of ['exit', 'SIGINT', 'SIGTERM'] as const) {
+  process.once(ending, () => {
+    for (const profile of abandonedProfiles) {
+      try {
+        rmSync(profile, { recursive: true, force: true });
+      } catch {
+        // A profile still held open by a process that is also going away is not
+        // worth failing the run over.
+      }
+    }
+  });
+}
+
+/**
  * A running copy of the built app, with a profile of its own.
  *
  * Smoke specs talk to the real thing: the packaged main process, the real
@@ -39,6 +61,11 @@ export class SmokeApp {
   static async launch(): Promise<SmokeApp> {
     // A throwaway profile, so a smoke run never reads or writes real browsing.
     const profile = realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-smoke-')));
+    // Reclaimed even when the run does not finish. `close` handles the ordinary
+    // path and never runs when a suite is interrupted, so a cancelled run used
+    // to leave its profile behind — several thousand of them accumulated during
+    // one afternoon's work, holding a quarter of a gigabyte.
+    abandonedProfiles.add(profile);
     const app = await electron.launch({
       args: ['.', `--user-data-dir=${profile}`],
       cwd: process.cwd(),
@@ -196,5 +223,6 @@ export class SmokeApp {
   async close(): Promise<void> {
     await this.app.close();
     rmSync(this.profile, { recursive: true, force: true });
+    abandonedProfiles.delete(this.profile);
   }
 }
