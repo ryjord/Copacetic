@@ -7,7 +7,7 @@ vi.mock('electron', () => ({
   shell: {},
 }));
 
-const { mayBeHandedToOs } = await import('../../electron/main/app/browser');
+const { mayBeHandedToOs } = await import('../../electron/main/security/browser-delegate');
 
 /**
  * A link Copacetic refuses to navigate to reaches this path next. Handing it to

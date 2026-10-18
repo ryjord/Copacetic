@@ -1,0 +1,179 @@
+import { type BrowserWindow, app, dialog, shell } from 'electron';
+import { randomUUID } from 'node:crypto';
+import { sanitiseChromeText } from '../../shared/chrome-text';
+import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/types';
+import { hostOf, isPageNavigableUrl } from '../../shared/url';
+import type { PendingPrompts } from '../app/pending-prompts';
+import type { BrowserStore } from '../data/store';
+import type { TabManager } from '../tabs/tabs';
+import { describeAuthPrompt, isPromptWorthy } from './auth';
+import type { SecurityDelegate } from './security';
+
+// Schemes that are never passed to `shell.openExternal`, whatever the user answers to the confirmation dialog.
+const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
+
+/**
+ * Everything refused for navigation reaches the external-open path too, so
+ * without this the schemes the security model rejects would just be handed to
+ * whichever application the OS associates with them, routing around the
+ * refusal rather than enforcing it.
+ */
+export function mayBeHandedToOs(url: string): boolean {
+  const scheme = safeScheme(url);
+  if (!scheme) {
+    return false;
+  }
+  return !NEVER_HANDED_TO_OS.has(`${scheme}:`);
+}
+
+interface BrowserDelegateDeps {
+  window: BrowserWindow;
+  store: BrowserStore;
+  prompts: PendingPrompts;
+  /** Read when a page asks, because the sessions it guards are made before the tabs are. */
+  tabs: () => TabManager;
+  onPromptsChanged: () => void;
+}
+
+/** What every web session asks of the browser: the person's answers, and where pages may go. */
+export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDelegate {
+  return {
+    requestPermission: (input) =>
+      new Promise<PermissionAnswer>((resolve) => {
+        const tabId = deps.tabs().tabIdForWebContentsId(input.webContentsId);
+        if (!tabId) {
+          resolve({ decision: 'deny', remember: false });
+          return;
+        }
+        const prompt: PermissionPrompt = {
+          id: randomUUID(),
+          tabId,
+          origin: input.origin,
+          kind: input.kind,
+          description: input.description,
+        };
+        deps.prompts.addPermission(prompt, resolve);
+        deps.onPromptsChanged();
+      }),
+
+    openInNewTab: (url, options) => {
+      // Page-initiated, so the strict set: `window.open('file:///…')` must not become a tab.
+      if (!isPageNavigableUrl(url)) {
+        return;
+      }
+      deps.tabs().create(url, { activate: options.activate, openerWebContentsId: options.openerWebContentsId });
+    },
+
+    confirmExternalOpen: async (url) => {
+      const scheme = safeScheme(url);
+      if (!scheme || !mayBeHandedToOs(url)) {
+        return false;
+      }
+      const { response } = await dialog.showMessageBox(deps.window, {
+        type: 'question',
+        buttons: ['Open', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+        title: 'Leave Copacetic?',
+        message: `Open this link in another application?`,
+        detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${sanitiseChromeText(url, 240)}`,
+        noLink: true,
+      });
+      if (response !== 0) {
+        return false;
+      }
+      await shell.openExternal(url);
+      return true;
+    },
+
+    getStoredDecision: (origin, kind) => deps.store.getPermissionDecision(origin, kind),
+    rememberDecision: (origin, kind, decision) => deps.store.setPermissionDecision(origin, kind, decision),
+
+    chooseDisplaySource: async (origin, choices) => {
+      const host = sanitiseChromeText(hostOf(origin) || origin, 120);
+      const { response } = await dialog.showMessageBox(deps.window, {
+        type: 'question',
+        buttons: [...choices.map((choice) => sanitiseChromeText(choice.name, 60)), 'Cancel'],
+        defaultId: choices.length,
+        cancelId: choices.length,
+        title: 'Share your screen',
+        message: `${host} wants to share your screen`,
+        detail: 'Choose what to share. Nothing is shared until you pick something, and the choice is not remembered.',
+        noLink: true,
+      });
+      return choices[response]?.id ?? null;
+    },
+  };
+}
+
+/**
+ * HTTP Basic, Digest and friends, answered through the chrome.
+ *
+ * Returns the way to stop listening. The listener is on `app`, which outlives
+ * any one window, so a window that reopened used to add a second one and every
+ * challenge after that was prompted twice.
+ */
+export function watchAuthChallenges(deps: BrowserDelegateDeps): () => void {
+  const onLogin = (
+    event: Electron.Event,
+    webContents: Electron.WebContents | null,
+    details: Electron.AuthenticationResponseDetails,
+    authInfo: Electron.AuthInfo,
+    callback: (username?: string, password?: string) => void,
+  ) => {
+    // Only challenges a person can actually evaluate. A subresource buried in a
+    // cross-origin frame gives the user nothing to judge, so it is left to fail
+    // the way Chromium would leave it.
+    const tabId: TabId | null = webContents ? deps.tabs().tabIdForWebContentsId(webContents.id) : null;
+    const tabUrl = tabId ? deps.tabs().urlFor(tabId) : null;
+    if (!isPromptWorthy({ isProxy: authInfo.isProxy, challengeUrl: details.url, tabUrl })) {
+      return;
+    }
+
+    // Taking the event means Copacetic owns the answer; without this Chromium cancels the challenge itself.
+    event.preventDefault();
+    const id = randomUUID();
+    let settled = false;
+    const respond = (username?: string, password?: string) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      deps.prompts.forgetAuth(id);
+      // Calling back with nothing cancels the challenge, which is what the user asked for by dismissing it.
+      if (username === undefined) {
+        callback();
+      } else {
+        callback(username, password);
+      }
+      deps.onPromptsChanged();
+    };
+
+    deps.prompts.addAuth(
+      describeAuthPrompt({
+        id,
+        tabId,
+        isProxy: authInfo.isProxy,
+        host: authInfo.host,
+        port: authInfo.port,
+        realm: authInfo.realm,
+        scheme: authInfo.scheme,
+      }),
+      respond,
+    );
+    deps.onPromptsChanged();
+  };
+
+  app.on('login', onLogin);
+  return () => {
+    app.removeListener('login', onLogin);
+  };
+}
+
+function safeScheme(url: string): string | null {
+  try {
+    return new URL(url).protocol.replace(/:$/, '');
+  } catch {
+    return null;
+  }
+}

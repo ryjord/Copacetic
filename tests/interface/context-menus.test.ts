@@ -31,8 +31,7 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com' } = {})
     reopenClosedTab: record('reopenClosedTab'),
     scheduleStatePush: record('scheduleStatePush'),
     store: { isBookmarked: () => false, toggleBookmark: record('toggleBookmark'), listGroups: () => [] },
-    createGroup: record('createGroup'),
-    setTabGroup: record('setTabGroup'),
+    groups: { create: record('createGroup'), setForTab: record('setTabGroup') },
     tabs: {
       urlFor: () => url,
       groupIdFor: () => null,
@@ -164,12 +163,14 @@ describe("a group's menu", () => {
         updateBookmarkFolder: () => {},
       },
       tabs: { tabsInGroup: () => [], groupHoldsHush: () => holdsHush },
-      updateGroup: (id: string, changes: Record<string, unknown>) =>
-        called.push(`updateGroup:${JSON.stringify(changes)}`),
-      removeGroup: () => called.push('removeGroup'),
-      closeGroup: () => called.push('closeGroup'),
-      renameGroup: () => called.push('renameGroup'),
-      saveGroupAsFolder: () => called.push('saveGroupAsFolder'),
+      groups: {
+        update: (id: string, changes: Record<string, unknown>) =>
+          called.push(`updateGroup:${JSON.stringify(changes)}`),
+        remove: () => called.push('removeGroup'),
+        close: () => called.push('closeGroup'),
+        rename: () => called.push('renameGroup'),
+        saveAsFolder: () => called.push('saveGroupAsFolder'),
+      },
       window: {},
     } as never;
     showGroupContextMenu(browser, 'g1');

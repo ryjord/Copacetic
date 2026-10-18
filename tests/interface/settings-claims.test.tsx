@@ -95,7 +95,7 @@ describe('the disclaimers stay put', () => {
  */
 describe('what Settings says about filling passwords', () => {
   const contextMenu = readFileSync('electron/main/menus/context-menu.ts', 'utf8');
-  const browserSource = readFileSync('electron/main/app/browser.ts', 'utf8');
+  const browserSource = readFileSync('electron/main/workflows/password-fill.ts', 'utf8');
 
   it('is describing something that actually ships', () => {
     expect(contextMenu).toContain("label: 'Fill password'");

@@ -64,14 +64,14 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
 
   // Offered where a password box actually is, and only for this page's own site.
   if (params.isEditable) {
-    const offer = browser.fillOfferFor(tabId);
+    const offer = browser.passwords.offerFor(tabId);
     if (offer.entries.length > 0) {
       push({
         label: 'Fill password',
         submenu: offer.entries.map((entry) => ({
           label: entry.username || 'Saved password',
           click: () => {
-            void browser.fillPassword(tabId, entry.id);
+            void browser.passwords.fill(tabId, entry.id);
           },
         })),
       });
@@ -216,7 +216,7 @@ function groupSubmenu(browser: Browser, tabId: TabId): MenuItemConstructorOption
     label: group.name,
     type: 'checkbox',
     checked: group.id === current,
-    click: () => browser.setTabGroup(tabId, group.id === current ? null : group.id),
+    click: () => browser.groups.setForTab(tabId, group.id === current ? null : group.id),
   }));
 
   return {
@@ -224,20 +224,20 @@ function groupSubmenu(browser: Browser, tabId: TabId): MenuItemConstructorOption
     submenu: [
       {
         label: 'New group',
-        click: () => browser.createGroup(tabId, 'Group', GROUP_COLOURS[0].id, false),
+        click: () => browser.groups.create(tabId, 'Group', GROUP_COLOURS[0].id, false),
       },
       {
         label: 'New group that keeps its own browsing',
         // A Hush tab would not use it: its session must never be written down,
         // so the group's separation could not reach it anyway.
         enabled: !isHush,
-        click: () => browser.createGroup(tabId, 'Group', GROUP_COLOURS[0].id, true),
+        click: () => browser.groups.create(tabId, 'Group', GROUP_COLOURS[0].id, true),
       },
       ...(existing.length > 0 ? [{ type: 'separator' as const }, ...existing] : []),
       ...(current
         ? [
             { type: 'separator' as const },
-            { label: 'Remove from group', click: () => browser.setTabGroup(tabId, null) },
+            { label: 'Remove from group', click: () => browser.groups.setForTab(tabId, null) },
           ]
         : []),
     ],
@@ -266,32 +266,32 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
   const items: MenuItemConstructorOptions[] = [
     { label: describeClaim(claim), enabled: false },
     { type: 'separator' },
-    { label: `Rename “${group.name}”`, click: () => browser.renameGroup(groupId) },
+    { label: `Rename “${group.name}”`, click: () => browser.groups.rename(groupId) },
     {
       label: 'Colour',
       submenu: GROUP_COLOURS.map((colour) => ({
         label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
         type: 'radio' as const,
         checked: colour.id === group.colour,
-        click: () => browser.updateGroup(groupId, { colour: colour.id }),
+        click: () => browser.groups.update(groupId, { colour: colour.id }),
       })),
     },
     { type: 'separator' },
     {
       label: group.collapsed ? 'Expand' : 'Collapse',
-      click: () => browser.updateGroup(groupId, { collapsed: !group.collapsed }),
+      click: () => browser.groups.update(groupId, { collapsed: !group.collapsed }),
     },
     {
       // The other half of the round trip: a folder is a group at rest, so a
       // group can be put to rest. A Hush tab is never saved, and the result
       // says how many were left out rather than leaving it to be noticed.
       label: 'Save as a bookmark folder',
-      click: () => browser.saveGroupAsFolder(groupId),
+      click: () => browser.groups.saveAsFolder(groupId),
     },
     { type: 'separator' },
     // Said plainly, because "delete" beside a row of tabs reads as deleting them.
-    { label: 'Ungroup these tabs', click: () => browser.removeGroup(groupId) },
-    { label: 'Close these tabs', click: () => browser.closeGroup(groupId) },
+    { label: 'Ungroup these tabs', click: () => browser.groups.remove(groupId) },
+    { label: 'Close these tabs', click: () => browser.groups.close(groupId) },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
@@ -324,14 +324,14 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
       enabled: false,
     },
     { type: 'separator' },
-    { label: `Rename “${folder.name}”`, click: () => browser.renameBookmarkFolder(folderId) },
+    { label: `Rename “${folder.name}”`, click: () => browser.bookmarks.renameFolder(folderId) },
     {
       label: 'Colour',
       submenu: GROUP_COLOURS.map((colour) => ({
         label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
         type: 'radio' as const,
         checked: colour.id === folder.colour,
-        click: () => browser.updateBookmarkFolder(folderId, { colour: colour.id }),
+        click: () => browser.bookmarks.updateFolder(folderId, { colour: colour.id }),
       })),
     },
     { type: 'separator' },
@@ -340,12 +340,12 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
       // ambiguous, and 31 tabs is not what someone expecting 18 wants.
       label: `Open all ${counted.withDescendants} as a tab group`,
       enabled: counted.withDescendants > 0,
-      click: () => browser.openFolderAsGroup(folderId),
+      click: () => browser.groups.openFolder(folderId),
     },
     { type: 'separator' },
     {
       label: 'Delete this folder',
-      click: () => browser.deleteBookmarkFolder(folderId),
+      click: () => browser.bookmarks.deleteFolder(folderId),
     },
     {
       label:
@@ -395,19 +395,19 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
           label: 'Unfiled',
           type: 'radio' as const,
           checked: bookmark.folderId === null,
-          click: () => browser.fileBookmark(bookmarkId, null),
+          click: () => browser.bookmarks.file(bookmarkId, null),
         },
         ...(withPath.length > 0 ? [{ type: 'separator' as const }] : []),
         ...withPath.map(({ folder, label }) => ({
           label,
           type: 'radio' as const,
           checked: folder.id === bookmark.folderId,
-          click: () => browser.fileBookmark(bookmarkId, folder.id),
+          click: () => browser.bookmarks.file(bookmarkId, folder.id),
         })),
       ],
     },
     { type: 'separator' },
-    { label: 'Remove bookmark', click: () => browser.removeBookmark(bookmarkId) },
+    { label: 'Remove bookmark', click: () => browser.bookmarks.remove(bookmarkId) },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
@@ -436,7 +436,7 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
     {
       label: `Forget ${site}`,
       enabled: countTraces(traces) > 0,
-      click: () => browser.forgetSite(address),
+      click: () => browser.sites.forget(address),
     },
     { label: describeTraces(traces), enabled: false },
   ];
@@ -486,7 +486,7 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
     { type: 'separator' },
     {
       label: 'Open all as a tab group',
-      click: () => browser.openFolderAsGroup(folderId),
+      click: () => browser.groups.openFolder(folderId),
     },
   ];
 

@@ -99,7 +99,7 @@ export function registerIpcHandlers(browser: Browser): void {
     browser.store.removeHistory(asString(id));
     browser.scheduleStatePush();
   });
-  handle('history.clear', (_event, range) => browser.clearBrowsingData(asClearRange(range)));
+  handle('history.clear', (_event, range) => browser.sites.clearBrowsing(asClearRange(range)));
   handle('history.topSites', (_event, limit) => browser.store.topSites(asInteger(limit, 8)));
 
   // -------------------------------------------------------------- bookmarks
@@ -107,46 +107,46 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('bookmarks.list', () => browser.store.listBookmarks());
   handle('bookmarks.toggle', (_event, url, title) => {
     const bookmarked = browser.store.toggleBookmark(asString(url), asString(title));
-    browser.bookmarksChanged();
+    browser.bookmarks.changed();
     browser.scheduleStatePush();
     return bookmarked;
   });
   handle('bookmarks.remove', (_event, id) => {
     browser.store.removeBookmark(asString(id));
-    browser.bookmarksChanged();
+    browser.bookmarks.changed();
     browser.scheduleStatePush();
   });
   handle('bookmarks.openInActiveTab', (_event, url) => browser.openInActiveTab(asString(url)));
   handle('bookmarks.openContextMenu', (_event, id) => showBookmarkContextMenu(browser, asString(id)));
-  handle('history.traces', (_event, address) => browser.tracesOf(asString(address)));
+  handle('history.traces', (_event, address) => browser.sites.traces(asString(address)));
   handle('history.totalBlocked', () => browser.store.totalBlocked());
-  handle('data.kept', () => browser.keptAboutSites());
+  handle('data.kept', () => browser.sites.kept());
   handle('history.openContextMenu', (_event, address) => showSiteContextMenu(browser, asString(address)));
-  handle('data.clearKept', (_event, kind) => browser.clearKept(asString(kind) as KeptKind));
-  handle('history.forgetSite', (_event, address) => browser.forgetSite(asString(address)));
-  handle('notices.answer', (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
-  handle('notices.pending', () => browser.pendingNotices());
+  handle('data.clearKept', (_event, kind) => browser.sites.clearKept(asString(kind) as KeptKind));
+  handle('history.forgetSite', (_event, address) => browser.sites.forget(asString(address)));
+  handle('notices.answer', (_event, id, confirmed) => browser.notices.answer(asString(id), confirmed === true));
+  handle('notices.pending', () => browser.notices.pending());
   handle('chrome.pendingSurface', () => browser.pendingSurface());
   handle('chrome.setOverlayHeight', (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
   handle('filters.update', () => browser.updateFilterLists());
   handle('bookmarks.file', (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
-    browser.bookmarksChanged();
+    browser.bookmarks.changed();
     browser.scheduleStatePush();
   });
 
   handle('bookmarkFolders.list', () => browser.store.listBookmarkFolders());
   handle('bookmarkFolders.create', (_event, name, colour, parentId) =>
-    browser.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
+    browser.bookmarks.createFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
   );
   handle('bookmarkFolders.update', (_event, id, changes) =>
-    browser.updateBookmarkFolder(asString(id), asGroupChanges(changes)),
+    browser.bookmarks.updateFolder(asString(id), asGroupChanges(changes)),
   );
   handle('bookmarkFolders.move', (_event, id, parentId) =>
-    browser.moveBookmarkFolder(asString(id), asOptionalId(parentId)),
+    browser.bookmarks.moveFolder(asString(id), asOptionalId(parentId)),
   );
-  handle('bookmarkFolders.remove', (_event, id) => browser.deleteBookmarkFolder(asString(id)));
-  handle('bookmarkFolders.openAsGroup', (_event, id) => browser.openFolderAsGroup(asString(id)));
+  handle('bookmarkFolders.remove', (_event, id) => browser.bookmarks.deleteFolder(asString(id)));
+  handle('bookmarkFolders.openAsGroup', (_event, id) => browser.groups.openFolder(asString(id)));
   handle('bookmarkFolders.openContextMenu', (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));
   handle('bookmarkFolders.openMenu', (_event, id, x, y) =>
     showBookmarkFolderMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
@@ -229,8 +229,8 @@ export function registerIpcHandlers(browser: Browser): void {
   });
   handle('vault.remove', (_event, id) => browser.vault.remove(asString(id)));
   handle('vault.reveal', (_event, id) => browser.vault.reveal(asString(id)));
-  handle('vault.exportAll', () => browser.exportVault());
-  handle('vault.importFile', () => browser.importVault());
+  handle('vault.exportAll', () => browser.transfer.exportPasswords());
+  handle('vault.importFile', () => browser.transfer.importPasswords());
   handle('vault.lockState', () => browser.vaultLock());
   handle('vault.unlock', () => browser.unlockVault());
   handle('vault.lock', () => browser.lockVault());
@@ -255,20 +255,22 @@ export function registerIpcHandlers(browser: Browser): void {
   // ------------------------------------------------------------------ groups
 
   handle('groups.create', (_event, tabId, name, colour, ownSession) =>
-    browser.createGroup(asString(tabId), asString(name), asGroupColour(colour), ownSession === true),
+    browser.groups.create(asString(tabId), asString(name), asGroupColour(colour), ownSession === true),
   );
-  handle('groups.update', (_event, id, changes) => browser.updateGroup(asString(id), asGroupChanges(changes)));
-  handle('groups.remove', (_event, id) => browser.removeGroup(asString(id)));
+  handle('groups.update', (_event, id, changes) => browser.groups.update(asString(id), asGroupChanges(changes)));
+  handle('groups.remove', (_event, id) => browser.groups.remove(asString(id)));
   handle('groups.openContextMenu', (_event, id) => showGroupContextMenu(browser, asString(id)));
   handle('groups.setForTab', (_event, tabId, groupId) =>
-    browser.setTabGroup(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
+    browser.groups.setForTab(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
   );
   handle('wallpaper.discard', () => browser.discardWallpaper());
 
   // ------------------------------------------------------------------- data
 
-  handle('data.export', (_event, kind) => browser.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'));
-  handle('data.importBookmarks', () => browser.importBookmarks());
+  handle('data.export', (_event, kind) =>
+    browser.transfer.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'),
+  );
+  handle('data.importBookmarks', () => browser.transfer.importBookmarks());
 
   // ------------------------------------------------------------------- auth
 
