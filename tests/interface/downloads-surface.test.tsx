@@ -15,7 +15,7 @@ vi.mock('@/store/useBrowserStore', () => ({
     selector({ downloads, closeSurface: () => {}, activeSurface: 'downloads' }),
 }));
 
-const { DownloadsSurface } = await import('@/views/DownloadsSurface/DownloadsSurface');
+const { DownloadsSurface } = await import('@/components/views/downloads/DownloadsSurface');
 
 afterEach(cleanup);
 

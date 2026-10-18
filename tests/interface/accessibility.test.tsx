@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { TabState } from '../../electron/shared/types';
-import { Omnibox } from '../../src/components/chrome/Omnibox/Omnibox';
-import { SurfaceShell } from '../../src/views/SurfaceShell/SurfaceShell';
+import { Omnibox } from '../../src/components/shell/Omnibox/Omnibox';
+import { SurfaceShell } from '../../src/components/shell/SurfaceShell/SurfaceShell';
 
 vi.mock('@/lib/bridge', () => ({
   send: () => {},
@@ -139,7 +139,7 @@ describe('a surface keeps the keyboard inside it', () => {
 
 describe('the live region says what happened elsewhere', () => {
   const announce = async () => {
-    const { LiveAnnouncer } = await import('../../src/components/chrome/LiveAnnouncer/LiveAnnouncer');
+    const { LiveAnnouncer } = await import('../../src/components/shell/LiveAnnouncer/LiveAnnouncer');
     const { useBrowserStore } = await import('../../src/store/useBrowserStore');
     return { LiveAnnouncer, useBrowserStore };
   };

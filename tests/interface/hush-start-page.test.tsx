@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { DEFAULT_SETTINGS_SHAPE } from '../../src/lib/defaults';
-import { StartPage } from '../../src/components/pages/StartPage/StartPage';
+import { StartPage } from '../../src/components/views/start/StartPage';
 
 vi.mock('@/lib/bridge', () => ({
   send: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('@/store/useBrowserStore', () => ({
 }));
 
 const updateSettings = vi.fn();
-vi.mock('@/components/settings/shared/options', () => ({
+vi.mock('@/components/views/settings/shared/options', () => ({
   updateSettings: (patch: unknown) => updateSettings(patch),
 }));
 

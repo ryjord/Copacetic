@@ -19,7 +19,7 @@ vi.mock('@/store/useBrowserStore', () => ({
     }),
 }));
 
-const { ConnectionPanel } = await import('@/components/chrome/ConnectionPanel/ConnectionPanel');
+const { ConnectionPanel } = await import('@/components/overlay/SiteInfo/ConnectionPanel');
 
 afterEach(cleanup);
 

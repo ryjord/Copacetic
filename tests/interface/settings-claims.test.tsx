@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { globSync, readFileSync } from 'node:fs';
 import { cleanup, render, screen } from '@testing-library/react';
-import { AboutPane } from '../../src/components/settings/about/AboutPane';
-import { PasswordsPane } from '../../src/components/settings/passwords/PasswordsPane';
-import { PrivacyPane } from '../../src/components/settings/privacy/PrivacyPane';
+import { AboutPane } from '../../src/components/views/settings/about/AboutPane';
+import { PasswordsPane } from '../../src/components/views/settings/passwords/PasswordsPane';
+import { PrivacyPane } from '../../src/components/views/settings/privacy/PrivacyPane';
 
 vi.mock('@/lib/bridge', () => ({
   send: () => {},
@@ -47,7 +47,7 @@ describe('the counts Settings quotes', () => {
   // Globbed rather than listed: a pane added later is covered without anyone
   // remembering, and moving the folder does not silently stop the check.
   it('hardcodes no domain count in any pane', () => {
-    const panes = globSync('src/components/settings/**/*Pane.tsx');
+    const panes = globSync('src/components/views/settings/**/*Pane.tsx');
     expect(panes.length).toBeGreaterThan(4);
     for (const file of panes) {
       expect(readFileSync(file, 'utf8')).not.toMatch(/\b\d{2,4} domains\b/);

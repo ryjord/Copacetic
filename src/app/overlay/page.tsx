@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { NoticeStrip } from '@/components/chrome/NoticeStrip/NoticeStrip';
+import { NoticeStrip } from '@/components/overlay/Notices/NoticeStrip';
 import { send } from '@/lib/bridge';
 
 /**
