@@ -41,6 +41,7 @@ import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
+import { StatePublisher } from '../state/state-publisher';
 import { NoticeCentre } from './notice-centre';
 import { BookmarkCommands } from '../workflows/bookmarks';
 import { DataTransfer } from '../workflows/data-transfer';
@@ -84,11 +85,22 @@ export class Browser {
   private readonly prompts = new PendingPrompts();
   private readonly sessions: SessionRegistry;
   private readonly stopWatchingAuth: () => void;
-  private pushQueued = false;
+  private readonly publisher: StatePublisher;
   private isQuitting = false;
 
   constructor() {
     this.store = new BrowserStore();
+    hardenChromeSession(electronSession.defaultSession);
+    this.window = createChromeWindow();
+    this.publisher = new StatePublisher({
+      snapshot: () => this.getState(),
+      send: (patch) => this.window.webContents.send(PUSH.state, patch),
+      canSend: () => !this.window.isDestroyed() && !this.window.webContents.isDestroyed(),
+      // The tabs changed often enough to be worth telling the interface about,
+      // which is exactly when they are worth writing down. The session file has
+      // its own longer debounce, so this is not a write per change.
+      beforeSend: () => this.saveSession(),
+    });
     sweepOrphanedGroupPartitions(
       app.getPath('userData'),
       this.store.listGroups().map((group) => group.id),
@@ -122,9 +134,6 @@ export class Browser {
     }
     this.downloads = new DownloadManager(() => this.scheduleStatePush());
     this.updates = new UpdateManager(() => this.scheduleStatePush());
-
-    hardenChromeSession(electronSession.defaultSession);
-    this.window = createChromeWindow();
 
     const delegateDeps = {
       window: this.window,
@@ -199,7 +208,11 @@ export class Browser {
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
     this.window.on('closed', () => this.dispose());
-    this.window.webContents.on('did-finish-load', () => this.scheduleStatePush());
+    // A chrome that loaded again, after a crash or a reload, has nothing yet.
+    this.window.webContents.on('did-finish-load', () => {
+      this.publisher.forgetWhatWasSent();
+      this.scheduleStatePush();
+    });
   }
 
   // ------------------------------------------------------------------ start
@@ -255,23 +268,9 @@ export class Browser {
     };
   }
 
-  // Navigation fires many events in quick succession.
+  /** Something the chrome shows changed. Pushed shortly, together with anything else that changes meanwhile. */
   scheduleStatePush(): void {
-    if (this.pushQueued || this.isQuitting) {
-      return;
-    }
-    this.pushQueued = true;
-    setImmediate(() => {
-      this.pushQueued = false;
-      if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
-        return;
-      }
-      // The tabs changed often enough to be worth telling the interface about,
-      // which is exactly when they are worth writing down. The session file has
-      // its own longer debounce, so this is not a write per change.
-      this.saveSession();
-      this.window.webContents.send(PUSH.state, this.getState());
-    });
+    this.publisher.schedule();
   }
 
   private pushToChrome(channel: string, payload?: unknown): void {
@@ -638,6 +637,7 @@ export class Browser {
       return;
     }
     this.isQuitting = true;
+    this.publisher.stop();
     this.saveSession();
     this.downloads.cancelAllInFlight();
     this.downloads.flush();

@@ -13,8 +13,12 @@ function wallpaperPath(): string {
   return path.join(app.getPath('userData'), 'wallpaper.jpg');
 }
 
+/** Asked on every state push, so the disk is asked once and told when it changes. */
+let isWallpaperSet: boolean | null = null;
+
 export function hasWallpaper(): boolean {
-  return existsSync(wallpaperPath());
+  isWallpaperSet ??= existsSync(wallpaperPath());
+  return isWallpaperSet;
 }
 
 /** Read back as a data URL because the chrome's CSP is `img-src 'self' data:` — it cannot load a file from disk, and widening that for a decoration would be a poor trade. */
@@ -86,6 +90,8 @@ export function commitStagedWallpaper(): string {
     writeFileSync(wallpaperPath(), staged);
   } catch (error) {
     return error instanceof Error ? error.message : 'The wallpaper could not be saved.';
+  } finally {
+    isWallpaperSet = null;
   }
   staged = null;
   return '';
@@ -101,6 +107,7 @@ export function commitStagedChanges(): string {
     } catch {
       // Already gone is the outcome we wanted.
     }
+    isWallpaperSet = null;
     return '';
   }
   return commitStagedWallpaper();
@@ -161,4 +168,5 @@ export function clearWallpaper(): void {
   } catch {
     // Already gone is the outcome we wanted.
   }
+  isWallpaperSet = null;
 }

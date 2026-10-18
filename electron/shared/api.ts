@@ -2,6 +2,7 @@ import type { KeptAboutSites, KeptKind, SiteTraces } from './forgetting';
 import type { ChromeSurface } from './channels';
 import type { BookmarkFolder } from './bookmark-folders';
 import type { Notice } from './notices';
+import type { BrowserStatePatch } from './state-slices';
 import type { GroupColourId } from './tab-groups';
 import type {
   AppInfo,
@@ -246,7 +247,8 @@ export interface CopaceticApi {
     openReleases(): Promise<void>;
   };
   on: {
-    state(listener: (state: BrowserState) => void): Unsubscribe;
+    /** Only the parts that changed; the first call to chrome.getState returns the whole. */
+    state(listener: (patch: BrowserStatePatch) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
     /** Something finished, or something needs deciding before it can. */

@@ -3,7 +3,7 @@ import type { CopaceticApi } from '../shared/api';
 import { PUSH, type ChromeSurface, type PushChannel } from '../shared/channels';
 import { type ApiMethod, CHANNELS } from '../shared/ipc-contract';
 import type { Notice } from '../shared/notices';
-import type { BrowserState } from '../shared/types';
+import type { BrowserStatePatch } from '../shared/state-slices';
 
 /** One function per entry in the contract, grouped the way the API is. */
 function invokers(): Record<string, Record<string, (...args: unknown[]) => Promise<unknown>>> {
@@ -22,7 +22,7 @@ function invokers(): Record<string, Record<string, (...args: unknown[]) => Promi
 const api = {
   ...invokers(),
   on: {
-    state: (listener: (state: BrowserState) => void) => subscribe(PUSH.state, listener),
+    state: (listener: (patch: BrowserStatePatch) => void) => subscribe(PUSH.state, listener),
     focusOmnibox: (listener: () => void) => subscribe(PUSH.focusOmnibox, listener),
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
     renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),

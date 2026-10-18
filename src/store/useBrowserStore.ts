@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type { ChromeSurface } from '@shared/channels';
+import type { BrowserStatePatch } from '@shared/state-slices';
 import type { BrowserState, Settings, TabState } from '@shared/types';
 import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
 import { keepIfSame, stabiliseState } from '@/lib/stableState';
@@ -22,7 +23,8 @@ interface BrowserStoreState extends BrowserState {
   // When the panel was opened, so it can say how long a certificate has left without reading the clock during render.
   connectionPanelOpenedAt: number | null;
 
-  applyState(next: BrowserState): void;
+  /** The whole state on first load, then only the parts that changed. */
+  applyState(next: BrowserStatePatch): void;
   setSurface(surface: ChromeSurface): void;
   toggleSurface(surface: Exclude<ChromeSurface, 'none'>): void;
   requestOmniboxFocus(): void;
@@ -62,11 +64,11 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
 
   applyState: (incoming) => {
     const current = get();
-    // The main process sends the whole state on every change, freshly
-    // deserialised, so everything is a new object even when nothing differs.
-    // Selectors compare by reference, so without this a download's byte
-    // counter re-renders every tab several times a second.
-    const next = stabiliseState(current, incoming);
+    // A push carries only the parts that changed, and those arrive freshly
+    // deserialised, so a changed slice is all new objects even where most of it
+    // is the same. Selectors compare by reference, so without this one tab's
+    // title re-renders every other tab.
+    const next = stabiliseState(current, { ...current, ...incoming });
 
     const byId = new Map(next.tabs.map((tab) => [tab.id, tab]));
     const orderedTabs = keepIfSame(
