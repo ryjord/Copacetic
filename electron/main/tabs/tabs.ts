@@ -39,6 +39,7 @@ import {
   forgetTab as forgetRefusedCertificate,
 } from '../security/certificate-exceptions';
 import { describeTab } from '../system/browser-identity';
+import { surfaceColour } from '../window/appearance';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
 import type { TabRecord } from './tab-record';
@@ -578,7 +579,7 @@ export class TabManager {
       },
     });
     // Matches the chrome's surface so a slow first paint does not flash white.
-    view.setBackgroundColor('#0b0f14');
+    view.setBackgroundColor(surfaceColour());
 
     const isStartPage = rawUrl === START_PAGE_URL;
     const tab: TabRecord = {
@@ -761,6 +762,15 @@ export class TabManager {
       activate: true,
       openerWebContentsId: tab.view.webContents.id,
     });
+  }
+
+  /** Behind every page before it paints, so a new tab never flashes the other theme's colour. */
+  setBackgroundColor(colour: string): void {
+    for (const tab of this.tabs.values()) {
+      if (!tab.view.webContents.isDestroyed()) {
+        tab.view.setBackgroundColor(colour);
+      }
+    }
   }
 
   activate(id: TabId): void {

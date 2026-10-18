@@ -147,8 +147,8 @@ choose it.
 Being straight about the gaps, since the whole project is about not overstating
 things:
 
-- **Nothing is fetched at build time either.** The fonts are committed rather
-  than downloaded, so building Copacetic needs no network and no third party.
+- **Nothing is fetched at build time either.** The interface uses the system's
+  own fonts, so building Copacetic needs no network and no third party.
 - **No sync, no accounts, no cloud.** Everything lives in `userData` on this
   machine, and Settings will write your bookmarks and history back out —
   bookmarks in the format every browser imports, history as plain JSON — so

@@ -227,7 +227,7 @@ function HushNotice() {
   return (
     <section className="flex w-full flex-col items-center gap-7">
       <div className="flex flex-col items-center gap-3.5">
-        <EyeOff size={34} strokeWidth={1.4} className="text-active" aria-hidden />
+        <EyeOff size={34} strokeWidth={1.4} className="text-hush" aria-hidden />
         <h2 className="text-[26px] font-medium tracking-tight text-ink">This is a Hush tab</h2>
       </div>
 

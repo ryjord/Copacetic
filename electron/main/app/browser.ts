@@ -49,6 +49,7 @@ import { VaultSession } from '../vault/vault-session';
 import { log } from '../system/diagnostics';
 import { UpdateManager } from '../system/updates';
 import { createChromeWindow } from '../window/window';
+import { applyAppearance, onAppearanceChange, surfaceColour } from '../window/appearance';
 
 /** Owns every long-lived piece of the browser and exposes the verbs that menus, shortcuts and IPC all call into. */
 export class Browser {
@@ -76,11 +77,14 @@ export class Browser {
   private readonly prompts = new PendingPrompts();
   private readonly sessions: SessionRegistry;
   private readonly stopWatchingAuth: () => void;
+  private readonly stopWatchingAppearance: () => void;
   private readonly publisher: StatePublisher;
   private isQuitting = false;
 
   constructor() {
     this.store = new BrowserStore();
+    // Before the window exists, so it is created in the colour it will be painted.
+    applyAppearance(this.store.getSettings().appearance);
     hardenChromeSession(electronSession.defaultSession);
     this.window = createChromeWindow();
     this.publisher = new StatePublisher({
@@ -199,6 +203,12 @@ export class Browser {
     this.commands = new TabCommands({ store: this.store, tabs: this.tabs, changed, push });
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
+    this.stopWatchingAppearance = onAppearanceChange(() => {
+      if (!this.window.isDestroyed()) {
+        this.window.setBackgroundColor(surfaceColour());
+      }
+      this.tabs.setBackgroundColor(surfaceColour());
+    });
     this.window.on('closed', () => this.dispose());
     // A chrome that loaded again, after a crash or a reload, has nothing yet.
     this.window.webContents.on('did-finish-load', () => {
@@ -342,6 +352,9 @@ export class Browser {
 
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
+    if (patch.appearance !== undefined) {
+      applyAppearance(patch.appearance);
+    }
     if (patch.httpsFirst !== undefined) {
       this.httpsFirst.setEnabled(patch.httpsFirst);
     }
@@ -472,5 +485,6 @@ export class Browser {
     this.tabs.dispose();
     this.prompts.settleAll();
     this.stopWatchingAuth();
+    this.stopWatchingAppearance();
   }
 }

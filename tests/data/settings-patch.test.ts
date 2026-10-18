@@ -22,6 +22,7 @@ describe('every setting can actually be changed', () => {
     theme: 'moss',
     density: 'compact',
     httpsFirst: false,
+    appearance: 'dark',
     blockTrackers: false,
     restoreTabsOnLaunch: false,
     startPageWidgets: ['search', 'clock'],

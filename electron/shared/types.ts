@@ -259,6 +259,15 @@ export interface SearchEngine {
  */
 export const THEME_IDS = ['deep', 'slate', 'ember', 'moss'] as const;
 
+/** Light or dark for the whole interface; `system` follows the operating system. */
+export const APPEARANCES = ['system', 'light', 'dark'] as const;
+
+export type AppearanceId = (typeof APPEARANCES)[number];
+
+export function isAppearanceId(value: string): value is AppearanceId {
+  return (APPEARANCES as readonly string[]).includes(value);
+}
+
 export type ThemeId = (typeof THEME_IDS)[number];
 
 export function isThemeId(value: string): value is ThemeId {
@@ -360,6 +369,8 @@ export type ExportKind = 'bookmarks' | 'history';
 
 export interface Settings {
   searchEngine: SearchEngineId;
+  appearance: AppearanceId;
+  /** The start page's colour, and nothing else's. */
   theme: ThemeId;
   density: DensityId;
   /** Rewrite `http://` navigations to `https://` and fall back only on failure. */

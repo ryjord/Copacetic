@@ -2,53 +2,124 @@
 
 /*
  * Copacetic's one visual rule: the chrome is monochrome, and colour only ever
- * appears where it carries state. If something is green it is because the
- * connection is encrypted, not because green looked nice there.
+ * appears where it carries state. Interaction is drawn in the neutral accent;
+ * green, amber, red and the Hush blue each mean one thing everywhere.
+ *
+ * Light and dark follow the operating system unless Settings says otherwise.
+ * The main process sets Electron's native theme, so `prefers-color-scheme`
+ * here is the single switch.
  */
 
+:root {
+  --surface-void: #080b0f;
+  --surface-base: #0b0f14;
+  --surface-raised: #121922;
+  --surface-hover: #1a2430;
+  --surface-sunken: #070a0e;
+  --line: oklch(1 0 0 / 8%);
+  --line-strong: oklch(1 0 0 / 15%);
+  --ink: #e6edf3;
+  --ink-dim: #9aa7b4;
+  --ink-faint: #7f8c99;
+  --state-secure: #7fd1ae;
+  --state-warning: #e8b667;
+  --state-danger: #ef8476;
+  --state-hush: #7fb2d9;
+  --accent: #e6edf3;
+  --accent-ink: #0b0f14;
+  --shadow-colour: rgb(0 0 0 / 55%);
+  --ambient-near: #123043;
+  --ambient-far: #1b2a4a;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --surface-void: #eceef2;
+    --surface-base: #f6f7f9;
+    --surface-raised: #ffffff;
+    --surface-hover: #eaedf1;
+    --surface-sunken: #e3e6eb;
+    --line: oklch(0 0 0 / 8%);
+    --line-strong: oklch(0 0 0 / 15%);
+    --ink: #14181d;
+    --ink-dim: #4d5663;
+    --ink-faint: #646d78;
+    --state-secure: #18734a;
+    --state-warning: #8f5600;
+    --state-danger: #b8302a;
+    --state-hush: #2a63a0;
+    --accent: #14181d;
+    --accent-ink: #ffffff;
+    --shadow-colour: rgb(15 20 30 / 18%);
+    --ambient-near: #d7e6f0;
+    --ambient-far: #dde2f0;
+    color-scheme: light;
+  }
+}
+
 @theme {
-  /* Surfaces, from deepest to nearest. Cool slate rather than pure black, so
-     page content in a tab reads as sitting inside something. */
-  --color-void: #080b0f;
-  --color-base: #0b0f14;
-  --color-raised: #121922;
-  --color-hover: #1a2430;
-  --color-sunken: #070a0e;
+  --color-void: var(--surface-void);
+  --color-base: var(--surface-base);
+  --color-raised: var(--surface-raised);
+  --color-hover: var(--surface-hover);
+  --color-sunken: var(--surface-sunken);
 
-  --color-line: oklch(1 0 0 / 7%);
-  --color-line-strong: oklch(1 0 0 / 14%);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
 
-  --color-ink: #e6edf3;
-  --color-ink-dim: #8c9baa;
-  --color-ink-faint: #5a6875;
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
 
   /* State colours. Each one means exactly one thing, everywhere. */
-  --color-clear: #7fd1ae;
-  --color-caution: #e8b667;
-  --color-alert: #e8796b;
-  --color-active: #7fb2d1;
+  --color-clear: var(--state-secure);
+  --color-caution: var(--state-warning);
+  --color-alert: var(--state-danger);
+  --color-hush: var(--state-hush);
 
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, 'SF Mono', monospace;
+  /* Interaction: buttons, toggles, focus, selection. Never a state colour. */
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-active: var(--accent);
 
-  --radius-tab: 9px;
-  --radius-field: 10px;
-  --radius-panel: 16px;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, Ubuntu,
+    Cantarell, 'Noto Sans', sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', 'Cascadia Code', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono',
+    monospace;
+
+  /* One type scale, used everywhere. No half-pixel sizes: they blur at 100% on Windows. */
+  --text-caption: 11px;
+  --text-caption--line-height: 14px;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-body: 13px;
+  --text-body--line-height: 18px;
+  --text-title: 15px;
+  --text-title--line-height: 20px;
+  --text-heading: 20px;
+  --text-heading--line-height: 26px;
+  --text-display: 44px;
+  --text-display--line-height: 48px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-tab: 8px;
+  --radius-field: 8px;
+  --radius-panel: 14px;
+
+  --shadow-popover: 0 14px 36px -14px var(--shadow-colour), 0 0 0 1px var(--line);
+  --shadow-dialog: 0 28px 70px -20px var(--shadow-colour), 0 0 0 1px var(--line);
 
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /*
- * Start-page atmosphere. This is the only place a theme changes anything —
- * the chrome itself never shifts hue, so the state colours always read the
- * same whichever atmosphere is chosen.
- */
-:root {
-  --ambient-near: #123043;
-  --ambient-far: #1b2a4a;
-}
-/*
- * How much room the chrome takes. Sizing only — density never touches colour,
+ * How much room the chrome takes. Sizing only: density never touches colour,
  * because colour in this interface means state and nothing else.
  */
 :root {
@@ -56,15 +127,21 @@
   --chrome-tab-height: 30px;
   --chrome-field-height: 32px;
   --chrome-tab-min-width: 112px;
+  --row-height: 36px;
 }
 
 :root[data-density='compact'] {
   --chrome-header-height: 32px;
-  --chrome-tab-height: 25px;
-  --chrome-field-height: 27px;
+  --chrome-tab-height: 26px;
+  --chrome-field-height: 28px;
   --chrome-tab-min-width: 88px;
+  --row-height: 30px;
 }
 
+/*
+ * Start-page atmosphere. The only place a theme changes anything: the chrome
+ * never shifts hue, so the state colours always read the same.
+ */
 :root[data-theme='slate'] {
   --ambient-near: #1e2730;
   --ambient-far: #2a3440;
@@ -76,6 +153,21 @@
 :root[data-theme='moss'] {
   --ambient-near: #16302a;
   --ambient-far: #1d3a2b;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme='slate'] {
+    --ambient-near: #dfe5ea;
+    --ambient-far: #e4e8ee;
+  }
+  :root[data-theme='ember'] {
+    --ambient-near: #f2e1dc;
+    --ambient-far: #f1e6dc;
+  }
+  :root[data-theme='moss'] {
+    --ambient-near: #dcebe3;
+    --ambient-far: #e0ebe2;
+  }
 }
 
 @layer base {
@@ -96,8 +188,8 @@
     background-color: var(--color-base);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     /* The chrome is an application surface, not a document. */
@@ -121,15 +213,14 @@
     cursor: default;
   }
 
-  /* Keyboard users get a visible ring; pointer users never see one. */
+  /* Keyboard users get a visible ring; pointer users never see one. Outlines paint last, over neighbours. */
   :focus-visible {
-    outline: 2px solid var(--color-active);
-    outline-offset: 1px;
-    border-radius: 4px;
+    outline: 2px solid color-mix(in oklab, var(--color-accent) 70%, transparent);
+    outline-offset: 2px;
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--color-active) 35%, transparent);
+    background: color-mix(in oklab, var(--color-hush) 30%, transparent);
   }
 }
 
@@ -166,15 +257,12 @@
     display: none;
   }
 
-  /* Small caps label used for section headers and state words. Letter-spaced
-     enough to read as a label rather than as prose. */
+  /* A section's name: small, set, and in sentence case. */
   .label {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--color-ink-faint);
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+    font-weight: 600;
+    color: var(--color-ink-dim);
   }
 }
 
@@ -190,16 +278,20 @@
       radial-gradient(110% 100% at 92% 100%, var(--ambient-far) 0%, transparent 58%), var(--color-void);
   }
 
-  /*
-   * A Hush tab keeps the chrome exactly as it is — the rule about colour
-   * carrying state holds — and changes the one surface a theme may change:
-   * the atmosphere goes out, whichever theme is chosen.
-   */
   /* Hush is not a tint of the theme, so neither the stops nor the turn reach it. */
   .ambient-field[data-hush='true'] {
     background:
-      radial-gradient(120% 90% at 50% 0%, #101722 0%, transparent 62%),
-      repeating-linear-gradient(115deg, rgba(127, 178, 209, 0.028) 0 1px, transparent 1px 9px), var(--color-sunken);
+      radial-gradient(
+        120% 90% at 50% 0%,
+        color-mix(in oklab, var(--color-hush) 10%, transparent) 0%,
+        transparent 62%
+      ),
+      repeating-linear-gradient(
+        115deg,
+        color-mix(in oklab, var(--color-hush) 4%, transparent) 0 1px,
+        transparent 1px 9px
+      ),
+      var(--color-sunken);
   }
 }
 
@@ -218,7 +310,7 @@
 @keyframes copacetic-rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -235,14 +327,28 @@
   }
 }
 
+@keyframes copacetic-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .animate-indeterminate {
   animation: copacetic-indeterminate 1.15s var(--ease-out-quint) infinite;
 }
 .animate-rise {
-  animation: copacetic-rise 0.22s var(--ease-out-quint) both;
+  animation: copacetic-rise 0.16s var(--ease-out-quint) both;
 }
 .animate-fade {
   animation: copacetic-fade 0.16s ease-out both;
+}
+.animate-pop {
+  animation: copacetic-pop 0.16s var(--ease-out-quint) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { PersistedFile, asBoolean, asNumber, isRecord } from '../data/persistence';
 import { devIconPath, isDevelopment, preloadPath } from '../app/env';
 import { guardChromeWebContents } from '../security/security';
+import { surfaceColour } from './appearance';
 
 export interface WorkArea {
   x: number;
@@ -23,9 +24,6 @@ const DEFAULT_BOUNDS: WindowBounds = { width: 1280, height: 820, x: null, y: nul
 const MIN_WIDTH = 720;
 const MIN_HEIGHT = 480;
 
-/** Surface colour behind everything, so resizing never flashes white. */
-export const CHROME_BACKGROUND = '#0b0f14';
-
 export function createChromeWindow(): BrowserWindow {
   const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, 600);
   const saved = clampToVisibleDisplay(
@@ -39,7 +37,7 @@ export function createChromeWindow(): BrowserWindow {
     ...(saved.x !== null && saved.y !== null ? { x: saved.x, y: saved.y } : {}),
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
-    backgroundColor: CHROME_BACKGROUND,
+    backgroundColor: surfaceColour(),
     show: false,
     // Windows and Linux read the icon off the window itself. Packaged builds
     // get it from the installer, so this only matters while developing.

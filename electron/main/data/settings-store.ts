@@ -1,4 +1,4 @@
-import { isThemeId } from '../../shared/types';
+import { isAppearanceId, isThemeId } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'brave',
   dnsMode: 'system',
   dnsResolverId: DEFAULT_RESOLVER_ID,
+  appearance: 'system',
   theme: 'deep',
   density: 'comfortable',
   httpsFirst: true,
@@ -101,10 +102,12 @@ function reviveSettings(raw: unknown): Settings | null {
   }
   const engine = asString(raw.searchEngine, DEFAULT_SETTINGS.searchEngine);
   const theme = asString(raw.theme, DEFAULT_SETTINGS.theme);
+  const appearance = asString(raw.appearance, DEFAULT_SETTINGS.appearance);
   const density = asString(raw.density, DEFAULT_SETTINGS.density);
 
   return normaliseSettings({
     searchEngine: engine in SEARCH_ENGINES ? (engine as Settings['searchEngine']) : DEFAULT_SETTINGS.searchEngine,
+    appearance: isAppearanceId(appearance) ? appearance : DEFAULT_SETTINGS.appearance,
     theme: isThemeId(theme) ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',
     // An unknown resolver falls back to the system rather than to one nobody chose.

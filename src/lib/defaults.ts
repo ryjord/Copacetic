@@ -3,6 +3,7 @@ import type { Settings } from '@shared/types';
 /** The shape the chrome renders before the first snapshot arrives from the main process, which owns the real values. */
 export const DEFAULT_SETTINGS_SHAPE: Settings = {
   searchEngine: 'brave',
+  appearance: 'system',
   theme: 'deep',
   dnsMode: 'system',
   dnsResolverId: 'quad9',

@@ -13,6 +13,7 @@ const { DEFAULT_SETTINGS, normaliseSettings } = await import('../../electron/mai
 const BASE: Settings = {
   ...DEFAULT_SETTINGS,
   searchEngine: 'duckduckgo',
+  appearance: 'system',
   theme: 'deep',
   httpsFirst: true,
   blockTrackers: true,
