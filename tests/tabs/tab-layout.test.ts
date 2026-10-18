@@ -12,6 +12,16 @@ describe('where a tab sits inside the window', () => {
     expect(bounds).toEqual({ x: 300, y: 88, width: 880, height: 702 });
   });
 
+  // A video that went fullscreen used to fill a rectangle under the chrome.
+  it('gives a fullscreen page the whole window', () => {
+    const bounds = contentBoundsWithin(
+      { width: 1200, height: 800 },
+      { top: 88, left: 300, right: 0, bottom: 0 },
+      true,
+    );
+    expect(bounds).toEqual({ x: 0, y: 0, width: 1200, height: 800 });
+  });
+
   // A negative size is not a smaller view, it is an Electron error.
   it('never returns a negative size when the chrome claims more than the window', () => {
     const bounds = contentBoundsWithin({ width: 100, height: 50 }, { top: 400, left: 200, right: 200, bottom: 0 });

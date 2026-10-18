@@ -136,7 +136,8 @@ export class SmokeApp {
   }
 
   /** Runs something in a page that is already open, newest first, without opening another tab for it. */
-  async inOpenPage<T>(url: string, expression: string, timeoutMs = 20_000): Promise<T> {
+  async inOpenPage<T>(url: string, expression: string, options: { userGesture?: boolean } = {}): Promise<T> {
+    const timeoutMs = 20_000;
     const ready = await this.until(async () => (await this.pageCount(url)) > 0, timeoutMs);
     if (!ready) {
       throw new Error(`no open tab ever reached ${url}`);
@@ -150,9 +151,9 @@ export class SmokeApp {
         if (!page) {
           throw new Error(`no web contents at ${options.url}`);
         }
-        return (await page.executeJavaScript(options.expression)) as T;
+        return (await page.executeJavaScript(options.expression, options.userGesture)) as T;
       },
-      { url, expression },
+      { url, expression, userGesture: options.userGesture === true },
     );
   }
 

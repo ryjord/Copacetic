@@ -59,6 +59,8 @@ export class TabManager {
   /** What has already been added to history per tab, so only the difference is. */
   private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
+  private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
+  private windowIsEnteringFullscreen = false;
 
   constructor(
     private readonly window: BrowserWindow,
@@ -436,7 +438,51 @@ export class TabManager {
 
   private currentBounds(): ContentBounds {
     const [width, height] = this.window.getContentSize();
-    return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets);
+    const isFullscreen = this.fullscreen !== null && this.fullscreen.tabId === this.activeId;
+    return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets, isFullscreen);
+  }
+
+  /**
+   * A page asked for fullscreen, usually a video. Electron leaves a view where
+   * it was, so without this the video filled a rectangle under the chrome. The
+   * window goes fullscreen only if it was not already, and comes back the same.
+   */
+  private enterFullscreen(tabId: TabId): void {
+    if (this.window.isDestroyed()) {
+      return;
+    }
+    const wasWindowFullscreen = this.window.isFullScreen();
+    this.fullscreen = { tabId, wasWindowFullscreen };
+    if (!wasWindowFullscreen) {
+      this.windowIsEnteringFullscreen = true;
+      const settled = () => {
+        if (!this.windowIsEnteringFullscreen) {
+          return;
+        }
+        this.windowIsEnteringFullscreen = false;
+        // The page left while macOS was still animating in, and a request made then is ignored.
+        if (this.fullscreen === null && !this.window.isDestroyed()) {
+          this.window.setFullScreen(false);
+        }
+      };
+      this.window.once('enter-full-screen', settled);
+      // In case a platform never says the transition finished.
+      setTimeout(settled, 2_000).unref?.();
+    }
+    this.window.setFullScreen(true);
+    this.applyBounds();
+  }
+
+  private leaveFullscreen(tabId: TabId): void {
+    if (this.fullscreen?.tabId !== tabId) {
+      return;
+    }
+    const { wasWindowFullscreen } = this.fullscreen;
+    this.fullscreen = null;
+    if (!this.window.isDestroyed() && !wasWindowFullscreen && !this.windowIsEnteringFullscreen) {
+      this.window.setFullScreen(false);
+    }
+    this.applyBounds();
   }
 
   // Only the tab the user is looking at is resized here.
@@ -572,11 +618,17 @@ export class TabManager {
       applyVisibility: () => this.applyVisibility(),
       cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),
       onFoundInPage: (activeMatch, matches) => {
+        // A background tab finishing a search must not overwrite the count for the one on screen.
+        if (this.activeId !== id) {
+          return;
+        }
         this.find = findWithMatches(this.find, activeMatch, matches);
       },
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
     });
     guardTabWebContents(view.webContents, this.securityDelegate);
+    view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
+    view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
     // A view with no document yet answers no DevTools command at all, so it is
     // given the empty one first. Navigation then waits for the description to
     // land, because a tab that starts loading before it does is exactly the tab
@@ -629,6 +681,7 @@ export class TabManager {
       this.closedTabs.remember({ url: tab.url, title: tab.title, index, groupId: tab.groupId });
     }
 
+    this.leaveFullscreen(id);
     this.destroyTab(tab);
     this.tabs.delete(id);
     this.order = this.order.filter((tabId) => tabId !== id);
@@ -717,8 +770,14 @@ export class TabManager {
       }
       return;
     }
-    this.activeId = id;
+    // Before the switch, so the highlights cleared are the ones on the tab being left.
     this.stopFind();
+    if (this.fullscreen && this.fullscreen.tabId !== id) {
+      void this.contentsFor(this.fullscreen.tabId)
+        ?.executeJavaScript('document.exitFullscreen?.()')
+        .catch(() => {});
+    }
+    this.activeId = id;
     this.applyBounds();
     this.applyVisibility();
     this.focusActive();
