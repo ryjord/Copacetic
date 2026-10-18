@@ -386,7 +386,6 @@ export interface Settings {
   dnsResolverId: string;
   // Whether a start-page wallpaper is set.
   hasWallpaper: boolean;
-  sidebarWidth: number;
   defaultZoomFactor: number;
   /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
   showBookmarksBar: boolean;

@@ -19,7 +19,6 @@ const BASE: Settings = {
   restoreTabsOnLaunch: true,
   startPageWidgets: ['clock', 'search', 'topSites'],
   permissionDecisions: {},
-  sidebarWidth: 320,
   defaultZoomFactor: 1,
 };
 
@@ -32,8 +31,6 @@ describe('normaliseSettings', () => {
   // from disk, so a value pushed over IPC was stored unbounded and survived
   // for the rest of the session.
   it.each([
-    [{ sidebarWidth: 10_000 }, { sidebarWidth: 560 }],
-    [{ sidebarWidth: -5 }, { sidebarWidth: 240 }],
     [{ defaultZoomFactor: 40 }, { defaultZoomFactor: 5 }],
     [{ defaultZoomFactor: 0 }, { defaultZoomFactor: 0.25 }],
     [{ defaultZoomFactor: -3 }, { defaultZoomFactor: 0.25 }],
@@ -44,7 +41,6 @@ describe('normaliseSettings', () => {
   it('does not disturb the settings it has no bounds for', () => {
     const result = normaliseSettings({
       ...BASE,
-      sidebarWidth: 9_999,
       permissionDecisions: { 'https://example.com|camera': 'allow' },
     });
     expect(result.permissionDecisions).toEqual({ 'https://example.com|camera': 'allow' });

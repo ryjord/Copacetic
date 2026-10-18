@@ -135,7 +135,12 @@ Chromium's client hints are corrected to match it, because Electron otherwise
 describes the browser as Chromium while the user agent says Chrome — and a
 browser that disagrees with itself is both a fingerprinting signal and the
 reason some sign-in pages refuse it. The correction is made in the main process
-through the DevTools protocol; page content still runs no script of ours.
+through the DevTools protocol. One small script does run in every page: it
+fills in the `window.chrome` object that real Chrome has and Electron leaves
+empty, with three placeholder members and nothing of the browser's, because
+some sites check for it before they will let you sign in. It is the only script
+Copacetic puts in a page, apart from Fill password, which runs once when you
+choose it.
 
 ### What it does not do
 
@@ -147,9 +152,12 @@ things:
 - **No sync, no accounts, no cloud.** Everything lives in `userData` on this
   machine, and Settings will write your bookmarks and history back out —
   bookmarks in the format every browser imports, history as plain JSON — so
-  that is a statement you can check rather than take on trust. The one request Copacetic makes on its own behalf is the update
-  check, which reads a version number from the GitHub releases API and sends
-  nothing about you. It can be turned off in Settings.
+  that is a statement you can check rather than take on trust. The only request
+  Copacetic makes on a schedule is the update check, which reads a version
+  number from the GitHub releases API and sends nothing about you; it can be
+  turned off in Settings. The filter lists are fetched only when you press
+  "Check for newer lists", and a page's icon is fetched in that page's own
+  session because the page asked for it.
 - **No extension support.** Chrome extensions are not loaded.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
 - **Certificate inspection is Chromium's.** The badge reports the issuer and

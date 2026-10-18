@@ -1033,7 +1033,7 @@ export class Browser {
     }
     this.store.removeGroup(id);
     if (hadOwnSession) {
-      void this.clearSession(electronSession.fromPartition(groupPartition(id)));
+      void this.clearSession(this.prepareSession(groupPartition(id)));
     }
     this.scheduleStatePush();
   }

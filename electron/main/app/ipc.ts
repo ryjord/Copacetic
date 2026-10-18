@@ -407,9 +407,6 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     }
     patch.startPageWidgets = [...seen] as Settings['startPageWidgets'];
   }
-  if (typeof value.sidebarWidth === 'number') {
-    patch.sidebarWidth = value.sidebarWidth;
-  }
   // Checked and clamped like the per-site levels below it, which it was not:
   // the two sat beside each other doing different things, and this one let a
   // value through that no control can produce.

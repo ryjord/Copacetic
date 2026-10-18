@@ -16,12 +16,12 @@ function respondWith({
 }) {
   const headers = new Headers();
   headers.set('content-type', contentType);
-  headers.set('content-length', contentLength ?? String(body.byteLength));
-  return vi.fn(async () => ({
-    ok,
-    headers,
-    arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength),
-  })) as unknown as Parameters<typeof fetchFaviconDataUrl>[2] & ReturnType<typeof vi.fn>;
+  if (contentLength !== 'none') {
+    headers.set('content-length', contentLength ?? String(body.byteLength));
+  }
+  return vi.fn(
+    async () => new Response(new Uint8Array(body), { status: ok ? 200 : 500, headers }),
+  ) as unknown as Parameters<typeof fetchFaviconDataUrl>[2] & ReturnType<typeof vi.fn>;
 }
 
 describe('fetching an icon a page asked for', () => {
@@ -90,5 +90,32 @@ describe('fetching an icon a page asked for', () => {
       throw new Error('offline');
     }) as unknown as Parameters<typeof fetchFaviconDataUrl>[2];
     expect(await fetchFaviconDataUrl(PAGE, 'https://example.com/icon.png', throwing)).toBeNull();
+  });
+});
+
+describe('an icon that tries to be more than an icon', () => {
+  // The guard judged one address; a redirect could aim the same request at a router.
+  it('does not follow redirects', async () => {
+    const fetcher = respondWith({});
+    await fetchFaviconDataUrl(PAGE, 'https://example.com/icon.png', fetcher);
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
+  });
+
+  it('gives up on a response that never ends', async () => {
+    const fetcher = respondWith({});
+    await fetchFaviconDataUrl(PAGE, 'https://example.com/icon.png', fetcher);
+    expect(fetcher.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  // Without a declared length the size was only checked after the whole body was in memory.
+  it('stops reading an oversized body that never said how big it was', async () => {
+    const huge = Buffer.alloc(MAX_FAVICON_BYTES + 1, 1);
+    expect(
+      await fetchFaviconDataUrl(
+        PAGE,
+        'https://example.com/icon.png',
+        respondWith({ body: huge, contentLength: 'none' }),
+      ),
+    ).toBeNull();
   });
 });

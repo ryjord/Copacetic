@@ -120,10 +120,9 @@ describe('every session is hardened in exactly one place', () => {
    */
   it('creates a session in only the places that are accounted for', () => {
     const calls = [...mainSources.matchAll(/(?<!function )fromPartition\(/g)];
-    // prepareSession itself, cookiesForSite iterating prepared partitions, and
-    // getWebSession/getHushSession, which both name partitions prepared at
-    // startup.
-    expect(calls).toHaveLength(4);
+    // prepareSession itself, and getWebSession/getHushSession, which both name
+    // partitions prepared at startup. Everything else asks prepareSession.
+    expect(calls).toHaveLength(3);
   });
 
   // And that one place is reached before the tab exists, not after: a session

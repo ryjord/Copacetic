@@ -160,8 +160,31 @@ function hasPlausibleTld(host: string): boolean {
   return tld.length >= 2 && /^[a-z]+$/i.test(tld);
 }
 
+/**
+ * A host as the network will see it. `localhost.` is localhost, and
+ * `[::ffff:7f00:1]` is 127.0.0.1 reached through IPv6; written either way they
+ * used to slip past both checks below.
+ */
+function bareHost(host: string): string {
+  const bare = host
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.+$/, '');
+  if (!bare.startsWith('::ffff:')) {
+    return bare;
+  }
+  const mapped = bare.slice('::ffff:'.length);
+  const hex = mapped.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!hex) {
+    return mapped;
+  }
+  const high = parseInt(hex[1]!, 16);
+  const low = parseInt(hex[2]!, 16);
+  return [high >> 8, high & 255, low >> 8, low & 255].join('.');
+}
+
 export function isLoopbackHost(host: string): boolean {
-  const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
+  const bare = bareHost(host);
   if (bare === 'localhost' || bare === '::1' || bare.endsWith('.localhost')) {
     return true;
   }
@@ -172,7 +195,7 @@ export function isLoopbackHost(host: string): boolean {
 
 /** Hosts that only exist inside the user's own network. */
 export function isPrivateHost(host: string): boolean {
-  const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
+  const bare = bareHost(host);
   if (bare === '' || isLoopbackHost(bare)) {
     return true;
   }
@@ -207,6 +230,10 @@ export function isPrivateHost(host: string): boolean {
   }
   // Link-local, which is also where every cloud metadata endpoint lives.
   if (a === 169 && b === 254) {
+    return true;
+  }
+  // Shared address space behind carrier-grade NAT: someone's network, never a public site.
+  if (a === 100 && b >= 64 && b <= 127) {
     return true;
   }
   return false;

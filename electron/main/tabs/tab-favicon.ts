@@ -1,9 +1,13 @@
 import { isFetchableFavicon } from '../../shared/url';
 
 export const MAX_FAVICON_BYTES = 200 * 1024;
+const FETCH_TIMEOUT_MS = 10_000;
 
-/** The web session's own fetch, passed in so this can be exercised without one. */
-export type SessionFetch = (url: string, options: { bypassCustomProtocolHandlers: boolean }) => Promise<Response>;
+/** The tab's own session's fetch, passed in so this can be exercised without one. */
+export type SessionFetch = (
+  url: string,
+  options: { bypassCustomProtocolHandlers: boolean; redirect: 'manual'; signal: AbortSignal },
+) => Promise<Response>;
 
 /**
  * A page names this URL and the fetch carries whatever cookies the user already
@@ -20,7 +24,13 @@ export async function fetchFaviconDataUrl(
   }
 
   try {
-    const response = await fetchFromWebSession(faviconUrl, { bypassCustomProtocolHandlers: true });
+    // Not followed: the guard above judged this address, and a redirect could
+    // point the same authenticated request at your router.
+    const response = await fetchFromWebSession(faviconUrl, {
+      bypassCustomProtocolHandlers: true,
+      redirect: 'manual',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) {
       return null;
     }
@@ -37,8 +47,8 @@ export async function fetchFaviconDataUrl(
       return null;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength === 0 || buffer.byteLength > MAX_FAVICON_BYTES) {
+    const buffer = await readCapped(response, MAX_FAVICON_BYTES);
+    if (!buffer || buffer.byteLength === 0) {
       return null;
     }
 
@@ -46,5 +56,27 @@ export async function fetchFaviconDataUrl(
   } catch {
     // A missing favicon is not worth surfacing; the chrome draws a monogram.
     return null;
+  }
+}
+
+/** The body, read only as far as the cap: a response with no length could otherwise send anything. */
+async function readCapped(response: Response, maxBytes: number): Promise<Buffer | null> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return null;
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      return Buffer.concat(chunks);
+    }
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
   }
 }

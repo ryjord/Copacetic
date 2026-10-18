@@ -22,7 +22,6 @@ export const DEFAULT_SETTINGS: Settings = {
   zoomLevels: {},
   blockerAllowlist: [],
   hasWallpaper: false,
-  sidebarWidth: 300,
   defaultZoomFactor: 1,
 };
 
@@ -126,7 +125,6 @@ function reviveSettings(raw: unknown): Settings | null {
     blockerAllowlist: Array.isArray(raw.blockerAllowlist)
       ? raw.blockerAllowlist.filter((site): site is string => typeof site === 'string' && site.length > 0)
       : [],
-    sidebarWidth: asNumber(raw.sidebarWidth, DEFAULT_SETTINGS.sidebarWidth),
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
   });
 }
@@ -134,7 +132,6 @@ function reviveSettings(raw: unknown): Settings | null {
 export function normaliseSettings(settings: Settings): Settings {
   return {
     ...settings,
-    sidebarWidth: clamp(settings.sidebarWidth, 240, 560),
     defaultZoomFactor: clamp(settings.defaultZoomFactor, 0.25, 5),
   };
 }

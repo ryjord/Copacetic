@@ -369,3 +369,21 @@ describe('upgrading http to https', () => {
     );
   });
 });
+
+describe('a private host written in a way that used to slip through', () => {
+  it.each(['localhost.', '127.0.0.1.', '[::ffff:127.0.0.1]', '[::ffff:7f00:1]', '[::ffff:c0a8:101]', '100.64.0.1'])(
+    'still treats %s as private',
+    (host) => {
+      expect(isPrivateHost(host)).toBe(true);
+    },
+  );
+
+  it('still treats a public address mapped into IPv6 as public', () => {
+    expect(isPrivateHost('[::ffff:8.8.8.8]')).toBe(false);
+  });
+
+  it('refuses a remote page an icon on this machine, however it is spelled', () => {
+    expect(isFetchableFavicon('https://example.com/', 'http://[::ffff:7f00:1]:8080/admin')).toBe(false);
+    expect(isFetchableFavicon('https://example.com/', 'http://localhost./status')).toBe(false);
+  });
+});

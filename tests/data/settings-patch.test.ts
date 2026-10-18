@@ -29,7 +29,6 @@ describe('every setting can actually be changed', () => {
     permissionDecisions: { 'https://example.com|camera': 'allow' },
     zoomLevels: { 'https://example.com': 1.5 },
     blockerAllowlist: ['example.com'],
-    sidebarWidth: 400,
     defaultZoomFactor: 1.25,
   };
 
@@ -55,7 +54,7 @@ describe('but only settings, and only sane ones', () => {
   });
 
   it('ignores a value of the wrong type', () => {
-    expect(asSettingsPatch({ blockTrackers: 'yes', sidebarWidth: '400' })).toEqual({});
+    expect(asSettingsPatch({ blockTrackers: 'yes', defaultZoomFactor: '1.5' })).toEqual({});
     expect(asSettingsPatch({ density: 'enormous' })).toEqual({});
   });
 

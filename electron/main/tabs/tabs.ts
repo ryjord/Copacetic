@@ -1,4 +1,10 @@
-import { type BrowserWindow, type ContextMenuParams, WebContentsView, type WebContents } from 'electron';
+import {
+  type BrowserWindow,
+  type ContextMenuParams,
+  type Session,
+  WebContentsView,
+  type WebContents,
+} from 'electron';
 import { randomUUID } from 'node:crypto';
 import type { FindState, TabId, TabState } from '../../shared/types';
 import {
@@ -38,13 +44,7 @@ import { ClosedTabs } from './closed-tabs';
 import type { TabRecord } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
-import {
-  HUSH_PARTITION,
-  WEB_PARTITION,
-  type SecurityDelegate,
-  getWebSession,
-  guardTabWebContents,
-} from '../security/security';
+import { HUSH_PARTITION, WEB_PARTITION, type SecurityDelegate, guardTabWebContents } from '../security/security';
 import type { BrowserStore } from '../data/store';
 
 export class TabManager {
@@ -72,7 +72,7 @@ export class TabManager {
      * Hardens a partition and returns its session. Called before a tab exists,
      * because a session that is hardened afterwards has already been used.
      */
-    private readonly prepareSession: (partition: string) => unknown,
+    private readonly prepareSession: (partition: string) => Session,
     private readonly onChanged: () => void,
     /** Fired once per closed tab so owners can drop state keyed to it. */
     private readonly onTabClosed: (id: TabId) => void = () => {},
@@ -1041,8 +1041,9 @@ export class TabManager {
       this.onChanged();
     }
 
+    // The tab's own session, so a group that keeps its own logins fetches with its own cookies.
     const dataUrl = await fetchFaviconDataUrl(tab.url, faviconUrl, (url, options) =>
-      getWebSession().fetch(url, options),
+      this.prepareSession(tab.partition).fetch(url, options),
     );
     if (!dataUrl) {
       return;

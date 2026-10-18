@@ -19,6 +19,5 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   zoomLevels: {},
   blockerAllowlist: [],
   hasWallpaper: false,
-  sidebarWidth: 300,
   defaultZoomFactor: 1,
 };
