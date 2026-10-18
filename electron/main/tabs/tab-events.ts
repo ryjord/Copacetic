@@ -3,6 +3,7 @@ import type { TabId } from '../../shared/types';
 import { clampZoom } from '../../shared/types';
 import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/url';
 import type { ContentBlocker } from '../security/blocker';
+import type { HttpsFirst } from '../security/https-first';
 import type { BrowserStore } from '../data/store';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';
@@ -16,6 +17,7 @@ import type { TabRecord } from './tab-record';
 export interface TabEventDeps {
   store: BrowserStore;
   blocker: ContentBlocker;
+  httpsFirst: HttpsFirst;
   /** Forgets what has been written to history for a tab, when its page changes. */
   forgetBlockedCount: (webContentsId: number) => void;
   onChanged: () => void;
@@ -115,7 +117,10 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
 
   contents.on('dom-ready', () => hideWhatWasBlocked(contents.getURL()));
 
-  contents.on('did-navigate', (_event, url) => commitNavigation(url, false));
+  contents.on('did-navigate', (_event, url, responseCode) => {
+    deps.httpsFirst.committed(contents.id, responseCode);
+    commitNavigation(url, false);
+  });
   contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
     if (isMainFrame) {
       commitNavigation(url, true);
@@ -155,6 +160,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       name: info.name,
       description: info.description,
       url: validatedURL || tab.url,
+      plainUrl: deps.httpsFirst.fallbackFor(contents.id, validatedURL || tab.url),
     };
     tab.url = validatedURL || tab.url;
     deps.applyVisibility();

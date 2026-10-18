@@ -58,8 +58,12 @@ export class SmokeApp {
     readonly overlay: Page,
   ) {}
 
-  /** `profile` reopens one a previous launch left with `keepProfile`, to see what a restart does to it. */
-  static async launch(options: { profile?: string } = {}): Promise<SmokeApp> {
+  /**
+   * `profile` reopens one a previous launch left with `keepProfile`, to see what
+   * a restart does to it. `args` are extra Chromium switches, such as resolver
+   * rules that point a public-looking name at a local server.
+   */
+  static async launch(options: { profile?: string; args?: string[] } = {}): Promise<SmokeApp> {
     // A throwaway profile, so a smoke run never reads or writes real browsing.
     const profile = options.profile ?? realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-smoke-')));
     // Reclaimed even when the run does not finish. `close` handles the ordinary
@@ -68,7 +72,7 @@ export class SmokeApp {
     // one afternoon's work, holding a quarter of a gigabyte.
     abandonedProfiles.add(profile);
     const app = await electron.launch({
-      args: ['.', `--user-data-dir=${profile}`],
+      args: ['.', `--user-data-dir=${profile}`, ...(options.args ?? [])],
       cwd: process.cwd(),
       env: launchEnvironment(),
     });

@@ -21,6 +21,13 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
 
         <p className="mt-5 break-all font-mono text-[11.5px] text-ink-faint">{error.url}</p>
 
+        {error.plainUrl && (
+          <p className="mt-4 text-[13px] leading-relaxed text-ink-dim">
+            This site did not answer over HTTPS. The HTTP version is not encrypted, so anyone on your network can read
+            or change it.
+          </p>
+        )}
+
         <div className="mt-6 flex items-center gap-3">
           {!isCertificateProblem && (
             <button
@@ -30,6 +37,15 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
             >
               <RotateCw size={13} />
               Try again
+            </button>
+          )}
+          {error.plainUrl && (
+            <button
+              type="button"
+              onClick={() => send((api) => api.tabs.continueOverHttp(tabId))}
+              className="rounded-md px-3 py-1.5 text-[12.5px] text-caution transition-colors hover:bg-hover"
+            >
+              Continue over HTTP
             </button>
           )}
           <button

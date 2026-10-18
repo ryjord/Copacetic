@@ -13,6 +13,7 @@ export const INVOKE = {
   tabStop: 'tab:stop',
   tabSetMuted: 'tab:set-muted',
   tabDuplicate: 'tab:duplicate',
+  tabContinueOverHttp: 'tab:continue-over-http',
   tabReopenClosed: 'tab:reopen-closed',
   tabSetZoom: 'tab:set-zoom',
   tabOpenContextMenu: 'tab:open-context-menu',

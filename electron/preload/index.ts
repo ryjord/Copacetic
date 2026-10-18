@@ -38,6 +38,7 @@ const api: CopaceticApi = {
     stop: (id: TabId) => ipcRenderer.invoke(INVOKE.tabStop, id),
     setMuted: (id: TabId, muted: boolean) => ipcRenderer.invoke(INVOKE.tabSetMuted, id, muted),
     duplicate: (id: TabId) => ipcRenderer.invoke(INVOKE.tabDuplicate, id),
+    continueOverHttp: (id: TabId) => ipcRenderer.invoke(INVOKE.tabContinueOverHttp, id),
     reopenClosed: () => ipcRenderer.invoke(INVOKE.tabReopenClosed),
     setZoom: (id: TabId, zoomFactor: number) => ipcRenderer.invoke(INVOKE.tabSetZoom, id, zoomFactor),
     openContextMenu: (id: TabId) => ipcRenderer.invoke(INVOKE.tabOpenContextMenu, id),

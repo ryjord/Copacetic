@@ -10,6 +10,7 @@ import {
   resolveOmniboxInput,
 } from '../../shared/url';
 import type { ContentBlocker } from '../security/blocker';
+import type { HttpsFirst } from '../security/https-first';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
 import { fetchFaviconDataUrl } from './tab-favicon';
 import {
@@ -59,6 +60,7 @@ export class TabManager {
     private readonly window: BrowserWindow,
     private readonly store: BrowserStore,
     private readonly blocker: ContentBlocker,
+    private readonly httpsFirst: HttpsFirst,
     private readonly securityDelegate: SecurityDelegate,
     /**
      * Hardens a partition and returns its session. Called before a tab exists,
@@ -560,6 +562,7 @@ export class TabManager {
     attachTabEvents(tab, {
       store: this.store,
       blocker: this.blocker,
+      httpsFirst: this.httpsFirst,
       forgetBlockedCount: (webContentsId: number) => this.countedBlocked.delete(webContentsId),
       onChanged: () => this.onChanged(),
       applyVisibility: () => this.applyVisibility(),
@@ -649,6 +652,7 @@ export class TabManager {
     const contents = tab.view.webContents;
     if (!contents.isDestroyed()) {
       this.blocker.forget(contents.id);
+      this.httpsFirst.forget(contents.id);
       this.countedBlocked.delete(contents.id);
       contents.stop();
     }
@@ -667,6 +671,16 @@ export class TabManager {
     }
     // A group that has since been deleted is dropped by create, which leaves an ordinary tab.
     this.create(restored.url, { index: restored.index, activate: true, groupId: restored.groupId });
+  }
+
+  /** The person read why the HTTPS version failed and chose the plain one. */
+  continueOverHttp(id: TabId): void {
+    const tab = this.tabs.get(id);
+    const plainUrl = tab?.error?.plainUrl;
+    // Loaded directly: the address bar would upgrade it straight back.
+    if (tab && plainUrl && this.httpsFirst.allowPlain(plainUrl)) {
+      void this.loadUrl(tab, plainUrl);
+    }
   }
 
   duplicate(id: TabId): void {
@@ -755,7 +769,11 @@ export class TabManager {
     if (!resolution) {
       return;
     }
-    void this.loadUrl(tab, resolution.target);
+    const target =
+      resolution.type === 'url'
+        ? this.httpsFirst.typed(tab.view.webContents.id, input, resolution.target)
+        : resolution.target;
+    void this.loadUrl(tab, target);
   }
 
   private async loadUrl(tab: TabRecord, url: string): Promise<void> {

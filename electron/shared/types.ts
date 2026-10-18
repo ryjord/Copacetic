@@ -60,6 +60,8 @@ export interface PageError {
   name: string;
   description: string;
   url: string;
+  /** The HTTP address this page was upgraded from, offered only when the HTTPS version failed. */
+  plainUrl?: string | null;
 }
 
 export interface TabState {

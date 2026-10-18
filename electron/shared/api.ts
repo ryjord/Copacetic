@@ -51,6 +51,8 @@ export interface CopaceticApi {
     stop(id: TabId): Promise<void>;
     setMuted(id: TabId, muted: boolean): Promise<void>;
     duplicate(id: TabId): Promise<void>;
+    /** Loads the plain HTTP version of a page whose HTTPS version failed, after the person chose to. */
+    continueOverHttp(id: TabId): Promise<void>;
     reopenClosed(): Promise<void>;
     setZoom(id: TabId, zoomFactor: number): Promise<void>;
     openContextMenu(id: TabId): Promise<void>;

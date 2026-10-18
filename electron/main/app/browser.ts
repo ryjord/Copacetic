@@ -39,6 +39,7 @@ import type {
 import { START_PAGE_URL, buildSearchUrl, hostOf, isNavigableUrl, isPageNavigableUrl } from '../../shared/url';
 import { describeAuthPrompt, isPromptWorthy } from '../security/auth';
 import { ContentBlocker } from '../security/blocker';
+import { HttpsFirst } from '../security/https-first';
 import { forgetCertificates } from '../security/certificates';
 import { forgetLocalCertificates } from '../security/local-certificates';
 import { bookmarksToHtml, historyToJson } from '../data/export';
@@ -118,6 +119,7 @@ export class Browser {
     return this.vaultSession.vault;
   }
   readonly blocker: ContentBlocker;
+  private readonly httpsFirst: HttpsFirst;
   readonly downloads: DownloadManager;
   readonly tabs: TabManager;
   readonly updates: UpdateManager;
@@ -147,6 +149,7 @@ export class Browser {
       () => this.scheduleStatePush(),
     );
     this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
+    this.httpsFirst = new HttpsFirst(this.store.getSettings().httpsFirst);
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
     // Built into the release rather than fetched. Every other blocker asks a
     // server for its lists on a timer, which is a periodic request from your
@@ -170,10 +173,12 @@ export class Browser {
     this.prepareSession(HUSH_PARTITION);
 
     this.window = createChromeWindow();
+    this.blocker.setRedirect((details) => this.httpsFirst.upgradeFor(details));
     this.tabs = new TabManager(
       this.window,
       this.store,
       this.blocker,
+      this.httpsFirst,
       this.securityDelegate(),
       // No tab is born in a partition this has not hardened first.
       (partition) => this.prepareSession(partition),
@@ -596,6 +601,9 @@ export class Browser {
 
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
+    if (patch.httpsFirst !== undefined) {
+      this.httpsFirst.setEnabled(patch.httpsFirst);
+    }
     if (patch.blockTrackers !== undefined) {
       this.blocker.setEnabled(patch.blockTrackers);
     }

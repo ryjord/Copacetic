@@ -176,6 +176,7 @@ export class ContentBlocker {
   /** Sites the user has chosen to stop blocking on, by registrable domain. */
   private allowed = new Set<string>();
   private onCountChanged: ((webContentsId: number, count: number) => void) | null = null;
+  private redirect: ((details: Electron.OnBeforeRequestListenerDetails) => string | null) | null = null;
 
   constructor(enabled: boolean) {
     this.enabled = enabled;
@@ -364,8 +365,22 @@ export class ContentBlocker {
     this.pageHosts.delete(webContentsId);
   }
 
+  /**
+   * Runs before blocking on every request. A session has one onBeforeRequest
+   * listener, and this is it, so anything else that redirects requests goes here.
+   */
+  setRedirect(redirect: (details: Electron.OnBeforeRequestListenerDetails) => string | null): void {
+    this.redirect = redirect;
+  }
+
   attach(session: Session): void {
     session.webRequest.onBeforeRequest((details, callback) => {
+      const redirectURL = this.redirect?.(details) ?? null;
+      if (redirectURL) {
+        callback({ redirectURL });
+        return;
+      }
+
       let hostname: string;
       try {
         hostname = new URL(details.url).hostname.toLowerCase();
