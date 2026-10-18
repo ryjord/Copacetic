@@ -9,7 +9,7 @@ const writeFile = vi.fn();
 vi.mock('electron', () => ({ dialog: { showOpenDialog, showSaveDialog } }));
 vi.mock('node:fs/promises', () => ({ readFile, writeFile, default: { readFile, writeFile } }));
 
-const { readChosenFile, writeChosenFile, fileStamp } = await import('../../electron/main/app/file-dialogs');
+const { readChosenFile, writeChosenFile, fileStamp } = await import('../../electron/main/system/file-dialogs');
 
 const window = {} as BrowserWindow;
 const openOptions = { title: 'Import', filters: [{ name: 'Any', extensions: ['csv'] }] };

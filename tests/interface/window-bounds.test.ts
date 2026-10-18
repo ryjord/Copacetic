@@ -7,7 +7,7 @@ vi.mock('electron', () => ({
   shell: {},
 }));
 
-const { clampToVisibleDisplay } = await import('../../electron/main/app/window');
+const { clampToVisibleDisplay } = await import('../../electron/main/window/window');
 
 const LAPTOP = { x: 0, y: 0, width: 1440, height: 900 };
 const EXTERNAL = { x: 1440, y: 0, width: 2560, height: 1440 };

@@ -8,7 +8,7 @@ import {
   siteOf,
 } from '../../shared/forgetting';
 import type { ClearRange } from '../../shared/types';
-import type { NoticeCentre } from '../app/notice-centre';
+import type { NoticeCentre } from '../notices/notice-centre';
 import type { DownloadManager } from '../data/downloads';
 import type { BrowserStore } from '../data/store';
 import type { ContentBlocker } from '../security/blocker';

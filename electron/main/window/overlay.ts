@@ -1,6 +1,6 @@
 import { WebContentsView, type BaseWindow, type WebFrameMain } from 'electron';
 import { guardChromeWebContents } from '../security/security';
-import { chromeEntryUrl, preloadPath } from './env';
+import { chromeEntryUrl, preloadPath } from '../app/env';
 import type { ContentBounds } from '../tabs/tab-layout';
 
 /**

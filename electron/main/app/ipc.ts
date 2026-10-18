@@ -18,7 +18,7 @@ import { clampZoom, isThemeId } from '../../shared/types';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import type { Browser } from './browser';
-import { defaultBrowserStatus, makeDefaultBrowser } from './default-browser';
+import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import {
   showBookmarkContextMenu,

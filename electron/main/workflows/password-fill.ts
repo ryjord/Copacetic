@@ -1,6 +1,6 @@
 import { offerFor } from '../../shared/credential-matching';
 import type { TabId } from '../../shared/types';
-import type { VaultSession } from '../app/vault-session';
+import type { VaultSession } from '../vault/vault-session';
 import { fillScriptFor } from '../system/fill-script';
 import type { TabManager } from '../tabs/tabs';
 

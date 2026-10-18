@@ -1,6 +1,6 @@
 import { PUSH } from '../../shared/channels';
 import { type Notice, admit, dismiss as dismissNotice } from '../../shared/notices';
-import type { OverlayLayer } from './overlay';
+import type { OverlayLayer } from '../window/overlay';
 
 /** What the browser tells the person, and the questions it waits on. */
 export class NoticeCentre {

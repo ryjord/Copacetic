@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRIVACY_SWITCHES, applyPrivacySwitches } from '../../electron/main/app/command-line';
+import { PRIVACY_SWITCHES, applyPrivacySwitches } from '../../electron/main/system/command-line';
 
 function recorder() {
   const applied: { name: string; value?: string }[] = [];

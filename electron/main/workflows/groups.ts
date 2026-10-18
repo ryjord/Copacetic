@@ -3,7 +3,7 @@ import { PUSH } from '../../shared/channels';
 import { OPEN_WITHOUT_ASKING, openFolderMessage, savedGroupMessage } from '../../shared/notices';
 import type { GroupColourId } from '../../shared/tab-groups';
 import type { TabId } from '../../shared/types';
-import type { NoticeCentre } from '../app/notice-centre';
+import type { NoticeCentre } from '../notices/notice-centre';
 import type { BrowserStore } from '../data/store';
 import type { SessionRegistry } from '../sessions/session-registry';
 import type { TabManager } from '../tabs/tabs';

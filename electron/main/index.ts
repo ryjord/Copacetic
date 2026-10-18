@@ -5,11 +5,11 @@ import { showPageContextMenu } from './menus/context-menu';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
-import { applyPrivacySwitches } from './app/command-line';
+import { applyPrivacySwitches } from './system/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
 import { watchCertificateErrors } from './security/certificate-exceptions';
-import { urlFromArguments } from './app/default-browser';
+import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/url';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and

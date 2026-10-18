@@ -1,4 +1,4 @@
-import { asNumber, asString, isRecord, newId } from './persistence';
+import { asNumber, asString, isRecord, newId } from '../data/persistence';
 import type { CsvCredential } from '../../shared/credential-csv';
 import type { VaultEntry, VaultState } from '../../shared/types';
 

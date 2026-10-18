@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({ app: {}, shell: {} }));
 
-const { statusFor, urlFromArguments } = await import('../../electron/main/app/default-browser');
+const { statusFor, urlFromArguments } = await import('../../electron/main/system/default-browser');
 
 /**
  * Three platforms, three different answers, and a button that must say what

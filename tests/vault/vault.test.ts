@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 
-const { EMPTY_VAULT_FILE, Vault, reviveVaultFile } = await import('../../electron/main/data/vault');
-type VaultFile = import('../../electron/main/data/vault').VaultFile;
-type SecretStore = import('../../electron/main/data/vault').SecretStore;
+const { EMPTY_VAULT_FILE, Vault, reviveVaultFile } = await import('../../electron/main/vault/vault');
+type VaultFile = import('../../electron/main/vault/vault').VaultFile;
+type SecretStore = import('../../electron/main/vault/vault').SecretStore;
 
 /** Stands in for the OS keychain. Reversible, and able to fail the way a real one does. */
 function keychain(options: { available?: boolean; unreadable?: Set<string> } = {}): SecretStore {

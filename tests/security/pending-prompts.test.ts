@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PendingPrompts } from '../../electron/main/app/pending-prompts';
+import { PendingPrompts } from '../../electron/main/security/pending-prompts';
 import type { AuthPrompt, PermissionPrompt } from '../../electron/shared/types';
 
 const permission = (id: string, tabId: string): PermissionPrompt => ({

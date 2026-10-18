@@ -29,7 +29,7 @@ const PART_SOURCES: Record<string, string> = {
   sites: 'electron/main/workflows/site-data.ts',
   transfer: 'electron/main/workflows/data-transfer.ts',
   passwords: 'electron/main/workflows/password-fill.ts',
-  notices: 'electron/main/app/notice-centre.ts',
+  notices: 'electron/main/notices/notice-centre.ts',
   store: 'electron/main/data/store.ts',
 };
 

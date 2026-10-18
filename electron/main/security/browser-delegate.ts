@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/types';
 import { hostOf, isPageNavigableUrl } from '../../shared/url';
-import type { PendingPrompts } from '../app/pending-prompts';
+import type { PendingPrompts } from './pending-prompts';
 import type { BrowserStore } from '../data/store';
 import type { TabManager } from '../tabs/tabs';
 import { describeAuthPrompt, isPromptWorthy } from './auth';

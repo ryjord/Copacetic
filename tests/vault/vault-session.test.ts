@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { VaultHost } from '../../electron/main/app/vault-session';
+import type { VaultHost } from '../../electron/main/vault/vault-session';
 
 let dataDir = '';
 vi.mock('electron', () => ({ app: { getPath: () => dataDir } }));
 
-const { VaultSession } = await import('../../electron/main/app/vault-session');
+const { VaultSession } = await import('../../electron/main/vault/vault-session');
 const { DEFAULT_TIMEOUT_MS } = await import('../../electron/shared/vault-lock');
 
 /** Reversible rather than encrypted: these tests are about the lock, not the cipher. */

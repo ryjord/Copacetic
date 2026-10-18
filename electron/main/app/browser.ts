@@ -23,7 +23,7 @@ import { START_PAGE_URL } from '../../shared/url';
 import { ContentBlocker } from '../security/blocker';
 import { HttpsFirst } from '../security/https-first';
 import { hostResolverFor } from '../../shared/dns';
-import { Vault } from '../data/vault';
+import { Vault } from '../vault/vault';
 import { hasWallpaper } from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
 import { chromeEntryUrl, isDevelopment, filtersRoot } from './env';
@@ -31,9 +31,9 @@ import { HUSH_PARTITION, WEB_PARTITION, hardenChromeSession } from '../security/
 import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
-import { PendingPrompts } from './pending-prompts';
+import { PendingPrompts } from '../security/pending-prompts';
 import { StatePublisher } from '../state/state-publisher';
-import { NoticeCentre } from './notice-centre';
+import { NoticeCentre } from '../notices/notice-centre';
 import { BookmarkCommands } from '../workflows/bookmarks';
 import { DataTransfer } from '../workflows/data-transfer';
 import { GroupCommands } from '../workflows/groups';
@@ -44,11 +44,11 @@ import { SessionRegistry } from '../sessions/session-registry';
 import { createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
 import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
-import { OverlayLayer } from './overlay';
-import { VaultSession } from './vault-session';
+import { OverlayLayer } from '../window/overlay';
+import { VaultSession } from '../vault/vault-session';
 import { log } from '../system/diagnostics';
 import { UpdateManager } from '../system/updates';
-import { createChromeWindow } from './window';
+import { createChromeWindow } from '../window/window';
 
 /** Owns every long-lived piece of the browser and exposes the verbs that menus, shortcuts and IPC all call into. */
 export class Browser {

@@ -10,7 +10,7 @@ import {
   unlock,
   unlockMethodFor,
 } from '../../shared/vault-lock';
-import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from '../data/vault';
+import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
 
 /**
