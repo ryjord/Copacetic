@@ -196,6 +196,12 @@ export type PermissionKind =
 
 export type PermissionDecision = 'allow' | 'deny';
 
+/** A person's answer to a prompt, and whether they asked for it to be kept. */
+export interface PermissionAnswer {
+  decision: PermissionDecision;
+  remember: boolean;
+}
+
 /** What each permission means, in the words a person would use. */
 export const PERMISSION_LABELS: Record<PermissionKind, string> = {
   geolocation: 'Know your location',

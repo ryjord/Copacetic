@@ -1,4 +1,4 @@
-import type { AuthPrompt, PermissionDecision, PermissionPrompt, TabId } from '../../shared/types';
+import type { AuthPrompt, PermissionAnswer, PermissionDecision, PermissionPrompt, TabId } from '../../shared/types';
 
 interface PendingAuth {
   prompt: AuthPrompt;
@@ -7,7 +7,7 @@ interface PendingAuth {
 
 interface PendingPermission {
   prompt: PermissionPrompt;
-  resolve: (decision: PermissionDecision) => void;
+  resolve: (answer: PermissionAnswer) => void;
 }
 
 /**
@@ -20,7 +20,7 @@ export class PendingPrompts {
   private readonly permissions = new Map<string, PendingPermission>();
   private readonly auth = new Map<string, PendingAuth>();
 
-  addPermission(prompt: PermissionPrompt, resolve: (decision: PermissionDecision) => void): void {
+  addPermission(prompt: PermissionPrompt, resolve: (answer: PermissionAnswer) => void): void {
     this.permissions.set(prompt.id, { prompt, resolve });
   }
 
@@ -41,14 +41,13 @@ export class PendingPrompts {
     return [...this.auth.values()].map((pending) => pending.prompt);
   }
 
-  /** The settled prompt, so the caller can decide whether to remember the answer. */
-  resolvePermission(id: string, decision: PermissionDecision): PermissionPrompt | null {
+  resolvePermission(id: string, decision: PermissionDecision, remember: boolean): PermissionPrompt | null {
     const pending = this.permissions.get(id);
     if (!pending) {
       return null;
     }
     this.permissions.delete(id);
-    pending.resolve(decision);
+    pending.resolve({ decision, remember });
     return pending.prompt;
   }
 
@@ -73,7 +72,7 @@ export class PendingPrompts {
         continue;
       }
       this.permissions.delete(id);
-      pending.resolve('deny');
+      pending.resolve({ decision: 'deny', remember: false });
       dropped = true;
     }
 
@@ -93,7 +92,7 @@ export class PendingPrompts {
   /** Quitting is an answer too: refuse everything outstanding rather than leaving a page's promise hanging as the process goes away. */
   settleAll(): void {
     for (const pending of this.permissions.values()) {
-      pending.resolve('deny');
+      pending.resolve({ decision: 'deny', remember: false });
     }
     this.permissions.clear();
     for (const pending of this.auth.values()) {

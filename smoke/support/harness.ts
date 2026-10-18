@@ -58,9 +58,10 @@ export class SmokeApp {
     readonly overlay: Page,
   ) {}
 
-  static async launch(): Promise<SmokeApp> {
+  /** `profile` reopens one a previous launch left with `keepProfile`, to see what a restart does to it. */
+  static async launch(options: { profile?: string } = {}): Promise<SmokeApp> {
     // A throwaway profile, so a smoke run never reads or writes real browsing.
-    const profile = realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-smoke-')));
+    const profile = options.profile ?? realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-smoke-')));
     // Reclaimed even when the run does not finish. `close` handles the ordinary
     // path and never runs when a suite is interrupted, so a cancelled run used
     // to leave its profile behind — several thousand of them accumulated during
@@ -115,6 +116,27 @@ export class SmokeApp {
       throw new Error(`no tab ever reached ${url}`);
     }
 
+    return this.app.evaluate(
+      async ({ webContents }, options) => {
+        const page = webContents
+          .getAllWebContents()
+          .filter((contents) => contents.getURL().startsWith(options.url))
+          .at(-1);
+        if (!page) {
+          throw new Error(`no web contents at ${options.url}`);
+        }
+        return (await page.executeJavaScript(options.expression)) as T;
+      },
+      { url, expression },
+    );
+  }
+
+  /** Runs something in a page that is already open, newest first, without opening another tab for it. */
+  async inOpenPage<T>(url: string, expression: string, timeoutMs = 20_000): Promise<T> {
+    const ready = await this.until(async () => (await this.pageCount(url)) > 0, timeoutMs);
+    if (!ready) {
+      throw new Error(`no open tab ever reached ${url}`);
+    }
     return this.app.evaluate(
       async ({ webContents }, options) => {
         const page = webContents
@@ -277,7 +299,7 @@ export class SmokeApp {
    * So it asks, waits a while, and then stops asking. The process goes either
    * way; only the politeness is optional.
    */
-  async close(): Promise<void> {
+  async close(options: { keepProfile?: boolean } = {}): Promise<void> {
     const politely = this.app.close().then(
       () => true,
       () => false,
@@ -291,6 +313,9 @@ export class SmokeApp {
       this.app.process().kill('SIGKILL');
     }
 
+    if (options.keepProfile) {
+      return;
+    }
     rmSync(this.profile, { recursive: true, force: true });
     abandonedProfiles.delete(this.profile);
   }

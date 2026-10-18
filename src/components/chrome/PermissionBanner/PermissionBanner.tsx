@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 /** Sites ask for capabilities through this, and only this. */
 export function PermissionBanner({ prompt }: { prompt: PermissionPrompt }) {
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const host = hostFrom(prompt.origin);
 
   const respond = (decision: 'allow' | 'deny') => {

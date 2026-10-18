@@ -2,6 +2,7 @@ export interface ClosedTab {
   url: string;
   title: string;
   index: number;
+  groupId: string | null;
 }
 
 const MAX_REOPENABLE = 12;

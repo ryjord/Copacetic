@@ -1,15 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PermissionDecision, PermissionKind } from '../../electron/shared/types';
 
+// One object per partition, as Electron gives, so a tab's session can be told apart from Hush.
+const partitions = vi.hoisted(() => new Map<string, { partition: string }>());
+
 // The module reaches electron for the session partition and `shell`; the
 // behaviour under test is all in the handlers it installs.
 vi.mock('electron', () => ({
   app: { isPackaged: true, getAppPath: () => '/app', getLocale: () => 'en-GB' },
-  session: { fromPartition: () => ({}) },
+  session: {
+    fromPartition: (partition: string) => {
+      const existing = partitions.get(partition) ?? { partition };
+      partitions.set(partition, existing);
+      return existing;
+    },
+  },
   shell: { openExternal: vi.fn() },
 }));
 
-const { guardChromeWebContents, guardTabWebContents, hardenWebSession, isTransportSecure } =
+const { getHushSession, guardChromeWebContents, guardTabWebContents, hardenWebSession, isTransportSecure } =
   await import('../../electron/main/security/security');
 
 type Handler = (...args: never[]) => unknown;
@@ -32,13 +41,14 @@ function fakeSession() {
   };
 }
 
-function fakeContents(url = 'https://example.com/') {
+function fakeContents(url = 'https://example.com/', session: unknown = undefined) {
   const listeners = new Map<string, Handler>();
   return {
     id: 7,
     listeners,
     contents: {
       id: 7,
+      session,
       getURL: () => url,
       setWindowOpenHandler: (fn: Handler) => listeners.set('window-open', fn),
       on: (event: string, fn: Handler) => listeners.set(event, fn),
@@ -55,17 +65,21 @@ function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
   const handed: string[] = [];
   const remembered: Record<string, PermissionDecision> = {};
   let answer: PermissionDecision = 'allow';
+  let remember = true;
 
   return {
     asked,
     opened,
     handed,
     remembered,
-    answerWith: (decision: PermissionDecision) => (answer = decision),
+    answerWith: (decision: PermissionDecision, shouldRemember = true) => {
+      answer = decision;
+      remember = shouldRemember;
+    },
     delegate: {
       requestPermission: async (input: { origin: string; kind: PermissionKind }) => {
         asked.push({ origin: input.origin, kind: input.kind });
-        return answer;
+        return { decision: answer, remember };
       },
       openInNewTab: (url: string) => opened.push(url),
       confirmExternalOpen: async (url: string) => {
@@ -80,10 +94,15 @@ function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
   };
 }
 
-const ask = async (captured: Record<string, Handler>, permission: string, url = 'https://example.com/page') => {
+const ask = async (
+  captured: Record<string, Handler>,
+  permission: string,
+  url = 'https://example.com/page',
+  session: unknown = undefined,
+) => {
   let allowed: boolean | undefined;
   await (captured.request as unknown as (c: unknown, p: string, cb: (v: boolean) => void, d: unknown) => void)(
-    fakeContents(url).contents,
+    fakeContents(url, session).contents,
     permission,
     (value) => (allowed = value),
     { requestingUrl: url },
@@ -140,6 +159,19 @@ describe('permissions a page asks for', () => {
   it('remembers the answer so the same site is not asked twice', async () => {
     await ask(fake.captured, 'notifications');
     expect(delegated.remembered['https://example.com|notifications']).toBe('allow');
+  });
+
+  // The checkbox used to be decoration: every answer was kept whether it was ticked or not.
+  it('keeps nothing when the person did not ask for it to be remembered', async () => {
+    delegated.answerWith('allow', false);
+    expect(await ask(fake.captured, 'media')).toBe(true);
+    expect(delegated.remembered).toEqual({});
+  });
+
+  it('keeps nothing for a Hush tab, even when remembering was ticked', async () => {
+    delegated.answerWith('allow', true);
+    expect(await ask(fake.captured, 'geolocation', 'https://example.com/page', getHushSession())).toBe(true);
+    expect(delegated.remembered).toEqual({});
   });
 
   it('uses a stored decision without asking again', async () => {

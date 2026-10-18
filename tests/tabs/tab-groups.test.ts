@@ -4,6 +4,8 @@ import {
   claimOf,
   describeClaim,
   groupForDrop,
+  groupPartition,
+  orphanedGroupPartitions,
   partitionFor,
   segmentByGroup,
 } from '../../electron/shared/tab-groups';
@@ -284,5 +286,23 @@ describe('collapsing a group that holds the active tab', () => {
   it('leaves an active tab outside the group where it is', () => {
     // Nothing to move: the tab being looked at is not being hidden.
     expect(tabAfterCollapsing(strip('a', null), 1, new Set(['a']))?.id).toBe('1');
+  });
+});
+
+describe('partitions a deleted group left behind', () => {
+  it('names the directories whose group is gone', () => {
+    expect(orphanedGroupPartitions(['copacetic-group-a', 'copacetic-group-b'], ['a'])).toEqual(['copacetic-group-b']);
+  });
+
+  // The folder also holds the shared web session and anything Chromium adds; none of it is ours to delete.
+  it('never names a directory this code did not create', () => {
+    expect(orphanedGroupPartitions(['copacetic-web', 'copacetic-hush', 'other', 'copacetic-groupie'], [])).toEqual(
+      [],
+    );
+  });
+
+  it('agrees with the partition a group is given', () => {
+    const directory = groupPartition('live').replace('persist:', '');
+    expect(orphanedGroupPartitions([directory], ['live'])).toEqual([]);
   });
 });

@@ -27,6 +27,7 @@ import type {
   ClearRange,
   ConnectionEntry,
   ExportKind,
+  PermissionAnswer,
   PermissionDecision,
   PermissionKind,
   PermissionPrompt,
@@ -60,7 +61,6 @@ import {
   HUSH_PARTITION,
   type SecurityDelegate,
   WEB_PARTITION,
-  getWebSession,
   hardenChromeSession,
   hardenWebSession,
   remembersDownloads,
@@ -69,7 +69,8 @@ import { BrowserStore } from '../data/store';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { PendingPrompts } from './pending-prompts';
-import type { GroupColourId } from '../../shared/tab-groups';
+import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
+import { type GroupColourId, groupPartition } from '../../shared/tab-groups';
 import { type BookmarkFolder, descendantsOf } from '../../shared/bookmark-folders';
 import {
   OPEN_WITHOUT_ASKING,
@@ -82,7 +83,7 @@ import {
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
 import { OverlayLayer } from './overlay';
 import { VaultSession } from './vault-session';
-import { log } from '../system/diagnostics';
+import { describeError, log } from '../system/diagnostics';
 import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
 import { UpdateManager } from '../system/updates';
 import { createChromeWindow } from './window';
@@ -127,6 +128,10 @@ export class Browser {
 
   constructor() {
     this.store = new BrowserStore();
+    sweepOrphanedGroupPartitions(
+      app.getPath('userData'),
+      this.store.listGroups().map((group) => group.id),
+    );
     // safeStorage is only reachable after app.ready, which is why the keychain
     // is asked at each call rather than captured once here.
     this.vaultSession = new VaultSession(
@@ -318,10 +323,10 @@ export class Browser {
   private securityDelegate(): SecurityDelegate {
     return {
       requestPermission: (input) =>
-        new Promise<PermissionDecision>((resolve) => {
+        new Promise<PermissionAnswer>((resolve) => {
           const tabId = this.tabs.tabIdForWebContentsId(input.webContentsId);
           if (!tabId) {
-            resolve('deny');
+            resolve({ decision: 'deny', remember: false });
             return;
           }
           const prompt: PermissionPrompt = {
@@ -435,14 +440,9 @@ export class Browser {
   }
 
   respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
-    const prompt = this.prompts.resolvePermission(id, decision);
-    if (!prompt) {
-      return;
+    if (this.prompts.resolvePermission(id, decision, remember)) {
+      this.scheduleStatePush();
     }
-    if (remember) {
-      this.store.setPermissionDecision(prompt.origin, prompt.kind, decision);
-    }
-    this.scheduleStatePush();
   }
 
   private dropPermissionsForTab(tabId: TabId): void {
@@ -600,10 +600,35 @@ export class Browser {
       // visited this session.
       forgetCertificates();
       forgetLocalCertificates();
-      await getWebSession().clearStorageData();
-      await getWebSession().clearCache();
+      await Promise.all(this.siteDataSessions().map((session) => this.clearSession(session)));
     }
     this.scheduleStatePush();
+  }
+
+  /**
+   * Every session that can hold site data: the shared one, any opened this run,
+   * and every group's own whether or not a tab of it has been opened yet.
+   *
+   * Clearing used to reach only the shared session, so a group's cookies and
+   * logins survived "Clear everything".
+   */
+  private siteDataSessions(): Session[] {
+    const partitions = new Set([WEB_PARTITION, ...this.preparedSessions]);
+    for (const group of this.store.listGroups()) {
+      if (group.ownSession) {
+        partitions.add(groupPartition(group.id));
+      }
+    }
+    return [...partitions].map((partition) => this.prepareSession(partition));
+  }
+
+  private async clearSession(session: Session): Promise<void> {
+    try {
+      await session.clearStorageData();
+      await session.clearCache();
+    } catch (error) {
+      log.warn('could not clear a session', describeError(error));
+    }
   }
 
   /** What could be filled into the page in this tab, or why nothing can be. */
@@ -968,12 +993,16 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  /** Closes everything in a group and the group with it. */
+  /** Closes everything in a group and the group with it, including its own session's data. */
   closeGroup(id: string): void {
+    const hadOwnSession = this.store.groupFor(id)?.ownSession === true;
     for (const tab of this.tabs.tabsInGroup(id)) {
       this.tabs.close(tab.id);
     }
     this.store.removeGroup(id);
+    if (hadOwnSession) {
+      void this.clearSession(electronSession.fromPartition(groupPartition(id)));
+    }
     this.scheduleStatePush();
   }
 
@@ -1213,7 +1242,7 @@ export class Browser {
   }
 
   /**
-   * The site's cookies in every session this window has prepared.
+   * The site's cookies in every session that can hold them.
    *
    * Matched by the site a cookie belongs to rather than by origin: a cookie set
    * on `.example.com` is example.com's, and matching exact origins would leave
@@ -1221,8 +1250,7 @@ export class Browser {
    */
   private async cookiesForSite(site: string): Promise<{ session: Session; cookies: Electron.Cookie[] }[]> {
     const found: { session: Session; cookies: Electron.Cookie[] }[] = [];
-    for (const partition of this.preparedSessions) {
-      const session = electronSession.fromPartition(partition);
+    for (const session of this.siteDataSessions()) {
       try {
         const all = await session.cookies.get({});
         found.push({ session, cookies: all.filter((cookie) => sameSite(cookie.domain ?? '', site)) });

@@ -1,5 +1,5 @@
 import { type Session, type WebContents, app, session as electronSession, shell } from 'electron';
-import type { PermissionDecision, PermissionKind } from '../../shared/types';
+import type { PermissionAnswer, PermissionDecision, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
 import { observeCertificates } from './certificates';
 import { describeSession } from '../system/browser-identity';
@@ -41,7 +41,7 @@ export interface SecurityDelegate {
     origin: string;
     kind: PermissionKind;
     description: string;
-  }): Promise<PermissionDecision>;
+  }): Promise<PermissionAnswer>;
   /** A page tried to open a new window; route it into a tab instead. */
   openInNewTab(url: string, options: { activate: boolean; openerWebContentsId: number }): void;
   /** A page tried to hand off to another application. */
@@ -173,22 +173,17 @@ async function resolvePermission(
     return stored === 'allow';
   }
 
-  const decision = await delegate.requestPermission({
+  const answer = await delegate.requestPermission({
     webContentsId: contents?.id ?? -1,
     origin,
     kind: prompted.kind,
     description: prompted.description,
   });
-  /*
-   * Not remembered for a Hush tab. A decision is keyed by origin, so keeping it
-   * would put a site opened in a Hush tab into settings.json by name — and
-   * Settings lists those. The cost is being asked again for the same site in
-   * the same Hush session, which is what a tab that remembers nothing means.
-   */
-  if (contents?.session !== getHushSession()) {
-    delegate.rememberDecision(origin, prompted.kind, decision);
+  // Never for a Hush tab, ticked or not: the decision is keyed by origin, so it would write the site's name to disk.
+  if (answer.remember && contents?.session !== getHushSession()) {
+    delegate.rememberDecision(origin, prompted.kind, answer.decision);
   }
-  return decision === 'allow';
+  return answer.decision === 'allow';
 }
 
 /** Guards applied to every tab's webContents. */

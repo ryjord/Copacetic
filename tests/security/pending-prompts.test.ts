@@ -28,8 +28,8 @@ describe('a question that has been answered is gone', () => {
     const resolve = vi.fn();
     prompts.addPermission(permission('p1', 't1'), resolve);
 
-    expect(prompts.resolvePermission('p1', 'allow')?.origin).toBe('https://example.com');
-    expect(resolve).toHaveBeenCalledWith('allow');
+    expect(prompts.resolvePermission('p1', 'allow', true)?.origin).toBe('https://example.com');
+    expect(resolve).toHaveBeenCalledWith({ decision: 'allow', remember: true });
     expect(prompts.permissionPrompts()).toHaveLength(0);
   });
 
@@ -38,14 +38,14 @@ describe('a question that has been answered is gone', () => {
     const resolve = vi.fn();
     prompts.addPermission(permission('p1', 't1'), resolve);
 
-    prompts.resolvePermission('p1', 'allow');
-    expect(prompts.resolvePermission('p1', 'deny')).toBeNull();
+    prompts.resolvePermission('p1', 'allow', false);
+    expect(prompts.resolvePermission('p1', 'deny', false)).toBeNull();
     expect(resolve).toHaveBeenCalledTimes(1);
   });
 
   it('ignores an answer to a prompt that was never asked', () => {
     const prompts = new PendingPrompts();
-    expect(prompts.resolvePermission('nope', 'allow')).toBeNull();
+    expect(prompts.resolvePermission('nope', 'allow', false)).toBeNull();
     expect(() => prompts.cancelAuth('nope')).not.toThrow();
   });
 });
@@ -57,7 +57,7 @@ describe('closing a tab answers everything it was waiting on', () => {
     prompts.addPermission(permission('p1', 't1'), resolve);
 
     expect(prompts.dropForTab('t1')).toBe(true);
-    expect(resolve).toHaveBeenCalledWith('deny');
+    expect(resolve).toHaveBeenCalledWith({ decision: 'deny', remember: false });
     expect(prompts.permissionPrompts()).toHaveLength(0);
   });
 
@@ -96,7 +96,7 @@ describe('closing a tab answers everything it was waiting on', () => {
 
     prompts.dropForTab('t1');
 
-    expect(mine).toHaveBeenCalledWith('deny');
+    expect(mine).toHaveBeenCalledWith({ decision: 'deny', remember: false });
     expect(theirs).not.toHaveBeenCalled();
     expect(theirChallenge).not.toHaveBeenCalled();
     expect(prompts.permissionPrompts().map((p) => p.id)).toEqual(['p2']);
@@ -122,8 +122,8 @@ describe('quitting answers the rest', () => {
 
     prompts.settleAll();
 
-    expect(one).toHaveBeenCalledWith('deny');
-    expect(two).toHaveBeenCalledWith('deny');
+    expect(one).toHaveBeenCalledWith({ decision: 'deny', remember: false });
+    expect(two).toHaveBeenCalledWith({ decision: 'deny', remember: false });
     expect(first).toHaveBeenCalled();
     expect(second).toHaveBeenCalled();
     expect(prompts.permissionPrompts()).toHaveLength(0);

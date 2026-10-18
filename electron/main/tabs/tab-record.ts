@@ -22,4 +22,6 @@ export interface TabRecord {
   pendingFaviconUrl: string | null;
   /** Which group this tab belongs to. Never written to disk for a Hush tab. */
   groupId: string | null;
+  /** The session it was born in, which a view can never change. */
+  partition: string;
 }

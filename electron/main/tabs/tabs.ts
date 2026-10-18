@@ -218,11 +218,10 @@ export class TabManager {
   /**
    * Puts a tab in a group, or takes it out of one.
    *
-   * The tab keeps the session it was born with. Moving an ordinary tab into a
-   * group that keeps its own browsing does not move its cookies across, and
-   * saying otherwise would be the sort of quiet untruth this browser avoids —
-   * so the group's separation applies to tabs opened in it, and the interface
-   * says so.
+   * A view cannot change session, so a tab whose new group keeps a different
+   * one is reopened there at the same address and position. Leaving it in its
+   * old session made "its own cookies and logins" untrue for the tab that
+   * founded the group, until a restart moved it without saying so.
    */
   setGroup(id: TabId, groupId: string | null): void {
     const tab = this.tabs.get(id);
@@ -235,8 +234,27 @@ export class TabManager {
     if (groupId !== null && !this.store.groupFor(groupId)) {
       return;
     }
+    const partition = partitionFor(
+      { isHush: tab.isHush, group: this.store.groupFor(groupId) },
+      { web: WEB_PARTITION, hush: HUSH_PARTITION },
+    );
+    if (partition !== tab.partition) {
+      this.reopenInGroup(tab, groupId);
+      return;
+    }
     tab.groupId = groupId;
     this.onChanged();
+  }
+
+  private reopenInGroup(tab: TabRecord, groupId: string | null): void {
+    const replacement = this.create(tab.isStartPage ? START_PAGE_URL : tab.url, {
+      index: this.order.indexOf(tab.id),
+      activate: this.activeId === tab.id,
+      hush: tab.isHush,
+      groupId,
+    });
+    this.setMuted(replacement, tab.isMuted);
+    this.close(tab.id, { isReplaced: true });
   }
 
   groupIdFor(id: TabId): string | null {
@@ -527,6 +545,7 @@ export class TabManager {
       isMuted: false,
       pendingFaviconUrl: null,
       groupId: inherited.groupId && this.store.groupFor(inherited.groupId) ? inherited.groupId : null,
+      partition,
     };
 
     this.tabs.set(id, tab);
@@ -592,15 +611,15 @@ export class TabManager {
     return openerIndex === -1 ? this.order.length : openerIndex + 1;
   }
 
-  close(id: TabId): void {
+  close(id: TabId, options: { isReplaced?: boolean } = {}): void {
     const tab = this.tabs.get(id);
     if (!tab) {
       return;
     }
 
     const index = this.order.indexOf(id);
-    if (!tab.isStartPage && !tab.isHush) {
-      this.closedTabs.remember({ url: tab.url, title: tab.title, index });
+    if (!tab.isStartPage && !tab.isHush && !options.isReplaced) {
+      this.closedTabs.remember({ url: tab.url, title: tab.title, index, groupId: tab.groupId });
     }
 
     this.destroyTab(tab);
@@ -646,7 +665,8 @@ export class TabManager {
     if (!restored) {
       return;
     }
-    this.create(restored.url, { index: restored.index, activate: true });
+    // A group that has since been deleted is dropped by create, which leaves an ordinary tab.
+    this.create(restored.url, { index: restored.index, activate: true, groupId: restored.groupId });
   }
 
   duplicate(id: TabId): void {
@@ -654,7 +674,12 @@ export class TabManager {
     if (!tab || tab.isStartPage) {
       return;
     }
-    this.create(tab.url, { index: this.order.indexOf(id) + 1, activate: true });
+    // As its opener, so a copy of a Hush tab is Hush and a copy of a grouped tab stays in the group.
+    this.create(tab.url, {
+      index: this.order.indexOf(id) + 1,
+      activate: true,
+      openerWebContentsId: tab.view.webContents.id,
+    });
   }
 
   activate(id: TabId): void {
