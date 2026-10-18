@@ -2,7 +2,7 @@ import type { KeptKind } from '../../shared/forgetting';
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { readWallpaper, readWallpaperPreview, stagedWallpaper } from '../system/wallpaper';
 import { randomBytes } from 'node:crypto';
-import { INVOKE } from '../../shared/channels';
+import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
 import { resolverFor } from '../../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
 import { clampZoom, isThemeId } from '../../shared/types';
@@ -22,43 +22,57 @@ import {
 } from '../menus/context-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
-/** Every handler is registered through `handle`, which drops any message that did not come from one of the browser's own top-level frames — the chrome window or the overlay. */
+/**
+ * The arguments a method declares, each one unknown: they come from a renderer
+ * and are narrowed before use, but a handler cannot read one that is not sent.
+ */
+type Untrusted<Args extends unknown[]> = { [Index in keyof Args]: unknown };
+
+/** Every handler is registered through `handle`, which drops any message that did not come from one of the browser's own top-level frames, the chrome window or the overlay. */
 export function registerIpcHandlers(browser: Browser): void {
-  const handle = <T>(channel: string, handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => T) => {
+  const handle = <Method extends ApiMethod>(
+    method: Method,
+    handler: (
+      event: IpcMainInvokeEvent,
+      ...args: Untrusted<ApiArgs<Method>>
+    ) => ApiResult<Method> | Promise<ApiResult<Method>>,
+  ) => {
+    const channel = CHANNELS[method];
     ipcMain.handle(channel, (event, ...args) => {
       if (!browser.isOwnFrame(event.senderFrame)) {
         throw new Error(`Rejected ${channel} from an unexpected frame`);
       }
-      return handler(event, ...args);
+      // Every element is unknown either way; this only gives the list the method's length.
+      return handler(event, ...(args as Untrusted<ApiArgs<Method>>));
     });
   };
 
   // ------------------------------------------------------------------- tabs
 
-  handle(INVOKE.tabCreate, (_event, url, activate) =>
+  handle('tabs.create', (_event, url, activate) =>
     browser.tabs.create(asString(url) || undefined, { activate: activate !== false }),
   );
-  handle(INVOKE.tabCreateHush, () => browser.newHushTab());
-  handle(INVOKE.tabClose, (_event, id) => browser.tabs.close(asString(id)));
-  handle(INVOKE.tabActivate, (_event, id) => browser.tabs.activate(asString(id)));
-  handle(INVOKE.tabMove, (_event, id, index) => browser.tabs.move(asString(id), asInteger(index)));
-  handle(INVOKE.tabNavigate, (_event, id, input) => browser.tabs.navigate(asString(id), asString(input)));
-  handle(INVOKE.tabGoBack, (_event, id) => browser.tabs.goBack(asString(id)));
-  handle(INVOKE.tabGoForward, (_event, id) => browser.tabs.goForward(asString(id)));
-  handle(INVOKE.tabReload, (_event, id, bypassCache) => browser.tabs.reload(asString(id), bypassCache === true));
-  handle(INVOKE.tabStop, (_event, id) => browser.tabs.stop(asString(id)));
-  handle(INVOKE.tabSetMuted, (_event, id, muted) => browser.tabs.setMuted(asString(id), muted === true));
-  handle(INVOKE.tabDuplicate, (_event, id) => browser.tabs.duplicate(asString(id)));
-  handle(INVOKE.tabContinueOverHttp, (_event, id) => browser.tabs.continueOverHttp(asString(id)));
-  handle(INVOKE.tabAcceptCertificate, (_event, id) => browser.tabs.acceptCertificate(asString(id)));
-  handle(INVOKE.tabReopenClosed, () => browser.reopenClosedTab());
-  handle(INVOKE.tabSetZoom, (_event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
-  handle(INVOKE.tabOpenContextMenu, (_event, id) => showTabContextMenu(browser, asString(id)));
-  handle(INVOKE.tabOpenNewTabMenu, () => showNewTabMenu(browser));
+  handle('tabs.createHush', () => browser.newHushTab());
+  handle('tabs.close', (_event, id) => browser.tabs.close(asString(id)));
+  handle('tabs.activate', (_event, id) => browser.tabs.activate(asString(id)));
+  handle('tabs.move', (_event, id, index) => browser.tabs.move(asString(id), asInteger(index)));
+  handle('tabs.navigate', (_event, id, input) => browser.tabs.navigate(asString(id), asString(input)));
+  handle('tabs.goBack', (_event, id) => browser.tabs.goBack(asString(id)));
+  handle('tabs.goForward', (_event, id) => browser.tabs.goForward(asString(id)));
+  handle('tabs.reload', (_event, id, bypassCache) => browser.tabs.reload(asString(id), bypassCache === true));
+  handle('tabs.stop', (_event, id) => browser.tabs.stop(asString(id)));
+  handle('tabs.setMuted', (_event, id, muted) => browser.tabs.setMuted(asString(id), muted === true));
+  handle('tabs.duplicate', (_event, id) => browser.tabs.duplicate(asString(id)));
+  handle('tabs.continueOverHttp', (_event, id) => browser.tabs.continueOverHttp(asString(id)));
+  handle('tabs.acceptCertificate', (_event, id) => browser.tabs.acceptCertificate(asString(id)));
+  handle('tabs.reopenClosed', () => browser.reopenClosedTab());
+  handle('tabs.setZoom', (_event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
+  handle('tabs.openContextMenu', (_event, id) => showTabContextMenu(browser, asString(id)));
+  handle('tabs.openNewTabMenu', () => showNewTabMenu(browser));
 
   // ----------------------------------------------------------------- chrome
 
-  handle(INVOKE.chromeSetContentBounds, (_event, insets) => {
+  handle('chrome.setContentInsets', (_event, insets) => {
     if (!isRecord(insets)) {
       return;
     }
@@ -69,101 +83,101 @@ export function registerIpcHandlers(browser: Browser): void {
       bottom: asNumber(insets.bottom, 0),
     });
   });
-  handle(INVOKE.chromeSetOverlayVisible, (_event, visible) => browser.tabs.setOverlayVisible(visible === true));
-  handle(INVOKE.chromeGetState, () => browser.getState());
+  handle('chrome.setOverlayVisible', (_event, visible) => browser.tabs.setOverlayVisible(visible === true));
+  handle('chrome.getState', () => browser.getState());
 
   // ---------------------------------------------------------------- omnibox
 
-  handle(INVOKE.omniboxSuggest, (_event, query) => browser.store.suggest(asString(query)));
+  handle('omnibox.suggest', (_event, query) => browser.store.suggest(asString(query)));
 
   // ---------------------------------------------------------------- history
 
-  handle(INVOKE.historyList, (_event, query, offset) =>
+  handle('history.list', (_event, query, offset) =>
     browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, Math.max(0, Number(offset) || 0)),
   );
-  handle(INVOKE.historyRemove, (_event, id) => {
+  handle('history.remove', (_event, id) => {
     browser.store.removeHistory(asString(id));
     browser.scheduleStatePush();
   });
-  handle(INVOKE.historyClear, (_event, range) => browser.clearBrowsingData(asClearRange(range)));
-  handle(INVOKE.historyTopSites, (_event, limit) => browser.store.topSites(asInteger(limit, 8)));
+  handle('history.clear', (_event, range) => browser.clearBrowsingData(asClearRange(range)));
+  handle('history.topSites', (_event, limit) => browser.store.topSites(asInteger(limit, 8)));
 
   // -------------------------------------------------------------- bookmarks
 
-  handle(INVOKE.bookmarksList, () => browser.store.listBookmarks());
-  handle(INVOKE.bookmarksToggle, (_event, url, title) => {
+  handle('bookmarks.list', () => browser.store.listBookmarks());
+  handle('bookmarks.toggle', (_event, url, title) => {
     const bookmarked = browser.store.toggleBookmark(asString(url), asString(title));
     browser.bookmarksChanged();
     browser.scheduleStatePush();
     return bookmarked;
   });
-  handle(INVOKE.bookmarksRemove, (_event, id) => {
+  handle('bookmarks.remove', (_event, id) => {
     browser.store.removeBookmark(asString(id));
     browser.bookmarksChanged();
     browser.scheduleStatePush();
   });
-  handle(INVOKE.bookmarksOpen, (_event, url) => browser.openInActiveTab(asString(url)));
-  handle(INVOKE.bookmarksOpenContextMenu, (_event, id) => showBookmarkContextMenu(browser, asString(id)));
-  handle(INVOKE.historyTraces, (_event, address) => browser.tracesOf(asString(address)));
-  handle(INVOKE.historyTotalBlocked, () => browser.store.totalBlocked());
-  handle(INVOKE.dataKept, () => browser.keptAboutSites());
-  handle(INVOKE.historyOpenContextMenu, (_event, address) => showSiteContextMenu(browser, asString(address)));
-  handle(INVOKE.dataClearKept, (_event, kind) => browser.clearKept(asString(kind) as KeptKind));
-  handle(INVOKE.historyForgetSite, (_event, address) => browser.forgetSite(asString(address)));
-  handle(INVOKE.noticeAnswer, (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
-  handle(INVOKE.noticesPending, () => browser.pendingNotices());
-  handle(INVOKE.surfacePending, () => browser.pendingSurface());
-  handle(INVOKE.chromeSetOverlayHeight, (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
-  handle(INVOKE.filtersUpdate, () => browser.updateFilterLists());
-  handle(INVOKE.bookmarksFile, (_event, id, folderId) => {
+  handle('bookmarks.openInActiveTab', (_event, url) => browser.openInActiveTab(asString(url)));
+  handle('bookmarks.openContextMenu', (_event, id) => showBookmarkContextMenu(browser, asString(id)));
+  handle('history.traces', (_event, address) => browser.tracesOf(asString(address)));
+  handle('history.totalBlocked', () => browser.store.totalBlocked());
+  handle('data.kept', () => browser.keptAboutSites());
+  handle('history.openContextMenu', (_event, address) => showSiteContextMenu(browser, asString(address)));
+  handle('data.clearKept', (_event, kind) => browser.clearKept(asString(kind) as KeptKind));
+  handle('history.forgetSite', (_event, address) => browser.forgetSite(asString(address)));
+  handle('notices.answer', (_event, id, confirmed) => browser.answerNotice(asString(id), confirmed === true));
+  handle('notices.pending', () => browser.pendingNotices());
+  handle('chrome.pendingSurface', () => browser.pendingSurface());
+  handle('chrome.setOverlayHeight', (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
+  handle('filters.update', () => browser.updateFilterLists());
+  handle('bookmarks.file', (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
     browser.bookmarksChanged();
     browser.scheduleStatePush();
   });
 
-  handle(INVOKE.bookmarkFoldersList, () => browser.store.listBookmarkFolders());
-  handle(INVOKE.bookmarkFolderCreate, (_event, name, colour, parentId) =>
+  handle('bookmarkFolders.list', () => browser.store.listBookmarkFolders());
+  handle('bookmarkFolders.create', (_event, name, colour, parentId) =>
     browser.createBookmarkFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
   );
-  handle(INVOKE.bookmarkFolderUpdate, (_event, id, changes) =>
+  handle('bookmarkFolders.update', (_event, id, changes) =>
     browser.updateBookmarkFolder(asString(id), asGroupChanges(changes)),
   );
-  handle(INVOKE.bookmarkFolderMove, (_event, id, parentId) =>
+  handle('bookmarkFolders.move', (_event, id, parentId) =>
     browser.moveBookmarkFolder(asString(id), asOptionalId(parentId)),
   );
-  handle(INVOKE.bookmarkFolderDelete, (_event, id) => browser.deleteBookmarkFolder(asString(id)));
-  handle(INVOKE.bookmarkFolderOpenAsGroup, (_event, id) => browser.openFolderAsGroup(asString(id)));
-  handle(INVOKE.bookmarkFolderOpenContextMenu, (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));
-  handle(INVOKE.bookmarkFolderOpenMenu, (_event, id, x, y) =>
+  handle('bookmarkFolders.remove', (_event, id) => browser.deleteBookmarkFolder(asString(id)));
+  handle('bookmarkFolders.openAsGroup', (_event, id) => browser.openFolderAsGroup(asString(id)));
+  handle('bookmarkFolders.openContextMenu', (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));
+  handle('bookmarkFolders.openMenu', (_event, id, x, y) =>
     showBookmarkFolderMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
 
   // -------------------------------------------------------------- downloads
 
-  handle(INVOKE.downloadsPause, (_event, id) => browser.downloads.pause(asString(id)));
-  handle(INVOKE.downloadsResume, (_event, id) => browser.downloads.resume(asString(id)));
-  handle(INVOKE.downloadsCancel, (_event, id) => browser.downloads.cancel(asString(id)));
-  handle(INVOKE.downloadsOpenFile, (_event, id) => browser.downloads.openFile(asString(id)));
-  handle(INVOKE.downloadsRevealFile, (_event, id) => browser.downloads.revealFile(asString(id)));
-  handle(INVOKE.downloadsRemove, (_event, id) => browser.downloads.remove(asString(id)));
-  handle(INVOKE.downloadsClearCompleted, () => browser.downloads.clearCompleted());
+  handle('downloads.pause', (_event, id) => browser.downloads.pause(asString(id)));
+  handle('downloads.resume', (_event, id) => browser.downloads.resume(asString(id)));
+  handle('downloads.cancel', (_event, id) => browser.downloads.cancel(asString(id)));
+  handle('downloads.openFile', (_event, id) => browser.downloads.openFile(asString(id)));
+  handle('downloads.revealFile', (_event, id) => browser.downloads.revealFile(asString(id)));
+  handle('downloads.remove', (_event, id) => browser.downloads.remove(asString(id)));
+  handle('downloads.clearCompleted', () => browser.downloads.clearCompleted());
 
   // ------------------------------------------------------------------- find
 
-  handle(INVOKE.findStart, (_event, query) => browser.tabs.startFind(asString(query)));
-  handle(INVOKE.findNext, () => browser.tabs.findNext(true));
-  handle(INVOKE.findPrevious, () => browser.tabs.findNext(false));
-  handle(INVOKE.findStop, () => browser.tabs.stopFind());
-  handle(INVOKE.findSetMatchCase, (_event, matchCase) => browser.tabs.setFindMatchCase(matchCase === true));
+  handle('find.start', (_event, query) => browser.tabs.startFind(asString(query)));
+  handle('find.next', () => browser.tabs.findNext(true));
+  handle('find.previous', () => browser.tabs.findNext(false));
+  handle('find.stop', () => browser.tabs.stopFind());
+  handle('find.setMatchCase', (_event, matchCase) => browser.tabs.setFindMatchCase(matchCase === true));
 
   // --------------------------------------------------------------- settings
 
-  handle(INVOKE.settingsGet, () => browser.store.getSettings());
-  handle(INVOKE.settingsUpdate, (_event, patch) => browser.updateSettings(asSettingsPatch(patch)));
+  handle('settings.get', () => browser.store.getSettings());
+  handle('settings.update', (_event, patch) => browser.updateSettings(asSettingsPatch(patch)));
 
   // ------------------------------------------------------------ permissions
 
-  handle(INVOKE.permissionsRespond, (_event, id, decision, remember) =>
+  handle('permissions.respond', (_event, id, decision, remember) =>
     browser.respondToPermission(
       asString(id),
       decision === 'allow' ? 'allow' : ('deny' as PermissionDecision),
@@ -171,57 +185,57 @@ export function registerIpcHandlers(browser: Browser): void {
     ),
   );
 
-  handle(INVOKE.permissionsForget, (_event, origin, kind) =>
+  handle('permissions.forget', (_event, origin, kind) =>
     browser.forgetPermission(asString(origin), asString(kind) as PermissionKind),
   );
 
   // ----------------------------------------------------------------- window
 
-  handle(INVOKE.windowMinimize, () => browser.window.minimize());
-  handle(INVOKE.windowToggleMaximize, () => {
+  handle('window.minimize', () => browser.window.minimize());
+  handle('window.toggleMaximize', () => {
     if (browser.window.isMaximized()) {
       browser.window.unmaximize();
     } else {
       browser.window.maximize();
     }
   });
-  handle(INVOKE.windowClose, () => browser.window.close());
+  handle('window.close', () => browser.window.close());
 
   // -------------------------------------------------------------------- app
 
-  handle(INVOKE.appGetInfo, () => browser.getAppInfo());
-  handle(INVOKE.appOpenExternal, (_event, url) => browser.openExternal(asString(url)));
-  handle(INVOKE.appRevealDiagnostics, () => browser.revealDiagnostics());
-  handle(INVOKE.appDefaultBrowserStatus, () => defaultBrowserStatus());
-  handle(INVOKE.appMakeDefaultBrowser, () => makeDefaultBrowser());
+  handle('app.getInfo', () => browser.getAppInfo());
+  handle('app.openExternal', (_event, url) => browser.openExternal(asString(url)));
+  handle('app.revealDiagnostics', () => browser.revealDiagnostics());
+  handle('app.defaultBrowserStatus', () => defaultBrowserStatus());
+  handle('app.makeDefaultBrowser', () => makeDefaultBrowser());
 
   // ------------------------------------------------------------------ vault
 
   // Every field is read back off the payload as a string: the renderer is the
   // one place a malformed shape can come from, and a password is not a thing to
   // pass through on trust.
-  handle(INVOKE.vaultList, () => browser.vault.state());
-  handle(INVOKE.vaultAdd, (_event, input) =>
+  handle('vault.list', () => browser.vault.state());
+  handle('vault.add', (_event, input) =>
     browser.vault.add({
       origin: asString(isRecord(input) ? input.origin : ''),
       username: asString(isRecord(input) ? input.username : ''),
       password: asString(isRecord(input) ? input.password : ''),
     }),
   );
-  handle(INVOKE.vaultUpdate, (_event, id, changes) => {
+  handle('vault.update', (_event, id, changes) => {
     const patch = isRecord(changes) ? changes : {};
     const result = browser.vault.update(asString(id), pickStrings(patch, ['origin', 'username', 'password']));
     return result?.error ?? '';
   });
-  handle(INVOKE.vaultRemove, (_event, id) => browser.vault.remove(asString(id)));
-  handle(INVOKE.vaultReveal, (_event, id) => browser.vault.reveal(asString(id)));
-  handle(INVOKE.vaultExport, () => browser.exportVault());
-  handle(INVOKE.vaultImport, () => browser.importVault());
-  handle(INVOKE.vaultLockState, () => browser.vaultLock());
-  handle(INVOKE.vaultUnlock, () => browser.unlockVault());
-  handle(INVOKE.vaultLock, () => browser.lockVault());
-  handle(INVOKE.vaultFacts, () => browser.vaultFacts());
-  handle(INVOKE.vaultGenerate, (_event, length) =>
+  handle('vault.remove', (_event, id) => browser.vault.remove(asString(id)));
+  handle('vault.reveal', (_event, id) => browser.vault.reveal(asString(id)));
+  handle('vault.exportAll', () => browser.exportVault());
+  handle('vault.importFile', () => browser.importVault());
+  handle('vault.lockState', () => browser.vaultLock());
+  handle('vault.unlock', () => browser.unlockVault());
+  handle('vault.lock', () => browser.lockVault());
+  handle('vault.facts', () => browser.vaultFacts());
+  handle('vault.generate', (_event, length) =>
     generatePassword(
       { ...DEFAULT_RECIPE, length: Number(length) || DEFAULT_RECIPE.length },
       (count) => new Uint8Array(randomBytes(count)),
@@ -230,54 +244,52 @@ export function registerIpcHandlers(browser: Browser): void {
 
   // -------------------------------------------------------------- wallpaper
 
-  handle(INVOKE.wallpaperGet, () => readWallpaper());
-  handle(INVOKE.wallpaperPreview, () => readWallpaperPreview());
-  handle(INVOKE.wallpaperChoose, () => browser.chooseWallpaper());
-  handle(INVOKE.wallpaperClear, () => browser.clearWallpaper());
-  handle(INVOKE.wallpaperStaged, () => stagedWallpaper());
-  handle(INVOKE.wallpaperKeep, () => browser.keepWallpaper());
-  handle(INVOKE.wallpaperRemove, () => browser.removeWallpaper());
+  handle('wallpaper.get', () => readWallpaper());
+  handle('wallpaper.preview', () => readWallpaperPreview());
+  handle('wallpaper.choose', () => browser.chooseWallpaper());
+  handle('wallpaper.clear', () => browser.clearWallpaper());
+  handle('wallpaper.staged', () => stagedWallpaper());
+  handle('wallpaper.keep', () => browser.keepWallpaper());
+  handle('wallpaper.remove', () => browser.removeWallpaper());
 
   // ------------------------------------------------------------------ groups
 
-  handle(INVOKE.groupCreate, (_event, tabId, name, colour, ownSession) =>
+  handle('groups.create', (_event, tabId, name, colour, ownSession) =>
     browser.createGroup(asString(tabId), asString(name), asGroupColour(colour), ownSession === true),
   );
-  handle(INVOKE.groupUpdate, (_event, id, changes) => browser.updateGroup(asString(id), asGroupChanges(changes)));
-  handle(INVOKE.groupRemove, (_event, id) => browser.removeGroup(asString(id)));
-  handle(INVOKE.groupOpenContextMenu, (_event, id) => showGroupContextMenu(browser, asString(id)));
-  handle(INVOKE.groupSetForTab, (_event, tabId, groupId) =>
+  handle('groups.update', (_event, id, changes) => browser.updateGroup(asString(id), asGroupChanges(changes)));
+  handle('groups.remove', (_event, id) => browser.removeGroup(asString(id)));
+  handle('groups.openContextMenu', (_event, id) => showGroupContextMenu(browser, asString(id)));
+  handle('groups.setForTab', (_event, tabId, groupId) =>
     browser.setTabGroup(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
   );
-  handle(INVOKE.wallpaperDiscard, () => browser.discardWallpaper());
+  handle('wallpaper.discard', () => browser.discardWallpaper());
 
   // ------------------------------------------------------------------- data
 
-  handle(INVOKE.dataExport, (_event, kind) =>
-    browser.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'),
-  );
-  handle(INVOKE.dataImportBookmarks, () => browser.importBookmarks());
+  handle('data.export', (_event, kind) => browser.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'));
+  handle('data.importBookmarks', () => browser.importBookmarks());
 
   // ------------------------------------------------------------------- auth
 
-  handle(INVOKE.authRespond, (_event, id, username, password) =>
+  handle('auth.respond', (_event, id, username, password) =>
     browser.respondToAuth(asString(id), asString(username), asString(password)),
   );
-  handle(INVOKE.authCancel, (_event, id) => browser.cancelAuth(asString(id)));
+  handle('auth.cancel', (_event, id) => browser.cancelAuth(asString(id)));
 
   // ------------------------------------------------------------ connections
 
-  handle(INVOKE.connectionsList, (_event, id) => browser.connectionsFor(asString(id)));
+  handle('connections.list', (_event, id) => browser.connectionsFor(asString(id)));
 
   // ---------------------------------------------------------------- updates
 
-  handle(INVOKE.updatesCheck, () => browser.updates.check());
-  handle(INVOKE.updatesInstall, () => browser.updates.install());
-  handle(INVOKE.updatesOpenReleases, () => browser.updates.openReleasesPage());
+  handle('updates.check', () => browser.updates.check());
+  handle('updates.install', () => browser.updates.install());
+  handle('updates.openReleases', () => browser.updates.openReleasesPage());
 }
 
 export function removeIpcHandlers(): void {
-  for (const channel of Object.values(INVOKE)) {
+  for (const channel of Object.values(CHANNELS)) {
     ipcMain.removeHandler(channel);
   }
 }
