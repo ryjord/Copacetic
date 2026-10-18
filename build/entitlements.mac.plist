@@ -4,7 +4,7 @@
 <dict>
   <!--
     Electron's own renderer processes need these two under the hardened
-    runtime. Nothing else is granted: no camera, no microphone, no address
+    runtime. Nothing is granted that a web page cannot ask for: no address
     book, and no ability to load unsigned libraries.
   -->
   <key>com.apple.security.cs.allow-jit</key>
@@ -14,6 +14,18 @@
 
   <!-- Outbound network access, which is the entire point of a browser. -->
   <key>com.apple.security.network.client</key>
+  <true/>
+
+  <!--
+    A site can ask for the camera, microphone or location, and is only given
+    them after the person allows it in Copacetic and macOS has asked too.
+    Without these the request fails under the hardened runtime with no prompt.
+  -->
+  <key>com.apple.security.device.camera</key>
+  <true/>
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+  <key>com.apple.security.personal-information.location</key>
   <true/>
 
   <!-- Writing downloads to the folder the user picks. -->

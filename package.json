@@ -126,7 +126,12 @@
           }
         ],
         "LSHandlerRank": "Owner",
-        "LSApplicationCategoryType": "public.app-category.productivity"
+        "LSApplicationCategoryType": "public.app-category.productivity",
+        "NSCameraUsageDescription": "Websites can ask to use your camera. Copacetic asks you before any site gets it.",
+        "NSMicrophoneUsageDescription": "Websites can ask to use your microphone. Copacetic asks you before any site gets it.",
+        "NSLocationUsageDescription": "Websites can ask for your location. Copacetic asks you before any site gets it.",
+        "NSLocationWhenInUseUsageDescription": "Websites can ask for your location. Copacetic asks you before any site gets it.",
+        "NSScreenCaptureUsageDescription": "Websites can ask to share your screen. You choose what is shared, each time."
       }
     },
     "win": {

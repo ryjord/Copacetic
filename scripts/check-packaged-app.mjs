@@ -14,7 +14,7 @@
  * Run after `electron-builder --dir`.
  */
 import { _electron as electron } from 'playwright';
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -138,6 +138,30 @@ if (copyleft.length > 0) {
   process.exit(1);
 }
 console.log('No copyleft native code in the packaged tree.');
+
+/**
+ * What macOS needs before it will let a site use a device.
+ *
+ * Without a usage string the request fails with no prompt at all, and the
+ * person sees a site that simply cannot find a camera: the permission banner
+ * said yes and nothing happened.
+ */
+const MAC_USAGE_STRINGS = [
+  'NSCameraUsageDescription',
+  'NSMicrophoneUsageDescription',
+  'NSLocationUsageDescription',
+  'NSScreenCaptureUsageDescription',
+];
+
+if (process.platform === 'darwin') {
+  const plist = readFileSync(path.join(shippedTree, 'Contents', 'Info.plist'), 'utf8');
+  const missing = MAC_USAGE_STRINGS.filter((key) => !plist.includes(`<key>${key}</key>`));
+  if (missing.length > 0) {
+    console.error(`\nThe packaged app cannot ask macOS for a device: Info.plist has no ${missing.join(', ')}.`);
+    process.exit(1);
+  }
+  console.log('Info.plist says why each device is asked for.');
+}
 
 // `ELECTRON_RUN_AS_NODE` is set by some editors' terminals and makes the binary
 // run as a plain Node process, which fails with a message about nothing.

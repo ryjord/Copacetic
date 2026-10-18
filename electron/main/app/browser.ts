@@ -36,7 +36,7 @@ import type {
   VaultFacts,
   VaultLock,
 } from '../../shared/types';
-import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../../shared/url';
+import { START_PAGE_URL, buildSearchUrl, hostOf, isNavigableUrl, isPageNavigableUrl } from '../../shared/url';
 import { describeAuthPrompt, isPromptWorthy } from '../security/auth';
 import { ContentBlocker } from '../security/blocker';
 import { forgetCertificates } from '../security/certificates';
@@ -376,6 +376,22 @@ export class Browser {
 
       getStoredDecision: (origin, kind) => this.store.getPermissionDecision(origin, kind),
       rememberDecision: (origin, kind, decision) => this.store.setPermissionDecision(origin, kind, decision),
+
+      chooseDisplaySource: async (origin, choices) => {
+        const host = sanitiseChromeText(hostOf(origin) || origin, 120);
+        const { response } = await dialog.showMessageBox(this.window, {
+          type: 'question',
+          buttons: [...choices.map((choice) => sanitiseChromeText(choice.name, 60)), 'Cancel'],
+          defaultId: choices.length,
+          cancelId: choices.length,
+          title: 'Share your screen',
+          message: `${host} wants to share your screen`,
+          detail:
+            'Choose what to share. Nothing is shared until you pick something, and the choice is not remembered.',
+          noLink: true,
+        });
+        return choices[response]?.id ?? null;
+      },
     };
   }
 

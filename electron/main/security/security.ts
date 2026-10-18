@@ -1,4 +1,5 @@
-import { type Session, type WebContents, app, session as electronSession, shell } from 'electron';
+import { type Session, type WebContents, app, desktopCapturer, session as electronSession, shell } from 'electron';
+import { type DisplaySource, displayChoices } from '../../shared/display-sources';
 import type { PermissionAnswer, PermissionDecision, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
 import { observeCertificates } from './certificates';
@@ -48,17 +49,23 @@ export interface SecurityDelegate {
   confirmExternalOpen(url: string, openerWebContentsId: number): Promise<boolean>;
   getStoredDecision(origin: string, kind: PermissionKind): PermissionDecision | null;
   rememberDecision(origin: string, kind: PermissionKind, decision: PermissionDecision): void;
+  /** A page wants to share the screen; resolves with the id of what the person picked, or null. */
+  chooseDisplaySource(origin: string, choices: DisplaySource[]): Promise<string | null>;
 }
 
-// Permissions a normal page may use without interrupting the user.
-const AUTO_ALLOWED = new Set(['fullscreen', 'pointerLock', 'clipboard-sanitized-write']);
+/** The window title the display chooser leaves out of its list. */
+export const OWN_WINDOW_NAME = 'Copacetic';
+
+// Permissions a normal page may use without interrupting the user. Screen
+// sharing is here because the display chooser below is its prompt: nothing is
+// shared until a person picks something, every time.
+const AUTO_ALLOWED = new Set(['fullscreen', 'pointerLock', 'clipboard-sanitized-write', 'display-capture']);
 
 /** Permissions worth interrupting the user for, with the wording they will read. */
 const PROMPTED: Partial<Record<string, { kind: PermissionKind; description: string }>> = {
   geolocation: { kind: 'geolocation', description: 'know your location' },
   notifications: { kind: 'notifications', description: 'send you notifications' },
   media: { kind: 'media', description: 'use your camera and microphone' },
-  'display-capture': { kind: 'display-capture', description: 'record your screen' },
   midi: { kind: 'midi', description: 'use your MIDI devices' },
   midiSysex: { kind: 'midi', description: 'send system messages to your MIDI devices' },
   'clipboard-read': { kind: 'clipboard-read', description: 'read your clipboard' },
@@ -66,6 +73,23 @@ const PROMPTED: Partial<Record<string, { kind: PermissionKind; description: stri
 };
 
 /** Everything not listed above is denied without asking. */
+
+/**
+ * What can be asked for on this platform.
+ *
+ * Electron has no location provider on Linux without a Google API key, which
+ * Copacetic does not ship, so a yes there could never produce a position.
+ * Refusing quietly is honest; asking would be a prompt for nothing.
+ */
+export function promptFor(
+  permission: string,
+  platform: NodeJS.Platform,
+): { kind: PermissionKind; description: string } | null {
+  if (permission === 'geolocation' && platform === 'linux') {
+    return null;
+  }
+  return PROMPTED[permission] ?? null;
+}
 
 export function hardenChromeSession(session: Session): void {
   session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
@@ -118,13 +142,24 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
     void resolvePermission(delegate, contents, permission, details?.requestingUrl ?? '').then(callback);
   });
 
+  // On macOS 15 and later the system's own picker is used and this is never called.
+  session.setDisplayMediaRequestHandler(
+    (request, callback) => {
+      void chooseDisplayMedia(delegate, request.securityOrigin, request.userGesture).then((source) =>
+        // An empty answer is a refusal: getDisplayMedia rejects.
+        callback(source ? { video: source } : {}),
+      );
+    },
+    { useSystemPicker: true },
+  );
+
   // Called for synchronous checks (for example `navigator.permissions.query`).
   // It must never prompt, so it answers purely from decisions already stored.
   session.setPermissionCheckHandler((_contents, permission, requestingOrigin) => {
     if (AUTO_ALLOWED.has(permission)) {
       return true;
     }
-    const prompted = PROMPTED[permission];
+    const prompted = promptFor(permission, process.platform);
     if (!prompted || !requestingOrigin) {
       return false;
     }
@@ -143,6 +178,34 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   describeSession(session, process.platform, app.getLocale());
 }
 
+/** Screen sharing needs a click on the page and a choice in the chooser, every time. */
+async function chooseDisplayMedia(
+  delegate: SecurityDelegate,
+  origin: string,
+  hasUserGesture: boolean,
+): Promise<DisplaySource | null> {
+  if (!hasUserGesture) {
+    return null;
+  }
+  let sources: DisplaySource[];
+  try {
+    const found = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 0, height: 0 },
+    });
+    sources = found.map((source) => ({ id: source.id, name: source.name }));
+  } catch {
+    // The Linux PipeWire picker cancelled, or capture is unavailable.
+    return null;
+  }
+  const choices = displayChoices(sources, OWN_WINDOW_NAME);
+  if (choices.length === 0) {
+    return null;
+  }
+  const chosen = await delegate.chooseDisplaySource(origin, choices);
+  return choices.find((choice) => choice.id === chosen) ?? null;
+}
+
 async function resolvePermission(
   delegate: SecurityDelegate,
   contents: WebContents | null,
@@ -153,7 +216,7 @@ async function resolvePermission(
     return true;
   }
 
-  const prompted = PROMPTED[permission];
+  const prompted = promptFor(permission, process.platform);
   if (!prompted) {
     return false;
   }

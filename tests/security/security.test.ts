@@ -16,10 +16,23 @@ vi.mock('electron', () => ({
     },
   },
   shell: { openExternal: vi.fn() },
+  desktopCapturer: {
+    getSources: async () => [
+      { id: 'screen:1:0', name: 'Screen 1' },
+      { id: 'window:2:0', name: 'Copacetic' },
+      { id: 'window:3:0', name: 'Notes' },
+    ],
+  },
 }));
 
-const { getHushSession, guardChromeWebContents, guardTabWebContents, hardenWebSession, isTransportSecure } =
-  await import('../../electron/main/security/security');
+const {
+  getHushSession,
+  guardChromeWebContents,
+  guardTabWebContents,
+  hardenWebSession,
+  isTransportSecure,
+  promptFor,
+} = await import('../../electron/main/security/security');
 
 type Handler = (...args: never[]) => unknown;
 
@@ -33,6 +46,7 @@ function fakeSession() {
       setPermissionCheckHandler: (fn: Handler) => (captured.check = fn),
       setDevicePermissionHandler: (fn: Handler) => (captured.device = fn),
       setBluetoothPairingHandler: (fn: Handler) => (captured.bluetooth = fn),
+      setDisplayMediaRequestHandler: (fn: Handler) => (captured.displayMedia = fn),
       setCertificateVerifyProc: (fn: Handler) => (captured.certificate = fn),
       setUserAgent: (value: string) => (captured.userAgent = (() => value) as Handler),
       getUserAgent: () => 'Mozilla/5.0 (Macintosh) Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36',
@@ -64,6 +78,8 @@ function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
   const opened: string[] = [];
   const handed: string[] = [];
   const remembered: Record<string, PermissionDecision> = {};
+  const offered: string[][] = [];
+  let pick: string | null = null;
   let answer: PermissionDecision = 'allow';
   let remember = true;
 
@@ -72,6 +88,8 @@ function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
     opened,
     handed,
     remembered,
+    offered,
+    pickSource: (id: string | null) => (pick = id),
     answerWith: (decision: PermissionDecision, shouldRemember = true) => {
       answer = decision;
       remember = shouldRemember;
@@ -89,6 +107,10 @@ function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
       getStoredDecision: (origin: string, kind: string) => stored[`${origin}|${kind}`] ?? null,
       rememberDecision: (origin: string, kind: string, decision: PermissionDecision) => {
         remembered[`${origin}|${kind}`] = decision;
+      },
+      chooseDisplaySource: async (_origin: string, choices: { id: string; name: string }[]) => {
+        offered.push(choices.map((choice) => choice.name));
+        return pick;
       },
     },
   };
@@ -188,6 +210,60 @@ describe('permissions a page asks for', () => {
   it.each(['', 'about:blank', 'data:text/html,x', 'not a url'])('denies a request from %s', async (url) => {
     expect(await ask(fake.captured, 'geolocation', url)).toBe(false);
     expect(delegated.asked).toHaveLength(0);
+  });
+});
+
+describe('what can be asked for on each platform', () => {
+  // A yes on Linux could never produce a position, so the question is not asked.
+  it('does not ask for a location Linux cannot provide', () => {
+    expect(promptFor('geolocation', 'linux')).toBeNull();
+    expect(promptFor('geolocation', 'darwin')?.kind).toBe('geolocation');
+    expect(promptFor('geolocation', 'win32')?.kind).toBe('geolocation');
+  });
+
+  it('asks for the camera everywhere', () => {
+    expect(promptFor('media', 'linux')?.kind).toBe('media');
+  });
+});
+
+describe('sharing the screen', () => {
+  const share = async (captured: Record<string, Handler>, userGesture: boolean) => {
+    let granted: unknown;
+    (captured.displayMedia as unknown as (r: unknown, cb: (s: unknown) => void) => void)(
+      { securityOrigin: 'https://meet.example', userGesture },
+      (streams) => (granted = streams),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return granted;
+  };
+
+  it('offers a choice that leaves Copacetic out, and shares only what was picked', async () => {
+    const fake = fakeSession();
+    const delegated = fakeDelegate();
+    hardenWebSession(fake.session as never, delegated.delegate as never);
+    delegated.pickSource('window:3:0');
+
+    expect(await share(fake.captured, true)).toEqual({ video: { id: 'window:3:0', name: 'Notes' } });
+    expect(delegated.offered).toEqual([['Entire screen', 'Notes']]);
+  });
+
+  it('shares nothing when the chooser is cancelled', async () => {
+    const fake = fakeSession();
+    const delegated = fakeDelegate();
+    hardenWebSession(fake.session as never, delegated.delegate as never);
+
+    expect(await share(fake.captured, true)).toEqual({});
+  });
+
+  // A page that asks on load, with nobody having clicked anything, is not asking a person.
+  it('never asks without a click on the page', async () => {
+    const fake = fakeSession();
+    const delegated = fakeDelegate();
+    hardenWebSession(fake.session as never, delegated.delegate as never);
+    delegated.pickSource('screen:1:0');
+
+    expect(await share(fake.captured, false)).toEqual({});
+    expect(delegated.offered).toEqual([]);
   });
 });
 
