@@ -49,9 +49,10 @@ export function resolverFor(id: string): DnsResolver | null {
   return DNS_RESOLVERS.find((resolver) => resolver.id === id) ?? null;
 }
 
-export interface DnsSwitches {
-  mode: string;
-  templates: string;
+/** What Electron's host resolver is told, in its own option names. */
+export interface HostResolverOptions {
+  secureDnsMode: 'automatic' | 'secure';
+  secureDnsServers: string[];
 }
 
 /**
@@ -59,16 +60,16 @@ export interface DnsSwitches {
  * plaintext DNS when the resolver cannot be reached, which means the setting
  * quietly stops doing anything exactly when the network is interesting. This
  * fails instead, and Settings says so before you turn it on.
+ *
+ * The system choice is Chromium's own default, which upgrades to encrypted DNS
+ * only where your network's own provider offers it.
  */
-export function dnsSwitchesFor(mode: DnsMode, resolverId: string): DnsSwitches | null {
-  if (mode !== 'encrypted') {
-    return null;
-  }
-  const resolver = resolverFor(resolverId);
+export function hostResolverFor(mode: DnsMode, resolverId: string): HostResolverOptions {
+  const resolver = mode === 'encrypted' ? resolverFor(resolverId) : null;
   if (!resolver) {
-    return null;
+    return { secureDnsMode: 'automatic', secureDnsServers: [] };
   }
-  return { mode: 'secure', templates: resolver.template };
+  return { secureDnsMode: 'secure', secureDnsServers: [resolver.template] };
 }
 
 /** What is actually happening to your DNS, in the words shown to the user. */

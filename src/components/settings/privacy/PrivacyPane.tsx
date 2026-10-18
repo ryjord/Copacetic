@@ -140,8 +140,6 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
             </p>
           </div>
         )}
-        {/* Chromium reads this once at startup; saying so beats appearing broken. */}
-        <p className="mt-3 text-[12px] text-caution">This takes effect the next time Copacetic starts.</p>
       </Section>
 
       <Section title="Zoom">

@@ -3,10 +3,9 @@ import {
   DEFAULT_RESOLVER_ID,
   DNS_RESOLVERS,
   describeDns,
-  dnsSwitchesFor,
+  hostResolverFor,
   resolverFor,
 } from '../../electron/shared/dns';
-import { applyDnsSwitches, readDnsPreference } from '../../electron/main/app/command-line';
 
 describe('the resolvers on offer', () => {
   it('all have a real https template', () => {
@@ -30,8 +29,8 @@ describe('the resolvers on offer', () => {
 });
 
 describe('what gets handed to Chromium', () => {
-  it('sets nothing at all while the system resolver is in use', () => {
-    expect(dnsSwitchesFor('system', 'quad9')).toBeNull();
+  it('leaves Chromium on its own default while the system resolver is in use', () => {
+    expect(hostResolverFor('system', 'quad9')).toEqual({ secureDnsMode: 'automatic', secureDnsServers: [] });
   });
 
   /**
@@ -40,58 +39,14 @@ describe('what gets handed to Chromium', () => {
    * doing anything exactly when the network is interesting.
    */
   it('asks for secure mode, which fails rather than falling back', () => {
-    expect(dnsSwitchesFor('encrypted', 'quad9')).toEqual({
-      mode: 'secure',
-      templates: 'https://dns.quad9.net/dns-query',
+    expect(hostResolverFor('encrypted', 'quad9')).toEqual({
+      secureDnsMode: 'secure',
+      secureDnsServers: ['https://dns.quad9.net/dns-query'],
     });
   });
 
-  it('sets nothing for a resolver it does not know', () => {
-    expect(dnsSwitchesFor('encrypted', 'someone-elses-resolver')).toBeNull();
-  });
-
-  it('appends both switches, or neither', () => {
-    const applied: string[] = [];
-    const commandLine = { appendSwitch: (name: string) => applied.push(name) };
-    applyDnsSwitches(commandLine, dnsSwitchesFor('encrypted', 'quad9'));
-    expect(applied).toEqual(['dns-over-https-mode', 'dns-over-https-templates']);
-
-    applied.length = 0;
-    applyDnsSwitches(commandLine, null);
-    expect(applied).toEqual([]);
-  });
-});
-
-/**
- * Read off disk before the app is ready, because Chromium reads its command
- * line once and the store does not exist yet. Anything unreadable has to mean
- * the system resolver rather than a guess.
- */
-describe('reading the preference before anything is running', () => {
-  const read = (contents: string) => () => contents;
-
-  it('finds an encrypted preference', () => {
-    expect(readDnsPreference('x', read('{"dnsMode":"encrypted","dnsResolverId":"mullvad"}'))).toEqual({
-      mode: 'secure',
-      templates: 'https://dns.mullvad.net/dns-query',
-    });
-  });
-
-  it.each([
-    [
-      'the file is missing',
-      () => {
-        throw new Error('ENOENT');
-      },
-    ],
-    ['the file is corrupt', read('{not json')],
-    ['the file is empty', read('')],
-    ['it is not an object', read('"a string"')],
-    ['no preference is set', read('{}')],
-    ['the system resolver is chosen', read('{"dnsMode":"system"}')],
-    ['the resolver is unknown', read('{"dnsMode":"encrypted","dnsResolverId":"nope"}')],
-  ])('falls back to the system resolver when %s', (_name, reader) => {
-    expect(readDnsPreference('x', reader as () => string)).toBeNull();
+  it('falls back to the default for a resolver it does not know', () => {
+    expect(hostResolverFor('encrypted', 'someone-elses-resolver').secureDnsMode).toBe('automatic');
   });
 });
 

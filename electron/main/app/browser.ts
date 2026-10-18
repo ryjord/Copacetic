@@ -10,6 +10,7 @@ import {
   type BrowserWindow,
   app,
   dialog,
+  net,
   session as electronSession,
   type Session,
   safeStorage,
@@ -40,6 +41,7 @@ import { START_PAGE_URL, buildSearchUrl, hostOf, isNavigableUrl, isPageNavigable
 import { describeAuthPrompt, isPromptWorthy } from '../security/auth';
 import { ContentBlocker } from '../security/blocker';
 import { HttpsFirst } from '../security/https-first';
+import { hostResolverFor } from '../../shared/dns';
 import { forgetCertificates } from '../security/certificates';
 import { forgetCertificateExceptions } from '../security/certificate-exceptions';
 import { bookmarksToHtml, historyToJson } from '../data/export';
@@ -238,6 +240,9 @@ export class Browser {
   // ------------------------------------------------------------------ start
 
   async start(): Promise<void> {
+    // Applied before the first page, so nothing is looked up the plaintext way first.
+    const settings = this.store.getSettings();
+    app.configureHostResolver(hostResolverFor(settings.dnsMode, settings.dnsResolverId));
     await this.window.loadURL(chromeEntryUrl());
     this.window.show();
     this.restoreTabs();
@@ -603,6 +608,9 @@ export class Browser {
     const next = this.store.updateSettings(patch);
     if (patch.httpsFirst !== undefined) {
       this.httpsFirst.setEnabled(patch.httpsFirst);
+    }
+    if (patch.dnsMode !== undefined || patch.dnsResolverId !== undefined) {
+      app.configureHostResolver(hostResolverFor(next.dnsMode, next.dnsResolverId));
     }
     if (patch.blockTrackers !== undefined) {
       this.blocker.setEnabled(patch.blockTrackers);
@@ -1107,7 +1115,8 @@ export class Browser {
    */
   async updateFilterLists(): Promise<{ ok: boolean; message: string }> {
     const outcome = await this.blocker.fetchNewerLists(app.getPath('userData'), async (url) => {
-      const response = await fetch(url);
+      // Chromium's network stack, not Node's, so the request follows the DNS and proxy settings like any page.
+      const response = await net.fetch(url);
       if (!response.ok) {
         throw new Error(String(response.status));
       }
