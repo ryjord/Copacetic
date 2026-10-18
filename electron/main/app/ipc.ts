@@ -1,6 +1,15 @@
 import type { KeptKind } from '../../shared/forgetting';
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
-import { readWallpaper, readWallpaperPreview, stagedWallpaper } from '../system/wallpaper';
+import {
+  chooseWallpaper,
+  clearWallpaper,
+  commitStagedChanges,
+  discardStagedWallpaper,
+  readWallpaper,
+  readWallpaperPreview,
+  stageWallpaperRemoval,
+  stagedWallpaper,
+} from '../system/wallpaper';
 import { randomBytes } from 'node:crypto';
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
 import { resolverFor } from '../../shared/dns';
@@ -52,7 +61,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('tabs.create', (_event, url, activate) =>
     browser.tabs.create(asString(url) || undefined, { activate: activate !== false }),
   );
-  handle('tabs.createHush', () => browser.newHushTab());
+  handle('tabs.createHush', () => browser.commands.newHushTab());
   handle('tabs.close', (_event, id) => browser.tabs.close(asString(id)));
   handle('tabs.activate', (_event, id) => browser.tabs.activate(asString(id)));
   handle('tabs.move', (_event, id, index) => browser.tabs.move(asString(id), asInteger(index)));
@@ -65,7 +74,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('tabs.duplicate', (_event, id) => browser.tabs.duplicate(asString(id)));
   handle('tabs.continueOverHttp', (_event, id) => browser.tabs.continueOverHttp(asString(id)));
   handle('tabs.acceptCertificate', (_event, id) => browser.tabs.acceptCertificate(asString(id)));
-  handle('tabs.reopenClosed', () => browser.reopenClosedTab());
+  handle('tabs.reopenClosed', () => browser.commands.reopenClosedTab());
   handle('tabs.setZoom', (_event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
   handle('tabs.openContextMenu', (_event, id) => showTabContextMenu(browser, asString(id)));
   handle('tabs.openNewTabMenu', () => showNewTabMenu(browser));
@@ -116,7 +125,7 @@ export function registerIpcHandlers(browser: Browser): void {
     browser.bookmarks.changed();
     browser.scheduleStatePush();
   });
-  handle('bookmarks.openInActiveTab', (_event, url) => browser.openInActiveTab(asString(url)));
+  handle('bookmarks.openInActiveTab', (_event, url) => browser.commands.openInActiveTab(asString(url)));
   handle('bookmarks.openContextMenu', (_event, id) => showBookmarkContextMenu(browser, asString(id)));
   handle('history.traces', (_event, address) => browser.sites.traces(asString(address)));
   handle('history.totalBlocked', () => browser.store.totalBlocked());
@@ -231,10 +240,10 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('vault.reveal', (_event, id) => browser.vault.reveal(asString(id)));
   handle('vault.exportAll', () => browser.transfer.exportPasswords());
   handle('vault.importFile', () => browser.transfer.importPasswords());
-  handle('vault.lockState', () => browser.vaultLock());
-  handle('vault.unlock', () => browser.unlockVault());
-  handle('vault.lock', () => browser.lockVault());
-  handle('vault.facts', () => browser.vaultFacts());
+  handle('vault.lockState', () => browser.vaultSession.lockInfo());
+  handle('vault.unlock', () => browser.vaultSession.unlock());
+  handle('vault.lock', () => browser.vaultSession.lock());
+  handle('vault.facts', () => browser.vaultSession.facts());
   handle('vault.generate', (_event, length) =>
     generatePassword(
       { ...DEFAULT_RECIPE, length: Number(length) || DEFAULT_RECIPE.length },
@@ -246,11 +255,16 @@ export function registerIpcHandlers(browser: Browser): void {
 
   handle('wallpaper.get', () => readWallpaper());
   handle('wallpaper.preview', () => readWallpaperPreview());
-  handle('wallpaper.choose', () => browser.chooseWallpaper());
-  handle('wallpaper.clear', () => browser.clearWallpaper());
+  // Each changes what the start page shows, so the chrome is told afterwards.
+  const thenPush = <Result>(result: Result): Result => {
+    browser.scheduleStatePush();
+    return result;
+  };
+  handle('wallpaper.choose', async () => thenPush(await chooseWallpaper(browser.window)));
+  handle('wallpaper.clear', () => thenPush(clearWallpaper()));
   handle('wallpaper.staged', () => stagedWallpaper());
-  handle('wallpaper.keep', () => browser.keepWallpaper());
-  handle('wallpaper.remove', () => browser.removeWallpaper());
+  handle('wallpaper.keep', () => thenPush(commitStagedChanges()));
+  handle('wallpaper.remove', () => thenPush(stageWallpaperRemoval()));
 
   // ------------------------------------------------------------------ groups
 
@@ -263,7 +277,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('groups.setForTab', (_event, tabId, groupId) =>
     browser.groups.setForTab(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
   );
-  handle('wallpaper.discard', () => browser.discardWallpaper());
+  handle('wallpaper.discard', () => thenPush(discardStagedWallpaper()));
 
   // ------------------------------------------------------------------- data
 

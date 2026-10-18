@@ -19,7 +19,25 @@ vi.mock('electron', () => ({
 const { buildApplicationMenu } = await import('../../electron/main/menus/menu');
 
 const browserSource = readFileSync('electron/main/app/browser.ts', 'utf8');
-const tabsSource = readFileSync('electron/main/tabs/tabs.ts', 'utf8');
+
+/** Where each part of Browser that a menu reaches into is defined. */
+const PART_SOURCES: Record<string, string> = {
+  tabs: 'electron/main/tabs/tabs.ts',
+  commands: 'electron/main/workflows/tab-commands.ts',
+  groups: 'electron/main/workflows/groups.ts',
+  bookmarks: 'electron/main/workflows/bookmarks.ts',
+  sites: 'electron/main/workflows/site-data.ts',
+  transfer: 'electron/main/workflows/data-transfer.ts',
+  passwords: 'electron/main/workflows/password-fill.ts',
+  notices: 'electron/main/app/notice-centre.ts',
+  store: 'electron/main/data/store.ts',
+};
+
+const sourceFor = (path: string): string => {
+  const part = path.split('.')[0] ?? '';
+  const file = path.includes('.') ? PART_SOURCES[part] : undefined;
+  return file ? readFileSync(file, 'utf8') : browserSource;
+};
 
 /**
  * Every click reaches into Browser by name. A renamed or removed method leaves
@@ -67,8 +85,7 @@ describe('the application menu', () => {
     expect(reached.length).toBeGreaterThan(0);
     const missing = [...new Set(reached)].filter((path) => {
       const method = path.split('.').pop() ?? '';
-      const source = path.startsWith('tabs.') ? tabsSource : browserSource;
-      return !new RegExp(`\\b(async )?${method}\\s*[(<]`).test(source);
+      return !new RegExp(`\\b(async )?${method}\\s*[(<]`).test(sourceFor(path));
     });
     expect(missing).toEqual([]);
   });

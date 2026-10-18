@@ -26,9 +26,12 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com' } = {})
     called.push(name);
   };
   return {
-    newTab: record('newTab'),
-    newHushTab: record('newHushTab'),
-    reopenClosedTab: record('reopenClosedTab'),
+    commands: {
+      newTab: record('newTab'),
+      newHushTab: record('newHushTab'),
+      reopenClosedTab: record('reopenClosedTab'),
+      toggleBookmarkForActiveTab: record('toggleBookmark'),
+    },
     scheduleStatePush: record('scheduleStatePush'),
     store: { isBookmarked: () => false, toggleBookmark: record('toggleBookmark'), listGroups: () => [] },
     groups: { create: record('createGroup'), setForTab: record('setTabGroup') },

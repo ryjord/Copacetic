@@ -43,7 +43,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
         }),
     });
     push({ label: 'Copy link address', click: () => clipboard.writeText(linkUrl) });
-    push({ label: 'Download linked file', click: () => browser.downloadUrl(linkUrl) });
+    push({ label: 'Download linked file', click: () => browser.commands.downloadUrl(linkUrl) });
     separate();
   }
 
@@ -58,7 +58,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     });
     push({ label: 'Copy image', click: () => browser.tabs.copyImageAt(tabId, params.x, params.y) });
     push({ label: 'Copy image address', click: () => clipboard.writeText(imageUrl) });
-    push({ label: 'Save image', click: () => browser.downloadUrl(imageUrl) });
+    push({ label: 'Save image', click: () => browser.commands.downloadUrl(imageUrl) });
     separate();
   }
 
@@ -109,7 +109,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     push({
       label: searchSelectionLabel(selection),
       click: () =>
-        browser.tabs.create(browser.searchUrlFor(selection), {
+        browser.tabs.create(browser.commands.searchUrlFor(selection), {
           activate: true,
           openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
         }),
@@ -123,7 +123,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     push({ label: 'Reload', click: () => browser.tabs.reload(tabId) });
     separate();
     push({ label: 'Copy page address', click: () => clipboard.writeText(browser.tabs.urlFor(tabId) ?? '') });
-    push({ label: 'Bookmark this page', click: () => browser.toggleBookmarkForActiveTab() });
+    push({ label: 'Bookmark this page', click: () => browser.commands.toggleBookmarkForActiveTab() });
     separate();
   }
 
@@ -139,11 +139,11 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
 
   const items: MenuItemConstructorOptions[] = [
     { label: 'New tab to the right', click: () => browser.tabs.create(undefined, { activate: true }) },
-    { label: 'New Hush tab', click: () => browser.newHushTab() },
+    { label: 'New Hush tab', click: () => browser.commands.newHushTab() },
     {
       label: 'Reopen closed tab',
       enabled: browser.tabs.hasClosedTabs(),
-      click: () => browser.reopenClosedTab(),
+      click: () => browser.commands.reopenClosedTab(),
     },
     { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
     { label: 'Reload', click: () => browser.tabs.reload(tabId) },
@@ -186,13 +186,13 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
  */
 export function showNewTabMenu(browser: Browser): void {
   const items: MenuItemConstructorOptions[] = [
-    { label: 'New tab', click: () => browser.newTab() },
-    { label: 'New Hush tab', click: () => browser.newHushTab() },
+    { label: 'New tab', click: () => browser.commands.newTab() },
+    { label: 'New Hush tab', click: () => browser.commands.newHushTab() },
     { type: 'separator' },
     {
       label: 'Reopen closed tab',
       enabled: browser.tabs.hasClosedTabs(),
-      click: () => browser.reopenClosedTab(),
+      click: () => browser.commands.reopenClosedTab(),
     },
   ];
 
@@ -386,7 +386,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
   const items: MenuItemConstructorOptions[] = [
     { label: bookmark.title || bookmark.url, enabled: false },
     { type: 'separator' },
-    { label: 'Open', click: () => browser.openInActiveTab(bookmark.url) },
+    { label: 'Open', click: () => browser.commands.openInActiveTab(bookmark.url) },
     { type: 'separator' },
     {
       label: 'Move to folder',
@@ -431,7 +431,7 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
   const items: MenuItemConstructorOptions[] = [
     { label: site, enabled: false },
     { type: 'separator' },
-    { label: 'Open', click: () => browser.openInActiveTab(address) },
+    { label: 'Open', click: () => browser.commands.openInActiveTab(address) },
     { type: 'separator' },
     {
       label: `Forget ${site}`,
@@ -461,7 +461,7 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
       .filter((bookmark) => bookmark.folderId === parentId)
       .map((bookmark) => ({
         label: bookmark.title || bookmark.url,
-        click: () => browser.openInActiveTab(bookmark.url),
+        click: () => browser.commands.openInActiveTab(bookmark.url),
       }));
 
     const inside = folders

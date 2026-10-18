@@ -18,22 +18,13 @@ import type {
   PermissionKind,
   Settings,
   TabId,
-  VaultFacts,
-  VaultLock,
 } from '../../shared/types';
-import { START_PAGE_URL, buildSearchUrl, isNavigableUrl } from '../../shared/url';
+import { START_PAGE_URL } from '../../shared/url';
 import { ContentBlocker } from '../security/blocker';
 import { HttpsFirst } from '../security/https-first';
 import { hostResolverFor } from '../../shared/dns';
 import { Vault } from '../data/vault';
-import {
-  chooseWallpaper,
-  clearWallpaper,
-  commitStagedChanges,
-  discardStagedWallpaper,
-  hasWallpaper,
-  stageWallpaperRemoval,
-} from '../system/wallpaper';
+import { hasWallpaper } from '../system/wallpaper';
 import { DownloadManager } from '../data/downloads';
 import { chromeEntryUrl, isDevelopment, filtersRoot } from './env';
 import { HUSH_PARTITION, WEB_PARTITION, hardenChromeSession } from '../security/security';
@@ -48,6 +39,7 @@ import { DataTransfer } from '../workflows/data-transfer';
 import { GroupCommands } from '../workflows/groups';
 import { PasswordFill } from '../workflows/password-fill';
 import { SiteData } from '../workflows/site-data';
+import { TabCommands } from '../workflows/tab-commands';
 import { SessionRegistry } from '../sessions/session-registry';
 import { createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
 import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
@@ -58,13 +50,11 @@ import { log } from '../system/diagnostics';
 import { UpdateManager } from '../system/updates';
 import { createChromeWindow } from './window';
 
-const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
-
 /** Owns every long-lived piece of the browser and exposes the verbs that menus, shortcuts and IPC all call into. */
 export class Browser {
   readonly window: BrowserWindow;
   readonly store: BrowserStore;
-  private readonly vaultSession: VaultSession;
+  readonly vaultSession: VaultSession;
 
   /** The vault itself, for the callers that read entries rather than the lock. */
   get vault(): Vault {
@@ -81,6 +71,7 @@ export class Browser {
   readonly sites: SiteData;
   readonly transfer: DataTransfer;
   readonly passwords: PasswordFill;
+  readonly commands: TabCommands;
 
   private readonly prompts = new PendingPrompts();
   private readonly sessions: SessionRegistry;
@@ -205,6 +196,7 @@ export class Browser {
       changed,
     });
     this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession });
+    this.commands = new TabCommands({ store: this.store, tabs: this.tabs, changed, push });
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
     this.window.on('closed', () => this.dispose());
@@ -321,91 +313,6 @@ export class Browser {
     this.scheduleStatePush();
   }
 
-  // -------------------------------------------------------------- commands
-
-  newTab(url: string = START_PAGE_URL): void {
-    this.tabs.create(url);
-    this.pushToChrome(PUSH.focusOmnibox);
-  }
-
-  newHushTab(): void {
-    this.tabs.create(START_PAGE_URL, { hush: true });
-    this.pushToChrome(PUSH.focusOmnibox);
-  }
-
-  closeActiveTab(): void {
-    const active = this.tabs.getActiveTabId();
-    if (active) {
-      this.tabs.close(active);
-    }
-  }
-
-  reopenClosedTab(): void {
-    this.tabs.reopenClosed();
-  }
-
-  cycleTab(offset: number): void {
-    const { tabOrder, activeTabId } = this.tabs.snapshot();
-    if (tabOrder.length === 0 || !activeTabId) {
-      return;
-    }
-    const index = tabOrder.indexOf(activeTabId);
-    const next = tabOrder[(index + offset + tabOrder.length) % tabOrder.length];
-    if (next) {
-      this.tabs.activate(next);
-    }
-  }
-
-  /** `index` is zero-based; `-1` selects the last tab, matching every browser. */
-  selectTabAt(index: number): void {
-    const { tabOrder } = this.tabs.snapshot();
-    const target = index === -1 ? tabOrder[tabOrder.length - 1] : tabOrder[index];
-    if (target) {
-      this.tabs.activate(target);
-    }
-  }
-
-  withActiveTab(action: (tabId: TabId) => void): void {
-    const active = this.tabs.getActiveTabId();
-    if (active) {
-      action(active);
-    }
-  }
-
-  navigateActive(input: string): void {
-    this.withActiveTab((tabId) => this.tabs.navigate(tabId, input));
-  }
-
-  goHome(): void {
-    this.withActiveTab((tabId) => this.tabs.navigate(tabId, START_PAGE_URL));
-  }
-
-  adjustZoom(direction: 'in' | 'out' | 'reset'): void {
-    this.withActiveTab((tabId) => {
-      const tab = this.tabs.snapshot().tabs.find((candidate) => candidate.id === tabId);
-      if (!tab) {
-        return;
-      }
-      if (direction === 'reset') {
-        this.tabs.setZoom(tabId, this.store.getSettings().defaultZoomFactor);
-        return;
-      }
-      const currentIndex = nearestZoomIndex(tab.zoomFactor);
-      const nextIndex = Math.min(ZOOM_STEPS.length - 1, Math.max(0, currentIndex + (direction === 'in' ? 1 : -1)));
-      this.tabs.setZoom(tabId, ZOOM_STEPS[nextIndex] ?? 1);
-    });
-  }
-
-  toggleBookmarkForActiveTab(): void {
-    const { tabs, activeTabId } = this.tabs.snapshot();
-    const tab = tabs.find((candidate) => candidate.id === activeTabId);
-    if (!tab || tab.isStartPage) {
-      return;
-    }
-    this.store.toggleBookmark(tab.url, tab.title);
-    this.scheduleStatePush();
-  }
-
   /**
    * A surface asked for before the chrome was listening.
    *
@@ -433,14 +340,6 @@ export class Browser {
     this.pushToChrome(PUSH.focusOmnibox);
   }
 
-  toggleTabDevTools(): void {
-    this.withActiveTab((tabId) => this.tabs.toggleDevTools(tabId));
-  }
-
-  printActiveTab(): void {
-    this.withActiveTab((tabId) => this.tabs.print(tabId));
-  }
-
   updateSettings(patch: Partial<Settings>): Settings {
     const next = this.store.updateSettings(patch);
     if (patch.httpsFirst !== undefined) {
@@ -462,79 +361,12 @@ export class Browser {
     return next;
   }
 
-  /** Everything the honesty page claims, read from where it actually is rather than written out. */
-  vaultFacts(): VaultFacts {
-    return this.vaultSession.facts();
-  }
-
-  vaultLock(): VaultLock {
-    return this.vaultSession.lockInfo();
-  }
-
-  unlockVault(): Promise<string> {
-    return this.vaultSession.unlock();
-  }
-
-  lockVault(): void {
-    this.vaultSession.lock();
-  }
-
-  /** Resolves empty on success, or with a sentence for the user. */
-  async chooseWallpaper(): Promise<string> {
-    const error = await chooseWallpaper(this.window);
-    this.scheduleStatePush();
-    return error;
-  }
-
-  /** Applies what the pane staged. Returns what to say if it could not be written. */
-  keepWallpaper(): string {
-    const failure = commitStagedChanges();
-    this.scheduleStatePush();
-    return failure;
-  }
-
-  /** A removal waits with everything else, so Discard can undo it. */
-  removeWallpaper(): void {
-    stageWallpaperRemoval();
-    this.scheduleStatePush();
-  }
-
-  /** Forgets it, leaving whatever was there before exactly as it was. */
-  discardWallpaper(): void {
-    discardStagedWallpaper();
-    this.scheduleStatePush();
-  }
-
-  clearWallpaper(): void {
-    clearWallpaper();
-    this.scheduleStatePush();
-  }
-
   /** The log is only worth keeping if the person it belongs to can find it. */
   revealDiagnostics(): void {
     const file = log.path();
     if (file) {
       shell.showItemInFolder(file);
     }
-  }
-
-  // -------------------------------------------------------------------- groups
-
-  /**
-   * Opens a saved address in the tab someone is looking at, or a new one.
-   *
-   * A bookmark opened from the bar replaces what is in front of you, the way
-   * clicking a link does; with no tab to replace, it makes one rather than
-   * doing nothing.
-   */
-  openInActiveTab(url: string): void {
-    const activeId = this.tabs.getActiveTabId();
-    if (activeId) {
-      this.tabs.navigate(activeId, url);
-    } else {
-      this.tabs.create(url, { activate: true });
-    }
-    this.scheduleStatePush();
   }
 
   /** The only layer in this window that can be drawn on top of a page. */
@@ -585,17 +417,6 @@ export class Browser {
 
   openDownloadsFolder(): void {
     void shell.openPath(app.getPath('downloads'));
-  }
-
-  downloadUrl(url: string): void {
-    if (!isNavigableUrl(url)) {
-      return;
-    }
-    this.tabs.downloadUrl(url);
-  }
-
-  searchUrlFor(query: string): string {
-    return buildSearchUrl(query, this.store.getSettings().searchEngine);
   }
 
   /** Hand a link to the system browser. Only ever https, never a local path. */
@@ -652,17 +473,4 @@ export class Browser {
     this.prompts.settleAll();
     this.stopWatchingAuth();
   }
-}
-
-function nearestZoomIndex(zoomFactor: number): number {
-  let bestIndex = ZOOM_STEPS.indexOf(1);
-  let bestDistance = Number.POSITIVE_INFINITY;
-  ZOOM_STEPS.forEach((step, index) => {
-    const distance = Math.abs(step - zoomFactor);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  });
-  return bestIndex;
 }

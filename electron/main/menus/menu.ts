@@ -29,16 +29,16 @@ export function buildApplicationMenu(browser: Browser): Menu {
   template.push({
     label: 'File',
     submenu: [
-      { label: 'New tab', accelerator: 'CmdOrCtrl+T', click: () => browser.newTab() },
-      { label: 'New Hush tab', accelerator: 'CmdOrCtrl+Shift+N', click: () => browser.newHushTab() },
+      { label: 'New tab', accelerator: 'CmdOrCtrl+T', click: () => browser.commands.newTab() },
+      { label: 'New Hush tab', accelerator: 'CmdOrCtrl+Shift+N', click: () => browser.commands.newHushTab() },
       {
         label: 'Reopen closed tab',
         accelerator: 'CmdOrCtrl+Shift+T',
-        click: () => browser.reopenClosedTab(),
+        click: () => browser.commands.reopenClosedTab(),
       },
       { type: 'separator' },
-      { label: 'Close tab', accelerator: 'CmdOrCtrl+W', click: () => browser.closeActiveTab() },
-      { label: 'Print…', accelerator: 'CmdOrCtrl+P', click: () => browser.printActiveTab() },
+      { label: 'Close tab', accelerator: 'CmdOrCtrl+W', click: () => browser.commands.closeActiveTab() },
+      { label: 'Print…', accelerator: 'CmdOrCtrl+P', click: () => browser.commands.printActiveTab() },
       ...(isMac ? [] : ([{ type: 'separator' }, { role: 'quit' }] as MenuItemConstructorOptions[])),
     ],
   });
@@ -86,22 +86,22 @@ export function buildApplicationMenu(browser: Browser): Menu {
       {
         label: 'Reload',
         accelerator: 'CmdOrCtrl+R',
-        click: () => browser.withActiveTab((id) => browser.tabs.reload(id)),
+        click: () => browser.commands.withActiveTab((id) => browser.tabs.reload(id)),
       },
       {
         label: 'Reload, ignoring cache',
         accelerator: 'CmdOrCtrl+Shift+R',
-        click: () => browser.withActiveTab((id) => browser.tabs.reload(id, true)),
+        click: () => browser.commands.withActiveTab((id) => browser.tabs.reload(id, true)),
       },
       {
         label: 'Stop',
         accelerator: 'CmdOrCtrl+.',
-        click: () => browser.withActiveTab((id) => browser.tabs.stop(id)),
+        click: () => browser.commands.withActiveTab((id) => browser.tabs.stop(id)),
       },
       { type: 'separator' },
-      { label: 'Zoom in', accelerator: 'CmdOrCtrl+Plus', click: () => browser.adjustZoom('in') },
-      { label: 'Zoom out', accelerator: 'CmdOrCtrl+-', click: () => browser.adjustZoom('out') },
-      { label: 'Actual size', accelerator: 'CmdOrCtrl+0', click: () => browser.adjustZoom('reset') },
+      { label: 'Zoom in', accelerator: 'CmdOrCtrl+Plus', click: () => browser.commands.adjustZoom('in') },
+      { label: 'Zoom out', accelerator: 'CmdOrCtrl+-', click: () => browser.commands.adjustZoom('out') },
+      { label: 'Actual size', accelerator: 'CmdOrCtrl+0', click: () => browser.commands.adjustZoom('reset') },
       { type: 'separator' },
       { role: 'togglefullscreen' },
       { type: 'separator' },
@@ -109,7 +109,7 @@ export function buildApplicationMenu(browser: Browser): Menu {
       {
         label: 'Developer tools',
         accelerator: isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
-        click: () => browser.toggleTabDevTools(),
+        click: () => browser.commands.toggleTabDevTools(),
       },
     ],
   });
@@ -120,14 +120,14 @@ export function buildApplicationMenu(browser: Browser): Menu {
       {
         label: 'Back',
         accelerator: 'CmdOrCtrl+[',
-        click: () => browser.withActiveTab((id) => browser.tabs.goBack(id)),
+        click: () => browser.commands.withActiveTab((id) => browser.tabs.goBack(id)),
       },
       {
         label: 'Forward',
         accelerator: 'CmdOrCtrl+]',
-        click: () => browser.withActiveTab((id) => browser.tabs.goForward(id)),
+        click: () => browser.commands.withActiveTab((id) => browser.tabs.goForward(id)),
       },
-      { label: 'Home', accelerator: 'CmdOrCtrl+Shift+H', click: () => browser.goHome() },
+      { label: 'Home', accelerator: 'CmdOrCtrl+Shift+H', click: () => browser.commands.goHome() },
       { type: 'separator' },
       { label: 'Show all history', accelerator: 'CmdOrCtrl+Y', click: () => browser.openSurface('history') },
       { label: 'Clear browsing data…', click: () => browser.openSurface('settings') },
@@ -140,7 +140,7 @@ export function buildApplicationMenu(browser: Browser): Menu {
       {
         label: 'Bookmark this page',
         accelerator: 'CmdOrCtrl+D',
-        click: () => browser.toggleBookmarkForActiveTab(),
+        click: () => browser.commands.toggleBookmarkForActiveTab(),
       },
       {
         label: 'Show all bookmarks',
@@ -153,8 +153,8 @@ export function buildApplicationMenu(browser: Browser): Menu {
   template.push({
     label: 'Tabs',
     submenu: [
-      { label: 'Next tab', accelerator: 'Ctrl+Tab', click: () => browser.cycleTab(1) },
-      { label: 'Previous tab', accelerator: 'Ctrl+Shift+Tab', click: () => browser.cycleTab(-1) },
+      { label: 'Next tab', accelerator: 'Ctrl+Tab', click: () => browser.commands.cycleTab(1) },
+      { label: 'Previous tab', accelerator: 'Ctrl+Shift+Tab', click: () => browser.commands.cycleTab(-1) },
       { type: 'separator' },
       ...tabSelectionItems(browser),
       { type: 'separator' },
@@ -192,10 +192,10 @@ function tabSelectionItems(browser: Browser): MenuItemConstructorOptions[] {
     items.push({
       label: `Tab ${position}`,
       accelerator: `CmdOrCtrl+${position}`,
-      click: () => browser.selectTabAt(position - 1),
+      click: () => browser.commands.selectTabAt(position - 1),
     });
   }
-  items.push({ label: 'Last tab', accelerator: 'CmdOrCtrl+9', click: () => browser.selectTabAt(-1) });
+  items.push({ label: 'Last tab', accelerator: 'CmdOrCtrl+9', click: () => browser.commands.selectTabAt(-1) });
   return items;
 }
 
