@@ -75,13 +75,13 @@ describe('what Copacetic claims about a connection', () => {
  */
 describe('a page loaded on a certificate from this machine', () => {
   it('does not claim the certificate was checked', () => {
-    const state = describeSecurity('https://localhost:3000/app', null, '', true);
+    const state = describeSecurity('https://localhost:3000/app', null, '', 'local');
     expect(state.detail).not.toContain('Chromium checked');
     expect(state.detail).toContain('was not checked');
   });
 
   it('says the traffic stayed on the machine, which is why it is still secure', () => {
-    const state = describeSecurity('https://localhost:3000/app', null, '', true);
+    const state = describeSecurity('https://localhost:3000/app', null, '', 'local');
     expect(state.level).toBe('secure');
     expect(state.detail).toContain('never leaves your machine');
   });
@@ -89,14 +89,24 @@ describe('a page loaded on a certificate from this machine', () => {
   // Describing an unverified certificate would dress it up as an informative one.
   it('describes no certificate at all', () => {
     const certificate = { issuer: 'Someone', subject: 'localhost', validFrom: 0, validTo: 0, fingerprint: 'x' };
-    const state = describeSecurity('https://localhost:3000/', certificate as never, 'changed', true);
+    const state = describeSecurity('https://localhost:3000/', certificate as never, 'changed', 'local');
     expect(state.certificate).toBeNull();
     expect(state.certificateChange).toBe('');
   });
 
   it('leaves an ordinary https page saying exactly what it said before', () => {
-    const state = describeSecurity('https://example.com/', null, '', false);
+    const state = describeSecurity('https://example.com/', null, '', null);
     expect(state.detail).toContain('Chromium checked');
+  });
+});
+
+describe('a page whose certificate a person chose to accept', () => {
+  // The connection is encrypted to someone, and who is the question that went unanswered.
+  it('is not called secure', () => {
+    const state = describeSecurity('https://intranet.example/', null, '', 'accepted');
+    expect(state.level).toBe('insecure');
+    expect(state.detail).toContain('could not be verified');
+    expect(state.certificate).toBeNull();
   });
 });
 
@@ -107,24 +117,24 @@ describe('a page loaded on a certificate from this machine', () => {
  */
 describe('a page that did not load', () => {
   it('does not claim the connection was encrypted and checked', () => {
-    const state = describeSecurity('https://app.pacs.internal:3000/x', null, '', false, true);
+    const state = describeSecurity('https://app.pacs.internal:3000/x', null, '', null, true);
     expect(state.detail).not.toContain('Encrypted');
     expect(state.detail).toContain('did not load');
   });
 
   it('describes no certificate for a connection that never completed', () => {
     const certificate = { issuer: 'Someone', subject: 'x', validFrom: 0, validTo: 0, fingerprint: 'f' };
-    const state = describeSecurity('https://example.com/', certificate as never, 'changed', false, true);
+    const state = describeSecurity('https://example.com/', certificate as never, 'changed', null, true);
     expect(state.certificate).toBeNull();
     expect(state.certificateChange).toBe('');
   });
 
   it('does not warn about plain http either, since nothing was exchanged', () => {
-    const state = describeSecurity('http://example.com/', null, '', false, true);
+    const state = describeSecurity('http://example.com/', null, '', null, true);
     expect(state.detail).toContain('did not load');
   });
 
   it('leaves a page that did load saying exactly what it said before', () => {
-    expect(describeSecurity('https://example.com/', null, '', false, false).detail).toContain('Chromium checked');
+    expect(describeSecurity('https://example.com/', null, '', null, false).detail).toContain('Chromium checked');
   });
 });

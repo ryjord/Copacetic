@@ -4,6 +4,7 @@ import { clampZoom } from '../../shared/types';
 import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/url';
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
+import { canAcceptRefused } from '../security/certificate-exceptions';
 import type { BrowserStore } from '../data/store';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';
@@ -161,6 +162,8 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       description: info.description,
       url: validatedURL || tab.url,
       plainUrl: deps.httpsFirst.fallbackFor(contents.id, validatedURL || tab.url),
+      canAcceptCertificate:
+        info.name.startsWith('ERR_CERT') && canAcceptRefused(contents.id, validatedURL || tab.url),
     };
     tab.url = validatedURL || tab.url;
     deps.applyVisibility();

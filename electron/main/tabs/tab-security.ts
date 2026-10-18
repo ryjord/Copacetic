@@ -5,8 +5,8 @@ export function describeSecurity(
   url: string,
   certificate: CertificateSummary | null = null,
   certificateChange = '',
-  /** Set when this page loaded on a certificate Copacetic accepted because it came from this machine. */
-  trustedLocally = false,
+  /** How this page's certificate was accepted when Chromium refused it: from this machine, or by the person. */
+  exception: 'local' | 'accepted' | null = null,
   /** Set when the page did not load. */
   failed = false,
 ): SecurityState {
@@ -66,7 +66,20 @@ export function describeSecurity(
     };
   }
 
-  if (scheme === 'https' && trustedLocally) {
+  // Encrypted, but to whom is exactly the question that went unanswered.
+  if (scheme === 'https' && exception === 'accepted') {
+    return {
+      level: 'insecure',
+      scheme,
+      host,
+      detail:
+        'You chose to continue although this site’s certificate could not be verified. The connection is encrypted, but Copacetic cannot confirm who is on the other end.',
+      certificate: null,
+      certificateChange: '',
+    };
+  }
+
+  if (scheme === 'https' && exception === 'local') {
     return {
       level: 'secure',
       scheme,

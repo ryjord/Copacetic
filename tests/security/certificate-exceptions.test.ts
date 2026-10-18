@@ -20,8 +20,16 @@ vi.mock('electron', () => ({
   },
 }));
 
-const { allowLocalCertificates, forgetLocalCertificates, mayTrustLocally, trustedLocally } =
-  await import('../../electron/main/security/local-certificates');
+const {
+  acceptRefused,
+  canAcceptRefused,
+  exceptionFor,
+  forgetCertificateExceptions,
+  mayTrustLocally,
+  watchCertificateErrors,
+} = await import('../../electron/main/security/certificate-exceptions');
+
+const trustedLocally = (origin: string) => exceptionFor(origin) === 'local';
 
 /**
  * The whole exception rests on this one question, so it is the one thing that
@@ -73,23 +81,23 @@ describe('whose certificate may be trusted without checking it', () => {
 
 /** Driving the handler itself, rather than the question it asks. */
 describe('what happens when Chromium refuses a certificate', () => {
-  function refuse(url: string) {
+  function refuse(url: string, fingerprint = 'sha256/one', error = 'net::ERR_CERT_AUTHORITY_INVALID') {
     let prevented = false;
     let trusted: boolean | null = null;
     registered?.(
       { preventDefault: () => (prevented = true) },
-      null,
+      { id: 7 },
       url,
-      'net::ERR_CERT_AUTHORITY_INVALID',
-      null,
+      error,
+      { fingerprint },
       (answer) => (trusted = answer),
     );
     return { prevented, trusted };
   }
 
   beforeEach(() => {
-    forgetLocalCertificates();
-    allowLocalCertificates();
+    forgetCertificateExceptions();
+    watchCertificateErrors();
   });
 
   it('overrides the refusal for a server on this machine', () => {
@@ -121,7 +129,62 @@ describe('what happens when Chromium refuses a certificate', () => {
 
   it('forgets what it trusted when asked', () => {
     refuse('https://127.0.0.1:8443/');
-    forgetLocalCertificates();
+    forgetCertificateExceptions();
     expect(trustedLocally('https://127.0.0.1:8443')).toBe(false);
+  });
+});
+
+describe('continuing past a refused certificate', () => {
+  function refuse(url: string, fingerprint = 'sha256/one', error = 'net::ERR_CERT_AUTHORITY_INVALID') {
+    let trusted: boolean | null = null;
+    registered?.(
+      { preventDefault: () => {} },
+      { id: 7 },
+      url,
+      error,
+      { fingerprint },
+      (answer) => (trusted = answer),
+    );
+    return trusted;
+  }
+
+  beforeEach(() => {
+    forgetCertificateExceptions();
+    watchCertificateErrors();
+  });
+
+  it('accepts the certificate the person saw, once they choose to', () => {
+    expect(refuse('https://intranet.example/')).toBe(false);
+    expect(canAcceptRefused(7, 'https://intranet.example/page')).toBe(true);
+    expect(acceptRefused(7, 'https://intranet.example/page')).toBe(true);
+
+    expect(refuse('https://intranet.example/')).toBe(true);
+    expect(exceptionFor('https://intranet.example')).toBe('accepted');
+  });
+
+  // A different certificate on the same site is a new question, not the old answer.
+  it('does not accept a different certificate on the same site', () => {
+    refuse('https://intranet.example/');
+    acceptRefused(7, 'https://intranet.example/');
+    expect(refuse('https://intranet.example/', 'sha256/two')).toBe(false);
+  });
+
+  it('accepts nothing for another site', () => {
+    refuse('https://intranet.example/');
+    expect(acceptRefused(7, 'https://other.example/')).toBe(false);
+    expect(exceptionFor('https://other.example')).toBeNull();
+  });
+
+  it('never accepts a certificate its authority revoked', () => {
+    refuse('https://revoked.example/', 'sha256/one', 'net::ERR_CERT_REVOKED');
+    expect(canAcceptRefused(7, 'https://revoked.example/')).toBe(false);
+    expect(acceptRefused(7, 'https://revoked.example/')).toBe(false);
+  });
+
+  it('forgets what was accepted when browsing data is cleared', () => {
+    refuse('https://intranet.example/');
+    acceptRefused(7, 'https://intranet.example/');
+    forgetCertificateExceptions();
+    expect(refuse('https://intranet.example/')).toBe(false);
   });
 });

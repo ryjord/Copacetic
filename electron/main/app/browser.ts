@@ -41,7 +41,7 @@ import { describeAuthPrompt, isPromptWorthy } from '../security/auth';
 import { ContentBlocker } from '../security/blocker';
 import { HttpsFirst } from '../security/https-first';
 import { forgetCertificates } from '../security/certificates';
-import { forgetLocalCertificates } from '../security/local-certificates';
+import { forgetCertificateExceptions } from '../security/certificate-exceptions';
 import { bookmarksToHtml, historyToJson } from '../data/export';
 import { bookmarksFromHtml } from '../../shared/bookmark-import';
 import { offerFor } from '../../shared/credential-matching';
@@ -623,7 +623,7 @@ export class Browser {
       // Certificate summaries are browsing data too: they name every host
       // visited this session.
       forgetCertificates();
-      forgetLocalCertificates();
+      forgetCertificateExceptions();
       await Promise.all(this.siteDataSessions().map((session) => this.clearSession(session)));
     }
     this.scheduleStatePush();

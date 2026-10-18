@@ -14,6 +14,7 @@ export const INVOKE = {
   tabSetMuted: 'tab:set-muted',
   tabDuplicate: 'tab:duplicate',
   tabContinueOverHttp: 'tab:continue-over-http',
+  tabAcceptCertificate: 'tab:accept-certificate',
   tabReopenClosed: 'tab:reopen-closed',
   tabSetZoom: 'tab:set-zoom',
   tabOpenContextMenu: 'tab:open-context-menu',

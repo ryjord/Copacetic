@@ -62,6 +62,8 @@ export interface PageError {
   url: string;
   /** The HTTP address this page was upgraded from, offered only when the HTTPS version failed. */
   plainUrl?: string | null;
+  /** The certificate was refused for a reason a person may choose to continue past. */
+  canAcceptCertificate?: boolean;
 }
 
 export interface TabState {

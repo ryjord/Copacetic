@@ -27,7 +27,11 @@ import { type SessionCandidate, sessionFrom, tabAfterClosing } from './tab-choic
 import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
 import type { SessionSnapshot } from '../data/session-store';
-import { trustedLocally } from '../security/local-certificates';
+import {
+  acceptRefused,
+  exceptionFor,
+  forgetTab as forgetRefusedCertificate,
+} from '../security/certificate-exceptions';
 import { describeTab } from '../system/browser-identity';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
@@ -169,7 +173,7 @@ export class TabManager {
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
         tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url, tab.isHush),
-        !tab.isStartPage && trustedLocally(originOf(tab.url)),
+        tab.isStartPage ? null : exceptionFor(originOf(tab.url)),
         tab.error !== null,
       ),
       error: tab.error,
@@ -653,6 +657,7 @@ export class TabManager {
     if (!contents.isDestroyed()) {
       this.blocker.forget(contents.id);
       this.httpsFirst.forget(contents.id);
+      forgetRefusedCertificate(contents.id);
       this.countedBlocked.delete(contents.id);
       contents.stop();
     }
@@ -680,6 +685,15 @@ export class TabManager {
     // Loaded directly: the address bar would upgrade it straight back.
     if (tab && plainUrl && this.httpsFirst.allowPlain(plainUrl)) {
       void this.loadUrl(tab, plainUrl);
+    }
+  }
+
+  /** The person read why the certificate was refused and chose to continue to this one site. */
+  acceptCertificate(id: TabId): void {
+    const tab = this.tabs.get(id);
+    const failedUrl = tab?.error?.url;
+    if (tab && failedUrl && acceptRefused(tab.view.webContents.id, failedUrl)) {
+      void this.loadUrl(tab, failedUrl);
     }
   }
 

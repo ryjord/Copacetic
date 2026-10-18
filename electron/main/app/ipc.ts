@@ -50,6 +50,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle(INVOKE.tabSetMuted, (_event, id, muted) => browser.tabs.setMuted(asString(id), muted === true));
   handle(INVOKE.tabDuplicate, (_event, id) => browser.tabs.duplicate(asString(id)));
   handle(INVOKE.tabContinueOverHttp, (_event, id) => browser.tabs.continueOverHttp(asString(id)));
+  handle(INVOKE.tabAcceptCertificate, (_event, id) => browser.tabs.acceptCertificate(asString(id)));
   handle(INVOKE.tabReopenClosed, () => browser.reopenClosedTab());
   handle(INVOKE.tabSetZoom, (_event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
   handle(INVOKE.tabOpenContextMenu, (_event, id) => showTabContextMenu(browser, asString(id)));

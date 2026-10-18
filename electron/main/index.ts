@@ -9,7 +9,7 @@ import { installApplicationMenu } from './menus/menu';
 import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './app/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
-import { allowLocalCertificates } from './security/local-certificates';
+import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './app/default-browser';
 import { isPageNavigableUrl } from '../shared/url';
 
@@ -93,7 +93,7 @@ async function start(): Promise<void> {
   await app.whenReady();
   // Before anything else that can fail, so that when it does there is a record.
   startDiagnostics(app.getPath('userData'));
-  allowLocalCertificates();
+  watchCertificateErrors();
   log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
 

@@ -53,6 +53,8 @@ export interface CopaceticApi {
     duplicate(id: TabId): Promise<void>;
     /** Loads the plain HTTP version of a page whose HTTPS version failed, after the person chose to. */
     continueOverHttp(id: TabId): Promise<void>;
+    /** Continues to a site whose certificate was refused, for this certificate and this session only. */
+    acceptCertificate(id: TabId): Promise<void>;
     reopenClosed(): Promise<void>;
     setZoom(id: TabId, zoomFactor: number): Promise<void>;
     openContextMenu(id: TabId): Promise<void>;
