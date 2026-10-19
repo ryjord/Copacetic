@@ -3,6 +3,7 @@ import type { TabGroup } from '../../shared/tab-groups';
 import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/partitions';
 import type { DownloadManager } from '../data/downloads';
 import type { ContentBlocker } from '../security/blocker';
+import type { BlockingPolicy } from '../security/blocking-policy';
 import { type SecurityDelegate, hardenWebSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
 
@@ -10,6 +11,7 @@ interface SessionRegistryDeps {
   partitions: ProfilePartitions;
   securityDelegate: SecurityDelegate;
   blocker: ContentBlocker;
+  blocking: BlockingPolicy;
   downloads: DownloadManager;
   /** Read each time, because groups come and go while the browser runs. */
   groups: () => readonly TabGroup[];
@@ -46,7 +48,7 @@ export class SessionRegistry {
     this.prepared.set(partition, session);
 
     hardenWebSession(session, this.deps.securityDelegate);
-    this.deps.blocker.attach(session);
+    this.deps.blocker.attach(session, this.deps.blocking);
     // Everything but Hush is remembered. A Hush download's address, redirect
     // chain and time are browsing, and the tab's whole claim is that none of
     // that is written down.

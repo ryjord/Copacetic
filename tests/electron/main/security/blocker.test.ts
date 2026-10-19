@@ -3,12 +3,15 @@ import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ContentBlocker } from '../../../../electron/main/security/blocker';
+import { BlockingPolicy } from '../../../../electron/main/security/blocking-policy';
 
 interface CapturedRequest {
   url: string;
   resourceType: string;
   webContentsId?: number;
 }
+
+let policy: BlockingPolicy;
 
 /**
  * A stand-in for the slice of `Session` the blocker touches, so the matching
@@ -31,9 +34,10 @@ describe('ContentBlocker', () => {
   let fake: ReturnType<typeof fakeSession>;
 
   beforeEach(() => {
-    blocker = new ContentBlocker(true);
+    blocker = new ContentBlocker();
     fake = fakeSession();
-    blocker.attach(fake.session as never);
+    policy = new BlockingPolicy(true);
+    blocker.attach(fake.session as never, policy);
   });
 
   const ask = (url: string, resourceType = 'script', webContentsId: number | undefined = 7) =>
@@ -65,7 +69,7 @@ describe('ContentBlocker', () => {
   });
 
   it('does nothing at all when disabled', () => {
-    blocker.setEnabled(false);
+    policy.setEnabled(false);
     expect(ask('https://www.google-analytics.com/collect')).toBe(false);
   });
 
@@ -124,13 +128,44 @@ describe('ContentBlocker', () => {
   });
 });
 
+// One blocker holds the lists for every profile; what each profile chose must stay with that profile.
+describe('one blocker shared by two profiles', () => {
+  it("follows each session's own profile", () => {
+    const blocker = new ContentBlocker();
+    const blocking = fakeSession();
+    const notBlocking = fakeSession();
+    blocker.attach(blocking.session as never, new BlockingPolicy(true));
+    blocker.attach(notBlocking.session as never, new BlockingPolicy(false));
+    const tracker = { url: 'https://www.google-analytics.com/collect', resourceType: 'script', webContentsId: 7 };
+    expect(blocking.request(tracker)).toBe(true);
+    expect(notBlocking.request(tracker)).toBe(false);
+  });
+
+  it("keeps one profile's exception off the other's pages", () => {
+    const blocker = new ContentBlocker();
+    const allowing = fakeSession();
+    const other = fakeSession();
+    blocker.attach(allowing.session as never, new BlockingPolicy(true, ['example.com']));
+    blocker.attach(other.session as never, new BlockingPolicy(true));
+    blocker.setPageSite(7, 'example.com');
+    blocker.setPageSite(9, 'example.com');
+    expect(
+      allowing.request({ url: 'https://doubleclick.net/pixel.gif', resourceType: 'script', webContentsId: 7 }),
+    ).toBe(false);
+    expect(
+      other.request({ url: 'https://doubleclick.net/pixel.gif', resourceType: 'script', webContentsId: 9 }),
+    ).toBe(true);
+  });
+});
+
 describe('ContentBlocker, fully-qualified hostnames', () => {
   let fake: ReturnType<typeof fakeSession>;
 
   beforeEach(() => {
-    const blocker = new ContentBlocker(true);
+    const blocker = new ContentBlocker();
     fake = fakeSession();
-    blocker.attach(fake.session as never);
+    policy = new BlockingPolicy(true);
+    blocker.attach(fake.session as never, policy);
   });
 
   const ask = (url: string) => fake.request({ url, resourceType: 'script', webContentsId: 7 });
@@ -153,9 +188,10 @@ describe('the connection log', () => {
   let fake: ReturnType<typeof fakeSession>;
 
   beforeEach(() => {
-    blocker = new ContentBlocker(true);
+    blocker = new ContentBlocker();
     fake = fakeSession();
-    blocker.attach(fake.session as never);
+    policy = new BlockingPolicy(true);
+    blocker.attach(fake.session as never, policy);
   });
 
   const ask = (url: string, resourceType = 'script', webContentsId: number | undefined = 7) =>
@@ -192,7 +228,7 @@ describe('the connection log', () => {
   });
 
   it('still records hosts when blocking is switched off', () => {
-    blocker.setEnabled(false);
+    policy.setEnabled(false);
     ask('https://www.google-analytics.com/collect');
 
     expect(blocker.connectionsFor(7)).toContainEqual(
@@ -249,9 +285,10 @@ describe('per-site exceptions', () => {
   let fake: ReturnType<typeof fakeSession>;
 
   beforeEach(() => {
-    blocker = new ContentBlocker(true);
+    blocker = new ContentBlocker();
     fake = fakeSession();
-    blocker.attach(fake.session as never);
+    policy = new BlockingPolicy(true);
+    blocker.attach(fake.session as never, policy);
     blocker.setPageSite(7, 'example.com');
   });
 
@@ -262,19 +299,19 @@ describe('per-site exceptions', () => {
   });
 
   it('stops blocking on a site the user allowed', () => {
-    blocker.setAllowlist(['example.com']);
+    policy.setAllowlist(['example.com']);
     expect(ask('https://doubleclick.net/pixel.gif')).toBe(false);
   });
 
   // The exception is about the page you are on, not the tracker itself.
   it('does not carry the exception to another site', () => {
-    blocker.setAllowlist(['example.com']);
+    policy.setAllowlist(['example.com']);
     blocker.setPageSite(9, 'other.com');
     expect(ask('https://doubleclick.net/pixel.gif', 9)).toBe(true);
   });
 
   it('still records what was allowed through, so the log stays honest', () => {
-    blocker.setAllowlist(['example.com']);
+    policy.setAllowlist(['example.com']);
     ask('https://doubleclick.net/pixel.gif');
 
     expect(blocker.connectionsFor(7)).toContainEqual(
@@ -283,20 +320,20 @@ describe('per-site exceptions', () => {
   });
 
   it('can be taken back', () => {
-    blocker.setAllowlist(['example.com']);
-    blocker.setAllowlist([]);
+    policy.setAllowlist(['example.com']);
+    policy.setAllowlist([]);
     expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
   });
 
   it('blocks normally when the page site is unknown', () => {
-    blocker.setAllowlist(['example.com']);
+    policy.setAllowlist(['example.com']);
     blocker.setPageSite(7, '');
     expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
   });
 
   it('forgets the page site when the tab closes', () => {
     blocker.forget(7);
-    expect(blocker.isAllowedOn('example.com')).toBe(false);
+    expect(policy.isAllowedOn('example.com')).toBe(false);
   });
 });
 
@@ -313,7 +350,7 @@ describe('updating the filter lists', () => {
     `[Adblock Plus 2.0]\n! Last modified: 03 Sep 2026 09:00 UTC\n${Array.from({ length: rules }, (_, index) => `||tracker${index}.example^`).join('\n')}\n${'! padding\n'.repeat(12_000)}`;
 
   const blockerWithLists = () => {
-    const blocker = new ContentBlocker(true);
+    const blocker = new ContentBlocker();
     // Pretend a release shipped with these, which is what names the sources.
     (blocker as unknown as { lists: unknown[] }).lists = [
       {
@@ -367,7 +404,7 @@ describe('updating the filter lists', () => {
   });
 
   it('will not update lists it was never given', async () => {
-    const blocker = new ContentBlocker(true);
+    const blocker = new ContentBlocker();
     const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
     const outcome = await blocker.fetchNewerLists(directory, async () => realList(500));
     expect(outcome.ok).toBe(false);

@@ -146,7 +146,7 @@ export class Browser {
     this.sites = new SiteData({
       store: this.store,
       sessions: profile.sessions,
-      blocker: this.blocker,
+      blocking: profile.blocking,
       downloads: this.downloads,
       notices: this.notices,
       changed: () => profile.scheduleStatePush(),

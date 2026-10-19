@@ -11,7 +11,7 @@ import type { ClearRange } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { DownloadManager } from '../data/downloads';
 import type { BrowserStore } from '../data/store';
-import type { ContentBlocker } from '../security/blocker';
+import type { BlockingPolicy } from '../security/blocking-policy';
 import { forgetCertificateExceptions } from '../security/certificate-exceptions';
 import { forgetCertificates } from '../security/certificates';
 import type { SessionRegistry } from '../sessions/session-registry';
@@ -19,7 +19,7 @@ import type { SessionRegistry } from '../sessions/session-registry';
 interface SiteDataDeps {
   store: BrowserStore;
   sessions: SessionRegistry;
-  blocker: ContentBlocker;
+  blocking: BlockingPolicy;
   downloads: DownloadManager;
   notices: NoticeCentre;
   changed: () => void;
@@ -53,8 +53,8 @@ export class SiteData {
     const known = this.deps.store.originsForSite(address);
     const removed = this.deps.store.forgetSite(address);
     const cookies = await this.forgetInSessions(address, known);
-    // The allowlist may have lost an entry, and the blocker holds its own copy.
-    this.deps.blocker.setAllowlist(this.deps.store.getSettings().blockerAllowlist);
+    // The allowlist may have lost an entry, and the blocking policy holds its own copy.
+    this.deps.blocking.setAllowlist(this.deps.store.getSettings().blockerAllowlist);
 
     const complete = { ...removed, cookies };
     this.deps.notices.notify({
@@ -174,7 +174,7 @@ export class SiteData {
     }
     this.deps.store.clearKept(kind);
     if (kind === 'blockingOff') {
-      this.deps.blocker.setAllowlist(this.deps.store.getSettings().blockerAllowlist);
+      this.deps.blocking.setAllowlist(this.deps.store.getSettings().blockerAllowlist);
     }
     this.deps.changed();
   }

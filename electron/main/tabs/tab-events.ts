@@ -108,7 +108,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     if (!url.startsWith('http')) {
       return;
     }
-    const styles = deps.blocker.cosmeticStylesFor(url);
+    const styles = deps.blocker.cosmeticStylesFor(url, contents.session);
     if (styles) {
       void contents.insertCSS(styles).catch(() => {
         // A page that navigated away before this landed is not a failure.

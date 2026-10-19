@@ -4,6 +4,7 @@ import { FiltersEngine, Request } from '@ghostery/adblocker';
 import type { Session } from 'electron';
 import type { ConnectionEntry } from '../../shared/types';
 import { registrableDomainOf } from '../../shared/url';
+import type { BlockingPolicy } from './blocking-policy';
 
 /** What a shipped list says about itself, for a pane that has to name it. */
 export interface FilterListInfo {
@@ -166,26 +167,16 @@ export class ContentBlocker {
   private engine: FiltersEngine | null = null;
   private listedRules = 0;
   private lists: FilterListInfo[] = [];
-  private enabled: boolean;
   /** Per-tab counters, keyed by the webContents id of the tab's view. */
   private readonly counts = new Map<number, number>();
   /** Every host each tab has contacted this page load, keyed the same way. */
   private readonly hosts = new Map<number, Map<string, ConnectionEntry>>();
   /** The site each tab is on, so a per-site exception can be honoured. */
   private readonly pageHosts = new Map<number, string>();
-  /** Sites the user has chosen to stop blocking on, by registrable domain. */
-  private allowed = new Set<string>();
+  /** What each profile chose, by the session it was attached to. */
+  private readonly policies = new WeakMap<Session, BlockingPolicy>();
   /** One per window's tabs: each finds its own tabs in what it is told. */
   private readonly countListeners = new Set<(webContentsId: number, count: number) => void>();
-  private redirect: ((details: Electron.OnBeforeRequestListenerDetails) => string | null) | null = null;
-
-  constructor(enabled: boolean) {
-    this.enabled = enabled;
-  }
-
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-  }
 
   /**
    * Loads the lists built into this release.
@@ -296,13 +287,14 @@ export class ContentBlocker {
    * it needs no preload and runs no script of ours in the page, which is a
    * promise this browser has already made and has not spent.
    */
-  cosmeticStylesFor(url: string): string {
-    if (!this.engine || !this.enabled) {
+  cosmeticStylesFor(url: string, session: Session): string {
+    const policy = this.policies.get(session);
+    if (!this.engine || !policy?.isEnabled()) {
       return '';
     }
     try {
       const { hostname } = new URL(url);
-      if (this.allowed.has(registrableDomainOf(hostname) ?? hostname)) {
+      if (policy.isAllowedOn(registrableDomainOf(hostname) ?? hostname)) {
         return '';
       }
       const { styles } = this.engine.getCosmeticsFilters({
@@ -316,11 +308,6 @@ export class ContentBlocker {
     }
   }
 
-  // Sites where blocking is switched off, by registrable domain.
-  setAllowlist(sites: readonly string[]): void {
-    this.allowed = new Set(sites);
-  }
-
   /** Told on navigation, so a request can be judged against the page it is for. */
   setPageSite(webContentsId: number, site: string): void {
     if (site) {
@@ -328,14 +315,6 @@ export class ContentBlocker {
     } else {
       this.pageHosts.delete(webContentsId);
     }
-  }
-
-  isAllowedOn(site: string): boolean {
-    return this.allowed.has(site);
-  }
-
-  isEnabled(): boolean {
-    return this.enabled;
   }
 
   get ruleCount(): number {
@@ -367,17 +346,11 @@ export class ContentBlocker {
     this.pageHosts.delete(webContentsId);
   }
 
-  /**
-   * Runs before blocking on every request. A session has one onBeforeRequest
-   * listener, and this is it, so anything else that redirects requests goes here.
-   */
-  setRedirect(redirect: (details: Electron.OnBeforeRequestListenerDetails) => string | null): void {
-    this.redirect = redirect;
-  }
-
-  attach(session: Session): void {
+  /** Blocks in a session by the lists, and by what the profile that owns it chose. */
+  attach(session: Session, policy: BlockingPolicy): void {
+    this.policies.set(session, policy);
     session.webRequest.onBeforeRequest((details, callback) => {
-      const redirectURL = this.redirect?.(details) ?? null;
+      const redirectURL = policy.redirectFor(details);
       if (redirectURL) {
         callback({ redirectURL });
         return;
@@ -403,9 +376,10 @@ export class ContentBlocker {
       // An exception applies to the site being browsed, not the host being
       // requested: "allow trackers on this site", not "trust this tracker".
       const pageSite = typeof id === 'number' ? (this.pageHosts.get(id) ?? '') : '';
-      const exempt = pageSite !== '' && this.allowed.has(pageSite);
+      const exempt = pageSite !== '' && policy.isAllowedOn(pageSite);
 
-      const shouldBlock = this.enabled && isTracker && !exempt && !ALWAYS_ALLOWED_RESOURCES.has(details.resourceType);
+      const shouldBlock =
+        policy.isEnabled() && isTracker && !exempt && !ALWAYS_ALLOWED_RESOURCES.has(details.resourceType);
 
       // Recorded whether or not it was blocked, and whether or not blocking is
       // even switched on. The count of what was stopped is only half the truth;

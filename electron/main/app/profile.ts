@@ -13,6 +13,7 @@ import path from 'node:path';
 import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } from '../../shared/types';
 import { hostResolverFor } from '../../shared/dns';
 import { ContentBlocker } from '../security/blocker';
+import { BlockingPolicy } from '../security/blocking-policy';
 import { HttpsFirst } from '../security/https-first';
 import { hardenChromeSession, type SecurityDelegate } from '../security/security';
 import { type ProfilePartitions, partitionsFor } from '../../shared/partitions';
@@ -45,6 +46,8 @@ export class Profile {
   readonly store: BrowserStore;
   readonly vaultSession: VaultSession;
   readonly blocker: ContentBlocker;
+  /** Whether this profile blocks, and where it does not; the lists themselves are the blocker's. */
+  readonly blocking: BlockingPolicy;
   readonly httpsFirst: HttpsFirst;
   readonly downloads: DownloadManager;
   readonly updates: UpdateManager;
@@ -95,9 +98,9 @@ export class Profile {
       () => this.scheduleStatePush(),
     );
     const settings = this.store.getSettings();
-    this.blocker = new ContentBlocker(settings.blockTrackers);
+    this.blocker = new ContentBlocker();
+    this.blocking = new BlockingPolicy(settings.blockTrackers, settings.blockerAllowlist);
     this.httpsFirst = new HttpsFirst(settings.httpsFirst);
-    this.blocker.setAllowlist(settings.blockerAllowlist);
     // A list fetched on request is preferred to the one that shipped, and the shipped one is the floor.
     if (!this.blocker.loadShippedLists(path.join(app.getPath('userData'), 'filters'))) {
       this.blocker.loadShippedLists(filtersRoot());
@@ -134,6 +137,7 @@ export class Profile {
       partitions: this.partitions,
       securityDelegate: this.securityDelegate,
       blocker: this.blocker,
+      blocking: this.blocking,
       downloads: this.downloads,
       groups: () => this.store.listGroups(),
       isSpellcheckOn: () => this.store.getSettings().spellcheck,
@@ -141,7 +145,7 @@ export class Profile {
     // Web and Hush exist from launch; a group that keeps its own browsing is prepared when a tab first asks.
     this.sessions.prepare(this.partitions.web);
     this.sessions.prepare(this.partitions.hush);
-    this.blocker.setRedirect((details) => this.httpsFirst.upgradeFor(details));
+    this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details));
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
     this.stopWatchingAppearance = onAppearanceChange(() => this.windows.forEach((window) => window.repaint()));
@@ -282,10 +286,10 @@ export class Profile {
       app.configureHostResolver(hostResolverFor(next.dnsMode, next.dnsResolverId));
     }
     if (patch.blockTrackers !== undefined) {
-      this.blocker.setEnabled(patch.blockTrackers);
+      this.blocking.setEnabled(patch.blockTrackers);
     }
     if (patch.blockerAllowlist !== undefined) {
-      this.blocker.setAllowlist(next.blockerAllowlist);
+      this.blocking.setAllowlist(next.blockerAllowlist);
     }
     if (patch.checkForUpdates !== undefined) {
       this.updates.start(patch.checkForUpdates);
