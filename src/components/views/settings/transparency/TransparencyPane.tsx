@@ -46,7 +46,9 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
         <Answer question="What does it contact on its own?">
           Only the update check, which asks GitHub for the latest version number and sends nothing about you. You can
           turn it off in Updates. The filter lists are fetched only when you press Check now. A page&apos;s icon is
-          fetched in that page&apos;s own session, because the page asked for it.
+          fetched in that page&apos;s own session, because the page asked for it. On Windows and Linux, checking
+          spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its
+          own spelling checker.
         </Answer>
         <Answer question="Does the address bar send what I type?">
           No. Suggestions come from your own history and bookmarks, worked out on this machine. Only pressing Enter on
@@ -56,8 +58,9 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
 
       <Topic title="What is kept on this machine">
         <Answer question="Where is my data?">
-          In plain JSON files in Copacetic&apos;s folder in your user profile, readable in any text editor. History is
-          removed after 90 days. You can export or clear it in Your data.
+          In Copacetic&apos;s folder in your user profile: a SQLite database for history, bookmarks, downloads and
+          what you decided about each site, and a settings file you can read in any text editor. History is removed
+          after 90 days. You can export or clear it in Your data.
         </Answer>
         <Answer question="What is the diagnostics log?">
           A file that records what Copacetic did: that it started, that a setting would not save, that something
