@@ -15,6 +15,7 @@ import {
 import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../../shared/browsing/url';
 import { BookmarksStore } from './bookmarks-store';
 import { BookmarkFoldersStore } from './bookmark-folders-store';
+import { NamedSessionsStore } from './named-sessions-store';
 import { afterDeleting, type BookmarkFolder } from '../../shared/data/bookmark-folders';
 import { GroupsStore } from './groups-store';
 import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tabs/tab-groups';
@@ -39,6 +40,7 @@ import type {
 import type { RememberedCertificate } from '../../shared/browsing/certificate-changes';
 import type { ImportedBookmark } from '../../shared/data/bookmark-import';
 import type { DatabaseSync } from 'node:sqlite';
+import type { NamedSessionSummary, NamedSessionTab } from '../../shared/data/named-sessions';
 
 export { HISTORY_PAGE_SIZE };
 export type { HistoryPage };
@@ -64,6 +66,7 @@ export class BrowserStore {
   /** Held here so it shares the database; the download manager owns what goes in it. */
   readonly downloadsTable: DownloadsTable;
   private readonly session: SessionStore;
+  private readonly namedSessions: NamedSessionsStore;
   private readonly certificatesStore: CertificatesStore;
   /** Parsed host and lowercased forms per history entry, keyed by entry id. */
   private readonly scoreFieldCache = new Map<string, ScoreFields>();
@@ -86,6 +89,7 @@ export class BrowserStore {
     this.favicons = new FaviconsStore(this.database, directory);
     this.downloadsTable = new DownloadsTable(this.database, directory);
     this.session = new SessionStore(directory);
+    this.namedSessions = new NamedSessionsStore(this.database);
     this.certificatesStore = new CertificatesStore(directory);
     forgetLegacyCopies(directory, { isClearingEverything: false, now: Date.now() });
   }
@@ -347,6 +351,28 @@ export class BrowserStore {
 
   topSites(limit = 8): TopSite[] {
     return this.history.topSites((url) => this.favicons.get(url), limit);
+  }
+
+  // ---------------------------------------------------------- saved sessions
+
+  listNamedSessions(): NamedSessionSummary[] {
+    return this.namedSessions.list();
+  }
+
+  namedSessionTabs(id: string): NamedSessionTab[] {
+    return this.namedSessions.tabsOf(id);
+  }
+
+  saveNamedSession(name: string, tabs: readonly NamedSessionTab[]): NamedSessionSummary {
+    return this.namedSessions.save(name, Date.now(), tabs);
+  }
+
+  renameNamedSession(id: string, name: string): void {
+    this.namedSessions.rename(id, name);
+  }
+
+  removeNamedSession(id: string): void {
+    this.namedSessions.remove(id);
   }
 
   // --------------------------------------------------------------- bookmarks

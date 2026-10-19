@@ -124,6 +124,23 @@ export const MIGRATIONS: readonly Migration[] = [
       INSERT INTO history_search (history_search, rank) VALUES ('secure-delete', 0);
     `,
   },
+  {
+    version: 7,
+    sql: `
+      CREATE TABLE named_sessions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        saved_at INTEGER NOT NULL
+      );
+      CREATE TABLE named_session_tabs (
+        session_id TEXT NOT NULL REFERENCES named_sessions (id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        PRIMARY KEY (session_id, position)
+      );
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];

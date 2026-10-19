@@ -280,6 +280,10 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         accelerator: key('split-view'),
         click: () => inWindow((browser) => browser.tabs.toggleSplit()),
       },
+      {
+        label: t('main.menu.tabs.saveSession'),
+        click: () => inWindow((browser) => browser.saveTabsAsSession()),
+      },
       { type: 'separator' },
       ...tabSelectionItems(inWindow, key),
       { type: 'separator' },

@@ -7,6 +7,7 @@ import type { ProfileSummary } from './data/profiles';
 import type { DnsMode } from './browsing/dns';
 import type { TabGroup } from './tabs/tab-groups';
 import type { SplitView } from './tabs/split-view';
+import type { NamedSessionSummary } from './data/named-sessions';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -553,6 +554,8 @@ export interface BrowserState {
   siteInfo: SiteInfoState | null;
   /** Two tabs paired side by side, shown while either is in front. */
   split: SplitView | null;
+  /** Sets of tabs kept by name, newest first. */
+  namedSessions: NamedSessionSummary[];
   /** The profile this window belongs to. */
   profile: ProfileSummary;
   /** Every profile, to switch between and to manage. */

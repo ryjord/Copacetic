@@ -256,9 +256,32 @@ export function showNewTabMenu(browser: Browser): void {
       enabled: browser.tabs.hasClosedTabs(),
       click: () => browser.commands.reopenClosedTab(),
     },
+    { type: 'separator' },
+    { label: t('main.menu.tabs.saveSession'), click: () => browser.saveTabsAsSession() },
+    namedSessionsSubmenu(browser),
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+function namedSessionsSubmenu(browser: Browser): MenuItemConstructorOptions {
+  const sessions = browser.store.listNamedSessions();
+  return {
+    label: t('main.sessions.savedSessions'),
+    enabled: sessions.length > 0,
+    submenu:
+      sessions.length === 0
+        ? [{ label: t('main.sessions.none'), enabled: false }]
+        : sessions.map((session) => ({
+            label: session.name,
+            sublabel: t('main.sessions.tabCount', { count: session.tabCount }),
+            submenu: [
+              { label: t('main.sessions.open'), click: () => browser.openNamedSession(session.id) },
+              { type: 'separator' },
+              { label: t('main.sessions.remove'), click: () => browser.removeNamedSession(session.id) },
+            ],
+          })),
+  };
 }
 
 /**

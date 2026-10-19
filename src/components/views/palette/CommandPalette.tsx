@@ -32,13 +32,21 @@ interface Command {
   label: string;
   /** The shortcut that does the same thing, so the palette teaches it. */
   accelerator?: string;
-  group: 'tabs' | 'page' | 'goTo' | 'yourData' | 'appearance' | 'openTabs';
+  group: 'tabs' | 'page' | 'goTo' | 'sessions' | 'yourData' | 'appearance' | 'openTabs';
   /** Also matched, but not shown: a tab's address, for instance. */
   keywords?: string;
   run: () => void;
 }
 
-const GROUP_ORDER: readonly Command['group'][] = ['tabs', 'page', 'goTo', 'yourData', 'appearance', 'openTabs'];
+const GROUP_ORDER: readonly Command['group'][] = [
+  'tabs',
+  'page',
+  'goTo',
+  'sessions',
+  'yourData',
+  'appearance',
+  'openTabs',
+];
 
 /** One keystroke to reach anything, and a place to learn the shortcut for it. */
 /** Every command and open tab, or, opened as tab search, the open tabs alone. */
@@ -51,6 +59,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
   const activeTab = useBrowserStore((state) => state.activeTab);
   const hasClosedTabs = useBrowserStore((state) => state.hasClosedTabs);
   const split = useBrowserStore((state) => state.split);
+  const namedSessions = useBrowserStore((state) => state.namedSessions);
   const appearance = useBrowserStore((state) => state.settings.appearance);
   const defaultZoomFactor = useBrowserStore((state) => state.settings.defaultZoomFactor);
   const shortcutOverrides = useBrowserStore((state) => state.settings.shortcutOverrides);
@@ -345,6 +354,23 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       },
     );
 
+    list.push(
+      {
+        id: 'save-session',
+        label: t('views.palette.commands.saveSession'),
+        group: 'sessions',
+        keywords: t('views.palette.keywords.session'),
+        run: then(() => send((api) => api.sessions.save())),
+      },
+      ...namedSessions.map<Command>((session) => ({
+        id: `session:${session.id}`,
+        label: t('views.palette.commands.openSession', { name: session.name }),
+        group: 'sessions',
+        keywords: t('views.palette.keywords.session'),
+        run: then(() => send((api) => api.sessions.open(session.id))),
+      })),
+    );
+
     const tabCommands = tabs
       .filter((tab) => scope === 'tabs' || tab.id !== activeTab?.id)
       .map<Command>((tab) => ({
@@ -372,6 +398,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     requestOmniboxFocus,
     setSurface,
     scope,
+    namedSessions,
     shortcutOverrides,
     split,
     tabs,

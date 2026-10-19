@@ -97,6 +97,10 @@ export function registerIpcHandlers(profiles: Profiles): void {
     browser.tabs.setSplitRatio(typeof ratio === 'number' ? ratio : Number.NaN),
   );
   handle('tabs.sleep', (browser, _event, id) => browser.tabs.sleep(asString(id)));
+  handle('sessions.save', (browser) => browser.saveTabsAsSession());
+  handle('sessions.open', (browser, _event, id) => browser.openNamedSession(asString(id)));
+  handle('sessions.rename', (browser, _event, id, name) => browser.renameNamedSession(asString(id), asString(name)));
+  handle('sessions.remove', (browser, _event, id) => browser.removeNamedSession(asString(id)));
   handle('tabs.continueOverHttp', (browser, _event, id) => browser.tabs.continueOverHttp(asString(id)));
   handle('tabs.acceptCertificate', (browser, _event, id) => browser.tabs.acceptCertificate(asString(id)));
   handle('tabs.reopenClosed', (browser) => browser.commands.reopenClosedTab());

@@ -60,6 +60,10 @@ export const CHANNELS = {
   'tabs.setZoom': 'tab:set-zoom',
   'tabs.openContextMenu': 'tab:open-context-menu',
   'tabs.openNewTabMenu': 'tab:open-new-tab-menu',
+  'sessions.save': 'sessions:save',
+  'sessions.open': 'sessions:open',
+  'sessions.rename': 'sessions:rename',
+  'sessions.remove': 'sessions:remove',
 
   'chrome.setContentInsets': 'chrome:set-content-insets',
   'chrome.setOverlayVisible': 'chrome:set-overlay-visible',

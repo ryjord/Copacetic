@@ -84,6 +84,13 @@ export interface CopaceticApi {
     /** The menu behind the caret beside the new-tab button. */
     openNewTabMenu(): Promise<void>;
   };
+  sessions: {
+    /** Keeps this window's tabs, Hush aside, under a name made from the first of them. */
+    save(): Promise<void>;
+    open(id: string): Promise<void>;
+    rename(id: string, name: string): Promise<void>;
+    remove(id: string): Promise<void>;
+  };
   chrome: {
     setContentInsets(insets: ContentInsetsInput): Promise<void>;
     setOverlayVisible(visible: boolean): Promise<void>;

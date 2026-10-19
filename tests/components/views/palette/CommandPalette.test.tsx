@@ -40,6 +40,7 @@ const state = {
   },
   hasClosedTabs: false,
   split: null,
+  namedSessions: [],
   settings: { appearance: 'system', defaultZoomFactor: 1, shortcutOverrides: { 'new-tab': 'Alt+CmdOrCtrl+T' } },
 };
 

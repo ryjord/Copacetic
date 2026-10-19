@@ -78,6 +78,7 @@ import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/type
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { SessionSnapshot } from '../data/session-store';
+import type { NamedSessionTab } from '../../shared/data/named-sessions';
 import type { ProfilePartitions } from '../../shared/data/partitions';
 import type { BrowserStore } from '../data/store';
 
@@ -1093,6 +1094,16 @@ export class TabManager {
     }
     this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
     this.onChanged();
+  }
+
+  /** What a saved session keeps of this window: every page, but nothing from Hush, which is never written down. */
+  namedSessionTabs(): NamedSessionTab[] {
+    return this.order.flatMap((id) => {
+      const tab = this.tabs.get(id);
+      return tab && !tab.isHush && !tab.isStartPage && isNavigableUrl(tab.url)
+        ? [{ url: tab.url, title: tab.title }]
+        : [];
+    });
   }
 
   // ------------------------------------------------------------ split view

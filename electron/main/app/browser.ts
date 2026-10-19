@@ -22,6 +22,7 @@ import { groundColour, surfaceColour, titleBarOverlayFor } from '../window/appea
 import { showPageContextMenu } from '../menus/context-menu';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { t } from '../../shared/i18n/translate';
+import { defaultSessionName } from '../../shared/data/named-sessions';
 
 // Types
 import type {
@@ -212,6 +213,7 @@ export class Browser {
       tabOrder,
       activeTabId,
       split,
+      namedSessions: this.store.listNamedSessions(),
       groups: this.store.listGroups(),
       downloads: this.downloads.list(),
       find: this.tabs.getFindState(),
@@ -326,6 +328,51 @@ export class Browser {
 
   openDownloadsFolder(): void {
     this.profile.openDownloadsFolder();
+  }
+
+  saveTabsAsSession(): void {
+    const tabs = this.tabs.namedSessionTabs();
+    if (tabs.length === 0) {
+      this.notices.notify({
+        id: 'session-empty',
+        key: 'session-empty',
+        tone: 'info',
+        message: t('main.notices.sessionEmpty'),
+      });
+      return;
+    }
+    const saved = this.store.saveNamedSession(defaultSessionName(tabs), tabs);
+    this.notices.notify({
+      id: `session-saved-${saved.id}`,
+      key: 'session-saved',
+      tone: 'info',
+      message: t('main.notices.sessionSaved', {
+        pages: t('main.notices.pages', { count: saved.tabCount }),
+        name: saved.name,
+      }),
+    });
+    this.profile.scheduleStatePush();
+  }
+
+  /** In a window of its own, so opening a session never disturbs the tabs already open. */
+  openNamedSession(id: string): void {
+    const tabs = this.store.namedSessionTabs(id);
+    if (tabs.length === 0) {
+      return;
+    }
+    void this.profile.openWindow({
+      tabs: { tabs: tabs.map((tab) => ({ url: tab.url, groupId: null })), activeIndex: 0 },
+    });
+  }
+
+  renameNamedSession(id: string, name: string): void {
+    this.store.renameNamedSession(id, name);
+    this.profile.scheduleStatePush();
+  }
+
+  removeNamedSession(id: string): void {
+    this.store.removeNamedSession(id);
+    this.profile.scheduleStatePush();
   }
 
   openExternal(url: string): Promise<void> {

@@ -42,6 +42,7 @@ const EMPTY_STATE: BrowserState = {
   hasClosedTabs: false,
   siteInfo: null,
   split: null,
+  namedSessions: [],
   update: {
     status: { state: 'idle' },
     delivery: 'unsupported',

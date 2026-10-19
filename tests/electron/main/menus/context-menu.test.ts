@@ -33,7 +33,12 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSle
       toggleBookmarkForActiveTab: record('toggleBookmark'),
     },
     scheduleStatePush: record('scheduleStatePush'),
-    store: { isBookmarked: () => false, toggleBookmark: record('toggleBookmark'), listGroups: () => [] },
+    store: {
+      listNamedSessions: () => [],
+      isBookmarked: () => false,
+      toggleBookmark: record('toggleBookmark'),
+      listGroups: () => [],
+    },
     groups: { create: record('createGroup'), setForTab: record('setTabGroup') },
     tabs: {
       urlFor: () => url,
