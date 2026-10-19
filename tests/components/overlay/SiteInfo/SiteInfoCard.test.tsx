@@ -49,6 +49,7 @@ const tab = (certificateChange = ''): TabState =>
     isStartPage: false,
     isHush: false,
     isPinned: false,
+    isAsleep: false,
     isBookmarked: false,
   }) as TabState;
 

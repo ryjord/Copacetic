@@ -34,6 +34,8 @@ describe('every setting can actually be changed', () => {
     spellcheck: false,
     webRtcPolicy: 'proxiedOnly',
     blockThirdPartyCookies: false,
+    askWhereToSave: true,
+    sleepTabsAfterMinutes: 15,
   };
 
   it.each(Object.keys(DEFAULT_SETTINGS).filter((key) => !SETTINGS_NOT_PATCHABLE.includes(key)))(

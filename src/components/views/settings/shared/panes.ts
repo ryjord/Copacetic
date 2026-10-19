@@ -55,6 +55,8 @@ export const SETTINGS_PANES = [
       'Downloads',
       'Download folder',
       'Ask where to save',
+      'Sleeping tabs',
+      'Memory',
       'Bookmarks bar',
       'Default browser',
     ],

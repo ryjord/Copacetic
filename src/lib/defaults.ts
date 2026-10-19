@@ -26,4 +26,5 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   blockThirdPartyCookies: true,
   downloadDirectory: null,
   askWhereToSave: false,
+  sleepTabsAfterMinutes: 60,
 };

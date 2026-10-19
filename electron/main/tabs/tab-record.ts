@@ -28,4 +28,10 @@ export interface TabRecord {
   groupId: string | null;
   /** The session it was born in, which a view can never change. */
   partition: string;
+  /** Its page closed to free memory; the tab, its address and its history wait to be woken. */
+  isAsleep: boolean;
+  /** When it was last the tab in front, which is what sleeping is measured from. */
+  lastActiveAt: number;
+  /** The back and forward list it had when it went to sleep, restored when it wakes. */
+  sleptHistory: { entries: Electron.NavigationEntry[]; index: number } | null;
 }

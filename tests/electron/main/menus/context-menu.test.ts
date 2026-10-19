@@ -21,7 +21,7 @@ const { showBookmarkFolderContextMenu, showGroupContextMenu, showNewTabMenu, sho
 
 const called: string[] = [];
 
-function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com' } = {}) {
+function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSleep = true } = {}) {
   const record = (name: string) => () => {
     called.push(name);
   };
@@ -41,6 +41,8 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com' } = {})
       isHush: () => false,
       isPinned: () => false,
       setPinned: record('tabs.setPinned'),
+      canSleep: () => canSleep,
+      sleep: record('tabs.sleep'),
       titleFor: () => 'Example',
       hasClosedTabs: () => hasClosedTabs,
       create: record('tabs.create'),
@@ -111,6 +113,19 @@ describe('reopening a closed tab without a keyboard', () => {
 
   it('is enabled when something has been closed', () => {
     expect(itemNamed(newTabMenu({ hasClosedTabs: true }), 'Reopen closed tab')?.enabled).toBe(true);
+  });
+});
+
+// Sleeping the tab in front would blank the page the person is looking at.
+describe('putting a tab to sleep from its menu', () => {
+  it('sleeps that tab', () => {
+    called.length = 0;
+    (itemNamed(tabMenu(), 'Put tab to sleep')?.click as () => void)();
+    expect(called).toContain('tabs.sleep');
+  });
+
+  it('is disabled for a tab that cannot sleep', () => {
+    expect(itemNamed(tabMenu({ canSleep: false }), 'Put tab to sleep')?.enabled).toBe(false);
   });
 });
 

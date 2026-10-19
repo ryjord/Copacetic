@@ -17,6 +17,7 @@ function tab(id: string, url: string): TabState {
     groupId: null,
     isHush: false,
     isPinned: false,
+    isAsleep: false,
     isLoading: false,
     canGoBack: false,
     canGoForward: false,

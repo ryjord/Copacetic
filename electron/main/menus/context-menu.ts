@@ -151,6 +151,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
       label: browser.tabs.isPinned(tabId) ? 'Unpin tab' : 'Pin tab',
       click: () => browser.tabs.setPinned(tabId, !browser.tabs.isPinned(tabId)),
     },
+    { label: 'Put tab to sleep', enabled: browser.tabs.canSleep(tabId), click: () => browser.tabs.sleep(tabId) },
     { label: 'Reload', click: () => browser.tabs.reload(tabId) },
     { type: 'separator' },
     groupSubmenu(browser, tabId),

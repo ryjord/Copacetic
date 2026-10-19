@@ -89,3 +89,32 @@ export function clampToRun(
   const [lowest, highest] = isPinned(id) ? [0, pinnedCount - 1] : [pinnedCount, order.length - 1];
   return Math.min(Math.max(lowest, toIndex), highest);
 }
+
+/** What deciding whether a tab may sleep needs to know about it. */
+export interface SleepCandidate {
+  id: TabId;
+  isActive: boolean;
+  isStartPage: boolean;
+  isAsleep: boolean;
+  /** Playing sound, which someone is listening to whether or not they are looking. */
+  isAudible: boolean;
+  lastActiveAt: number;
+}
+
+/**
+ * The tabs left alone long enough to give up their memory.
+ *
+ * Never the one in front, one playing sound, a start page that holds nothing,
+ * or one already asleep. Zero minutes means never.
+ */
+export function tabsToSleep(tabs: readonly SleepCandidate[], now: number, afterMinutes: number): TabId[] {
+  if (afterMinutes <= 0) {
+    return [];
+  }
+  const cutoff = now - afterMinutes * 60_000;
+  return tabs
+    .filter(
+      (tab) => !tab.isActive && !tab.isStartPage && !tab.isAsleep && !tab.isAudible && tab.lastActiveAt <= cutoff,
+    )
+    .map((tab) => tab.id);
+}

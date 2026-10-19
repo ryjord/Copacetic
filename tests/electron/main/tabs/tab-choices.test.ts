@@ -5,6 +5,8 @@ import {
   tabAfterClosing,
   pinnedFirst,
   clampToRun,
+  tabsToSleep,
+  type SleepCandidate,
 } from '../../../../electron/main/tabs/tab-choices';
 
 const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate => ({
@@ -145,5 +147,40 @@ describe('pinned tabs in the strip', () => {
       { url: 'https://mail.example/', groupId: null, isPinned: true },
       { url: 'https://news.example/', groupId: null },
     ]);
+  });
+});
+
+describe('which tabs go to sleep', () => {
+  const minute = 60_000;
+  const now = 100 * minute;
+  const tab = (over: Partial<SleepCandidate> = {}): SleepCandidate => ({
+    id: 'a',
+    isActive: false,
+    isStartPage: false,
+    isAsleep: false,
+    isAudible: false,
+    lastActiveAt: now - 61 * minute,
+    ...over,
+  });
+
+  it('is a tab left alone longer than the setting', () => {
+    expect(tabsToSleep([tab()], now, 60)).toEqual(['a']);
+  });
+
+  it('is not one looked at more recently', () => {
+    expect(tabsToSleep([tab({ lastActiveAt: now - 59 * minute })], now, 60)).toEqual([]);
+  });
+
+  it.each([
+    ['the tab in front', { isActive: true }],
+    ['a tab playing sound', { isAudible: true }],
+    ['a start page', { isStartPage: true }],
+    ['a tab already asleep', { isAsleep: true }],
+  ] as const)('is never %s', (_name, over) => {
+    expect(tabsToSleep([tab(over)], now, 60)).toEqual([]);
+  });
+
+  it('is none at all when sleeping is turned off', () => {
+    expect(tabsToSleep([tab({ lastActiveAt: 0 })], now, 0)).toEqual([]);
   });
 });

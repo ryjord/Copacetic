@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
 import { resolverFor } from '../../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
-import { clampZoom, isAppearanceId, isThemeId, isWebRtcPolicy } from '../../shared/types';
+import { clampZoom, isAppearanceId, isSleepAfterMinutes, isThemeId, isWebRtcPolicy } from '../../shared/types';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import type { Browser } from './browser';
@@ -83,6 +83,7 @@ export function registerIpcHandlers(profile: Profile): void {
   handle('tabs.setPinned', (browser, _event, id, isPinned) =>
     browser.tabs.setPinned(asString(id), isPinned === true),
   );
+  handle('tabs.sleep', (browser, _event, id) => browser.tabs.sleep(asString(id)));
   handle('tabs.continueOverHttp', (browser, _event, id) => browser.tabs.continueOverHttp(asString(id)));
   handle('tabs.acceptCertificate', (browser, _event, id) => browser.tabs.acceptCertificate(asString(id)));
   handle('tabs.reopenClosed', (browser) => browser.commands.reopenClosedTab());
@@ -436,6 +437,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.askWhereToSave === 'boolean') {
     patch.askWhereToSave = value.askWhereToSave;
+  }
+  if (isSleepAfterMinutes(value.sleepTabsAfterMinutes)) {
+    patch.sleepTabsAfterMinutes = value.sleepTabsAfterMinutes;
   }
   // Only ever put back to the system folder from here: a folder is chosen in the main process's own dialog, and a
   // path from the renderer could send every download somewhere that runs what lands in it.

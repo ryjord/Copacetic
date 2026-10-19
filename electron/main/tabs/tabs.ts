@@ -30,7 +30,14 @@ import {
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
 import { inheritFromOpener } from '../../shared/opening';
-import { type SessionCandidate, sessionFrom, tabAfterClosing, clampToRun, pinnedFirst } from './tab-choices';
+import {
+  type SessionCandidate,
+  sessionFrom,
+  tabAfterClosing,
+  clampToRun,
+  pinnedFirst,
+  tabsToSleep,
+} from './tab-choices';
 import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
 import type { SessionSnapshot } from '../data/session-store';
@@ -60,6 +67,7 @@ export class TabManager {
   private overlayVisible = false;
   private readonly closedTabs = new ClosedTabs();
   private stored: BrowsingRecord | null = null;
+  private readonly sleepTimer: NodeJS.Timeout;
   private find: FindState = CLOSED_FIND;
   private isDisposed = false;
   /** What has already been added to history per tab, so only the difference is. */
@@ -86,6 +94,8 @@ export class TabManager {
     /** The rectangle the page occupies, for anything drawn over it. */
     private readonly onContentBounds: (bounds: ContentBounds) => void = () => {},
   ) {
+    this.sleepTimer = setInterval(() => this.sleepIdleTabs(), 60_000);
+    this.sleepTimer.unref?.();
     this.window.on('resize', () => this.applyBounds());
     this.blocker.onCount((webContentsId, count) => {
       const tab = this.findByWebContentsId(webContentsId);
@@ -192,6 +202,7 @@ export class TabManager {
       isStartPage: tab.isStartPage,
       isHush: tab.isHush,
       isPinned: tab.isPinned,
+      isAsleep: tab.isAsleep,
       groupId: tab.groupId,
       isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
     };
@@ -569,24 +580,7 @@ export class TabManager {
     // default, no tracker blocking and no download handling.
     this.prepareSession(partition);
 
-    const view = new WebContentsView({
-      webPreferences: {
-        // Page content gets no bridge, no Node, and its own persistent
-        // partition. It is as close to a plain browser tab as Electron allows.
-        preload: undefined,
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
-        webviewTag: false,
-        webSecurity: true,
-        allowRunningInsecureContent: false,
-        partition,
-        spellcheck: true,
-        safeDialogs: true,
-      },
-    });
-    // Matches the chrome's surface so a slow first paint does not flash white.
-    view.setBackgroundColor(surfaceColour());
+    const view = this.makeView(partition);
 
     const isStartPage = rawUrl === START_PAGE_URL;
     const tab: TabRecord = {
@@ -608,6 +602,9 @@ export class TabManager {
       pendingFaviconUrl: null,
       groupId: inherited.groupId && this.store.groupFor(inherited.groupId) ? inherited.groupId : null,
       partition,
+      isAsleep: false,
+      lastActiveAt: Date.now(),
+      sleptHistory: null,
     };
 
     this.tabs.set(id, tab);
@@ -615,6 +612,55 @@ export class TabManager {
     this.order.splice(Math.min(Math.max(0, insertAt), this.order.length), 0, id);
     this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
 
+    const described = this.wireView(tab);
+
+    if (!isStartPage) {
+      void described.then(() => {
+        // It can be closed, or sent somewhere else, while it waits.
+        if (this.tabs.get(id) === tab && tab.url === rawUrl) {
+          void this.loadUrl(tab, rawUrl);
+        }
+      });
+    }
+
+    if (options.activate !== false) {
+      this.activate(id);
+    } else {
+      this.applyBounds();
+      this.onChanged();
+    }
+    return id;
+  }
+
+  /** A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows. */
+  private makeView(partition: string): WebContentsView {
+    const view = new WebContentsView({
+      webPreferences: {
+        preload: undefined,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        webviewTag: false,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
+        partition,
+        spellcheck: true,
+        safeDialogs: true,
+      },
+    });
+    // Matches the chrome's surface so a slow first paint does not flash white.
+    view.setBackgroundColor(surfaceColour());
+    return view;
+  }
+
+  /**
+   * Puts a tab's view in the window with everything a page view needs, and
+   * resolves once it is ready to navigate. The same for a new tab and one
+   * waking, so a woken tab is guarded exactly as it was when it was made.
+   */
+  private wireView(tab: TabRecord): Promise<void> {
+    const { view, id } = tab;
+    const settings = this.store.getSettings();
     this.window.contentView.addChildView(view);
     // Sized once up front so a background tab loads against the real viewport
     // rather than a zero-sized one and picks the wrong responsive breakpoint.
@@ -648,27 +694,70 @@ export class TabManager {
     // land, because a tab that starts loading before it does is exactly the tab
     // that needed it. `about:blank` is ignored when a navigation commits, so
     // none of this reaches the tab's state.
-    const described = view.webContents
+    return view.webContents
       .loadURL('about:blank')
       .catch(() => {})
       .then(() => describeTab(view.webContents, process.platform));
+  }
 
-    if (!isStartPage) {
-      void described.then(() => {
-        // It can be closed, or sent somewhere else, while it waits.
-        if (this.tabs.get(id) === tab && tab.url === rawUrl) {
-          void this.loadUrl(tab, rawUrl);
-        }
-      });
-    }
+  /** Whether a tab has a page that could be closed to save memory; the one in front never does. */
+  canSleep(id: TabId): boolean {
+    const tab = this.tabs.get(id);
+    const contents = tab?.view.webContents;
+    return Boolean(
+      tab && contents && !contents.isDestroyed() && !tab.isAsleep && !tab.isStartPage && id !== this.activeId,
+    );
+  }
 
-    if (options.activate !== false) {
-      this.activate(id);
-    } else {
-      this.applyBounds();
-      this.onChanged();
+  /** Closes a tab's page to give back its memory, keeping its address, title and history. */
+  sleep(id: TabId): void {
+    const tab = this.tabs.get(id);
+    const contents = tab?.view.webContents;
+    if (!tab || !contents || !this.canSleep(id)) {
+      return;
     }
-    return id;
+    tab.sleptHistory = {
+      entries: contents.navigationHistory.getAllEntries(),
+      index: contents.navigationHistory.getActiveIndex(),
+    };
+    this.destroyTab(tab);
+    tab.isAsleep = true;
+    tab.isLoading = false;
+    this.onChanged();
+  }
+
+  /** Gives a sleeping tab a page again, at the address and with the history it had. */
+  private wake(tab: TabRecord): void {
+    if (!tab.isAsleep) {
+      return;
+    }
+    tab.view = this.makeView(tab.partition);
+    tab.isAsleep = false;
+    const history = tab.sleptHistory;
+    tab.sleptHistory = null;
+    void this.wireView(tab).then(() => {
+      if (this.tabs.get(tab.id) !== tab || tab.view.webContents.isDestroyed()) {
+        return;
+      }
+      if (history && history.entries.length > 0) {
+        void tab.view.webContents.navigationHistory.restore(history).catch(() => this.loadUrl(tab, tab.url));
+        return;
+      }
+      void this.loadUrl(tab, tab.url);
+    });
+  }
+
+  private sleepIdleTabs(): void {
+    const afterMinutes = this.store.getSettings().sleepTabsAfterMinutes;
+    const candidates = [...this.tabs.values()].map((tab) => ({
+      id: tab.id,
+      isActive: tab.id === this.activeId,
+      isStartPage: tab.isStartPage,
+      isAsleep: tab.isAsleep,
+      isAudible: !tab.view.webContents.isDestroyed() && tab.view.webContents.isCurrentlyAudible(),
+      lastActiveAt: tab.lastActiveAt,
+    }));
+    tabsToSleep(candidates, Date.now(), afterMinutes).forEach((id) => this.sleep(id));
   }
 
   /** New tabs opened by a page land immediately after the tab that opened them. */
@@ -728,7 +817,8 @@ export class TabManager {
       this.countedBlocked.delete(contents.id);
       contents.stop();
     }
-    if (!this.window.isDestroyed()) {
+    // A sleeping tab's view is already out of the window and its page already closed.
+    if (!this.window.isDestroyed() && !tab.isAsleep) {
       this.window.contentView.removeChildView(tab.view);
     }
     if (!contents.isDestroyed()) {
@@ -804,7 +894,17 @@ export class TabManager {
         ?.executeJavaScript('document.exitFullscreen?.()')
         .catch(() => {});
     }
+    const now = Date.now();
+    const leaving = this.activeTab();
+    if (leaving) {
+      leaving.lastActiveAt = now;
+    }
     this.activeId = id;
+    const arriving = this.tabs.get(id);
+    if (arriving) {
+      arriving.lastActiveAt = now;
+      this.wake(arriving);
+    }
     this.applyBounds();
     this.applyVisibility();
     this.focusActive();
@@ -994,8 +1094,12 @@ export class TabManager {
     return this.contentsFor(id);
   }
 
+  // Anything that needs the page wakes the tab first: reloading or navigating one asleep is asking for it back.
   private contentsFor(id: TabId): WebContents | null {
     const tab = this.tabs.get(id);
+    if (tab?.isAsleep) {
+      this.wake(tab);
+    }
     if (!tab || tab.view.webContents.isDestroyed()) {
       return null;
     }
@@ -1109,6 +1213,7 @@ export class TabManager {
 
   dispose(): void {
     this.isDisposed = true;
+    clearInterval(this.sleepTimer);
     for (const tab of this.tabs.values()) {
       this.destroyTab(tab);
     }

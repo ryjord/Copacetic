@@ -36,6 +36,7 @@ function tab(id: string, title: string): TabState {
     canGoForward: false,
     isHush: false,
     isPinned: false,
+    isAsleep: false,
     isAudible: false,
     isMuted: false,
     security: {
@@ -182,5 +183,19 @@ describe('a pinned tab in the strip', () => {
   it('says it is pinned, along with its title', () => {
     render(<TabStrip tabs={[{ ...tab('one', 'Mail'), isPinned: true }]} groups={[]} activeTabId="one" />);
     expect(screen.getByRole('tab', { name: 'Mail, pinned' })).toBeTruthy();
+  });
+});
+
+describe('a sleeping tab in the strip', () => {
+  // Dimmed so it shows, and named so a screen reader hears it too.
+  it('says it is asleep, along with its title', () => {
+    render(
+      <TabStrip
+        tabs={[tab('one', 'Mail'), { ...tab('two', 'News'), isAsleep: true }]}
+        groups={[]}
+        activeTabId="one"
+      />,
+    );
+    expect(screen.getByRole('tab', { name: 'News, asleep' })).toBeTruthy();
   });
 });

@@ -54,6 +54,8 @@ export interface CopaceticApi {
     setMuted(id: TabId, muted: boolean): Promise<void>;
     duplicate(id: TabId): Promise<void>;
     setPinned(id: TabId, isPinned: boolean): Promise<void>;
+    /** Closes a background tab's page to save memory; it comes back when the tab is chosen. */
+    sleep(id: TabId): Promise<void>;
     /** Loads the plain HTTP version of a page whose HTTPS version failed, after the person chose to. */
     continueOverHttp(id: TabId): Promise<void>;
     /** Continues to a site whose certificate was refused, for this certificate and this session only. */

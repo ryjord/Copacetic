@@ -91,6 +91,8 @@ export interface TabState {
   isHush: boolean;
   /** Kept at the start of the strip as an icon, and brought back pinned. */
   isPinned: boolean;
+  /** Its page closed to free memory; it comes back where it was when chosen. */
+  isAsleep: boolean;
   /** The group this tab is in, if any. */
   groupId: string | null;
   isBookmarked: boolean;
@@ -285,6 +287,15 @@ export function isWebRtcPolicy(value: string): value is WebRtcPolicy {
   return (WEB_RTC_POLICIES as readonly string[]).includes(value);
 }
 
+/** How long a tab may be left alone before it sleeps, in minutes; zero is never. Only these, so a setting cannot put tabs to sleep in seconds. */
+export const SLEEP_AFTER_MINUTES = [0, 15, 30, 60, 120] as const;
+
+export type SleepAfterMinutes = (typeof SLEEP_AFTER_MINUTES)[number];
+
+export function isSleepAfterMinutes(value: unknown): value is SleepAfterMinutes {
+  return (SLEEP_AFTER_MINUTES as readonly unknown[]).includes(value);
+}
+
 export type ThemeId = (typeof THEME_IDS)[number];
 
 export function isThemeId(value: string): value is ThemeId {
@@ -424,6 +435,7 @@ export interface Settings {
   downloadDirectory: string | null;
   /** Each download asks where to save it rather than going to the folder above. */
   askWhereToSave: boolean;
+  sleepTabsAfterMinutes: SleepAfterMinutes;
   /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
   showBookmarksBar: boolean;
 }

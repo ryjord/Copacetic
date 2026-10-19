@@ -1,4 +1,4 @@
-import { isAppearanceId, isThemeId, isWebRtcPolicy } from '../../shared/types';
+import { isAppearanceId, isSleepAfterMinutes, isThemeId, isWebRtcPolicy } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   blockThirdPartyCookies: true,
   downloadDirectory: null,
   askWhereToSave: false,
+  sleepTabsAfterMinutes: 60,
 };
 
 /** The per-site keys, which live in the database and are only ever empty in the JSON file. */
@@ -188,6 +189,9 @@ function reviveSettings(raw: unknown): Settings | null {
     blockThirdPartyCookies: asBoolean(raw.blockThirdPartyCookies, DEFAULT_SETTINGS.blockThirdPartyCookies),
     downloadDirectory: asString(raw.downloadDirectory) || null,
     askWhereToSave: asBoolean(raw.askWhereToSave, DEFAULT_SETTINGS.askWhereToSave),
+    sleepTabsAfterMinutes: isSleepAfterMinutes(raw.sleepTabsAfterMinutes)
+      ? raw.sleepTabsAfterMinutes
+      : DEFAULT_SETTINGS.sleepTabsAfterMinutes,
   });
 }
 

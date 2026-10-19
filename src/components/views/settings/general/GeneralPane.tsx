@@ -16,6 +16,15 @@ import { updateSettings } from '@/components/views/settings/shared/options';
 
 // Types
 import { SEARCH_ENGINE_OPTIONS } from '@shared/url';
+import { isSleepAfterMinutes } from '@shared/types';
+
+const SLEEP_OPTIONS = [
+  { id: '0', label: 'Never' },
+  { id: '15', label: 'After 15 minutes' },
+  { id: '30', label: 'After 30 minutes' },
+  { id: '60', label: 'After an hour' },
+  { id: '120', label: 'After two hours' },
+];
 
 const ENGINES = SEARCH_ENGINE_OPTIONS.map((engine) => ({ id: engine.id, label: engine.name }));
 
@@ -47,6 +56,26 @@ export function GeneralPane() {
               options={ENGINES}
               value={settings.searchEngine}
               onChange={(searchEngine) => updateSettings({ searchEngine })}
+            />
+          }
+        />
+      </SettingGroup>
+
+      <SettingGroup title="Memory">
+        <SettingRow
+          label="Put tabs to sleep"
+          help="A tab left alone this long gives back its memory and comes back where it was when you return to it. Never one playing sound."
+          control={
+            <Select
+              label="Put tabs to sleep"
+              options={SLEEP_OPTIONS}
+              value={String(settings.sleepTabsAfterMinutes)}
+              onChange={(minutes) => {
+                const sleepTabsAfterMinutes = Number(minutes);
+                if (isSleepAfterMinutes(sleepTabsAfterMinutes)) {
+                  updateSettings({ sleepTabsAfterMinutes });
+                }
+              }}
             />
           }
         />

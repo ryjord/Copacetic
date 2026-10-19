@@ -196,6 +196,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
           : isActive
             ? 'bg-raised'
             : 'hover:bg-raised/55',
+        tab.isAsleep && !isActive && 'opacity-60',
         isDragging && 'opacity-40',
         showDropBefore &&
           'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-active',
@@ -223,7 +224,14 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
         send((api) => api.tabs.openContextMenu(tab.id));
       }}
       role="tab"
-      aria-label={[title, tab.isPinned ? 'pinned' : null, tab.isHush ? 'Hush tab' : null].filter(Boolean).join(', ')}
+      aria-label={[
+        title,
+        tab.isPinned ? 'pinned' : null,
+        tab.isAsleep ? 'asleep' : null,
+        tab.isHush ? 'Hush tab' : null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
       aria-selected={isActive}
       // Only the selected tab is a tab stop; the rest are reached with arrows.
       tabIndex={isActive ? 0 : -1}

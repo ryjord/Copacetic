@@ -22,6 +22,7 @@ const tab = (): TabState => ({
   canGoForward: false,
   isHush: false,
   isPinned: false,
+  isAsleep: false,
   groupId: null,
   isAudible: false,
   isMuted: false,
