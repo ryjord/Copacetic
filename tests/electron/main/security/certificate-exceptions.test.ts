@@ -29,7 +29,7 @@ const {
   watchCertificateErrors,
 } = await import('../../../../electron/main/security/certificate-exceptions');
 
-const trustedLocally = (origin: string) => exceptionFor(origin) === 'local';
+const trustedLocally = (origin: string) => exceptionFor(origin, undefined) === 'local';
 
 /**
  * The whole exception rests on this one question, so it is the one thing that
@@ -135,16 +135,14 @@ describe('what happens when Chromium refuses a certificate', () => {
 });
 
 describe('continuing past a refused certificate', () => {
-  function refuse(url: string, fingerprint = 'sha256/one', error = 'net::ERR_CERT_AUTHORITY_INVALID') {
+  function refuse(
+    url: string,
+    fingerprint = 'sha256/one',
+    error = 'net::ERR_CERT_AUTHORITY_INVALID',
+    contents: { id: number; session?: object } = { id: 7 },
+  ) {
     let trusted: boolean | null = null;
-    registered?.(
-      { preventDefault: () => {} },
-      { id: 7 },
-      url,
-      error,
-      { fingerprint },
-      (answer) => (trusted = answer),
-    );
+    registered?.({ preventDefault: () => {} }, contents, url, error, { fingerprint }, (answer) => (trusted = answer));
     return trusted;
   }
 
@@ -159,7 +157,17 @@ describe('continuing past a refused certificate', () => {
     expect(acceptRefused(7, 'https://intranet.example/page')).toBe(true);
 
     expect(refuse('https://intranet.example/')).toBe(true);
-    expect(exceptionFor('https://intranet.example')).toBe('accepted');
+    expect(exceptionFor('https://intranet.example', undefined)).toBe('accepted');
+  });
+
+  // A Hush tab or another profile is a different session, and the answer given in one is not given in another.
+  it('keeps an accepted certificate to the session it was accepted in', () => {
+    const personal = { id: 7, session: { name: 'personal' } };
+    const hush = { id: 8, session: { name: 'hush' } };
+    refuse('https://intranet.example/', 'sha256/one', 'net::ERR_CERT_AUTHORITY_INVALID', personal);
+    acceptRefused(7, 'https://intranet.example/');
+    expect(refuse('https://intranet.example/', 'sha256/one', 'net::ERR_CERT_AUTHORITY_INVALID', personal)).toBe(true);
+    expect(refuse('https://intranet.example/', 'sha256/one', 'net::ERR_CERT_AUTHORITY_INVALID', hush)).toBe(false);
   });
 
   // A different certificate on the same site is a new question, not the old answer.
@@ -172,7 +180,7 @@ describe('continuing past a refused certificate', () => {
   it('accepts nothing for another site', () => {
     refuse('https://intranet.example/');
     expect(acceptRefused(7, 'https://other.example/')).toBe(false);
-    expect(exceptionFor('https://other.example')).toBeNull();
+    expect(exceptionFor('https://other.example', undefined)).toBeNull();
   });
 
   it('never accepts a certificate its authority revoked', () => {

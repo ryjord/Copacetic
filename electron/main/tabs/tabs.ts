@@ -209,7 +209,7 @@ export class TabManager {
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
         tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab),
-        tab.isStartPage ? null : exceptionFor(originOf(tab.url)),
+        tab.isStartPage ? null : exceptionFor(originOf(tab.url), contents?.session),
         tab.error !== null,
       ),
       error: tab.error,
