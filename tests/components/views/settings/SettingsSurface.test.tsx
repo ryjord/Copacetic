@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
-import { SETTINGS_PANES, searchSettings } from '@/components/views/settings/shared/panes';
+import { NAV_GROUPS, PANE_TITLES, SETTINGS_PANES, searchSettings } from '@/components/views/settings/shared/panes';
 
 vi.mock('@/lib/bridge/bridge', async () => (await import('./bridge-mock')).fallbackBridge);
 
@@ -21,7 +21,8 @@ describe('settings is grouped rather than one long page', () => {
   it('lists every section in the sidebar, as a list a screen reader can count', () => {
     render(<SettingsSurface />);
     const nav = screen.getByRole('navigation', { name: 'Settings sections' });
-    expect(within(nav).getByRole('list')).toBeTruthy();
+    // One list under each heading, so the sections are counted a group at a time.
+    expect(within(nav).getAllByRole('list')).toHaveLength(NAV_GROUPS.length);
     for (const label of PANES) {
       expect(within(nav).getByRole('button', { name: label })).toBeTruthy();
     }
@@ -34,9 +35,17 @@ describe('settings is grouped rather than one long page', () => {
   });
 
   // A pane that renders nothing means a setting that silently no longer exists.
-  it.each(PANES)('%s shows a titled page', (label) => {
-    openPane(label);
-    expect(screen.getByRole('heading', { level: 2, name: label })).toBeTruthy();
+  it.each(SETTINGS_PANES.map((pane) => [pane.label, PANE_TITLES[pane.id] ?? pane.label]))(
+    '%s shows a titled page',
+    (label, title) => {
+      openPane(label);
+      expect(screen.getByRole('heading', { level: 2, name: title })).toBeTruthy();
+    },
+  );
+
+  it('puts every pane under exactly one heading', () => {
+    const grouped = NAV_GROUPS.flatMap((group) => group.paneIds);
+    expect(grouped.toSorted()).toEqual(SETTINGS_PANES.map((pane) => pane.id).toSorted());
   });
 
   it.each(PANES)('%s names every control', (label) => {
@@ -69,5 +78,20 @@ describe('finding a setting', () => {
     render(<SettingsSurface />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzzz' } });
     expect(screen.getByText(/No setting matches/)).toBeTruthy();
+  });
+});
+
+describe('the frame every pane shares', () => {
+  it('finds the row a search term names, by every word in it', async () => {
+    const { matchesTerm } = await import('@/components/views/settings/shared/panes');
+    expect(matchesTerm('Reopen the tabs from last time', 'Reopen tabs')).toBe(true);
+    expect(matchesTerm('Search engine', 'Reopen tabs')).toBe(false);
+  });
+
+  it('resets only settings that exist', async () => {
+    const { PANE_SETTINGS } = await import('@/components/views/settings/shared/panes');
+    const { DEFAULT_SETTINGS_SHAPE } = await import('@/lib/state/defaults');
+    const owned = Object.values(PANE_SETTINGS).flat();
+    expect(owned.every((key) => key in DEFAULT_SETTINGS_SHAPE)).toBe(true);
   });
 });

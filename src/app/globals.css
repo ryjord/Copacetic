@@ -342,6 +342,20 @@
 .animate-fade {
   animation: copacetic-fade 0.16s ease-out both;
 }
+.animate-setting-landed {
+  animation: copacetic-setting-landed 1.8s var(--ease-out-quint) both;
+}
+
+@keyframes copacetic-setting-landed {
+  0%,
+  35% {
+    background-color: var(--color-accent-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 .animate-pop {
   animation: copacetic-pop 0.16s var(--ease-out-quint) both;
 }

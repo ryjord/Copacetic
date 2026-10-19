@@ -11,7 +11,7 @@ interface SettingGroupProps {
 /** A titled group of settings, drawn as one inset panel. */
 export function SettingGroup({ title, children }: SettingGroupProps) {
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-2" data-setting-group={title ?? ''}>
       {title && <h3 className="px-1 text-body font-semibold text-ink-dim">{title}</h3>}
       <div className="divide-y divide-line overflow-hidden rounded-md bg-inset">{children}</div>
     </section>
@@ -31,6 +31,7 @@ interface SettingRowProps {
 export function SettingRow({ label, help, control, isStacked = false }: SettingRowProps) {
   return (
     <div
+      data-setting-row
       className={cn(
         'flex min-h-14 gap-4 px-4 py-2.5',
         isStacked ? 'flex-col items-stretch gap-2.5' : 'items-center justify-between',

@@ -35,6 +35,7 @@ import { t } from '@shared/i18n/translate';
 
 // Types
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
+import type { Settings } from '@shared/types';
 
 interface SettingsPane {
   id: string;
@@ -228,6 +229,58 @@ export const SETTINGS_PANES = [
 ] as const satisfies readonly SettingsPane[];
 
 export type PaneId = (typeof SETTINGS_PANES)[number]['id'];
+
+/** The panes in the order they are shown, under four short headings. */
+export const NAV_GROUPS: readonly { label: string; paneIds: readonly PaneId[] }[] = [
+  { label: t('settings.navGroups.browser'), paneIds: ['general', 'appearance', 'shortcuts'] },
+  { label: t('settings.navGroups.privacy'), paneIds: ['privacy', 'sites', 'passwords'] },
+  { label: t('settings.navGroups.you'), paneIds: ['profiles', 'data'] },
+  { label: t('settings.navGroups.copacetic'), paneIds: ['updates', 'about', 'transparency'] },
+];
+
+/** Panes that are mostly a list, given the room a list needs. */
+export const WIDE_PANES: readonly PaneId[] = ['sites', 'passwords', 'shortcuts'];
+
+/** A pane's heading where its name in the list is shortened to fit. */
+export const PANE_TITLES: Partial<Record<PaneId, string>> = {
+  transparency: t('settings.nav.transparencyTitle'),
+};
+
+/** The settings each pane owns, which Reset this page puts back to how Copacetic starts. */
+export const PANE_SETTINGS: Partial<Record<PaneId, readonly (keyof Settings)[]>> = {
+  general: [
+    'restoreTabsOnLaunch',
+    'searchEngine',
+    'sleepTabsAfterMinutes',
+    'spellcheck',
+    'spellcheckLanguages',
+    'askWhereToSave',
+    'showBookmarksBar',
+  ],
+  appearance: ['appearance', 'density', 'defaultZoomFactor', 'theme', 'ambientHue', 'startPageWidgets'],
+  privacy: [
+    'httpsFirst',
+    'blockTrackers',
+    'dnsMode',
+    'dnsResolverId',
+    'blockThirdPartyCookies',
+    'hideCookieBanners',
+    'cleanLinks',
+    'webRtcPolicy',
+  ],
+  shortcuts: ['shortcutOverrides'],
+  updates: ['checkForUpdates'],
+};
+
+/** Whether a row or group is the one a search term was looking for: every word of the term appears in it. */
+export function matchesTerm(text: string, term: string): boolean {
+  const haystack = text.toLowerCase();
+  const words = term
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+  return words.length > 0 && words.every((word) => haystack.includes(word));
+}
 
 export interface SettingsMatch {
   paneId: PaneId;

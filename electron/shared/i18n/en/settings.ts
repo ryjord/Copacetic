@@ -18,7 +18,21 @@ export const settings = {
     shortcuts: 'Shortcuts',
     updates: 'Updates',
     about: 'About',
-    transparency: 'What Copacetic sends and keeps',
+    transparency: 'What it sends',
+    transparencyTitle: 'What Copacetic sends and keeps',
+  },
+  navGroups: {
+    browser: 'Browser',
+    privacy: 'Privacy',
+    you: 'You',
+    copacetic: 'Copacetic',
+  },
+  pageMenu: {
+    label: 'More for this page',
+    reset: 'Reset this page',
+    resetTitle: 'Reset {page}?',
+    resetBody: 'Every setting on this page goes back to how Copacetic starts. Nothing else changes.',
+    resetConfirm: 'Reset',
   },
   terms: {
     general: {
