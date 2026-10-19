@@ -1,14 +1,23 @@
 'use client';
 
-import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { TabState } from '@shared/types';
-import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type TabGroup } from '@shared/tab-groups';
+// Libs
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+
+// Components
 import { Favicon } from '@/components/ui/Favicon/Favicon';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
+
+// Icons
+import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
+
+// Utils
 import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+
+// Types
+import type { TabState } from '@shared/types';
+import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type TabGroup } from '@shared/tab-groups';
 
 interface TabStripProps {
   tabs: TabState[];
@@ -46,87 +55,96 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   );
 
   return (
-    <div
-      ref={stripRef}
-      role="tablist"
-      aria-label="Open tabs"
-      // Roving tabindex: one stop for the whole strip, then arrows to move
-      // within it. Every tab being individually tabbable would mean thirty
-      // stops between the strip and the address bar.
-      onKeyDown={(event) => {
-        const current = tabs.findIndex((tab) => tab.id === activeTabId);
-        if (current === -1) {
-          return;
-        }
-
-        const go = (index: number) => {
-          event.preventDefault();
-          const next = tabs[(index + tabs.length) % tabs.length];
-          if (next) {
-            send((api) => api.tabs.activate(next.id));
+    <div className="flex min-w-0 flex-1 items-center gap-1">
+      <div
+        ref={stripRef}
+        role="tablist"
+        aria-label="Open tabs"
+        // Roving tabindex: one stop for the whole strip, then arrows to move
+        // within it. Every tab being individually tabbable would mean thirty
+        // stops between the strip and the address bar.
+        onKeyDown={(event) => {
+          const current = tabs.findIndex((tab) => tab.id === activeTabId);
+          if (current === -1) {
+            return;
           }
-        };
 
-        if (event.key === 'ArrowRight') {
-          go(current + 1);
-        } else if (event.key === 'ArrowLeft') {
-          go(current - 1);
-        } else if (event.key === 'Home') {
-          go(0);
-        } else if (event.key === 'End') {
-          go(tabs.length - 1);
-        } else if (event.key === 'Delete' || event.key === 'Backspace') {
-          event.preventDefault();
-          send((api) => api.tabs.close(tabs[current]!.id));
-        }
-      }}
-      className="hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
-    >
-      {runs.map((run, runIndex) => {
-        const group = run.groupId ? groups.find((candidate) => candidate.id === run.groupId) : undefined;
-        const startsAt = runStarts[runIndex] ?? 0;
+          const go = (index: number) => {
+            event.preventDefault();
+            const next = tabs[(index + tabs.length) % tabs.length];
+            if (next) {
+              send((api) => api.tabs.activate(next.id));
+            }
+          };
 
-        const rendered = run.tabs.map((tab, offset) => {
-          const index = startsAt + offset;
+          if (event.key === 'ArrowRight') {
+            go(current + 1);
+          } else if (event.key === 'ArrowLeft') {
+            go(current - 1);
+          } else if (event.key === 'Home') {
+            go(0);
+          } else if (event.key === 'End') {
+            go(tabs.length - 1);
+          } else if (event.key === 'Delete' || event.key === 'Backspace') {
+            event.preventDefault();
+            send((api) => api.tabs.close(tabs[current]!.id));
+          }
+        }}
+        // A wheel moves up and down; a strip that only scrolls sideways should take that too.
+        onWheel={(event) => {
+          if (stripRef.current && event.deltaX === 0) {
+            stripRef.current.scrollLeft += event.deltaY;
+          }
+        }}
+        className="hide-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto"
+      >
+        {runs.map((run, runIndex) => {
+          const group = run.groupId ? groups.find((candidate) => candidate.id === run.groupId) : undefined;
+          const startsAt = runStarts[runIndex] ?? 0;
+
+          const rendered = run.tabs.map((tab, offset) => {
+            const index = startsAt + offset;
+            return (
+              <Tab
+                key={tab.id}
+                tab={tab}
+                isActive={tab.id === activeTabId}
+                isDragging={dragId === tab.id}
+                showDropBefore={dropIndex === index && dragId !== tab.id}
+                onDragStart={() => setDragId(tab.id)}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setDropIndex(null);
+                }}
+                onDragOver={() => setDropIndex(index)}
+                onDrop={() => handleDrop(index)}
+              />
+            );
+          });
+
+          // Ungrouped tabs sit directly in the strip so they can shrink alongside each other.
+          if (!group) {
+            return <Fragment key={`ungrouped-${runIndex}`}>{rendered}</Fragment>;
+          }
+
           return (
-            <Tab
-              key={tab.id}
-              tab={tab}
-              isActive={tab.id === activeTabId}
-              isDragging={dragId === tab.id}
-              showDropBefore={dropIndex === index && dragId !== tab.id}
-              onDragStart={() => setDragId(tab.id)}
-              onDragEnd={() => {
-                setDragId(null);
-                setDropIndex(null);
-              }}
-              onDragOver={() => setDropIndex(index)}
-              onDrop={() => handleDrop(index)}
-            />
-          );
-        });
-
-        if (!group) {
-          return (
-            <div key={`ungrouped-${runIndex}`} className="flex items-center gap-1">
+            <GroupRun key={`${group.id}-${runIndex}`} group={group} holdsHush={run.tabs.some((tab) => tab.isHush)}>
               {rendered}
-            </div>
+            </GroupRun>
           );
-        }
-
-        return (
-          <GroupBand key={`${group.id}-${runIndex}`} group={group} holdsHush={run.tabs.some((tab) => tab.isHush)}>
-            {rendered}
-          </GroupBand>
-        );
-      })}
-
-      <IconButton label="New tab" size="sm" className="ml-0.5" onClick={() => send((api) => api.tabs.create())}>
-        <Plus size={14} />
-      </IconButton>
-      {/* A Hush tab was reachable by shortcut or menu bar only, which is no use to someone using a mouse. */}
-      <IconButton label="More ways to open a tab" size="sm" onClick={() => send((api) => api.tabs.openNewTabMenu())}>
-        <ChevronDown size={12} />
+        })}
+      </div>
+      {/* Outside the scroller, so it stays in reach however many tabs are open. */}
+      <IconButton
+        label="New tab"
+        size="sm"
+        onClick={() => send((api) => api.tabs.create())}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          send((api) => api.tabs.openNewTabMenu());
+        }}
+      >
+        <Plus size={16} strokeWidth={1.75} />
       </IconButton>
     </div>
   );
@@ -157,7 +175,8 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
     if (!isActive || !element || element === document.activeElement) {
       return;
     }
-    if (element.parentElement?.contains(document.activeElement)) {
+    element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    if (element.closest('[role="tablist"]')?.contains(document.activeElement)) {
       element.focus();
     }
   }, [isActive]);
@@ -166,12 +185,15 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
     <div
       ref={ref}
       className={cn(
-        'no-drag group relative flex h-[var(--chrome-tab-height)] min-w-[var(--chrome-tab-min-width)] max-w-[220px] shrink-0 items-center gap-2 rounded-tab px-2.5 transition-[background-color,opacity] duration-150',
-        isActive ? 'bg-raised' : 'hover:bg-raised/55',
-        // The shape of the tab is what reads across a strip of eight. One small
-        // glyph, the same size as the mute and close glyphs beside it, does not.
-        tab.isHush && 'ring-1 ring-inset ring-hush/45',
-        tab.isHush && isActive && 'ring-hush/75',
+        // A set width, not a basis: container queries zero its natural width. Shrinks to its icon before scrolling.
+        'no-drag group @container relative h-[var(--chrome-tab-height)] w-55 min-w-9 shrink rounded-tab transition-[background-color,opacity] duration-150',
+        tab.isHush
+          ? isActive
+            ? 'bg-hush/20'
+            : 'bg-hush/8 hover:bg-hush/14'
+          : isActive
+            ? 'bg-raised'
+            : 'hover:bg-raised/55',
         isDragging && 'opacity-40',
         showDropBefore &&
           'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-active',
@@ -199,6 +221,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
         send((api) => api.tabs.openContextMenu(tab.id));
       }}
       role="tab"
+      aria-label={tab.isHush ? `${title}, Hush tab` : title}
       aria-selected={isActive}
       // Only the selected tab is a tab stop; the rest are reached with arrows.
       tabIndex={isActive ? 0 : -1}
@@ -208,72 +231,62 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
           send((api) => api.tabs.activate(tab.id));
         }
       }}
-      title={
-        tab.isHush
-          ? `Hush tab — not written to this machine\n${tab.isStartPage ? '' : tab.url}`
-          : tab.isStartPage
-            ? 'New tab'
-            : `${tab.title}\n${tab.url}`
-      }
+      title={tab.isStartPage ? title : `${tab.title}\n${tab.url}`}
     >
-      {tab.isLoading ? (
+      <div className="flex h-full items-center gap-2 px-2.5 @max-[72px]:justify-center @max-[72px]:px-0">
+        {tab.isLoading ? (
+          <span
+            aria-label="Loading"
+            className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-active"
+          />
+        ) : (
+          <Favicon dataUrl={tab.faviconDataUrl} seed={tab.url} size={15} />
+        )}
+
+        {tab.isHush && (
+          <EyeOff size={14} strokeWidth={1.75} className="shrink-0 text-hush @max-[72px]:hidden" aria-hidden />
+        )}
         <span
-          aria-label="Loading"
-          className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-active"
-        />
-      ) : (
-        <Favicon dataUrl={tab.faviconDataUrl} seed={tab.url} size={15} />
-      )}
+          className={cn('flex-1 truncate text-body-sm @max-[72px]:hidden', isActive ? 'text-ink' : 'text-ink-dim')}
+        >
+          {title}
+        </span>
 
-      {/*
-        A Hush tab has to be obvious at a glance: the whole value depends on
-        knowing which tab you are in, and mistaking a normal tab for one is the
-        failure that matters.
-      */}
-      {tab.isHush && <EyeOff size={14} className="shrink-0 text-hush" aria-label="Hush tab" />}
-      <span className={cn('flex-1 truncate text-[12px]', isActive ? 'text-ink' : 'text-ink-dim')}>{title}</span>
+        {tab.isAudible || tab.isMuted ? (
+          <button
+            type="button"
+            aria-label={tab.isMuted ? 'Unmute tab' : 'Mute tab'}
+            className="shrink-0 text-ink-dim hover:text-ink @max-[72px]:hidden"
+            onClick={(event) => {
+              event.stopPropagation();
+              send((api) => api.tabs.setMuted(tab.id, !tab.isMuted));
+            }}
+          >
+            {tab.isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+          </button>
+        ) : null}
 
-      {tab.isAudible || tab.isMuted ? (
         <button
           type="button"
-          aria-label={tab.isMuted ? 'Unmute tab' : 'Mute tab'}
-          className="shrink-0 text-ink-dim hover:text-ink"
+          aria-label={`Close ${title}`}
+          className={cn(
+            'grid size-4 shrink-0 place-items-center rounded transition-opacity hover:bg-line-strong @max-[72px]:hidden',
+            isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',
+          )}
           onClick={(event) => {
             event.stopPropagation();
-            send((api) => api.tabs.setMuted(tab.id, !tab.isMuted));
+            send((api) => api.tabs.close(tab.id));
           }}
         >
-          {tab.isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+          <X size={12} />
         </button>
-      ) : null}
-
-      <button
-        type="button"
-        aria-label={`Close ${title}`}
-        className={cn(
-          'grid size-4 shrink-0 place-items-center rounded transition-opacity hover:bg-line-strong',
-          isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',
-        )}
-        onClick={(event) => {
-          event.stopPropagation();
-          send((api) => api.tabs.close(tab.id));
-        }}
-      >
-        <X size={11} />
-      </button>
+      </div>
     </div>
   );
 }
 
-/**
- * A group's own mark, and the only place its colour appears.
- *
- * The colour never fills a tab. That keeps it out of the way of the state
- * colours, which say whether a connection is encrypted or a tab is Hush, and it
- * keeps a Hush outline the strongest thing inside a group — which is right,
- * because in a mixed group it is the only guarantee there is.
- */
-function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
+/** A group's own mark, and the only place its colour appears: never filling a tab keeps Hush the strongest tint. */
+function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
   const [isRenaming, setIsRenaming] = useState(false);
 
   useEffect(() => {
@@ -288,65 +301,60 @@ function GroupBand({ group, holdsHush, children }: { group: TabGroup; holdsHush:
   const claim = claimOf(group, holdsHush);
   const colour = colourOf(group.colour);
 
+  // No wrapper around the tabs: as direct children of the strip they shrink alongside every other tab.
   return (
-    <div
-      // Presentational: a tablist's children are its tabs, and this wrapper
-      // exists to draw a coloured band behind some of them. Announcing it as a
-      // generic group would put a nameless container between the strip and
-      // every tab inside it.
-      role="presentation"
-      className="relative flex items-center gap-1 rounded-t-[10px] px-1"
-      style={{ borderTop: `2px solid ${colour}`, background: `${colour}1a` }}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        send((api) => api.groups.openContextMenu(group.id));
-      }}
-    >
-      {isRenaming ? (
-        <div
-          className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 px-2"
-          style={{ color: colour }}
-        >
-          <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
-          <InlineRenameField
-            value={group.name}
-            label={group.name}
-            onCommit={(next) => send((api) => api.groups.update(group.id, { name: next }))}
-            onCancel={() => setIsRenaming(false)}
-          />
-        </div>
-      ) : (
+    <>
+      <div
+        role="presentation"
+        className="flex shrink-0 items-center gap-0.5"
+        onContextMenu={(event) => {
+          event.preventDefault();
+          send((api) => api.groups.openContextMenu(group.id));
+        }}
+      >
+        {isRenaming ? (
+          <div
+            className="flex h-6 shrink-0 items-center rounded-full px-2.5"
+            style={{ color: colour, background: `${colour}26` }}
+          >
+            <InlineRenameField
+              value={group.name}
+              label={group.name}
+              onCommit={(next) => send((api) => api.groups.update(group.id, { name: next }))}
+              onCancel={() => setIsRenaming(false)}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            // Named for what it does, not just what it says. The tooltip is a
+            // mouse-only hint; without this the accessible name is the group's
+            // name alone, which does not suggest that pressing it renames.
+            aria-label={`Rename ${group.name}`}
+            title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
+            // Click names it; the chevron collapses it. A click that hid the tabs
+            // would make renaming the thing you cannot see.
+            onClick={() => setIsRenaming(true)}
+            className="flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-caption font-medium transition-[filter] hover:brightness-110"
+            style={{ color: colour, background: `${colour}26` }}
+          >
+            <span className="max-w-[14ch] truncate">{group.name}</span>
+            {claim === 'separate' && <Lock size={11} aria-label="Keeps its own browsing" />}
+            {/* A group holding a Hush tab cannot claim to be separate, because that
+              would be true of only part of what it names. */}
+            {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
+          </button>
+        )}
         <button
           type="button"
-          // Named for what it does, not just what it says. The tooltip is a
-          // mouse-only hint; without this the accessible name is the group's
-          // name alone, which does not suggest that pressing it renames.
-          aria-label={`Rename ${group.name}`}
-          title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
-          // Click names it; the chevron collapses it. A click that hid the tabs
-          // would make renaming the thing you cannot see.
-          onClick={() => setIsRenaming(true)}
-          className="flex h-[var(--chrome-tab-height)] shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px] transition-colors hover:bg-hover/60"
-          style={{ color: colour }}
+          aria-label={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+          onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
+          className="shrink-0 rounded px-0.5 text-ink-faint transition-colors hover:text-ink"
         >
-          <span className="size-[7px] shrink-0 rounded-[2px]" style={{ background: colour }} />
-          <span className="max-w-[14ch] truncate">{group.name}</span>
-          {claim === 'separate' && <Lock size={11} aria-label="Keeps its own browsing" />}
-          {/* A group holding a Hush tab cannot claim to be separate, because that
-              would be true of only part of what it names. */}
-          {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
+          <ChevronDown size={11} className={cn('transition-transform', group.collapsed && '-rotate-90')} />
         </button>
-      )}
-      <button
-        type="button"
-        aria-label={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
-        onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
-        className="shrink-0 rounded px-0.5 text-ink-faint transition-colors hover:text-ink"
-      >
-        <ChevronDown size={11} className={cn('transition-transform', group.collapsed && '-rotate-90')} />
-      </button>
-
+      </div>
       {!group.collapsed && children}
-    </div>
+    </>
   );
 }

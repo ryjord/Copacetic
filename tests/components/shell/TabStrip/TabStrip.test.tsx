@@ -1,18 +1,24 @@
+// Libs
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { TabState } from '../../electron/shared/types';
-import { TabStrip } from '../../src/components/shell/TabStrip/TabStrip';
+
+// Components
+import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
+
+// Types
+import type { TabState } from '@shared/types';
 
 const activate = vi.fn();
 const close = vi.fn();
 const move = vi.fn();
 const setForTab = vi.fn();
+const openNewTabMenu = vi.fn();
 
 // The bridge is absent outside Electron, so stub it to record what the strip
 // asks the main process to do.
 vi.mock('@/lib/bridge', () => ({
   send: (action: (api: unknown) => void) =>
-    action({ tabs: { activate, close, create: vi.fn(), move }, groups: { setForTab } }),
+    action({ tabs: { activate, close, create: vi.fn(), move, openNewTabMenu }, groups: { setForTab } }),
   ask: async () => [],
   getBridge: () => null,
   isRunningInShell: () => false,
@@ -62,6 +68,7 @@ afterEach(() => {
   close.mockClear();
   move.mockClear();
   setForTab.mockClear();
+  openNewTabMenu.mockClear();
 });
 
 /**
@@ -144,5 +151,27 @@ describe('the tab strip is reachable by keyboard', () => {
     render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'a' });
     expect(activate).not.toHaveBeenCalled();
+  });
+});
+
+describe('a Hush tab in the strip', () => {
+  // A compressed tab shows only its icon, so the name has to carry what the tint shows.
+  it('says so in its name, not only in its colour', () => {
+    render(<TabStrip tabs={[{ ...tab('one', 'One'), isHush: true }]} groups={[]} activeTabId="one" />);
+    expect(screen.getByRole('tab', { name: 'One, Hush tab' })).toBeTruthy();
+  });
+});
+
+describe('the new tab button', () => {
+  it('sits outside the scrolling strip, so it stays in reach', () => {
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
+    const button = screen.getByRole('button', { name: 'New tab' });
+    expect(screen.getByRole('tablist').contains(button)).toBe(false);
+  });
+
+  it('offers the other ways to open a tab on a right-click', () => {
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'New tab' }));
+    expect(openNewTabMenu).toHaveBeenCalledTimes(1);
   });
 });

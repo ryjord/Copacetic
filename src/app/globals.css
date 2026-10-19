@@ -127,7 +127,6 @@
   --chrome-header-height: 38px;
   --chrome-tab-height: 30px;
   --chrome-field-height: 32px;
-  --chrome-tab-min-width: 112px;
   --row-height: 36px;
 }
 
@@ -135,7 +134,6 @@
   --chrome-header-height: 32px;
   --chrome-tab-height: 26px;
   --chrome-field-height: 28px;
-  --chrome-tab-min-width: 88px;
   --row-height: 30px;
 }
 
