@@ -4,10 +4,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
 // Icons
-import { Bookmark as BookmarkIcon, FolderOpen, X } from 'lucide-react';
+import { Bookmark as BookmarkIcon, FolderOpen, Pencil, X } from 'lucide-react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
+import { BookmarkEditor } from '@/components/views/bookmarks/BookmarkEditor';
 import { EmptyState } from '@/components/ui/EmptyState/EmptyState';
 import { Favicon } from '@/components/ui/Favicon/Favicon';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
@@ -39,6 +40,7 @@ export function BookmarksSurface() {
   const [selection, setSelection] = useState<FolderSelection>({ kind: 'all' });
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(PAGE);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Bookmarks also change from the toolbar star and the tab menu, so re-read
   // whenever the tab snapshot reports a different bookmarked set.
@@ -159,6 +161,22 @@ export function BookmarksSurface() {
                       ? folders.find((candidate) => candidate.id === bookmark.folderId)
                       : undefined;
 
+                    if (bookmark.id === editingId) {
+                      return (
+                        <li key={bookmark.id}>
+                          <BookmarkEditor
+                            bookmark={bookmark}
+                            onDone={(isSaved) => {
+                              setEditingId(null);
+                              if (isSaved) {
+                                reload();
+                              }
+                            }}
+                          />
+                        </li>
+                      );
+                    }
+
                     return (
                       <li
                         key={bookmark.id}
@@ -201,6 +219,14 @@ export function BookmarksSurface() {
                         <span className="hidden max-w-[30%] shrink-0 truncate text-body-sm text-ink-dim sm:block">
                           {hostFor(bookmark.url)}
                         </span>
+                        <IconButton
+                          label={`Edit ${bookmark.title || 'bookmark'}`}
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                          onClick={() => setEditingId(bookmark.id)}
+                        >
+                          <Pencil size={14} />
+                        </IconButton>
                         <IconButton
                           label={`Remove ${bookmark.title || 'bookmark'}`}
                           size="sm"

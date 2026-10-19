@@ -132,3 +132,53 @@ describe('bookmark folders in the database', () => {
     expect(existsSync(path.join(dir, 'bookmark-folders.json.imported'))).toBe(true);
   });
 });
+
+describe('editing a bookmark', () => {
+  const saved = (store: InstanceType<typeof BookmarksStore>, url: string) =>
+    store.list().find((bookmark) => bookmark.url === url);
+
+  it('changes its title and address, and keeps them across a restart', () => {
+    const store = bookmarks();
+    const { id } = store.ensure('https://old.example/', 'Old');
+    expect(store.update(id, { title: 'New', url: 'https://new.example/' })).toBe('saved');
+    expect(saved(bookmarks(), 'https://new.example/')?.title).toBe('New');
+    expect(saved(bookmarks(), 'https://old.example/')).toBeUndefined();
+  });
+
+  it('keeps its folder and its place in the list', () => {
+    const store = bookmarks();
+    store.ensure('https://first.example/', 'First');
+    const { id } = store.ensure('https://second.example/', 'Second');
+    store.ensure('https://third.example/', 'Third');
+    store.update(id, { title: 'Renamed' });
+    expect(store.list().map((bookmark) => bookmark.title)).toEqual(['Third', 'Renamed', 'First']);
+  });
+
+  // Two bookmarks for one address would leave the star unable to say which one it removes.
+  it('refuses an address another bookmark already has', () => {
+    const store = bookmarks();
+    store.ensure('https://taken.example/', 'Taken');
+    const { id } = store.ensure('https://mine.example/', 'Mine');
+    expect(store.update(id, { url: 'https://taken.example/' })).toBe('already-saved');
+    expect(saved(store, 'https://mine.example/')?.title).toBe('Mine');
+  });
+
+  it('refuses something that is not an address a page can open', () => {
+    const store = bookmarks();
+    const { id } = store.ensure('https://mine.example/', 'Mine');
+    expect(store.update(id, { url: 'javascript:alert(1)' })).toBe('not-an-address');
+    expect(store.update(id, { url: '' })).toBe('not-an-address');
+    expect(saved(store, 'https://mine.example/')).toBeDefined();
+  });
+
+  it('falls back to the address when the title is emptied', () => {
+    const store = bookmarks();
+    const { id } = store.ensure('https://mine.example/', 'Mine');
+    store.update(id, { title: '   ' });
+    expect(saved(store, 'https://mine.example/')?.title).toBe('https://mine.example/');
+  });
+
+  it('says so when the bookmark is gone', () => {
+    expect(bookmarks().update('nobody', { title: 'Anything' })).toBe('missing');
+  });
+});

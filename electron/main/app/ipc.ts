@@ -16,7 +16,7 @@ import { resolverFor } from '../../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
 import { clampZoom, isAppearanceId, isSleepAfterMinutes, isThemeId, isWebRtcPolicy } from '../../shared/types';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
-import { SEARCH_ENGINES } from '../../shared/url';
+import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
 import type { Browser } from './browser';
 import type { Profile } from './profile';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
@@ -139,6 +139,17 @@ export function registerIpcHandlers(profile: Profile): void {
     browser.store.removeBookmark(asString(id));
     browser.bookmarks.changed();
     browser.scheduleStatePush();
+  });
+  handle('bookmarks.update', (browser, _event, id, changes) => {
+    const result = browser.store.updateBookmark(
+      asString(id),
+      asBookmarkChanges(changes, browser.store.getSettings()),
+    );
+    if (result === 'saved') {
+      browser.bookmarks.changed();
+      browser.scheduleStatePush();
+    }
+    return result;
   });
   handle('bookmarks.openInActiveTab', (browser, _event, url) => browser.commands.openInActiveTab(asString(url)));
   handle('bookmarks.openContextMenu', (browser, _event, id) => showBookmarkContextMenu(browser, asString(id)));
@@ -389,6 +400,22 @@ function asOptionalId(value: unknown): string | null {
 function asGroupColour(value: unknown): GroupColourId {
   const known = GROUP_COLOURS.find((colour) => colour.id === value);
   return known?.id ?? GROUP_COLOURS[0].id;
+}
+
+/** A typed address is read as the address bar reads it; one that reads as a search is sent on to be refused. */
+export function asBookmarkChanges(value: unknown, settings: Settings): { title?: string; url?: string } {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const changes: { title?: string; url?: string } = {};
+  if (typeof value.title === 'string') {
+    changes.title = value.title.slice(0, 500);
+  }
+  if (typeof value.url === 'string') {
+    const resolved = resolveOmniboxInput(value.url.slice(0, 8192), settings.searchEngine);
+    changes.url = resolved?.type === 'url' ? resolved.target : '';
+  }
+  return changes;
 }
 
 function asGroupChanges(value: unknown): { name?: string; colour?: GroupColourId; collapsed?: boolean } {

@@ -163,6 +163,9 @@ export interface Bookmark {
   folderId: string | null;
 }
 
+/** What came of editing a bookmark, so the form can say why it was not saved. */
+export type BookmarkEditResult = 'saved' | 'not-an-address' | 'already-saved' | 'missing';
+
 export interface TopSite {
   url: string;
   host: string;

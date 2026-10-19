@@ -1,5 +1,6 @@
 import type {
   Bookmark,
+  BookmarkEditResult,
   ClearRange,
   HistoryEntry,
   PermissionDecision,
@@ -312,6 +313,10 @@ export class BrowserStore {
 
   removeBookmark(id: string): void {
     this.bookmarks.remove(id);
+  }
+
+  updateBookmark(id: string, changes: { title?: string; url?: string }): BookmarkEditResult {
+    return this.bookmarks.update(id, changes);
   }
 
   /** Makes sure an address is saved without disturbing one that already is. */

@@ -9,6 +9,7 @@ import type {
   AppInfo,
   DefaultBrowserStatus,
   Bookmark,
+  BookmarkEditResult,
   BrowserState,
   ClearRange,
   ConnectionEntry,
@@ -124,6 +125,8 @@ export interface CopaceticApi {
     list(): Promise<Bookmark[]>;
     toggle(url: string, title: string): Promise<boolean>;
     remove(id: string): Promise<void>;
+    /** The address is read as the address bar reads it, so `example.com` is enough. */
+    update(id: string, changes: { title?: string; url?: string }): Promise<BookmarkEditResult>;
     /** Opens a saved address in the tab in front of you, or a new one when there is none. */
     openInActiveTab(url: string): Promise<void>;
     /** The bookmark's own menu, which is where filing works without a mouse. */

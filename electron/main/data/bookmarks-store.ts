@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { Bookmark } from '../../shared/types';
+import type { Bookmark, BookmarkEditResult } from '../../shared/types';
+import { isPageNavigableUrl } from '../../shared/url';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';
@@ -87,6 +88,26 @@ export class BookmarksStore {
   /** Replaces every bookmark, which is how deleting a folder promotes what was in it. */
   replaceAll(bookmarks: readonly Bookmark[]): void {
     inTransaction(this.database, () => this.write(bookmarks));
+  }
+
+  /** Retitles or readdresses one bookmark; an empty title falls back to the address, as a new one does. */
+  update(id: string, changes: { title?: string; url?: string }): BookmarkEditResult {
+    const row = this.database.prepare(`SELECT ${COLUMNS} FROM bookmarks WHERE id = ?`).get(id);
+    if (!row) {
+      return 'missing';
+    }
+    const current = toBookmark(row);
+    const url = changes.url ?? current.url;
+    if (!isPageNavigableUrl(url)) {
+      return 'not-an-address';
+    }
+    const holder = this.database.prepare('SELECT id FROM bookmarks WHERE url = ?').get(url);
+    if (holder && String(holder.id) !== id) {
+      return 'already-saved';
+    }
+    const title = changes.title === undefined ? current.title : changes.title.trim() || url;
+    this.database.prepare('UPDATE bookmarks SET title = ?, url = ? WHERE id = ?').run(title, url, id);
+    return 'saved';
   }
 
   remove(id: string): void {
