@@ -29,6 +29,7 @@ import { log } from '../system/diagnostics';
 import { applyAppearance, onAppearanceChange } from '../window/appearance';
 import { filtersRoot, isDevelopment } from './env';
 import { Browser } from './browser';
+import { launchRestore } from './launch-restore';
 
 /**
  * Everything that belongs to the person rather than to a window.
@@ -159,20 +160,47 @@ export class Profile {
     return window;
   }
 
-  /**
-   * Opens the windows that were open when the app last quit, or one new one.
-   *
-   * In the order they were saved, which puts the one that was in front last,
-   * so it is in front again.
-   */
-  async restoreWindows(): Promise<void> {
-    const saved = this.store.getSettings().restoreTabsOnLaunch ? this.store.getSession().windows : [];
-    if (saved.length === 0) {
-      await this.openWindow();
+  /** Opens the windows from last time, or one new one, offering last time's back if the app crashed. */
+  async restoreWindows(didLastRunEndBadly: boolean): Promise<void> {
+    // Held here: the new window saves over the session long before anyone answers.
+    const saved = this.store.getSession().windows;
+    const choice = launchRestore({
+      isReopenOn: this.store.getSettings().restoreTabsOnLaunch,
+      hasSavedWindows: saved.length > 0,
+      didLastRunEndBadly,
+    });
+    if (choice === 'reopen') {
+      await this.reopenWindows(saved);
       return;
     }
+    const fresh = await this.openWindow();
+    if (choice === 'offer') {
+      fresh.notices.notify(
+        {
+          id: 'reopen-after-crash',
+          key: 'reopen-after-crash',
+          tone: 'ask',
+          message: 'Copacetic did not close properly last time. Reopen the tabs you had open?',
+          confirm: 'Reopen tabs',
+        },
+        () => void this.reopenInPlaceOf(fresh, saved),
+      );
+    }
+  }
+
+  // In the order they were saved, which puts the one that was in front last, so it is in front again.
+  private async reopenWindows(saved: readonly SessionSnapshot[]): Promise<void> {
     for (const tabs of saved) {
       await this.openWindow({ tabs });
+    }
+  }
+
+  /** Reopens last time's windows, closing the new one if nothing was done in it. */
+  private async reopenInPlaceOf(fresh: Browser, saved: readonly SessionSnapshot[]): Promise<void> {
+    await this.reopenWindows(saved);
+    const isUntouched = this.windows.has(fresh) && fresh.tabs.snapshot().tabs.every((tab) => tab.isStartPage);
+    if (isUntouched) {
+      fresh.window.close();
     }
   }
 

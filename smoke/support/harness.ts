@@ -436,6 +436,13 @@ export class SmokeApp {
    * So it asks, waits a while, and then stops asking. The process goes either
    * way; only the politeness is optional.
    */
+  /** Ends the app with no warning at all, as a crash would, and leaves the profile for the next launch. */
+  async crash(): Promise<void> {
+    const ended = new Promise<void>((resolve) => this.app.process().once('exit', () => resolve()));
+    this.app.process().kill('SIGKILL');
+    await ended;
+  }
+
   async close(options: { keepProfile?: boolean } = {}): Promise<void> {
     const politely = this.app.close().then(
       () => true,

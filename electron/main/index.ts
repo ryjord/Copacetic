@@ -8,6 +8,7 @@ import { applyPrivacySwitches } from './system/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
 import { applyLaunchMode } from './system/launch-mode';
+import { markQuit, markRunning } from './system/exit-marker';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/url';
@@ -97,11 +98,12 @@ async function start(): Promise<void> {
   log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
 
+  const didLastRunEndBadly = markRunning(app.getPath('userData'));
   profile = new Profile();
   registerIpcHandlers(profile);
   installApplicationMenu(profile);
   profile.start();
-  await profile.restoreWindows();
+  await profile.restoreWindows(didLastRunEndBadly);
 
   // Cold start: the address is either on the command line, or was handed over
   // by the system before there was a window to put it in.
@@ -156,6 +158,7 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
     try {
       profile?.prepareForQuit();
+      markQuit(app.getPath('userData'));
     } finally {
       app.exit(0);
     }
@@ -164,6 +167,10 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
 
 app.on('will-quit', () => {
   removeIpcHandlers();
+  // Only once there is a profile: a second copy that quits at once must not clear the first one's mark.
+  if (profile) {
+    markQuit(app.getPath('userData'));
+  }
 });
 
 // Unpackaged runs have no bundle for macOS to read an icon out of, so the dock falls back to the Electron atom.
