@@ -17,7 +17,7 @@
 // A CommonJS package, so its exports arrive as one default object.
 import fuses from '@electron/fuses';
 import { _electron as electron } from 'playwright';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -291,6 +291,13 @@ try {
   // macOS is updated by hand until the builds are signed, so there is no updater there to exercise.
   if (process.platform !== 'darwin') {
     const feed = await startUpdateFeed();
+    // The NSIS installer writes this beside the app and the Windows updater reads it before downloading;
+    // an unpacked tree has none, so the check writes the one an install would carry.
+    const updateConfig = path.join(path.dirname(binary), 'resources', 'app-update.yml');
+    const isWritingUpdateConfig = process.platform === 'win32' && !existsSync(updateConfig);
+    if (isWritingUpdateConfig) {
+      writeFileSync(updateConfig, `provider: generic\nurl: ${feed.url}\nupdaterCacheDirName: copacetic-updater\n`);
+    }
     try {
       await app.evaluate((_electron, url) => {
         const { autoUpdater } = process.mainModule.require('electron-updater');
@@ -312,6 +319,9 @@ try {
       );
     } finally {
       feed.close();
+      if (isWritingUpdateConfig) {
+        rmSync(updateConfig, { force: true });
+      }
     }
   }
 } catch (error) {
