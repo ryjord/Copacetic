@@ -56,6 +56,7 @@ export const CHANNELS = {
   'tabs.savePage': 'tab:save-page',
   'tabs.saveScreenshot': 'tab:save-screenshot',
   'tabs.readerDocument': 'tab:reader-document',
+  'tabs.memoryUse': 'tab:memory-use',
   'tabs.viewSource': 'tab:view-source',
   'tabs.toggleDevTools': 'tab:toggle-devtools',
   'tabs.setZoom': 'tab:set-zoom',

@@ -33,6 +33,7 @@ import type {
   VaultLock,
   VaultState,
 } from '../types';
+import type { TabMemory } from '../tabs/tab-memory';
 
 export interface ContentInsetsInput {
   top: number;
@@ -78,6 +79,8 @@ export interface CopaceticApi {
     saveScreenshot(id: TabId): Promise<void>;
     /** The page's document as it stands, read without a script in it, for reader view. */
     readerDocument(id: TabId): Promise<{ url: string; html: string } | null>;
+    /** What each tab's page process holds now; a sleeping tab has none and is left out. */
+    memoryUse(): Promise<Record<TabId, TabMemory>>;
     viewSource(id: TabId): Promise<void>;
     /** The page's own developer tools, in a window of their own. */
     toggleDevTools(id: TabId): Promise<void>;

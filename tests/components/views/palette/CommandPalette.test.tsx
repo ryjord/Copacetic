@@ -49,7 +49,7 @@ vi.mock('@/store/useBrowserStore', () => ({
 }));
 vi.mock('@/lib/bridge/bridge', () => ({
   send: vi.fn(),
-  ask: async () => undefined,
+  ask: async (_action: unknown, fallback: unknown) => fallback,
   getBridge: () => null,
   isRunningInShell: () => false,
 }));

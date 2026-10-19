@@ -69,6 +69,11 @@ export const shell = {
     asleep: 'asleep',
     hushTab: 'Hush tab',
     inSplit: 'in split view',
+    memory: 'Using {amount}',
+    memoryShared: {
+      one: 'Using {amount}, shared with {count} other tab',
+      other: 'Using {amount}, shared with {count} other tabs',
+    },
     loading: 'Loading',
     mute: 'Mute tab',
     unmute: 'Unmute tab',

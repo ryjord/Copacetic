@@ -15,10 +15,11 @@ import { AlertCircle, ChevronDown, Columns2, EyeOff, Lock, Plus, Volume2, Volume
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { getBridge, send } from '@/lib/bridge/bridge';
+import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 import { isInSplit } from '@shared/tabs/split-view';
+import { describeMemory } from '@shared/tabs/tab-memory';
 
 // Types
 import type { TabState } from '@shared/types';
@@ -187,6 +188,18 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
   const title = tab.isStartPage ? t('shell.tabStrip.newTab') : tab.title;
   const ref = useRef<HTMLDivElement>(null);
   const isSplit = useBrowserStore((state) => isInSplit(state.split, tab.id));
+  const [memoryLine, setMemoryLine] = useState<string | null>(null);
+
+  // Measured as the pointer arrives, so the tooltip it is about to show is current.
+  const measureMemory = () => {
+    if (tab.isStartPage) {
+      return;
+    }
+    void ask((api) => api.tabs.memoryUse(), {}).then((measured) => {
+      const own = measured[tab.id];
+      setMemoryLine(own ? describeMemory(own) : null);
+    });
+  };
 
   // With a roving tabindex the previously selected tab stops being a tab stop
   // the moment selection moves, so focus has to move with it or it is lost to
@@ -266,7 +279,8 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
           send((api) => api.tabs.activate(tab.id));
         }
       }}
-      title={tab.isStartPage ? title : `${tab.title}\n${tab.url}`}
+      onPointerEnter={measureMemory}
+      title={tab.isStartPage ? title : [tab.title, tab.url, memoryLine].filter(Boolean).join('\n')}
     >
       <div className="flex h-full items-center gap-2 px-2.5 @max-[72px]:justify-center @max-[72px]:px-0">
         {tab.isLoading ? (

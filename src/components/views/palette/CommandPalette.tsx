@@ -13,7 +13,7 @@ import { Search } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge/bridge';
+import { ask, send } from '@/lib/bridge/bridge';
 import { useDismissLayer } from '@/lib/layers/dismissLayer';
 import { useFocusTrap } from '@/lib/layers/focusTrap';
 import { rankByMatch } from '@/lib/text/fuzzy';
@@ -25,6 +25,7 @@ import { GROUP_COLOURS } from '@shared/tabs/tab-groups';
 import { clampZoom } from '@shared/types';
 import { nextZoomStep } from '@shared/tabs/zoom';
 import { isInSplit } from '@shared/tabs/split-view';
+import { formatMemory, type TabMemory } from '@shared/tabs/tab-memory';
 import { acceleratorFor, isRebindable } from '@shared/chrome/shortcuts';
 
 interface Command {
@@ -35,6 +36,8 @@ interface Command {
   group: 'tabs' | 'page' | 'goTo' | 'sessions' | 'yourData' | 'appearance' | 'openTabs';
   /** Also matched, but not shown: a tab's address, for instance. */
   keywords?: string;
+  /** The open tab this switches to, for the figures shown beside it. */
+  tabId?: string;
   run: () => void;
 }
 
@@ -60,6 +63,20 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
   const hasClosedTabs = useBrowserStore((state) => state.hasClosedTabs);
   const split = useBrowserStore((state) => state.split);
   const namedSessions = useBrowserStore((state) => state.namedSessions);
+  const [memory, setMemory] = useState<Record<string, TabMemory>>({});
+
+  // Once, as the palette opens: a figure that moved while you read it would be noise.
+  useEffect(() => {
+    let isCurrent = true;
+    void ask((api) => api.tabs.memoryUse(), {}).then((measured) => {
+      if (isCurrent) {
+        setMemory(measured);
+      }
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
   const appearance = useBrowserStore((state) => state.settings.appearance);
   const defaultZoomFactor = useBrowserStore((state) => state.settings.defaultZoomFactor);
   const shortcutOverrides = useBrowserStore((state) => state.settings.shortcutOverrides);
@@ -382,6 +399,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       .filter((tab) => scope === 'tabs' || tab.id !== activeTab?.id)
       .map<Command>((tab) => ({
         id: `switch:${tab.id}`,
+        tabId: tab.id,
         label: tab.isStartPage ? t('views.palette.commands.newTab') : tab.title || tab.url,
         group: 'openTabs',
         keywords: tab.url,
@@ -514,6 +532,11 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
                     {command.group === 'openTabs' && command.keywords && (
                       <span className="max-w-[40%] shrink-0 truncate text-body-sm text-ink-faint">
                         {hostFor(command.keywords)}
+                      </span>
+                    )}
+                    {command.tabId && memory[command.tabId] && (
+                      <span className="shrink-0 text-body-sm tabular-nums text-ink-faint">
+                        {formatMemory(memory[command.tabId]?.kilobytes ?? 0)}
                       </span>
                     )}
                     {command.accelerator && <Kbd accelerator={command.accelerator} />}

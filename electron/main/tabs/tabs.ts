@@ -80,6 +80,7 @@ import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { SessionSnapshot } from '../data/session-store';
 import type { NamedSessionTab } from '../../shared/data/named-sessions';
+import { type TabMemory, memoryByTab } from '../../shared/tabs/tab-memory';
 import type { ProfilePartitions } from '../../shared/data/partitions';
 import type { BrowserStore } from '../data/store';
 
@@ -504,6 +505,18 @@ export class TabManager {
     } catch (error) {
       return error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten');
     }
+  }
+
+  /** Measured when asked, never on a timer: only tabs with a page have a process to measure. */
+  memoryUse(): Record<TabId, TabMemory> {
+    const tabs = [...this.tabs.values()].flatMap((tab) => {
+      const contents = pageOf(tab);
+      return contents && !contents.isDestroyed() ? [{ id: tab.id, processId: contents.getOSProcessId() }] : [];
+    });
+    const processes = app
+      .getAppMetrics()
+      .map((metric) => ({ processId: metric.pid, kilobytes: metric.memory.workingSetSize }));
+    return memoryByTab(tabs, processes);
   }
 
   /** The page's document for reader view, or null when there is no page to read. */
