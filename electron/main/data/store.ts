@@ -20,6 +20,7 @@ import { GroupsStore } from './groups-store';
 import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tab-groups';
 import { openDatabase } from './database';
 import { backUpBeforeMigrating, forgetLegacyCopies } from './legacy-import';
+import { describeError, log } from '../system/diagnostics';
 import { DownloadsTable } from './downloads-table';
 import { SiteSettingsStore } from './site-settings-store';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
@@ -100,16 +101,26 @@ export class BrowserStore {
   }
 
   flushAll(): void {
-    // Folds the write-ahead log into the database, so the file on its own is complete when the app goes.
-    this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-    this.settings.flush();
-    this.history.flush();
-    this.bookmarks.flush();
-    this.bookmarkFolders.flush();
-    this.groups.flush();
-    this.favicons.flush();
-    this.session.flush();
-    this.certificatesStore.flush();
+    // Each on its own: one store failing while the app quits must not cost the others their writes.
+    const steps: (() => void)[] = [
+      // Folds the write-ahead log into the database, so the file on its own is complete when the app goes.
+      () => this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)'),
+      () => this.settings.flush(),
+      () => this.history.flush(),
+      () => this.bookmarks.flush(),
+      () => this.bookmarkFolders.flush(),
+      () => this.groups.flush(),
+      () => this.favicons.flush(),
+      () => this.session.flush(),
+      () => this.certificatesStore.flush(),
+    ];
+    steps.forEach((step) => {
+      try {
+        step();
+      } catch (error) {
+        log.warn('a store could not be written while quitting', describeError(error));
+      }
+    });
   }
 
   // ----------------------------------------------------------------- groups
