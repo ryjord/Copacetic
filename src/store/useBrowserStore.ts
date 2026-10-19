@@ -41,6 +41,7 @@ const EMPTY_STATE: BrowserState = {
   settings: DEFAULT_SETTINGS_SHAPE,
   hasClosedTabs: false,
   siteInfo: null,
+  split: null,
   update: {
     status: { state: 'idle' },
     delivery: 'unsupported',

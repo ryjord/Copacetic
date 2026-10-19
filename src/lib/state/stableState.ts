@@ -74,6 +74,7 @@ export function stabiliseState(previous: BrowserState, next: BrowserState): Brow
     hasClosedTabs: next.hasClosedTabs,
     update: keepIfSame(previous.update, next.update),
     siteInfo: keepIfSame(previous.siteInfo, next.siteInfo),
+    split: keepIfSame(previous.split, next.split),
     profile: keepIfSame(previous.profile, next.profile),
     profiles: keepIfSame(previous.profiles, next.profiles),
   };

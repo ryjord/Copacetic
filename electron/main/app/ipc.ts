@@ -91,6 +91,11 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('tabs.setPinned', (browser, _event, id, isPinned) =>
     browser.tabs.setPinned(asString(id), isPinned === true),
   );
+  handle('tabs.splitWith', (browser, _event, id) => browser.tabs.splitWith(id === null ? null : asString(id)));
+  handle('tabs.leaveSplit', (browser) => browser.tabs.leaveSplit());
+  handle('tabs.setSplitRatio', (browser, _event, ratio) =>
+    browser.tabs.setSplitRatio(typeof ratio === 'number' ? ratio : Number.NaN),
+  );
   handle('tabs.sleep', (browser, _event, id) => browser.tabs.sleep(asString(id)));
   handle('tabs.continueOverHttp', (browser, _event, id) => browser.tabs.continueOverHttp(asString(id)));
   handle('tabs.acceptCertificate', (browser, _event, id) => browser.tabs.acceptCertificate(asString(id)));

@@ -7,12 +7,23 @@ import { t } from '../../shared/i18n/translate';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome/chrome-text';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tabs/tab-groups';
+import { isInSplit } from '../../shared/tabs/split-view';
 import { countIn, pathOf } from '../../shared/data/bookmark-folders';
 import { countTraces, describeTraces, siteOf } from '../../shared/data/forgetting';
 
 // Types
 import type { TabId } from '../../shared/types';
 import type { Browser } from '../app/browser';
+
+function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
+  if (isInSplit(browser.tabs.getSplit(), tabId)) {
+    return { label: t('main.menu.context.leaveSplit'), click: () => browser.tabs.leaveSplit() };
+  }
+  if (tabId === browser.tabs.getActiveTabId()) {
+    return { label: t('main.menu.context.splitWithNewTab'), click: () => browser.tabs.splitWith(null) };
+  }
+  return { label: t('main.menu.context.showBesideCurrent'), click: () => browser.tabs.splitWith(tabId) };
+}
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
@@ -197,6 +208,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
       click: () => browser.tabs.sleep(tabId),
     },
     { label: t('main.menu.view.reload'), click: () => browser.tabs.reload(tabId) },
+    splitItem(browser, tabId),
     { type: 'separator' },
     groupSubmenu(browser, tabId),
     { type: 'separator' },

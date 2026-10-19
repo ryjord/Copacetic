@@ -151,6 +151,8 @@ export const views = {
       duplicate: 'Duplicate tab',
       pin: 'Pin tab',
       unpin: 'Unpin tab',
+      split: 'Split with a new tab',
+      leaveSplit: 'Leave split view',
       mute: 'Mute tab',
       unmute: 'Unmute tab',
       groupNew: 'Add tab to a new group',
@@ -182,6 +184,7 @@ export const views = {
     keywords: {
       newHushTab: 'private incognito',
       mute: 'sound audio',
+      split: 'side by side two pages columns',
       groupRemove: 'ungroup',
       savePage: 'download html',
       screenshot: 'screenshot capture image png',

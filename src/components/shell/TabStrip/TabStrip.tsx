@@ -9,12 +9,16 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
 
 // Icons
-import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, Columns2, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
+import { isInSplit } from '@shared/tabs/split-view';
 
 // Types
 import type { TabState } from '@shared/types';
@@ -182,6 +186,7 @@ function startsOf(runs: readonly { tabs: readonly unknown[] }[]): number[] {
 function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd, onDragOver, onDrop }: TabProps) {
   const title = tab.isStartPage ? t('shell.tabStrip.newTab') : tab.title;
   const ref = useRef<HTMLDivElement>(null);
+  const isSplit = useBrowserStore((state) => isInSplit(state.split, tab.id));
 
   // With a roving tabindex the previously selected tab stops being a tab stop
   // the moment selection moves, so focus has to move with it or it is lost to
@@ -248,6 +253,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
         tab.isPinned ? t('shell.tabStrip.pinned') : null,
         tab.isAsleep ? t('shell.tabStrip.asleep') : null,
         tab.isHush ? t('shell.tabStrip.hushTab') : null,
+        isSplit ? t('shell.tabStrip.inSplit') : null,
       ]
         .filter(Boolean)
         .join(', ')}
@@ -274,6 +280,9 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
 
         {tab.isHush && (
           <EyeOff size={14} strokeWidth={1.75} className="shrink-0 text-hush @max-[72px]:hidden" aria-hidden />
+        )}
+        {isSplit && (
+          <Columns2 size={13} strokeWidth={1.75} className="shrink-0 text-ink-faint @max-[72px]:hidden" aria-hidden />
         )}
         <span
           className={cn('flex-1 truncate text-body-sm @max-[72px]:hidden', isActive ? 'text-ink' : 'text-ink-dim')}

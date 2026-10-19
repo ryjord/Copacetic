@@ -24,6 +24,7 @@ import { t } from '@shared/i18n/translate';
 import { GROUP_COLOURS } from '@shared/tabs/tab-groups';
 import { clampZoom } from '@shared/types';
 import { nextZoomStep } from '@shared/tabs/zoom';
+import { isInSplit } from '@shared/tabs/split-view';
 import { acceleratorFor, isRebindable } from '@shared/chrome/shortcuts';
 
 interface Command {
@@ -49,6 +50,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
   const tabs = useBrowserStore((state) => state.orderedTabs);
   const activeTab = useBrowserStore((state) => state.activeTab);
   const hasClosedTabs = useBrowserStore((state) => state.hasClosedTabs);
+  const split = useBrowserStore((state) => state.split);
   const appearance = useBrowserStore((state) => state.settings.appearance);
   const defaultZoomFactor = useBrowserStore((state) => state.settings.defaultZoomFactor);
   const shortcutOverrides = useBrowserStore((state) => state.settings.shortcutOverrides);
@@ -130,6 +132,23 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         group: 'tabs',
         run: then(() => send((api) => api.tabs.setPinned(tabId, !activeTab.isPinned))),
       });
+      list.push(
+        isInSplit(split, tabId)
+          ? {
+              id: 'leave-split',
+              label: t('views.palette.commands.leaveSplit'),
+              group: 'tabs',
+              run: then(() => send((api) => api.tabs.leaveSplit())),
+            }
+          : {
+              id: 'split-view',
+              label: t('views.palette.commands.split'),
+              accelerator: 'CmdOrCtrl+Shift+E',
+              group: 'tabs',
+              keywords: t('views.palette.keywords.split'),
+              run: then(() => send((api) => api.tabs.splitWith(null))),
+            },
+      );
       if (activeTab.isAudible || activeTab.isMuted) {
         list.push({
           id: 'mute',
@@ -354,6 +373,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     setSurface,
     scope,
     shortcutOverrides,
+    split,
     tabs,
     toggleSurface,
   ]);

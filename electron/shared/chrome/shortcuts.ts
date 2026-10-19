@@ -38,6 +38,11 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       },
       { accelerator: 'CmdOrCtrl+9', description: t('main.shortcuts.descriptions.lastTab'), id: 'last-tab' },
       { accelerator: 'CmdOrCtrl+Shift+A', description: t('main.shortcuts.descriptions.tabSearch'), id: 'tab-search' },
+      {
+        accelerator: 'CmdOrCtrl+Shift+E',
+        description: t('main.shortcuts.descriptions.splitView'),
+        id: 'split-view',
+      },
       { accelerator: 'CmdOrCtrl+D', description: t('main.shortcuts.descriptions.bookmark'), id: 'bookmark' },
     ],
   },

@@ -13,6 +13,7 @@ import { ErrorPage } from '@/components/views/error/ErrorPage';
 import { StartPage } from '@/components/views/start/StartPage';
 import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
+import { SplitView } from '@/components/shell/SplitView/SplitView';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
 import { Toolbar } from '@/components/shell/Toolbar/Toolbar';
 
@@ -25,6 +26,7 @@ import { isMacPlatform } from '@/lib/platform';
 import { ambientLightStopsFor, ambientStopsFor } from '@shared/chrome/ambient';
 import { t } from '@shared/i18n/translate';
 import { reachedForAnotherTab } from '@shared/tabs/surfaces';
+import { shownSplit } from '@shared/tabs/split-view';
 
 /** The browser shell. */
 export function Chrome() {
@@ -38,6 +40,7 @@ export function Chrome() {
   const tabs = useBrowserStore((state) => state.orderedTabs);
   const activeTab = useBrowserStore((state) => state.activeTab);
   const activeTabId = useBrowserStore((state) => state.activeTabId);
+  const split = useBrowserStore((state) => shownSplit(state.split, state.activeTabId));
 
   const density = useBrowserStore((state) => state.settings.density);
   const groups = useBrowserStore((state) => state.groups);
@@ -198,8 +201,11 @@ export function Chrome() {
         <div inert={surface !== 'none'} className="contents">
           {!isRunningInShell() && <OutsideShellNotice />}
 
-          {isReady && activeTab?.isStartPage && <StartPage tabId={activeTab.id} isHush={activeTab.isHush} />}
-          {isReady && activeTab?.error && <ErrorPage tabId={activeTab.id} error={activeTab.error} />}
+          {isReady && split && <SplitView split={split} tabs={tabs} activeTabId={activeTabId} />}
+          {isReady && !split && activeTab?.isStartPage && (
+            <StartPage tabId={activeTab.id} isHush={activeTab.isHush} />
+          )}
+          {isReady && !split && activeTab?.error && <ErrorPage tabId={activeTab.id} error={activeTab.error} />}
         </div>
 
         {surface === 'settings' && <SettingsSurface />}

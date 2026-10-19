@@ -42,6 +42,8 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSle
       isPinned: () => false,
       setPinned: record('tabs.setPinned'),
       canSleep: () => canSleep,
+      getSplit: () => null,
+      getActiveTabId: () => null,
       sleep: record('tabs.sleep'),
       titleFor: () => 'Example',
       hasClosedTabs: () => hasClosedTabs,

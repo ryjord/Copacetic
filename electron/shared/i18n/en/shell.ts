@@ -68,6 +68,7 @@ export const shell = {
     pinned: 'pinned',
     asleep: 'asleep',
     hushTab: 'Hush tab',
+    inSplit: 'in split view',
     loading: 'Loading',
     mute: 'Mute tab',
     unmute: 'Unmute tab',
@@ -78,6 +79,9 @@ export const shell = {
     mixed: 'Mixed',
     expandGroup: 'Expand {name}',
     collapseGroup: 'Collapse {name}',
+  },
+  splitView: {
+    divider: 'Resize the split',
   },
   chrome: {
     outsideShell: {

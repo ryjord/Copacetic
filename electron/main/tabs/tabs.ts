@@ -46,6 +46,16 @@ import {
 import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tabs/tab-groups';
 import {
+  EVEN_SPLIT_RATIO,
+  type SplitView,
+  clampSplitRatio,
+  isInSplit,
+  pageWithinPane,
+  partnerIn,
+  shownSplit,
+  splitPanes,
+} from '../../shared/tabs/split-view';
+import {
   acceptRefused,
   exceptionFor,
   forgetTab as forgetRefusedCertificate,
@@ -89,6 +99,7 @@ export class TabManager {
   private pageFocusHandler: (() => void) | null = null;
   private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
   private windowIsEnteringFullscreen = false;
+  private split: SplitView | null = null;
 
   constructor(
     private readonly window: BrowserWindow,
@@ -159,7 +170,7 @@ export class TabManager {
     return this.closedTabs.canReopen;
   }
 
-  snapshot(): { tabs: TabState[]; tabOrder: TabId[]; activeTabId: TabId | null } {
+  snapshot(): { tabs: TabState[]; tabOrder: TabId[]; activeTabId: TabId | null; split: SplitView | null } {
     return {
       tabs: this.order.flatMap((id) => {
         const tab = this.tabs.get(id);
@@ -167,6 +178,7 @@ export class TabManager {
       }),
       tabOrder: [...this.order],
       activeTabId: this.activeId,
+      split: this.split,
     };
   }
 
@@ -533,6 +545,22 @@ export class TabManager {
     return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets, isFullscreen);
   }
 
+  /** Where one tab's page goes: the whole content area, or its half of a split that is on screen. */
+  private boundsFor(id: TabId): ContentBounds {
+    const content = this.currentBounds();
+    const shown = shownSplit(this.split, this.activeId);
+    if (!shown || !isInSplit(shown, id) || this.fullscreen !== null) {
+      return content;
+    }
+    const panes = splitPanes(content, shown.ratio);
+    return pageWithinPane(shown.leftId === id ? panes.left : panes.right);
+  }
+
+  /** The split on screen, unless a page in it has gone fullscreen and taken the window for itself. */
+  private visibleSplit(): SplitView | null {
+    return this.fullscreen === null ? shownSplit(this.split, this.activeId) : null;
+  }
+
   /**
    * A page asked for fullscreen, usually a video. Electron leaves a view where
    * it was, so without this the video filled a rectangle under the chrome. The
@@ -588,23 +616,31 @@ export class TabManager {
     const bounds = this.currentBounds();
     this.onContentBounds(bounds);
 
-    const active = this.activeId ? this.tabs.get(this.activeId) : null;
-    if (!active || pageOf(active) === null) {
-      return;
-    }
-    active.view.setBounds(bounds);
+    const visible = this.visibleSplit();
+    const onScreen = visible ? [visible.leftId, visible.rightId] : this.activeId ? [this.activeId] : [];
+    onScreen.forEach((id) => {
+      const tab = this.tabs.get(id);
+      if (tab && pageOf(tab) !== null) {
+        tab.view.setBounds(this.boundsFor(id));
+      }
+    });
   }
 
   private applyVisibility(): void {
     if (this.isDisposed) {
       return;
     }
+    const visible = this.visibleSplit();
     for (const [id, tab] of this.tabs) {
       if (pageOf(tab) === null) {
         continue;
       }
       const isVisible = shouldTabBeVisible(
-        { isActive: id === this.activeId, isStartPage: tab.isStartPage, hasError: tab.error !== null },
+        {
+          isActive: id === this.activeId || isInSplit(visible, id),
+          isStartPage: tab.isStartPage,
+          hasError: tab.error !== null,
+        },
         this.overlayVisible,
       );
       tab.view.setVisible(isVisible);
@@ -761,7 +797,13 @@ export class TabManager {
     guardTabWebContents(view.webContents, this.securityDelegate);
     // Before the first navigation, so no page gets a moment to ask for the local address.
     applyWebRtcPolicy(view.webContents, settings.webRtcPolicy);
-    view.webContents.on('focus', () => this.pageFocusHandler?.());
+    view.webContents.on('focus', () => {
+      // Clicking into the other half of a split is choosing that page.
+      if (this.activeId !== id && isInSplit(this.visibleSplit(), id)) {
+        this.activate(id);
+      }
+      this.pageFocusHandler?.();
+    });
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
     // A view with no document yet answers no DevTools command at all, so it is
@@ -778,7 +820,9 @@ export class TabManager {
   /** Whether a tab has a page that could be closed to save memory; the one in front never does. */
   canSleep(id: TabId): boolean {
     const tab = this.tabs.get(id);
-    return Boolean(tab && pageOf(tab) && !tab.isStartPage && id !== this.activeId);
+    return Boolean(
+      tab && pageOf(tab) && !tab.isStartPage && id !== this.activeId && !isInSplit(this.visibleSplit(), id),
+    );
   }
 
   /** Closes a tab's page to give back its memory, keeping its address, title and history. */
@@ -827,9 +871,10 @@ export class TabManager {
 
   private sleepIdleTabs(): void {
     const afterMinutes = this.store.getSettings().sleepTabsAfterMinutes;
+    const visible = this.visibleSplit();
     const candidates = [...this.tabs.values()].map((tab) => ({
       id: tab.id,
-      isActive: tab.id === this.activeId,
+      isActive: tab.id === this.activeId || isInSplit(visible, tab.id),
       isStartPage: tab.isStartPage,
       isAsleep: tab.isAsleep,
       isAudible: pageOf(tab)?.isCurrentlyAudible() ?? false,
@@ -868,8 +913,14 @@ export class TabManager {
     this.order = this.order.filter((tabId) => tabId !== id);
     this.onTabClosed(id);
 
+    // A split of one is no split; the page beside it is the one left to look at.
+    const partner = this.split && isInSplit(this.split, id) ? partnerIn(this.split, id) : null;
+    if (partner) {
+      this.split = null;
+    }
+
     if (this.activeId === id) {
-      const next = tabAfterClosing(this.order, index);
+      const next = partner ?? tabAfterClosing(this.order, index);
       this.activeId = null;
       if (next) {
         this.activate(next);
@@ -989,6 +1040,12 @@ export class TabManager {
       arriving.lastActiveAt = now;
       this.wake(arriving);
     }
+    const visible = this.visibleSplit();
+    const beside = visible ? this.tabs.get(partnerIn(visible, id)) : undefined;
+    if (beside) {
+      beside.lastActiveAt = now;
+      this.wake(beside);
+    }
     this.applyBounds();
     this.applyVisibility();
     this.focusActive();
@@ -1035,6 +1092,61 @@ export class TabManager {
       tab.groupId = null;
     }
     this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
+    this.onChanged();
+  }
+
+  // ------------------------------------------------------------ split view
+
+  getSplit(): SplitView | null {
+    return this.split;
+  }
+
+  /**
+   * Shows the tab in front beside another, or beside a new tab when none is
+   * named. The other tab moves next to it in the strip and takes the keyboard.
+   */
+  splitWith(otherId: TabId | null): void {
+    const leftId = this.activeId;
+    if (!leftId || otherId === leftId || (otherId !== null && !this.tabs.has(otherId))) {
+      return;
+    }
+    const leftIndex = this.order.indexOf(leftId);
+    const rightId = otherId ?? this.create(START_PAGE_URL, { activate: false, index: leftIndex + 1 });
+    const rightIndex = this.order.indexOf(rightId);
+    // Taken out before it goes back in, so one from before the left tab lands at the left tab's old index.
+    this.move(rightId, rightIndex > leftIndex ? leftIndex + 1 : leftIndex);
+    this.split = { leftId, rightId, ratio: this.split?.ratio ?? EVEN_SPLIT_RATIO };
+    this.activate(rightId);
+    this.applyBounds();
+    this.applyVisibility();
+    this.onChanged();
+  }
+
+  /** The split view shortcut: leaves the split in front, or makes one with a new tab. */
+  toggleSplit(): void {
+    if (isInSplit(this.split, this.activeId)) {
+      this.leaveSplit();
+      return;
+    }
+    this.splitWith(null);
+  }
+
+  leaveSplit(): void {
+    if (!this.split) {
+      return;
+    }
+    this.split = null;
+    this.applyBounds();
+    this.applyVisibility();
+    this.onChanged();
+  }
+
+  setSplitRatio(ratio: number): void {
+    if (!this.split) {
+      return;
+    }
+    this.split = { ...this.split, ratio: clampSplitRatio(ratio) };
+    this.applyBounds();
     this.onChanged();
   }
 

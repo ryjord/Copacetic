@@ -275,6 +275,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         accelerator: key('tab-search'),
         click: () => inWindow((browser) => browser.openSurface('tab-search')),
       },
+      {
+        label: t('main.menu.tabs.splitView'),
+        accelerator: key('split-view'),
+        click: () => inWindow((browser) => browser.tabs.toggleSplit()),
+      },
       { type: 'separator' },
       ...tabSelectionItems(inWindow, key),
       { type: 'separator' },

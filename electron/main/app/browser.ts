@@ -206,11 +206,12 @@ export class Browser {
   // ------------------------------------------------------------------ state
 
   getState(): BrowserState {
-    const { tabs, tabOrder, activeTabId } = this.tabs.snapshot();
+    const { tabs, tabOrder, activeTabId, split } = this.tabs.snapshot();
     return {
       tabs,
       tabOrder,
       activeTabId,
+      split,
       groups: this.store.listGroups(),
       downloads: this.downloads.list(),
       find: this.tabs.getFindState(),

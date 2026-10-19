@@ -61,6 +61,10 @@ export interface CopaceticApi {
     setMuted(id: TabId, muted: boolean): Promise<void>;
     duplicate(id: TabId): Promise<void>;
     setPinned(id: TabId, isPinned: boolean): Promise<void>;
+    /** Shows the tab in front beside this one, or beside a new tab when null. */
+    splitWith(id: TabId | null): Promise<void>;
+    leaveSplit(): Promise<void>;
+    setSplitRatio(ratio: number): Promise<void>;
     /** Closes a background tab's page to save memory; it comes back when the tab is chosen. */
     sleep(id: TabId): Promise<void>;
     /** Loads the plain HTTP version of a page whose HTTPS version failed, after the person chose to. */

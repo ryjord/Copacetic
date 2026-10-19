@@ -6,6 +6,7 @@ import type { ShortcutOverrides } from './chrome/shortcuts';
 import type { ProfileSummary } from './data/profiles';
 import type { DnsMode } from './browsing/dns';
 import type { TabGroup } from './tabs/tab-groups';
+import type { SplitView } from './tabs/split-view';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -550,6 +551,8 @@ export interface BrowserState {
   update: UpdateState;
   /** The site information card, open for one tab, or null. */
   siteInfo: SiteInfoState | null;
+  /** Two tabs paired side by side, shown while either is in front. */
+  split: SplitView | null;
   /** The profile this window belongs to. */
   profile: ProfileSummary;
   /** Every profile, to switch between and to manage. */

@@ -39,6 +39,7 @@ const state = {
     zoomFactor: 1,
   },
   hasClosedTabs: false,
+  split: null,
   settings: { appearance: 'system', defaultZoomFactor: 1, shortcutOverrides: { 'new-tab': 'Alt+CmdOrCtrl+T' } },
 };
 
