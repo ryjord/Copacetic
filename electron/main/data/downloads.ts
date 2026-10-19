@@ -6,7 +6,8 @@ import type { DownloadState, DownloadStatus } from '../../shared/types';
 /** How long an answer about a file on disk is worth reusing. */
 const EXISTS_REMEMBERED_MS = 5_000;
 
-import { PersistedFile, asNumber, asString, isRecord, newId } from './persistence';
+import type { DownloadsTable } from './downloads-table';
+import { newId } from './persistence';
 
 /** How often a download's speed sample is refreshed. */
 const SPEED_SAMPLE_MS = 700;
@@ -32,7 +33,6 @@ interface LiveDownload {
 }
 
 export class DownloadManager {
-  private readonly file: PersistedFile<DownloadState[]>;
   private readonly live = new Map<string, LiveDownload>();
   /**
    * Downloads from a Hush tab, held here and never written.
@@ -47,11 +47,11 @@ export class DownloadManager {
 
   constructor(
     private readonly onChanged: () => void,
+    private readonly file: DownloadsTable,
     /** Injected so a test can move time and answer for the filesystem itself. */
     private readonly clock: () => number = Date.now,
     private readonly fileExistsAt: (savePath: string) => boolean = existsSync,
   ) {
-    this.file = new PersistedFile<DownloadState[]>('downloads.json', () => [], reviveDownloads, 1_000);
     // Anything still in flight when the app last quit cannot be resumed: the
     // DownloadItem it belonged to is gone. Report that honestly rather than
     // showing a progress bar that will never move.
@@ -383,40 +383,4 @@ export function uniqueSavePath(directory: string, filename: string): string {
     }
   }
   return path.join(directory, `${stem} (${Date.now()})${extension}`);
-}
-
-function reviveDownloads(raw: unknown): DownloadState[] | null {
-  if (!Array.isArray(raw)) {
-    return null;
-  }
-  const allowed: DownloadStatus[] = ['progressing', 'paused', 'completed', 'cancelled', 'interrupted'];
-  return raw.flatMap((item) => {
-    if (!isRecord(item)) {
-      return [];
-    }
-    const savePath = asString(item.savePath);
-    if (!savePath) {
-      return [];
-    }
-    const status = asString(item.status) as DownloadStatus;
-    return [
-      {
-        id: asString(item.id) || newId(),
-        filename: asString(item.filename) || path.basename(savePath),
-        savePath,
-        url: asString(item.url),
-        receivedBytes: asNumber(item.receivedBytes),
-        totalBytes: asNumber(item.totalBytes),
-        bytesPerSecond: null,
-        status: allowed.includes(status) ? status : 'interrupted',
-        startedAt: asNumber(item.startedAt, Date.now()),
-        completedAt: typeof item.completedAt === 'number' ? item.completedAt : null,
-        fileExists: false,
-        // Kept across restarts: the route a file took and what arrived are
-        // exactly what you want to check later rather than at the time.
-        urlChain: Array.isArray(item.urlChain) ? item.urlChain.filter((url) => typeof url === 'string') : [],
-        sha256: typeof item.sha256 === 'string' ? item.sha256 : null,
-      },
-    ];
-  });
 }

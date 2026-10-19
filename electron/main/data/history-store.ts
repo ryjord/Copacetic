@@ -1,9 +1,7 @@
-import { existsSync, readFileSync, renameSync } from 'node:fs';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
-import path from 'node:path';
 import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
 import { hostOf, originOf } from '../../shared/url';
-import { describeError, log } from '../system/diagnostics';
+import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';
 
 const MAX_HISTORY_ENTRIES = 10_000;
@@ -39,7 +37,7 @@ export class HistoryStore {
     private readonly database: DatabaseSync,
     directory: string,
   ) {
-    this.importLegacyFile(directory);
+    this.importFromJson(directory);
     this.pruneHistory();
   }
 
@@ -181,32 +179,13 @@ export class HistoryStore {
     this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   }
 
-  /**
-   * Brings in what the JSON file held, once.
-   *
-   * Renamed rather than deleted afterwards, so a problem with the import can
-   * still be recovered from, and so it is never read a second time.
-   */
-  private importLegacyFile(directory: string): void {
-    const file = path.join(directory, LEGACY_FILE);
-    if (!existsSync(file)) {
-      return;
-    }
-    try {
-      const entries = reviveHistory(JSON.parse(readFileSync(file, 'utf8'))) ?? [];
-      const insert = this.database.prepare(`INSERT OR IGNORE INTO history (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)`);
-      this.database.exec('BEGIN');
+  private importFromJson(directory: string): void {
+    const insert = this.database.prepare(`INSERT OR IGNORE INTO history (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)`);
+    importLegacyFile(this.database, directory, LEGACY_FILE, reviveHistory, (entries) =>
       entries.forEach((entry) =>
         insert.run(entry.id, entry.url, entry.title, entry.lastVisitedAt, entry.visitCount, entry.blockedCount ?? 0),
-      );
-      this.database.exec('COMMIT');
-      renameSync(file, `${file}.imported`);
-    } catch (error) {
-      if (this.database.isTransaction) {
-        this.database.exec('ROLLBACK');
-      }
-      log.warn('history.json could not be imported and was left where it was', describeError(error));
-    }
+      ),
+    );
   }
 }
 

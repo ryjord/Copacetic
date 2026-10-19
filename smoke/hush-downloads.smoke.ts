@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
 
@@ -11,10 +9,7 @@ beforeAll(async () => {
 });
 afterAll(async () => copacetic?.close());
 
-const written = (): { url: string }[] => {
-  const file = path.join(copacetic.profile, 'downloads.json');
-  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as { url: string }[]) : [];
-};
+const written = () => copacetic.downloadsOnDisk();
 
 const listed = () =>
   copacetic.chrome.evaluate(async () => {

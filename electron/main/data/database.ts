@@ -41,6 +41,34 @@ export const MIGRATIONS: readonly Migration[] = [
       END;
     `,
   },
+  {
+    version: 2,
+    sql: `
+      CREATE TABLE favicons (
+        origin TEXT PRIMARY KEY,
+        data_url TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `,
+  },
+  {
+    version: 3,
+    sql: `
+      CREATE TABLE downloads (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        save_path TEXT NOT NULL,
+        url TEXT NOT NULL,
+        received_bytes INTEGER NOT NULL,
+        total_bytes INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        url_chain TEXT NOT NULL DEFAULT '[]',
+        sha256 TEXT
+      );
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];

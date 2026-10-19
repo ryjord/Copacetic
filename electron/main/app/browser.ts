@@ -133,7 +133,7 @@ export class Browser {
     if (!this.blocker.loadShippedLists(path.join(app.getPath('userData'), 'filters'))) {
       this.blocker.loadShippedLists(filtersRoot());
     }
-    this.downloads = new DownloadManager(() => this.scheduleStatePush());
+    this.downloads = new DownloadManager(() => this.scheduleStatePush(), this.store.downloadsTable);
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 
     const delegateDeps = {

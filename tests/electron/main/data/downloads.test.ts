@@ -1,10 +1,21 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 // `downloads.ts` imports electron for its manager class; the two pure helpers
 // under test do not touch it, so a minimal stub keeps the import graph happy.
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' }, shell: {} }));
 
 const { DownloadManager, sanitiseFilename } = await import('../../../../electron/main/data/downloads');
+const { DownloadsTable } = await import('../../../../electron/main/data/downloads-table');
+const { openDatabase } = await import('../../../../electron/main/data/database');
+
+let dir: string;
+beforeEach(() => {
+  dir = mkdtempSync(path.join(tmpdir(), 'copacetic-downloads-'));
+});
+const openTable = () => new DownloadsTable(openDatabase(path.join(dir, 'copacetic.db')), dir);
 
 describe('sanitiseFilename', () => {
   it('keeps an ordinary filename intact', () => {
@@ -96,6 +107,7 @@ describe('checking whether a downloaded file is still there', () => {
     const asked: string[] = [];
     const manager = new DownloadManager(
       () => {},
+      openTable(),
       now,
       (savePath: string) => {
         asked.push(savePath);
@@ -161,5 +173,57 @@ describe('checking whether a downloaded file is still there', () => {
     check('/tmp/a.zip');
     check('/tmp/b.zip');
     expect(asked).toEqual(['/tmp/a.zip', '/tmp/b.zip']);
+  });
+});
+
+const download = (over: Record<string, unknown> = {}) => ({
+  id: 'one',
+  filename: 'report.pdf',
+  savePath: '/Users/someone/Downloads/report.pdf',
+  url: 'https://files.example/report.pdf',
+  receivedBytes: 2048,
+  totalBytes: 2048,
+  status: 'completed',
+  startedAt: 1_700_000_000_000,
+  completedAt: 1_700_000_005_000,
+  urlChain: ['https://example.com/get', 'https://files.example/report.pdf'],
+  sha256: 'abc123',
+  ...over,
+});
+
+describe('the downloads list on disk', () => {
+  it('survives a restart with its route and checksum', () => {
+    const table = openTable();
+    table.update(() => [{ ...download(), bytesPerSecond: null, fileExists: true } as never]);
+    table.flush();
+    const [restored] = openTable().get();
+    expect(restored?.urlChain).toEqual(['https://example.com/get', 'https://files.example/report.pdf']);
+    expect(restored?.sha256).toBe('abc123');
+    expect(restored?.completedAt).toBe(1_700_000_005_000);
+  });
+
+  // Many progress ticks a second are one write, not one each.
+  it('writes a burst of changes once', () => {
+    const table = openTable();
+    Array.from({ length: 50 }, (_unused, index) =>
+      table.update(() => [
+        { ...download({ receivedBytes: index }), bytesPerSecond: null, fileExists: false } as never,
+      ]),
+    );
+    expect(openTable().get()).toHaveLength(0);
+    table.flush();
+    expect(openTable().get()[0]?.receivedBytes).toBe(49);
+  });
+
+  it('brings in the downloads.json an earlier version kept, once', () => {
+    writeFileSync(path.join(dir, 'downloads.json'), JSON.stringify([download()]));
+    expect(
+      openTable()
+        .get()
+        .map((entry) => entry.filename),
+    ).toEqual(['report.pdf']);
+    expect(existsSync(path.join(dir, 'downloads.json.imported'))).toBe(true);
+    expect(existsSync(path.join(dir, 'downloads.json'))).toBe(false);
+    expect(readFileSync(path.join(dir, 'downloads.json.imported'), 'utf8')).toContain('report.pdf');
   });
 });

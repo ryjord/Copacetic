@@ -325,6 +325,23 @@ export class SmokeApp {
     }
   }
 
+  /** Downloads as they are in the database file, read from outside the app. */
+  downloadsOnDisk(): { url: string }[] {
+    const file = path.join(this.profile, 'copacetic.db');
+    if (!existsSync(file)) {
+      return [];
+    }
+    const database = new DatabaseSync(file, { readOnly: true });
+    try {
+      return database
+        .prepare('SELECT url FROM downloads')
+        .all()
+        .map((row) => ({ url: String(row.url) }));
+    } finally {
+      database.close();
+    }
+  }
+
   /** The database and its write-ahead log as raw bytes, which is where a deleted address would linger. */
   databaseBytes(): string {
     return ['copacetic.db', 'copacetic.db-wal']

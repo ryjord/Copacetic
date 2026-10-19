@@ -1,8 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 
-const { withinBounds } = await import('../../../../electron/main/data/favicons-store');
+const { FaviconsStore, withinBounds } = await import('../../../../electron/main/data/favicons-store');
+const { openDatabase } = await import('../../../../electron/main/data/database');
+
+let dir: string;
+beforeEach(() => {
+  dir = mkdtempSync(path.join(tmpdir(), 'copacetic-favicons-'));
+});
+const openStore = () => new FaviconsStore(openDatabase(path.join(dir, 'copacetic.db')), dir);
+const PNG = 'data:image/png;base64,iVBORw0KGgo=';
 
 const icon = (kilobytes: number, updatedAt: number) => ({
   dataUrl: `data:image/png;base64,${'A'.repeat(kilobytes * 1024)}`,
@@ -74,5 +85,50 @@ describe('what the icon cache keeps', () => {
     const megabytes = Object.values(kept).reduce((sum, record) => sum + record.dataUrl.length, 0) / 1024 / 1024;
     // Roughly 152MB before this existed.
     expect(megabytes).toBeLessThanOrEqual(8);
+  });
+});
+
+describe('the icon cache in the database', () => {
+  it('keeps an icon by origin, so every page of a site shares it', () => {
+    const store = openStore();
+    store.set('https://example.com/one', PNG);
+    expect(openStore().get('https://example.com/elsewhere')).toBe(PNG);
+  });
+
+  it('holds to the count bound as icons arrive', () => {
+    const store = openStore();
+    Array.from({ length: 605 }, (_unused, index) => store.set(`https://site-${index}.example/`, PNG));
+    expect(store.origins()).toHaveLength(600);
+    // The oldest go first.
+    expect(store.get('https://site-0.example/')).toBeNull();
+    expect(store.get('https://site-604.example/')).toBe(PNG);
+  });
+
+  it('brings in the favicons.json an earlier version kept, once, and puts it aside', () => {
+    writeFileSync(
+      path.join(dir, 'favicons.json'),
+      JSON.stringify({
+        'https://kept.example': { dataUrl: PNG, updatedAt: 1 },
+        'https://remote.example': { dataUrl: 'https://tracker.example/icon.png', updatedAt: 2 },
+      }),
+    );
+    const store = openStore();
+    expect(store.origins()).toEqual(['https://kept.example']);
+    expect(existsSync(path.join(dir, 'favicons.json.imported'))).toBe(true);
+  });
+
+  // An icon cache is a list of places someone has been, so forgetting has to reach the file itself.
+  it('leaves no trace on disk of a site it forgot', () => {
+    const store = openStore();
+    store.set('https://secret-clinic.example/', PNG);
+    store.set('https://news.example/', PNG);
+    store.forgetSite('secret-clinic.example');
+    const bytes = ['copacetic.db', 'copacetic.db-wal']
+      .map((name) => path.join(dir, name))
+      .filter((file) => existsSync(file))
+      .map((file) => readFileSync(file).toString('latin1'))
+      .join('');
+    expect(bytes).not.toContain('secret-clinic');
+    expect(store.origins()).toEqual(['https://news.example']);
   });
 });

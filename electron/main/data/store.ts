@@ -25,6 +25,7 @@ import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
 import { app } from 'electron';
 import path from 'node:path';
 import { openDatabase } from './database';
+import { DownloadsTable } from './downloads-table';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
 
 export { HISTORY_PAGE_SIZE };
@@ -45,7 +46,9 @@ export class BrowserStore {
   private readonly bookmarks = new BookmarksStore();
   private readonly bookmarkFolders = new BookmarkFoldersStore();
   private readonly groups = new GroupsStore();
-  private readonly favicons = new FaviconsStore();
+  private readonly favicons = new FaviconsStore(this.database, app.getPath('userData'));
+  /** Held here so it shares the database; the download manager owns what goes in it. */
+  readonly downloadsTable = new DownloadsTable(this.database, app.getPath('userData'));
   private readonly session = new SessionStore();
   private readonly certificatesStore = new CertificatesStore();
   /** Parsed host and lowercased forms per history entry, keyed by entry id. */
