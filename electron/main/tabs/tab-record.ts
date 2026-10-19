@@ -1,5 +1,6 @@
 import type { WebContentsView } from 'electron';
 import type { PageError, TabId } from '../../shared/types';
+import type { BrowsingRecord } from './browsing-record';
 
 /** Everything the main process knows about one tab. */
 export interface TabRecord {
@@ -7,6 +8,8 @@ export interface TabRecord {
   view: WebContentsView;
   /** Nothing this tab does is written to disk - see HUSH_PARTITION. */
   isHush: boolean;
+  /** Where what it leaves behind goes; for a Hush tab, nowhere. */
+  record: BrowsingRecord;
   /** True while the tab shows Copacetic's own start page instead of a site. */
   isStartPage: boolean;
   url: string;

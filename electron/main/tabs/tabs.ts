@@ -44,6 +44,7 @@ import { log } from '../system/diagnostics';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
+import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
 import type { TabRecord } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
@@ -57,6 +58,7 @@ export class TabManager {
   private insets: ContentInsets = DEFAULT_INSETS;
   private overlayVisible = false;
   private readonly closedTabs = new ClosedTabs();
+  private stored: BrowsingRecord | null = null;
   private find: FindState = CLOSED_FIND;
   private isDisposed = false;
   /** What has already been added to history per tab, so only the difference is. */
@@ -99,14 +101,13 @@ export class TabManager {
        * Only the difference is added, because the blocker's number is a
        * running total for the tab and this is called once per refusal.
        *
-       * A Hush tab is skipped entirely. Its visits are not written down, and a
-       * count is something written down.
+       * A Hush tab's record keeps no count, as it keeps no visit.
        */
-      if (!tab.isHush && tab.url.startsWith('http')) {
+      if (tab.url.startsWith('http')) {
         const already = this.countedBlocked.get(webContentsId) ?? 0;
         if (count > already) {
           this.countedBlocked.set(webContentsId, count);
-          this.store.addBlocked(tab.url, count - already);
+          tab.record.addBlocked(tab.url, count - already);
         }
       }
 
@@ -178,7 +179,7 @@ export class TabManager {
       security: describeSecurity(
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
-        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url, tab.isHush),
+        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab),
         tab.isStartPage ? null : exceptionFor(originOf(tab.url)),
         tab.error !== null,
       ),
@@ -198,9 +199,9 @@ export class TabManager {
    * records it. Reading and remembering happen together so a site cannot be
    * flagged twice for the same change.
    */
-  private certificateChangeFor(url: string, isHush: boolean): string {
-    const origin = originOf(url);
-    const current = certificateFor(hostOf(url));
+  private certificateChangeFor(tab: TabRecord): string {
+    const origin = originOf(tab.url);
+    const current = certificateFor(hostOf(tab.url));
     if (!origin || !current) {
       return '';
     }
@@ -208,22 +209,8 @@ export class TabManager {
     const remembered = this.store.rememberedCertificateFor(origin);
     const { detail } = compareCertificate(remembered, current);
 
-    /*
-     * Compared, never written, for a Hush tab.
-     *
-     * This runs for every https page with no action from anyone, so it was
-     * putting the origin of everything opened in a Hush tab into
-     * certificates.json, timestamped, where it stayed after the tab closed -
-     * the same shape of leak as the favicon cache and the download record, and
-     * against the same sentence: nothing it does reaches the disk.
-     *
-     * The comparison still happens, so a certificate that changed mid-session
-     * is still reported; there is simply nothing kept afterwards to compare
-     * against next time, which is what a tab that remembers nothing means.
-     */
-    if (!isHush) {
-      this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
-    }
+    // Compared for every tab, kept only by a record that keeps things: a Hush tab still sees a change mid-session.
+    tab.record.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
     return detail;
   }
 
@@ -594,6 +581,7 @@ export class TabManager {
       id,
       view,
       isHush: inherited.hush,
+      record: inherited.hush ? HUSH_RECORD : this.storedRecord(),
       isStartPage,
       url: isStartPage ? START_PAGE_URL : rawUrl,
       title: '',
@@ -687,8 +675,8 @@ export class TabManager {
     }
 
     const index = this.order.indexOf(id);
-    if (!tab.isStartPage && !tab.isHush && !options.isReplaced) {
-      this.closedTabs.remember({ url: tab.url, title: tab.title, index, groupId: tab.groupId });
+    if (!tab.isStartPage && !options.isReplaced) {
+      tab.record.rememberClosedTab({ url: tab.url, title: tab.title, index, groupId: tab.groupId });
     }
 
     this.leaveFullscreen(id);
@@ -959,11 +947,9 @@ export class TabManager {
     // Remembered against the origin: a site that needs zooming needs it every
     // visit, and setting it again on every visit is the kind of small friction
     // that makes a browser tiring to use.
-    // Kept for the tab, not for the site, when the tab is Hush. Settings lists
-    // everywhere zoom was changed, so remembering it would put a site opened in
-    // a Hush tab into a list shown by name.
-    if (!tab.isStartPage && !tab.isHush) {
-      this.store.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
+    // A Hush tab keeps its zoom on the tab: Settings lists every site zoomed, so its record keeps none.
+    if (!tab.isStartPage) {
+      tab.record.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
     }
 
     this.onChanged();
@@ -1074,9 +1060,15 @@ export class TabManager {
       return;
     }
 
-    this.store.setFavicon(tab.url, dataUrl);
+    tab.record.keepFavicon(tab.url, dataUrl);
     tab.faviconDataUrl = dataUrl;
     this.onChanged();
+  }
+
+  // Built on first use: the store is a constructor parameter, not yet assigned when fields are.
+  private storedRecord(): BrowsingRecord {
+    this.stored ??= storedRecord(this.store, this.closedTabs);
+    return this.stored;
   }
 
   // --------------------------------------------------------------- teardown

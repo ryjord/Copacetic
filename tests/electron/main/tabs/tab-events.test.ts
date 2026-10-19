@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { attachTabEvents, type TabEventDeps } from '../../../../electron/main/tabs/tab-events';
 import type { TabRecord } from '../../../../electron/main/tabs/tab-record';
+import { HUSH_RECORD, storedRecord } from '../../../../electron/main/tabs/browsing-record';
 
 /** A stand-in for the tab's web contents that lets a test fire what a page reports. */
 function fakeContents() {
@@ -24,7 +25,17 @@ function fakeContents() {
 
 function setup(overrides: Partial<TabRecord> = {}) {
   const contents = fakeContents();
+  const store = {
+    recordVisit: vi.fn(),
+    setFavicon: vi.fn(),
+    getFavicon: vi.fn(() => null),
+    getZoomForOrigin: vi.fn(() => null),
+    getSettings: vi.fn(() => ({ defaultZoomFactor: 1 })),
+  };
+  // Chosen the way the tab manager chooses it: by whether the tab is Hush, once.
+  const record = overrides.isHush ? HUSH_RECORD : storedRecord(store as never, { remember: vi.fn() } as never);
   const tab = {
+    record,
     id: 'tab-1',
     view: { webContents: contents },
     isHush: false,
@@ -43,12 +54,7 @@ function setup(overrides: Partial<TabRecord> = {}) {
   } as unknown as TabRecord;
 
   const deps = {
-    store: {
-      recordVisit: vi.fn(),
-      getFavicon: vi.fn(() => null),
-      getZoomForOrigin: vi.fn(() => null),
-      getSettings: vi.fn(() => ({ defaultZoomFactor: 1 })),
-    },
+    store,
     blocker: { resetCount: vi.fn(), setPageSite: vi.fn() },
     onChanged: vi.fn(),
     applyVisibility: vi.fn(),
@@ -68,10 +74,13 @@ describe('a Hush tab leaves nothing behind', () => {
     expect(deps.store.recordVisit).not.toHaveBeenCalled();
   });
 
-  it('does not cache the favicon the page offers', () => {
-    const { contents, deps } = setup({ isHush: true });
+  // Asked for, so the tab can show it; whether it is kept is the record's to decide, and a Hush record keeps nothing.
+  it('shows the favicon the page offers without keeping it', () => {
+    const { contents, deps, tab } = setup({ isHush: true });
     contents.emit('page-favicon-updated', {}, ['https://example.com/icon.png']);
-    expect(deps.cacheFavicon).not.toHaveBeenCalled();
+    expect(deps.cacheFavicon).toHaveBeenCalled();
+    tab.record.keepFavicon('https://example.com/', 'data:image/png;base64,AAAA');
+    expect(deps.store.setFavicon).not.toHaveBeenCalled();
   });
 });
 

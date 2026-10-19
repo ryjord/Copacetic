@@ -59,9 +59,26 @@ describe('nothing a Hush tab does is written down', () => {
     expect(written.tabs.map((tab) => tab.url)).toEqual(['https://ordinary.example/']);
   });
 
-  it('cannot be brought back with reopen-closed', () => {
-    expect(tabsSource).toMatch(/!tab\.isStartPage && !tab\.isHush/);
+  // By construction rather than by a check at each write: a Hush tab is given the record that keeps nothing.
+  it('is given the record that keeps nothing, chosen once when it is made', () => {
+    expect(tabsSource).toMatch(/record: inherited\.hush \? HUSH_RECORD : this\.storedRecord\(\)/);
   });
+
+  it('cannot be brought back with reopen-closed', () => {
+    expect(tabsSource).toMatch(/tab\.record\.rememberClosedTab\(/);
+    // Only through the record: a direct write here would bypass what a Hush tab was given.
+    expect(tabsSource).not.toMatch(/this\.closedTabs\.remember\(/);
+  });
+
+  // Every write a tab makes goes through its record, so none of them can forget to ask whether the tab is Hush.
+  it.each(['recordVisit(', 'addBlocked(', 'setFavicon(', 'rememberCertificate(', 'setZoomForOrigin('])(
+    "never calls the store's %s directly from the tab code",
+    (write) => {
+      const direct = new RegExp(`(?:this\\.|deps\\.)store\\.${write.replace('(', '\\(')}`);
+      expect(tabsSource).not.toMatch(direct);
+      expect(collapse('electron/main/tabs/tab-events.ts')).not.toMatch(direct);
+    },
+  );
 });
 
 /**

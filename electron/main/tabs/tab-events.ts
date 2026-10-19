@@ -131,18 +131,14 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   contents.on('page-title-updated', (_event, title) => {
     tab.title = title;
     if (!tab.isStartPage && !tab.error && tab.url.startsWith('http')) {
-      // The whole point of a Hush tab: no record of where it went.
-      if (!tab.isHush) {
-        deps.store.recordVisit(tab.url, title);
-      }
+      tab.record.recordVisit(tab.url, title);
     }
     changed();
   });
 
   contents.on('page-favicon-updated', (_event, favicons) => {
     const [faviconUrl] = favicons;
-    // A cached favicon is a list of sites visited, stored by another name.
-    if (faviconUrl && !tab.isHush) {
+    if (faviconUrl) {
       deps.cacheFavicon(tab, faviconUrl);
     }
   });
