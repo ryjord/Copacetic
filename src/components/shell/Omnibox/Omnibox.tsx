@@ -176,9 +176,7 @@ export function Omnibox({ tab }: OmniboxProps) {
         ref={fieldRef}
         className={cn(
           'flex h-[var(--chrome-field-height)] items-center gap-2 rounded-field border px-2 transition-colors duration-150',
-          isEditing
-            ? 'border-line-strong bg-sunken'
-            : 'border-transparent bg-raised hover:border-line hover:bg-hover',
+          isEditing ? 'border-accent bg-raised' : 'border-transparent bg-ground hover:bg-hover',
         )}
       >
         <ConnectionBadge tab={tab} />

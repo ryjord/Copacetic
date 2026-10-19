@@ -130,9 +130,6 @@ export const CHANNELS = {
   'permissions.forget': 'permissions:forget',
 
   'window.openNew': 'window:open-new',
-  'window.minimize': 'window:minimize',
-  'window.toggleMaximize': 'window:toggle-maximize',
-  'window.close': 'window:close',
 
   'app.getInfo': 'app:get-info',
   'app.openExternal': 'app:open-external',

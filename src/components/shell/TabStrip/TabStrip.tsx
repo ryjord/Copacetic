@@ -56,7 +56,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   );
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1">
+    <div className="flex h-full min-w-0 flex-1 items-end gap-0.5">
       <div
         ref={stripRef}
         role="tablist"
@@ -97,7 +97,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
             stripRef.current.scrollLeft += event.deltaY;
           }
         }}
-        className="hide-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto"
+        className="hide-scrollbar flex h-full min-w-0 items-end gap-0.5 overflow-x-auto"
       >
         {runs.map((run, runIndex) => {
           const group = run.groupId ? groups.find((candidate) => candidate.id === run.groupId) : undefined;
@@ -187,16 +187,17 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       ref={ref}
       className={cn(
         // A set width, not a basis: container queries zero its natural width. Shrinks to its icon before scrolling.
-        'no-drag group @container relative h-[var(--chrome-tab-height)] rounded-tab transition-[background-color,opacity] duration-150',
+        // The active tab joins the toolbar below it, so only its top corners are rounded.
+        'no-drag group @container relative h-[var(--chrome-tab-height)] rounded-t-tab transition-[background-color,opacity] duration-150',
         // Pinned: always just its icon, which the compact rules below give it without a separate layout.
         tab.isPinned ? 'w-9 shrink-0' : 'w-55 min-w-9 shrink',
         tab.isHush
           ? isActive
-            ? 'bg-hush/20'
-            : 'bg-hush/8 hover:bg-hush/14'
+            ? 'bg-hush/14 shadow-[inset_0_2px_0_var(--color-hush)]'
+            : 'bg-hush/8 hover:bg-hush/12'
           : isActive
-            ? 'bg-raised'
-            : 'hover:bg-raised/55',
+            ? 'bg-toolbar'
+            : 'hover:bg-hover/70',
         tab.isAsleep && !isActive && 'opacity-60',
         isDragging && 'opacity-40',
         showDropBefore &&

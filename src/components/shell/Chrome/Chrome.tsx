@@ -15,7 +15,6 @@ import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
 import { Toolbar } from '@/components/shell/Toolbar/Toolbar';
-import { WindowControls } from '@/components/shell/WindowControls/WindowControls';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -174,12 +173,12 @@ export function Chrome() {
   // --- render --------------------------------------------------------------
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-base">
-      <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 px-2.5 pt-1.5">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-ground">
+      {/* The right padding is the system's own window controls on Windows and Linux, drawn over this strip. */}
+      <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-end gap-1 pl-2.5 pr-[var(--window-controls-width)]">
         {/* Room for the macOS traffic lights, which sit inside this strip. */}
-        {isMacPlatform() && <div className="w-[68px] shrink-0" aria-hidden />}
+        {isMacPlatform() && <div className="w-[74px] shrink-0 self-stretch" aria-hidden />}
         <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
-        {!isMacPlatform() && <WindowControls />}
       </header>
 
       <Toolbar tab={activeTab} />

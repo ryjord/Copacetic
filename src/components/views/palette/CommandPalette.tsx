@@ -388,7 +388,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
 
   return (
     <div
-      className="animate-fade absolute inset-0 flex justify-center bg-void/60 pt-[12vh]"
+      className="animate-fade absolute inset-0 flex justify-center bg-scrim pt-[12vh]"
       onMouseDown={(event) => {
         // A click on the backdrop, not on the panel, closes it.
         if (event.target === event.currentTarget) {

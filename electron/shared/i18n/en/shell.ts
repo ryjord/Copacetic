@@ -38,11 +38,6 @@ export const shell = {
     loaded: 'Loaded: {title}',
     loading: 'Loading',
   },
-  windowControls: {
-    minimise: 'Minimise',
-    maximise: 'Maximise',
-    close: 'Close window',
-  },
   surfaceShell: {
     close: 'Close {title}',
   },

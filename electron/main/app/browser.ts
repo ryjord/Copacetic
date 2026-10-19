@@ -18,7 +18,7 @@ import { SiteData } from '../workflows/site-data';
 import { TabCommands } from '../workflows/tab-commands';
 import { OverlayLayer } from '../window/overlay';
 import { createChromeWindow } from '../window/window';
-import { surfaceColour } from '../window/appearance';
+import { groundColour, surfaceColour, titleBarOverlayFor } from '../window/appearance';
 import { showPageContextMenu } from '../menus/context-menu';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { t } from '../../shared/i18n/translate';
@@ -99,7 +99,7 @@ export class Browser {
   }
 
   constructor(readonly profile: Profile) {
-    this.window = createChromeWindow();
+    this.window = createChromeWindow(profile.settings().density);
     this.publisher = new StatePublisher({
       snapshot: () => this.getState(),
       send: (patch) => {
@@ -244,7 +244,10 @@ export class Browser {
   /** Painted again in the colours of the current appearance. */
   repaint(): void {
     if (!this.window.isDestroyed()) {
-      this.window.setBackgroundColor(surfaceColour());
+      this.window.setBackgroundColor(groundColour());
+      if (process.platform !== 'darwin') {
+        this.window.setTitleBarOverlay(titleBarOverlayFor(this.profile.settings().density));
+      }
     }
     this.tabs.setBackgroundColor(surfaceColour());
   }

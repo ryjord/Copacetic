@@ -259,15 +259,6 @@ export function registerIpcHandlers(profiles: Profiles): void {
   // ----------------------------------------------------------------- window
 
   handle('window.openNew', (browser) => browser.openNewWindow());
-  handle('window.minimize', (browser) => browser.window.minimize());
-  handle('window.toggleMaximize', (browser) => {
-    if (browser.window.isMaximized()) {
-      browser.window.unmaximize();
-    } else {
-      browser.window.maximize();
-    }
-  });
-  handle('window.close', (browser) => browser.window.close());
 
   // -------------------------------------------------------------------- app
 

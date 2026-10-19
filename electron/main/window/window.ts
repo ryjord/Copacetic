@@ -6,7 +6,10 @@ import { existsSync } from 'node:fs';
 import { PersistedFile, asBoolean, asNumber, isRecord } from '../data/persistence';
 import { devIconPath, isDevelopment, preloadPath } from '../app/env';
 import { guardChromeWebContents } from '../security/security';
-import { surfaceColour } from './appearance';
+import { groundColour, titleBarOverlayFor } from './appearance';
+
+// Types
+import type { DensityId } from '../../shared/types';
 
 export interface WorkArea {
   x: number;
@@ -27,7 +30,7 @@ const DEFAULT_BOUNDS: WindowBounds = { width: 1280, height: 820, x: null, y: nul
 const MIN_WIDTH = 720;
 const MIN_HEIGHT = 480;
 
-export function createChromeWindow(): BrowserWindow {
+export function createChromeWindow(density: DensityId): BrowserWindow {
   const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, {
     flushDelayMs: 600,
   });
@@ -42,16 +45,16 @@ export function createChromeWindow(): BrowserWindow {
     ...(saved.x !== null && saved.y !== null ? { x: saved.x, y: saved.y } : {}),
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
-    backgroundColor: surfaceColour(),
+    backgroundColor: groundColour(),
     show: false,
     // Windows and Linux read the icon off the window itself. Packaged builds
     // get it from the installer, so this only matters while developing.
     ...(isDevelopment() && process.platform !== 'darwin' && existsSync(devIconPath()) ? { icon: devIconPath() } : {}),
-    // The tab strip doubles as the title bar, so the traffic lights sit inside
-    // it on macOS and the chrome draws its own controls elsewhere.
+    // The tab strip doubles as the title bar: the traffic lights sit inside it
+    // on macOS, and elsewhere the system draws its own controls over its end.
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
-    trafficLightPosition: process.platform === 'darwin' ? { x: 14, y: 14 } : undefined,
-    ...(process.platform !== 'darwin' ? { titleBarOverlay: false, frame: false } : {}),
+    trafficLightPosition: process.platform === 'darwin' ? { x: 16, y: 14 } : undefined,
+    ...(process.platform !== 'darwin' ? { titleBarOverlay: titleBarOverlayFor(density) } : {}),
     webPreferences: {
       preload: preloadPath(),
       sandbox: true,

@@ -24,7 +24,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
   const isBusy = tab?.isLoading ?? false;
 
   return (
-    <div className="flex items-center gap-1 px-2.5 pb-2">
+    <div className="flex h-[var(--chrome-toolbar-height)] shrink-0 items-center gap-1 border-b border-line bg-toolbar px-2.5">
       <IconButton
         label={t('shell.toolbar.back')}
         disabled={!tab?.canGoBack}
