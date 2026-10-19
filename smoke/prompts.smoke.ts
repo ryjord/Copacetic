@@ -84,15 +84,11 @@ describe('a permission request', () => {
     expect(overlay?.width).toBeLessThan((before?.width ?? 0) / 2);
 
     // A keystroke meant for the page must not land on Allow.
-    const isPageFocused = await copacetic.main(
-      ({ webContents }, url) =>
-        webContents
-          .getAllWebContents()
-          .find((contents) => contents.getURL() === url)
-          ?.isFocused() ?? false,
-      ASKING_PAGE,
-    );
-    expect(isPageFocused).toBe(true);
+    const isWithPage = await copacetic.keyboardIsWith((url) => url === ASKING_PAGE);
+    // Null when the desktop never gave the app the keyboard, which leaves nothing to check.
+    if (isWithPage !== null) {
+      expect(isWithPage).toBe(true);
+    }
   }, 90_000);
 
   it('answers the site when Allow is clicked in the overlay', async () => {
@@ -116,7 +112,12 @@ describe('a sign-in challenge', () => {
     );
     expect(isDrawn).toBe(true);
 
-    // Typed as keystrokes, so this fails unless the overlay really has the keyboard.
+    const holdsIt = await copacetic.keyboardIsWith((url) => url.includes('region=leading'));
+    // Null when the desktop never gave the app the keyboard, which leaves nothing to check.
+    if (holdsIt !== null) {
+      expect(holdsIt).toBe(true);
+    }
+    // Typed into whatever field has focus, so the username field must be the one the card focused.
     await copacetic.leading.keyboard.type('riley');
     await copacetic.leading.keyboard.press('Tab');
     await copacetic.leading.keyboard.type('open-sesame');

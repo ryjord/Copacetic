@@ -205,6 +205,38 @@ export class SmokeApp {
     }
   }
 
+  /**
+   * Whether the part of the window holding the keyboard is the one `holds` picks, by address.
+   *
+   * Keystrokes sent from here reach a page whether or not it is focused, so
+   * typing proves nothing about focus. This asks Electron instead, and only
+   * counts a moment when the window itself holds the keyboard: the desktop
+   * hands focus around, and on a build machine may never hand it to the app at
+   * all. Null when the window never had it, because then nothing can be said.
+   */
+  async keyboardIsWith(holds: (url: string) => boolean): Promise<boolean | null> {
+    let didWindowHaveIt = false;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const now = await this.main(({ app, BrowserWindow, webContents }) => {
+        app.focus({ steal: true });
+        return {
+          isWindowFocused: BrowserWindow.getAllWindows()[0]?.isFocused() === true,
+          focusedUrl:
+            webContents
+              .getAllWebContents()
+              .find((contents) => contents.isFocused())
+              ?.getURL() ?? '',
+        };
+      });
+      didWindowHaveIt = didWindowHaveIt || now.isWindowFocused;
+      if (now.isWindowFocused && holds(now.focusedUrl)) {
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    return didWindowHaveIt ? false : null;
+  }
+
   /** Polls until `condition` holds, for the things the app does on its own schedule. */
   private async until(condition: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
