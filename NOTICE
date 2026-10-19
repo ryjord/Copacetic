@@ -72,8 +72,11 @@ Bergamot translator
               https://www.mozilla.org/MPL/2.0/
 
 The engine that translates in reader view, compiled to WebAssembly and run in a
-worker thread of the main process. Shipped unmodified; the source of every file
-is at the address above. The language models it runs are not shipped: they are
+worker thread of the main process. One file is changed, at build time, by
+scripts/build-translation-engine.mjs: two lines of worker/translator-worker.js
+that build file addresses by hand now use Node's fileURLToPath and
+pathToFileURL, so the engine finds its own files on Windows. The source of
+every original file is at the address above. The language models it runs are not shipped: they are
 downloaded from Mozilla when someone first translates a language, under
 Mozilla's own terms.
 

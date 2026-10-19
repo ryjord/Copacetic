@@ -44,6 +44,7 @@ describe('the bridge between the chrome and the main process', () => {
         'sessions',
         'settings',
         'shortcuts',
+        'startPage',
         'tabs',
         'translation',
         'updates',
