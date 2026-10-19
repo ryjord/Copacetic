@@ -66,6 +66,21 @@ export function formatRelativeTime(timestamp: number, now = Date.now()): string 
   return relativeFormatter.format(Math.round(elapsed / chosen[1]), chosen[0]);
 }
 
+/** The date as a heading says it: Monday 19 October. */
+export function formatLongDate(date: Date): string {
+  return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening';
+
+export function timeOfDay(date: Date): TimeOfDay {
+  const hour = date.getHours();
+  if (hour < 12) {
+    return 'morning';
+  }
+  return hour < 18 ? 'afternoon' : 'evening';
+}
+
 export function formatClockTime(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }

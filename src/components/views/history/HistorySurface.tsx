@@ -117,33 +117,33 @@ export function HistorySurface() {
             {groupByDay(entries).map(([heading, items]) => (
               <section key={heading}>
                 {/* Sticky without a z-index: a positioned heading already paints over the unpositioned rows. */}
-                <h2 className="label sticky top-0 bg-base px-3 pb-1.5 pt-5">{heading}</h2>
-                <ul>
+                <h2 className="sticky top-0 bg-base px-1 pb-2 pt-5 text-body font-semibold text-ink-dim">
+                  {heading}
+                </h2>
+                <ul className="rounded-md bg-inset p-1">
                   {items.map((entry) => (
                     <li
                       key={entry.id}
-                      className="group flex h-9 items-center gap-3 rounded-sm px-3 hover:bg-hover"
+                      className="group flex h-[52px] items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
                       // Forgetting a whole site lives on its own menu, where someone is already looking at one.
                       onContextMenu={(event) => {
                         event.preventDefault();
                         send((api) => api.history.openContextMenu(entry.url));
                       }}
                     >
-                      <Favicon dataUrl={iconFor(icons, entry.url)} seed={entry.url} size={16} />
+                      <span className="w-16 shrink-0 whitespace-nowrap text-body-sm text-ink-faint tabular-nums">
+                        {formatTimeOfDay(entry.lastVisitedAt)}
+                      </span>
+                      <Favicon dataUrl={iconFor(icons, entry.url)} seed={entry.url} size={20} />
                       <button
                         type="button"
                         onClick={() => open(entry.url)}
                         title={entry.url}
-                        className="min-w-0 flex-1 truncate text-left text-body text-ink"
+                        className="flex min-w-0 flex-1 flex-col text-left"
                       >
-                        {entry.title || entry.url}
+                        <span className="truncate text-reading font-medium text-ink">{entry.title || entry.url}</span>
+                        <span className="truncate text-body-sm text-ink-faint">{hostFor(entry.url)}</span>
                       </button>
-                      <span className="hidden max-w-[30%] shrink-0 truncate text-body-sm text-ink-dim sm:block">
-                        {hostFor(entry.url)}
-                      </span>
-                      <span className="w-12 shrink-0 text-right text-body-sm text-ink-faint tabular-nums">
-                        {formatTimeOfDay(entry.lastVisitedAt)}
-                      </span>
                       <IconButton
                         label={t('views.history.remove', { name: entry.title || hostFor(entry.url) })}
                         size="sm"

@@ -139,6 +139,8 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
       <IconButton
         label={t('shell.tabStrip.newTab')}
         size="sm"
+        // Level with the middle of the tabs, which sit on the bottom of the strip.
+        className="mb-1"
         onClick={() => send((api) => api.tabs.create())}
         onContextMenu={(event) => {
           event.preventDefault();

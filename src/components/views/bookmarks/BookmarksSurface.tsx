@@ -156,7 +156,7 @@ export function BookmarksSurface() {
               />
             ) : (
               <>
-                <ul className="p-2">
+                <ul className="m-5 rounded-md bg-inset p-1">
                   {visible.map((bookmark) => {
                     const folder = bookmark.folderId
                       ? folders.find((candidate) => candidate.id === bookmark.folderId)
@@ -188,9 +188,9 @@ export function BookmarksSurface() {
                           event.preventDefault();
                           send((api) => api.bookmarks.openContextMenu(bookmark.id));
                         }}
-                        className="group flex h-10 items-center gap-3 rounded-sm px-3 hover:bg-hover"
+                        className="group flex h-[52px] items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
                       >
-                        <Favicon dataUrl={iconFor(icons, bookmark.url)} seed={bookmark.url} size={16} />
+                        <Favicon dataUrl={iconFor(icons, bookmark.url)} seed={bookmark.url} size={20} />
                         <button
                           type="button"
                           title={bookmark.url}
@@ -201,9 +201,12 @@ export function BookmarksSurface() {
                             send((api) => api.tabs.navigate(activeTabId, bookmark.url));
                             setSurface('none');
                           }}
-                          className="min-w-0 flex-1 truncate text-left text-body text-ink"
+                          className="flex min-w-0 flex-1 flex-col text-left"
                         >
-                          {bookmark.title || bookmark.url}
+                          <span className="truncate text-reading font-medium text-ink">
+                            {bookmark.title || bookmark.url}
+                          </span>
+                          <span className="truncate text-body-sm text-ink-faint">{hostFor(bookmark.url)}</span>
                         </button>
 
                         {/* A search across folders says which folder each result is in. */}
@@ -217,9 +220,6 @@ export function BookmarksSurface() {
                           </span>
                         )}
 
-                        <span className="hidden max-w-[30%] shrink-0 truncate text-body-sm text-ink-dim sm:block">
-                          {hostFor(bookmark.url)}
-                        </span>
                         <IconButton
                           label={t('views.bookmarks.edit', {
                             name: bookmark.title || t('views.bookmarks.fallbackName'),

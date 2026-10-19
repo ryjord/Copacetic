@@ -446,7 +446,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
                     onClick={command.run}
                     className={cn(
                       'flex h-9 items-center gap-3 rounded-sm px-2.5',
-                      index === highlighted ? 'bg-hover text-ink' : 'text-ink',
+                      index === highlighted ? 'bg-accent-soft text-ink' : 'text-ink',
                     )}
                   >
                     <span className="min-w-0 flex-1 truncate text-body">{command.label}</span>

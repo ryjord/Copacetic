@@ -17,7 +17,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { ask, send } from '@/lib/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
-import { formatClockTime } from '@/lib/format';
+import { formatClockTime, formatLongDate, timeOfDay } from '@/lib/format';
 import { t } from '@shared/i18n/translate';
 
 // Types
@@ -77,10 +77,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   };
 
   return (
-    <div
-      data-hush={isHush}
-      className="ambient-field relative flex h-full w-full flex-col items-center justify-center overflow-y-auto px-8"
-    >
+    <div data-hush={isHush} className="ambient-field relative flex h-full w-full justify-center overflow-y-auto px-8">
       {wallpaper && !isHush && (
         <>
           {/* A data URL already in memory, in a static export with no image loader: next/image has nothing to offer. */}
@@ -91,17 +88,12 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
         </>
       )}
 
-      <div className="relative flex w-full max-w-xl flex-col items-center gap-8">
+      <div className="relative flex w-full max-w-[880px] flex-col gap-9 pb-12 pt-[88px]">
         {isShowingNotice && <HushNotice />}
 
         {shownWidgets.map((widget) => (
-          <div key={widget} className="flex w-full justify-center">
-            {widget === 'clock' && (
-              // Blank until mounted: a static page cannot know what time it will be opened.
-              <time className="text-display font-light tracking-tight text-ink tabular-nums">
-                {minute === null ? ' ' : formatClockTime(new Date())}
-              </time>
-            )}
+          <div key={widget} className="flex w-full">
+            {widget === 'clock' && <Greeting minute={minute} />}
 
             {widget === 'search' && (
               <form onSubmit={submit} className="relative w-full">
@@ -112,7 +104,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
                   aria-label={t('views.start.search')}
                   spellCheck={false}
                   autoComplete="off"
-                  className="h-12 w-full rounded-full border border-line-strong bg-raised/80 pl-11 pr-5 text-title text-ink shadow-popover outline-none backdrop-blur-xl placeholder:text-ink-faint focus:border-ink-faint"
+                  className="h-11 w-full rounded-md border border-line-strong bg-raised pl-11 pr-5 text-reading text-ink outline-none placeholder:text-ink-faint focus:border-accent"
                 />
                 {/* After the input, so it paints over the field's backdrop rather than under it. */}
                 <Search
@@ -129,6 +121,24 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
         ))}
       </div>
     </div>
+  );
+}
+
+/** The day and the time, and a greeting for it. Blank until mounted: a static page cannot know when it opens. */
+function Greeting({ minute }: { minute: number | null }) {
+  if (minute === null) {
+    return <div className="h-[62px]" aria-hidden />;
+  }
+  const now = new Date(minute * 60_000);
+  return (
+    <header className="flex flex-col gap-1">
+      <time className="text-reading font-medium text-ink-dim tabular-nums">
+        {t('views.start.dateAndTime', { date: formatLongDate(now), time: formatClockTime(now) })}
+      </time>
+      <h1 className="text-display font-semibold tracking-tight text-ink">
+        {t(`views.start.greeting.${timeOfDay(now)}`)}
+      </h1>
+    </header>
   );
 }
 
@@ -149,17 +159,17 @@ function TopSites({ sites, tabId }: { sites: TopSite[]; tabId: string }) {
     return <p className="text-body text-ink-dim">{t('views.start.topSitesEmpty')}</p>;
   }
   return (
-    <ul className="grid w-full grid-cols-4 gap-2">
+    <ul className="grid w-full grid-cols-6 gap-4">
       {sites.map((site) => (
         <li key={site.host}>
           <button
             type="button"
             onClick={() => send((api) => api.tabs.navigate(tabId, site.url))}
             title={site.url}
-            className="flex w-full flex-col items-center gap-2 rounded-md px-2 py-3 transition-colors hover:bg-raised/70"
+            className="flex w-full flex-col items-center gap-2.5 rounded-md px-1.5 py-3.5 transition-colors hover:bg-inset"
           >
-            <span className="grid size-11 place-items-center rounded-md bg-raised/80 shadow-sm">
-              <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={22} />
+            <span className="grid size-16 place-items-center rounded-lg bg-inset shadow-[0_0_0_1px_var(--color-line)]">
+              <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={28} />
             </span>
             <span className="w-full truncate text-center text-body-sm text-ink-dim">
               {site.host.replace(/^www\./, '')}
@@ -193,7 +203,7 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
   }
 
   return (
-    <ul className="flex flex-wrap justify-center gap-1.5">
+    <ul className="flex flex-wrap gap-1.5">
       {bookmarks.map((bookmark) => (
         <li key={bookmark.id}>
           <button

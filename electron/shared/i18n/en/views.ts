@@ -109,6 +109,12 @@ export const views = {
   },
   start: {
     search: 'Search or enter address',
+    greeting: {
+      morning: 'Good morning',
+      afternoon: 'Good afternoon',
+      evening: 'Good evening',
+    },
+    dateAndTime: '{date} · {time}',
     topSitesEmpty: 'Sites you visit often appear here.',
     bookmarksEmpty: 'Your latest bookmarks appear here.',
     hush: {

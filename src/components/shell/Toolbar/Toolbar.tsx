@@ -46,8 +46,11 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       >
         {isBusy ? <X {...ICON} /> : <RotateCw {...ICON} />}
       </IconButton>
-      <div className="mx-1 flex min-w-0 flex-1">
-        <Omnibox tab={tab} />
+      {/* Centred and capped, as the design draws it: a field the width of a wide window is hard to read across. */}
+      <div className="mx-1 flex min-w-0 flex-1 justify-center">
+        <div className="flex w-full min-w-0 max-w-[760px]">
+          <Omnibox tab={tab} />
+        </div>
       </div>
       <ProfileChip />
       <DownloadsButton />

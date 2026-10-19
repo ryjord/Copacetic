@@ -97,15 +97,15 @@ export function FolderTree({
 
   const rowClasses = (isSelected: boolean, isDropTarget: boolean) =>
     cn(
-      'group flex min-h-8 w-full items-center gap-2 rounded-sm pr-2 text-body transition-colors',
-      isSelected ? 'bg-hover text-ink' : 'text-ink-dim hover:bg-hover hover:text-ink',
-      isDropTarget && 'outline outline-1 outline-ink-faint',
+      'group flex min-h-[34px] w-full items-center gap-2 rounded-field pr-2 text-body font-medium transition-colors',
+      isSelected ? 'bg-accent-soft font-semibold text-accent' : 'text-ink-dim hover:bg-hover hover:text-ink',
+      isDropTarget && 'outline outline-1 outline-accent',
     );
 
   return (
     <nav
       aria-label={t('views.bookmarks.folderTree.label')}
-      className="flex w-60 shrink-0 flex-col gap-0.5 border-r border-line p-3"
+      className="flex w-66 shrink-0 flex-col gap-0.5 border-r border-line bg-toolbar px-3 py-5"
     >
       <button
         type="button"
