@@ -28,6 +28,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDatabase } from './database';
+import { backUpBeforeMigrating } from './legacy-import';
 import { DownloadsTable } from './downloads-table';
 import { SiteSettingsStore } from './site-settings-store';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
@@ -63,6 +64,8 @@ export class BrowserStore {
   constructor(directory = app.getPath('userData')) {
     // A profile made this run has no folder yet, and SQLite will not make one.
     mkdirSync(directory, { recursive: true });
+    // Before the database exists, which is what marks a profile as not yet migrated.
+    backUpBeforeMigrating(directory);
     this.database = openDatabase(path.join(directory, 'copacetic.db'));
     this.settings = new SettingsStore(new SiteSettingsStore(this.database), directory);
     this.history = new HistoryStore(this.database, directory);

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, renameSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { describeError, log } from '../system/diagnostics';
@@ -34,5 +34,45 @@ export function importLegacyFile<T>(
       file: filename,
       ...describeError(error),
     });
+  }
+}
+
+/** The JSON stores 2.0 moves into the database, or rewrites, on its first launch. */
+const FILES_THE_MIGRATION_CHANGES = [
+  'history.json',
+  'bookmarks.json',
+  'bookmark-folders.json',
+  'favicons.json',
+  'downloads.json',
+  'settings.json',
+  'session.json',
+  'schema.json',
+];
+
+/** Where a 1.x profile's files are copied before 2.0 changes them; copying them back is a full rollback. */
+export const BACKUP_BEFORE_MIGRATION = 'before-2.0';
+
+/**
+ * Copies a 1.x profile's files aside before the first 2.0 launch touches them.
+ *
+ * Only once, and only for a profile that has files to lose: one with no
+ * database yet but a store from an earlier version. 1.x cannot read the
+ * database, so without this copy going back to it finds an empty browser.
+ */
+export function backUpBeforeMigrating(directory: string): string | null {
+  const present = FILES_THE_MIGRATION_CHANGES.filter((name) => existsSync(path.join(directory, name)));
+  const backup = path.join(directory, BACKUP_BEFORE_MIGRATION);
+  const isFirstMigration = !existsSync(path.join(directory, 'copacetic.db')) && !existsSync(backup);
+  if (!isFirstMigration || !present.some((name) => name !== 'schema.json')) {
+    return null;
+  }
+  try {
+    mkdirSync(backup, { recursive: true });
+    present.forEach((name) => copyFileSync(path.join(directory, name), path.join(backup, name)));
+    log.info("copied an earlier version's files aside before migrating", { files: present.length });
+    return backup;
+  } catch (error) {
+    log.warn("could not copy an earlier version's files aside", describeError(error));
+    return null;
   }
 }
