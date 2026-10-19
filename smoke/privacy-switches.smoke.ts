@@ -71,31 +71,25 @@ describe('the privacy switches', () => {
 
   // The page is asked for at the clean address, so the tracking never reaches the server or the history.
   it('takes tracking parameters off a link before the page loads, and leaves them when asked to', async () => {
-    const tracked = 'https://example.com/landing?id=7&utm_source=mail&fbclid=abc';
-    const finalUrlOf = async (url: string) => {
-      const tabId = await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
-      expect(
-        await copacetic.until(
-          async () =>
-            copacetic.chrome.evaluate(
-              // The page's own title, since a tab whose load has not started is not loading either.
-              async (id) => {
-                const tab = (await window.copacetic.chrome.getState()).tabs.find((candidate) => candidate.id === id);
-                return tab?.isLoading === false && Boolean(tab.title);
-              },
-              tabId,
-            ),
-          30_000,
-        ),
-      ).toBe(true);
-      return copacetic.chrome.evaluate(
-        async (id) => (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.id === id)?.url ?? '',
-        tabId,
-      );
+    const trackingOf = (id: number) => `https://example.com/landing?id=${id}&utm_source=mail&fbclid=abc`;
+    // The address a page settled on once it stopped loading, which is the one the server was asked for.
+    const finalUrlOf = async (id: number) => {
+      await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), trackingOf(id));
+      const settled = () =>
+        copacetic.read(
+          ({ webContents }, prefix) =>
+            webContents
+              .getAllWebContents()
+              .find((contents) => contents.getURL().startsWith(prefix) && !contents.isLoading())
+              ?.getURL() ?? null,
+          `https://example.com/landing?id=${id}`,
+        );
+      expect(await copacetic.until(async () => (await settled()) !== null, 30_000)).toBe(true);
+      return settled();
     };
-    expect(await finalUrlOf(tracked)).toBe('https://example.com/landing?id=7');
+    expect(await finalUrlOf(7)).toBe('https://example.com/landing?id=7');
     await update({ cleanLinks: false });
-    expect(await finalUrlOf(tracked)).toBe(tracked);
+    expect(await finalUrlOf(8)).toBe(trackingOf(8));
     await update({ cleanLinks: true });
   }, 120_000);
 });

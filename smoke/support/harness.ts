@@ -63,7 +63,7 @@ for (const ending of ['exit', 'SIGINT', 'SIGTERM'] as const) {
   });
 }
 
-const READ_ATTEMPTS = 3;
+const READ_ATTEMPTS = 5;
 
 /**
  * A running copy of the built app, with a profile of its own.
@@ -194,7 +194,7 @@ export class SmokeApp {
   }
 
   private pageCount(url: string): Promise<number> {
-    return this.app.evaluate(
+    return this.read(
       ({ webContents }, target) =>
         webContents.getAllWebContents().filter((contents) => contents.getURL().startsWith(target)).length,
       url,
@@ -239,6 +239,8 @@ export class SmokeApp {
         if (!isLost || attempt === READ_ATTEMPTS) {
           throw error;
         }
+        // Spaced out, since it comes in spells: three asked back to back were lost together.
+        await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
       }
     }
   }
