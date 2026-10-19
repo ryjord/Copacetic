@@ -74,6 +74,33 @@ export function sitesFrom(settings: SiteKeys): SiteSettings[] {
   return [...bySite.values()].sort((aSite, bSite) => aSite.site.localeCompare(bSite.site));
 }
 
+/** How many sites have each answer for one kind, so a default can be read against what it leaves alone. */
+export function answersFor(sites: SiteSettings[], kind: PermissionKind): { allowed: number; blocked: number } {
+  const decisions = sites.map((site) => site.permissions.find((permission) => permission.kind === kind)?.decision);
+  return {
+    allowed: decisions.filter((decision) => decision === 'allow').length,
+    blocked: decisions.filter((decision) => decision === 'deny').length,
+  };
+}
+
+/** One line for a kind's row: what the default means, and the sites that answered for themselves. */
+export function describeDefault(
+  answers: { allowed: number; blocked: number },
+  isBlocking: boolean,
+): string | undefined {
+  const sitesNoun = (count: number) => (count === 1 ? '1 site' : `${count} sites`);
+  const parts = [
+    ...(isBlocking ? ['Refused without asking'] : []),
+    ...(answers.allowed > 0 ? [`allowed on ${sitesNoun(answers.allowed)}`] : []),
+    ...(answers.blocked > 0 ? [`blocked on ${sitesNoun(answers.blocked)}`] : []),
+  ];
+  if (parts.length === 0) {
+    return undefined;
+  }
+  const sentence = parts.join(', ');
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`;
+}
+
 /** The patch that forgets everything kept about one site, and nothing about any other. */
 export function withoutSite(settings: SiteKeys, site: string): SiteKeys {
   return {

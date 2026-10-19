@@ -19,13 +19,15 @@ import { updateSettings } from '@/components/views/settings/shared/options';
 import {
   PERMISSION_NAMES,
   type SiteSettings,
+  answersFor,
+  describeDefault,
   sitesFrom,
   summaryOf,
   withoutSite,
 } from '@/components/views/settings/sites/siteSettings';
 
 // Types
-import { ASKABLE_PERMISSIONS, type PermissionDefault } from '@shared/types';
+import { ASKABLE_PERMISSIONS, type AskablePermission, type PermissionDefault } from '@shared/types';
 
 const DEFAULT_OPTIONS: readonly { id: PermissionDefault; label: string }[] = [
   { id: 'ask', label: 'Ask' },
@@ -37,15 +39,18 @@ export function SitesPane() {
   const settings = useBrowserStore((state) => state.settings);
   const [query, setQuery] = useState('');
   const [openSite, setOpenSite] = useState<string | null>(null);
+  const [kindShown, setKindShown] = useState<AskablePermission | null>(null);
 
   const sites = sitesFrom(settings);
   const needle = query.trim().toLowerCase();
-  const shown = needle ? sites.filter((site) => site.site.includes(needle)) : sites;
+  const shown = sites
+    .filter((site) => !needle || site.site.includes(needle))
+    .filter((site) => !kindShown || site.permissions.some((permission) => permission.kind === kindShown));
 
   if (sites.length === 0) {
     return (
       <>
-        <PermissionDefaults />
+        <PermissionDefaults sites={sites} onShowSites={setKindShown} />
         <SettingGroup title="Sites">
           <SettingRow
             label="Nothing is kept about any site yet"
@@ -58,8 +63,18 @@ export function SitesPane() {
 
   return (
     <>
-      <PermissionDefaults />
+      <PermissionDefaults sites={sites} onShowSites={setKindShown} />
       <SearchField value={query} onChange={setQuery} label="Search sites" />
+      {kindShown && (
+        <SettingRow
+          label={`Sites with an answer for ${PERMISSION_NAMES[kindShown].toLowerCase()}`}
+          control={
+            <Button size="sm" variant="ghost" onClick={() => setKindShown(null)}>
+              Show every site
+            </Button>
+          }
+        />
+      )}
       <SettingGroup title={`Sites (${sites.length})`}>
         {shown.length === 0 && <SettingRow label="No site matches" />}
         {shown.map((site) => (
@@ -77,25 +92,42 @@ export function SitesPane() {
 }
 
 /** What a site you have not answered gets; a site you answered keeps its answer. */
-function PermissionDefaults() {
+function PermissionDefaults({
+  sites,
+  onShowSites,
+}: {
+  sites: SiteSettings[];
+  onShowSites: (kind: AskablePermission) => void;
+}) {
   const defaults = useBrowserStore((state) => state.settings.permissionDefaults);
   return (
     <SettingGroup title="When a site asks">
-      {ASKABLE_PERMISSIONS.map((kind) => (
-        <SettingRow
-          key={kind}
-          label={PERMISSION_NAMES[kind]}
-          help={defaults[kind] === 'block' ? 'Refused without asking, unless you allowed the site.' : undefined}
-          control={
-            <Select
-              label={`${PERMISSION_NAMES[kind]} by default`}
-              options={DEFAULT_OPTIONS}
-              value={defaults[kind] ?? 'ask'}
-              onChange={(answer) => updateSettings({ permissionDefaults: { ...defaults, [kind]: answer } })}
-            />
-          }
-        />
-      ))}
+      {ASKABLE_PERMISSIONS.map((kind) => {
+        const answers = answersFor(sites, kind);
+        const hasAnswers = answers.allowed + answers.blocked > 0;
+        return (
+          <SettingRow
+            key={kind}
+            label={PERMISSION_NAMES[kind]}
+            help={describeDefault(answers, defaults[kind] === 'block')}
+            control={
+              <>
+                {hasAnswers && (
+                  <Button size="sm" variant="ghost" onClick={() => onShowSites(kind)}>
+                    Show sites
+                  </Button>
+                )}
+                <Select
+                  label={`${PERMISSION_NAMES[kind]} by default`}
+                  options={DEFAULT_OPTIONS}
+                  value={defaults[kind] ?? 'ask'}
+                  onChange={(answer) => updateSettings({ permissionDefaults: { ...defaults, [kind]: answer } })}
+                />
+              </>
+            }
+          />
+        );
+      })}
     </SettingGroup>
   );
 }

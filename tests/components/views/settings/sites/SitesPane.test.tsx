@@ -82,6 +82,27 @@ describe('the site settings pane', () => {
   it('says what a blocking default means', () => {
     settings = { ...DEFAULT_SETTINGS_SHAPE, permissionDefaults: { notifications: 'block' } };
     render(<SitesPane />);
-    expect(screen.getByText('Refused without asking, unless you allowed the site.')).toBeTruthy();
+    expect(screen.getByText('Refused without asking.')).toBeTruthy();
+  });
+
+  // One place to review every site's answer for a kind, beside the switch that sets the rest.
+  it('counts the sites that answered for themselves, and lists only them on request', () => {
+    settings = {
+      ...DEFAULT_SETTINGS_SHAPE,
+      permissionDefaults: { notifications: 'block' },
+      permissionDecisions: {
+        'https://mail.example.com|notifications': 'allow',
+        'https://news.example.org|notifications': 'deny',
+        'https://maps.example.net|geolocation': 'allow',
+      },
+    };
+    render(<SitesPane />);
+    expect(screen.getByText('Refused without asking, allowed on 1 site, blocked on 1 site.')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Show sites' })[0]!);
+    expect(screen.getByText('example.com')).toBeTruthy();
+    expect(screen.getByText('example.org')).toBeTruthy();
+    expect(screen.queryByText('example.net')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show every site' }));
+    expect(screen.getByText('example.net')).toBeTruthy();
   });
 });
