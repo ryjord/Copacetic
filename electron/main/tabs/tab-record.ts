@@ -6,7 +6,7 @@ import type { BrowsingRecord } from './browsing-record';
 export interface TabRecord {
   id: TabId;
   view: WebContentsView;
-  /** Nothing this tab does is written to disk - see HUSH_PARTITION. */
+  /** Nothing this tab does is written to disk - see ProfilePartitions.hush. */
   isHush: boolean;
   /** Where what it leaves behind goes; for a Hush tab, nowhere. */
   record: BrowsingRecord;

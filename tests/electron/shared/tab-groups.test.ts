@@ -4,15 +4,19 @@ import {
   claimOf,
   describeClaim,
   groupForDrop,
-  groupPartition,
-  orphanedGroupPartitions,
   partitionFor,
   segmentByGroup,
 } from '../../../electron/shared/tab-groups';
 import { tabAfterCollapsing } from '../../../electron/shared/tab-groups';
 import type { TabGroup } from '../../../electron/shared/tab-groups';
+import {
+  FIRST_PROFILE_ID,
+  groupPartition,
+  orphanedGroupPartitions,
+  partitionsFor,
+} from '../../../electron/shared/partitions';
 
-const PARTITIONS = { web: 'persist:copacetic-web', hush: 'copacetic-hush' };
+const PARTITIONS = partitionsFor(FIRST_PROFILE_ID);
 const group = (over: Partial<TabGroup> = {}): TabGroup => ({
   id: 'g1',
   name: 'Work',
@@ -291,18 +295,26 @@ describe('collapsing a group that holds the active tab', () => {
 
 describe('partitions a deleted group left behind', () => {
   it('names the directories whose group is gone', () => {
-    expect(orphanedGroupPartitions(['copacetic-group-a', 'copacetic-group-b'], ['a'])).toEqual(['copacetic-group-b']);
+    expect(orphanedGroupPartitions(['copacetic-group-a', 'copacetic-group-b'], ['a'], PARTITIONS)).toEqual([
+      'copacetic-group-b',
+    ]);
   });
 
   // The folder also holds the shared web session and anything Chromium adds; none of it is ours to delete.
   it('never names a directory this code did not create', () => {
-    expect(orphanedGroupPartitions(['copacetic-web', 'copacetic-hush', 'other', 'copacetic-groupie'], [])).toEqual(
-      [],
-    );
+    expect(
+      orphanedGroupPartitions(['copacetic-web', 'copacetic-hush', 'other', 'copacetic-groupie'], [], PARTITIONS),
+    ).toEqual([]);
   });
 
   it('agrees with the partition a group is given', () => {
-    const directory = groupPartition('live').replace('persist:', '');
-    expect(orphanedGroupPartitions([directory], ['live'])).toEqual([]);
+    const directory = groupPartition(PARTITIONS, 'live').replace('persist:', '');
+    expect(orphanedGroupPartitions([directory], ['live'], PARTITIONS)).toEqual([]);
+  });
+
+  // Each profile sweeps only its own: another profile's live groups look like orphans from here.
+  it("never names another profile's group sessions", () => {
+    const other = groupPartition(partitionsFor('work'), 'theirs').replace('persist:', '');
+    expect(orphanedGroupPartitions([other], [], PARTITIONS)).toEqual([]);
   });
 });

@@ -1,3 +1,5 @@
+import { type ProfilePartitions, groupPartition } from './partitions';
+
 /**
  * A group is a name, a colour, and how far the separation goes.
  *
@@ -39,28 +41,6 @@ export function colourOf(colour: GroupColourId): string {
   return GROUP_COLOURS.find((candidate) => candidate.id === colour)?.hex ?? GROUP_COLOURS[0].hex;
 }
 
-/** The directory a group's session lives in under the profile's Partitions folder. */
-const GROUP_PARTITION_NAME = 'copacetic-group-';
-
-export function groupPartition(groupId: string): string {
-  return `persist:${GROUP_PARTITION_NAME}${groupId}`;
-}
-
-/**
- * Partition directories left behind by groups that no longer exist.
- *
- * Removing a group never removed its session, so its cookies and logins stayed
- * on disk with nothing left that could name them. Only directories this code
- * would have created are ever returned, whatever else is in the folder.
- */
-export function orphanedGroupPartitions(
-  directoryNames: readonly string[],
-  liveGroupIds: readonly string[],
-): string[] {
-  const live = new Set(liveGroupIds.map((groupId) => `${GROUP_PARTITION_NAME}${groupId}`));
-  return directoryNames.filter((name) => name.startsWith(GROUP_PARTITION_NAME) && !live.has(name));
-}
-
 /**
  * Which session a tab runs in.
  *
@@ -71,13 +51,13 @@ export function orphanedGroupPartitions(
  */
 export function partitionFor(
   options: { isHush: boolean; group: TabGroup | null },
-  partitions: { web: string; hush: string },
+  partitions: ProfilePartitions,
 ): string {
   if (options.isHush) {
     return partitions.hush;
   }
   if (options.group?.ownSession) {
-    return groupPartition(options.group.id);
+    return groupPartition(partitions, options.group.id);
   }
   return partitions.web;
 }

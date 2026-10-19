@@ -25,14 +25,8 @@ vi.mock('electron', () => ({
   },
 }));
 
-const {
-  getHushSession,
-  guardChromeWebContents,
-  guardTabWebContents,
-  hardenWebSession,
-  isTransportSecure,
-  promptFor,
-} = await import('../../../../electron/main/security/security');
+const { guardChromeWebContents, guardTabWebContents, hardenWebSession, isTransportSecure, promptFor } =
+  await import('../../../../electron/main/security/security');
 
 type Handler = (...args: never[]) => unknown;
 
@@ -58,7 +52,8 @@ function fakeSession() {
   };
 }
 
-function fakeContents(url = 'https://example.com/', session: unknown = undefined) {
+// An ordinary tab's session is persistent; a Hush one is the exception a test passes in.
+function fakeContents(url = 'https://example.com/', session: unknown = { isPersistent: () => true }) {
   const listeners = new Map<string, Handler>();
   return {
     id: 7,
@@ -124,7 +119,7 @@ const ask = async (
   captured: Record<string, Handler>,
   permission: string,
   url = 'https://example.com/page',
-  session: unknown = undefined,
+  session: unknown = { isPersistent: () => true },
 ) => {
   let allowed: boolean | undefined;
   await (captured.request as unknown as (c: unknown, p: string, cb: (v: boolean) => void, d: unknown) => void)(
@@ -196,7 +191,8 @@ describe('permissions a page asks for', () => {
 
   it('keeps nothing for a Hush tab, even when remembering was ticked', async () => {
     delegated.answerWith('allow', true);
-    expect(await ask(fake.captured, 'geolocation', 'https://example.com/page', getHushSession())).toBe(true);
+    const hushSession = { isPersistent: () => false };
+    expect(await ask(fake.captured, 'geolocation', 'https://example.com/page', hushSession)).toBe(true);
     expect(delegated.remembered).toEqual({});
   });
 

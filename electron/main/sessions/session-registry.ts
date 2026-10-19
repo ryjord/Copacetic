@@ -1,11 +1,13 @@
 import { type Session, session as electronSession } from 'electron';
-import { type TabGroup, groupPartition } from '../../shared/tab-groups';
+import type { TabGroup } from '../../shared/tab-groups';
+import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/partitions';
 import type { DownloadManager } from '../data/downloads';
 import type { ContentBlocker } from '../security/blocker';
-import { type SecurityDelegate, WEB_PARTITION, hardenWebSession, remembersDownloads } from '../security/security';
+import { type SecurityDelegate, hardenWebSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
 
 interface SessionRegistryDeps {
+  partitions: ProfilePartitions;
   securityDelegate: SecurityDelegate;
   blocker: ContentBlocker;
   downloads: DownloadManager;
@@ -19,7 +21,7 @@ interface SessionRegistryDeps {
  * anything can run in it.
  *
  * There are three kinds of session, not two, and only two of them were ever
- * set up. A group that keeps its own browsing gets `persist:copacetic-group-<id>`,
+ * set up. A group that keeps its own browsing gets a persistent partition of its own,
  * and nothing hardened it: no permission request handler, so Electron's default
  * applied and the default is to approve; no tracker blocking, while the address
  * bar went on reporting a blocked count of zero; and no download manager, so
@@ -63,10 +65,10 @@ export class SessionRegistry {
    * and every group's own whether or not a tab of it has been opened yet.
    */
   siteDataSessions(): Session[] {
-    const partitions = new Set([WEB_PARTITION, ...this.prepared.keys()]);
+    const partitions = new Set([this.deps.partitions.web, ...this.prepared.keys()]);
     for (const group of this.deps.groups()) {
       if (group.ownSession) {
-        partitions.add(groupPartition(group.id));
+        partitions.add(groupPartition(this.deps.partitions, group.id));
       }
     }
     return [...partitions].map((partition) => this.prepare(partition));
@@ -82,6 +84,6 @@ export class SessionRegistry {
   }
 
   clearGroup(groupId: string): Promise<void> {
-    return this.clear(this.prepare(groupPartition(groupId)));
+    return this.clear(this.prepare(groupPartition(this.deps.partitions, groupId)));
   }
 }

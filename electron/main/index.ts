@@ -12,6 +12,7 @@ import { markQuit, markRunning } from './system/exit-marker';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/url';
+import { FIRST_PROFILE_ID } from '../shared/partitions';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
@@ -99,7 +100,7 @@ async function start(): Promise<void> {
   handleAppProtocol();
 
   const didLastRunEndBadly = markRunning(app.getPath('userData'));
-  profile = new Profile(app.getPath('userData'));
+  profile = new Profile(FIRST_PROFILE_ID, app.getPath('userData'));
   registerIpcHandlers(profile);
   installApplicationMenu(profile);
   profile.start();

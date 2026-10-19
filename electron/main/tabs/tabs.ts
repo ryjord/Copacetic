@@ -56,7 +56,8 @@ import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-recor
 import type { TabRecord } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
-import { HUSH_PARTITION, WEB_PARTITION, type SecurityDelegate, guardTabWebContents } from '../security/security';
+import { type SecurityDelegate, guardTabWebContents } from '../security/security';
+import type { ProfilePartitions } from '../../shared/partitions';
 import type { BrowserStore } from '../data/store';
 
 export class TabManager {
@@ -84,6 +85,8 @@ export class TabManager {
     private readonly blocker: ContentBlocker,
     private readonly httpsFirst: HttpsFirst,
     private readonly securityDelegate: SecurityDelegate,
+    /** The sessions this profile's tabs run in; another profile's are never reachable from here. */
+    private readonly partitions: ProfilePartitions,
     /**
      * Hardens a partition and returns its session. Called before a tab exists,
      * because a session that is hardened afterwards has already been used.
@@ -248,10 +251,7 @@ export class TabManager {
     if (groupId !== null && !this.store.groupFor(groupId)) {
       return;
     }
-    const partition = partitionFor(
-      { isHush: tab.isHush, group: this.store.groupFor(groupId) },
-      { web: WEB_PARTITION, hush: HUSH_PARTITION },
-    );
+    const partition = partitionFor({ isHush: tab.isHush, group: this.store.groupFor(groupId) }, this.partitions);
     if (partition !== tab.partition) {
       this.reopenInGroup(tab, groupId);
       return;
@@ -574,7 +574,7 @@ export class TabManager {
     // Hush wins over a group's own session: see shared/tab-groups.ts.
     const partition = partitionFor(
       { isHush: inherited.hush, group: this.store.groupFor(inherited.groupId) },
-      { web: WEB_PARTITION, hush: HUSH_PARTITION },
+      this.partitions,
     );
     // Before the view exists, not after. A group's own session had nothing
     // installed on it at all, so its tabs ran with permissions approved by

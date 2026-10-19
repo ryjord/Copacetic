@@ -14,7 +14,8 @@ import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } fro
 import { hostResolverFor } from '../../shared/dns';
 import { ContentBlocker } from '../security/blocker';
 import { HttpsFirst } from '../security/https-first';
-import { HUSH_PARTITION, WEB_PARTITION, hardenChromeSession, type SecurityDelegate } from '../security/security';
+import { hardenChromeSession, type SecurityDelegate } from '../security/security';
+import { type ProfilePartitions, partitionsFor } from '../../shared/partitions';
 import { PendingPrompts } from '../security/pending-prompts';
 import { type TabDirectory, createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
 import { SessionRegistry } from '../sessions/session-registry';
@@ -51,6 +52,7 @@ export class Profile {
   readonly sessions: SessionRegistry;
   readonly securityDelegate: SecurityDelegate;
   readonly wallpaper: Wallpaper;
+  readonly partitions: ProfilePartitions;
 
   private readonly windows = new Set<Browser>();
   /** The window last in front, for menus and notices when none is focused at this moment. */
@@ -64,7 +66,11 @@ export class Profile {
   }
 
   /** `directory` is where this profile keeps everything; the first profile's is the app's own folder. */
-  constructor(readonly directory: string) {
+  constructor(
+    readonly id: string,
+    readonly directory: string,
+  ) {
+    this.partitions = partitionsFor(id);
     this.store = new BrowserStore(directory);
     this.wallpaper = new Wallpaper(directory);
     // Before any window exists, so each is created in the colour it will be painted.
@@ -73,6 +79,7 @@ export class Profile {
     sweepOrphanedGroupPartitions(
       app.getPath('userData'),
       this.store.listGroups().map((group) => group.id),
+      this.partitions,
     );
     // safeStorage is only reachable after app.ready, which is why the keychain is asked at each call.
     this.vaultSession = new VaultSession(
@@ -124,6 +131,7 @@ export class Profile {
     };
     this.securityDelegate = createSecurityDelegate(delegateDeps);
     this.sessions = new SessionRegistry({
+      partitions: this.partitions,
       securityDelegate: this.securityDelegate,
       blocker: this.blocker,
       downloads: this.downloads,
@@ -131,8 +139,8 @@ export class Profile {
       isSpellcheckOn: () => this.store.getSettings().spellcheck,
     });
     // Web and Hush exist from launch; a group that keeps its own browsing is prepared when a tab first asks.
-    this.sessions.prepare(WEB_PARTITION);
-    this.sessions.prepare(HUSH_PARTITION);
+    this.sessions.prepare(this.partitions.web);
+    this.sessions.prepare(this.partitions.hush);
     this.blocker.setRedirect((details) => this.httpsFirst.upgradeFor(details));
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);

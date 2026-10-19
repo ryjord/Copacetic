@@ -9,8 +9,10 @@ vi.mock('electron', () => ({
   app: { isPackaged: true, getAppPath: () => '/app', getPath: () => '/tmp' },
 }));
 
-const { HUSH_PARTITION, WEB_PARTITION, remembersDownloads } =
-  await import('../../../../electron/main/security/security');
+const { FIRST_PROFILE_ID, partitionsFor, remembersDownloads } =
+  await import('../../../../electron/shared/partitions');
+
+const PROFILES = [partitionsFor(FIRST_PROFILE_ID), partitionsFor('work')];
 
 /**
  * The promise a Hush tab makes is that nothing reaches the disk. Most of that
@@ -26,13 +28,19 @@ describe('the partition is what makes the promise true', () => {
   // Without `persist:` Chromium keeps the entire session in memory and drops
   // it when the last reference goes. A "private" mode that writes and then
   // deletes is one crash away from not having deleted.
-  it('is in-memory, not a persisted partition it has to clean up afterwards', () => {
-    expect(HUSH_PARTITION.startsWith('persist:')).toBe(false);
-    expect(WEB_PARTITION.startsWith('persist:')).toBe(true);
+  it.each(PROFILES)('is in-memory, not a persisted partition it has to clean up afterwards', (partitions) => {
+    expect(partitions.hush.startsWith('persist:')).toBe(false);
+    expect(partitions.web.startsWith('persist:')).toBe(true);
   });
 
   it('is a different partition from ordinary browsing', () => {
-    expect(HUSH_PARTITION).not.toBe(WEB_PARTITION);
+    PROFILES.forEach((partitions) => expect(partitions.hush).not.toBe(partitions.web));
+  });
+
+  // A Hush tab in one profile sharing cookies with a Hush tab in another would join the two people up.
+  it('is a different partition in each profile', () => {
+    const [first, work] = PROFILES;
+    expect(new Set([first?.web, first?.hush, work?.web, work?.hush]).size).toBe(4);
   });
 });
 
@@ -104,14 +112,14 @@ describe('nothing a Hush tab does is written down', () => {
  */
 describe('a Hush download is not written down', () => {
   it('does not remember what a Hush session downloaded', () => {
-    expect(remembersDownloads(HUSH_PARTITION)).toBe(false);
+    PROFILES.forEach((partitions) => expect(remembersDownloads(partitions.hush)).toBe(false));
   });
 
   // The counterweight: ordinary downloads are still written, and so are a
   // group's, which is browsing someone chose to keep separate rather than to
   // stop keeping.
   it("remembers every other session's downloads", () => {
-    expect(remembersDownloads(WEB_PARTITION)).toBe(true);
+    PROFILES.forEach((partitions) => expect(remembersDownloads(partitions.web)).toBe(true));
     expect(remembersDownloads('persist:copacetic-group-abc')).toBe(true);
   });
 });
@@ -152,9 +160,8 @@ describe('every session is hardened in exactly one place', () => {
    */
   it('creates a session in only the places that are accounted for', () => {
     const calls = [...mainSources.matchAll(/(?<!function )fromPartition\(/g)];
-    // prepareSession itself, and getWebSession/getHushSession, which both name
-    // partitions prepared at startup. Everything else asks prepareSession.
-    expect(calls).toHaveLength(3);
+    // prepareSession itself. Everything else asks it.
+    expect(calls).toHaveLength(1);
   });
 
   // And that one place is reached before the tab exists, not after: a session

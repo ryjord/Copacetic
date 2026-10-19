@@ -1,4 +1,4 @@
-import { type Session, type WebContents, app, desktopCapturer, session as electronSession, shell } from 'electron';
+import { type Session, type WebContents, app, desktopCapturer, shell } from 'electron';
 import { type DisplaySource, displayChoices } from '../../shared/display-sources';
 import type { PermissionAnswer, PermissionDecision, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
@@ -6,35 +6,6 @@ import { observeCertificates } from './certificates';
 import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
-
-/** Web content lives in its own persistent partition, separate from the session that runs Copacetic's own UI. */
-export const WEB_PARTITION = 'persist:copacetic-web';
-
-/** No `persist:` prefix - that is what keeps the whole session in memory and off the disk. */
-export const HUSH_PARTITION = 'copacetic-hush';
-
-/**
- * Whether downloads started in a partition are written down.
- *
- * Everything is, except Hush. A download's address, its redirect chain and the
- * time it happened are browsing, and a Hush tab's whole claim is that none of
- * that reaches the disk - the file itself is on disk because it was asked for.
- *
- * This is the only thing that differs between one session and another, which is
- * why it is a function rather than a branch written out at each call site.
- * There is now only one call site.
- */
-export function remembersDownloads(partition: string): boolean {
-  return partition !== HUSH_PARTITION;
-}
-
-export function getWebSession(): Session {
-  return electronSession.fromPartition(WEB_PARTITION);
-}
-
-export function getHushSession(): Session {
-  return electronSession.fromPartition(HUSH_PARTITION);
-}
 
 export interface SecurityDelegate {
   /** Ask the user, via the chrome UI, and resolve with their answer. */
@@ -249,7 +220,7 @@ async function resolvePermission(
     description: prompted.description,
   });
   // Never for a Hush tab, ticked or not: the decision is keyed by origin, so it would write the site's name to disk.
-  if (answer.remember && contents?.session !== getHushSession()) {
+  if (answer.remember && contents?.session.isPersistent() !== false) {
     delegate.rememberDecision(origin, prompted.kind, answer.decision);
   }
   return answer.decision === 'allow';
