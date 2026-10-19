@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 // Components
 import { SettingGroup } from '@/components/ui/SettingRow/SettingRow';
 
-// Types
+// Utils
 import { t } from '@shared/i18n/translate';
 
 interface LicenceEntry {

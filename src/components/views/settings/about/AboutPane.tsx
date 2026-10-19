@@ -10,10 +10,10 @@ import { LicencesList } from '@/components/views/settings/about/LicencesList';
 
 // Utils
 import { ask, send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
-import { t } from '@shared/i18n/translate';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 
