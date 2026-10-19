@@ -65,9 +65,9 @@ export function BookmarksBar() {
             event.preventDefault();
             send((api) => api.bookmarkFolders.openContextMenu(folder.id));
           }}
-          className="flex h-6 shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px] text-ink-dim transition-colors hover:bg-hover hover:text-ink"
+          className="flex h-6 shrink-0 items-center gap-1.5 rounded-sm px-2 text-body-sm text-ink-dim transition-colors hover:bg-hover hover:text-ink"
         >
-          <span className="size-2 shrink-0 rounded-[2px]" style={{ background: colourOf(folder.colour) }} />
+          <span className="size-2 shrink-0 rounded-xs" style={{ background: colourOf(folder.colour) }} />
           <span className="max-w-[16ch] truncate">{folder.name}</span>
           <ChevronDown size={10} className="shrink-0 opacity-60" />
         </button>
@@ -81,7 +81,7 @@ export function BookmarksBar() {
           type="button"
           title={bookmark.url}
           onClick={() => send((api) => api.bookmarks.openInActiveTab(bookmark.url))}
-          className="flex h-6 shrink-0 items-center gap-1.5 rounded px-2 text-[11.5px] text-ink-dim transition-colors hover:bg-hover hover:text-ink"
+          className="flex h-6 shrink-0 items-center gap-1.5 rounded-sm px-2 text-body-sm text-ink-dim transition-colors hover:bg-hover hover:text-ink"
         >
           <Favicon dataUrl={null} seed={bookmark.url} size={12} />
           <span className="max-w-[18ch] truncate">{bookmark.title || bookmark.url}</span>

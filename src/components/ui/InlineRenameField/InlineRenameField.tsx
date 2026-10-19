@@ -65,7 +65,7 @@ export function InlineRenameField({
       }}
       className={cn(
         'min-w-0 rounded-xs border border-accent bg-base text-ink outline-none',
-        className ?? 'h-5 px-1 text-[11.5px]',
+        className ?? 'h-5 px-1 text-body-sm',
       )}
     />
   );

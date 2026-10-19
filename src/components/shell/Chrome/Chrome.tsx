@@ -225,8 +225,8 @@ function LoadingLine({ isLoading }: { isLoading: boolean }) {
 function OutsideShellNotice() {
   return (
     <div className="ambient-field flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
-      <p className="text-[13px] text-ink">{t('shell.chrome.outsideShell.heading')}</p>
-      <p className="max-w-md text-[12px] leading-relaxed text-ink-faint">
+      <p className="text-body text-ink">{t('shell.chrome.outsideShell.heading')}</p>
+      <p className="max-w-md text-body-sm text-ink-faint">
         {t('shell.chrome.outsideShell.runBefore')} <code className="font-mono">npm run dev</code>{' '}
         {t('shell.chrome.outsideShell.runAfter')}
       </p>

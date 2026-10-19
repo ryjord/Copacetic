@@ -22,7 +22,7 @@ export function Favicon({ dataUrl, seed, size = 15, className }: FaviconProps) {
         alt=""
         width={size}
         height={size}
-        className={cn('shrink-0 rounded-[3px] object-contain', className)}
+        className={cn('shrink-0 rounded-xs object-contain', className)}
         style={{ width: size, height: size }}
         draggable={false}
       />
@@ -33,7 +33,7 @@ export function Favicon({ dataUrl, seed, size = 15, className }: FaviconProps) {
     <span
       aria-hidden
       className={cn(
-        'grid shrink-0 place-items-center rounded-[3px] bg-hover font-mono font-medium text-ink-faint',
+        'grid shrink-0 place-items-center rounded-xs bg-hover font-mono font-medium text-ink-faint',
         className,
       )}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.6) }}

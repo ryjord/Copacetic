@@ -38,6 +38,11 @@ export interface TabGroup {
   collapsed: boolean;
 }
 
+/** A group's colour as a quiet fill behind its name, mixed rather than built by appending alpha to a hex string. */
+export function tintOf(colour: GroupColourId): string {
+  return `color-mix(in oklab, ${colourOf(colour)} 15%, transparent)`;
+}
+
 export function colourOf(colour: GroupColourId): string {
   return GROUP_COLOURS.find((candidate) => candidate.id === colour)?.hex ?? GROUP_COLOURS[0].hex;
 }
