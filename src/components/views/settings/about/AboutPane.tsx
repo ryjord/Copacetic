@@ -1,11 +1,15 @@
 'use client';
 
+// Libs
+import { useState } from 'react';
+
 // Components
 import { Button } from '@/components/ui/Button/Button';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
+import { LicencesList } from '@/components/views/settings/about/LicencesList';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { ask, send } from '@/lib/bridge';
 
 // Types
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
@@ -13,6 +17,9 @@ import type { SettingsPaneProps } from '@/components/views/settings/shared/types
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 
 export function AboutPane({ info, openPane }: SettingsPaneProps) {
+  const [isShowingLicences, setIsShowingLicences] = useState(false);
+  const [message, setMessage] = useState('');
+
   return (
     <>
       <SettingGroup>
@@ -46,9 +53,25 @@ export function AboutPane({ info, openPane }: SettingsPaneProps) {
         />
         <SettingRow
           label="Licences"
-          help="Copacetic is MIT licensed. EasyList and EasyPrivacy are offered under the GPLv3 or CC BY-SA 3.0; the NOTICE file names them."
+          help="Copacetic is MIT licensed. The packages it is built on, and the filter lists, keep their own terms."
+          control={
+            <Button size="sm" onClick={() => setIsShowingLicences(!isShowingLicences)}>
+              {isShowingLicences ? 'Hide' : 'Show'}
+            </Button>
+          }
+        />
+        <SettingRow
+          label="Chromium's licences"
+          help={message || 'The engine underneath, and everything it includes, as one long page.'}
+          control={
+            <Button size="sm" onClick={() => void ask((api) => api.app.openChromiumLicences(), '').then(setMessage)}>
+              Open
+            </Button>
+          }
         />
       </SettingGroup>
+
+      {isShowingLicences && <LicencesList />}
     </>
   );
 }

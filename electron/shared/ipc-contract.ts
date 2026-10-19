@@ -135,6 +135,7 @@ export const CHANNELS = {
   'app.getInfo': 'app:get-info',
   'app.openExternal': 'app:open-external',
   'app.revealDiagnostics': 'app:reveal-diagnostics',
+  'app.openChromiumLicences': 'app:open-chromium-licences',
   'app.defaultBrowserStatus': 'app:default-browser-status',
   'app.spellcheckChoices': 'app:spellcheck-choices',
   'app.makeDefaultBrowser': 'app:make-default-browser',

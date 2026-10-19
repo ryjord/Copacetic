@@ -11,10 +11,11 @@
   "private": true,
   "main": "dist/electron/main/index.js",
   "scripts": {
+    "predev": "node scripts/build-licences.mjs",
     "dev": "cross-env NODE_ENV=development concurrently -k -n next,main,preload,electron -c cyan,magenta,yellow,green \"next dev --port 3000\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"npm run build:preload -- --watch\" \"wait-on http://localhost:3000 dist/electron/main/index.js dist/electron/preload/index.js && electron .\"",
     "dev:renderer": "next dev --port 3000",
     "build": "npm run build:renderer && npm run build:main && npm run filters:build",
-    "build:renderer": "next build",
+    "build:renderer": "node scripts/build-licences.mjs && next build",
     "build:main": "npm run clean:dist && tsc -p tsconfig.electron.json && npm run build:preload",
     "build:preload": "esbuild electron/preload/index.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outfile=dist/electron/preload/index.js",
     "start": "cross-env NODE_ENV=production electron .",
@@ -101,6 +102,12 @@
     "asar": true,
     "mac": {
       "category": "public.app-category.productivity",
+      "extraResources": [
+        {
+          "from": "node_modules/electron/dist/LICENSES.chromium.html",
+          "to": "LICENSES.chromium.html"
+        }
+      ],
       "target": [
         {
           "target": "dmg",

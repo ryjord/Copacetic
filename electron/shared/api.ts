@@ -203,6 +203,8 @@ export interface CopaceticApi {
     openExternal(url: string): Promise<void>;
     /** Show the diagnostics log in the file manager, so it can be read before it is shared. */
     revealDiagnostics(): Promise<void>;
+    /** Chromium's own licences, which ship as one large page beside the app. Resolves empty, or with why not. */
+    openChromiumLicences(): Promise<string>;
     /** What this platform will actually allow, so the control can say it. */
     defaultBrowserStatus(): Promise<DefaultBrowserStatus>;
     /** Empty when it worked or there was nothing to do; otherwise a sentence for the user. */

@@ -172,7 +172,7 @@ export const SETTINGS_PANES = [
     label: 'About',
     icon: Info,
     Component: AboutPane,
-    terms: ['Version', 'Licence', 'Diagnostics', 'Log'],
+    terms: ['Version', 'Licence', 'Licences', 'Open source', 'Chromium licences', 'Diagnostics', 'Log'],
   },
   {
     id: 'transparency',

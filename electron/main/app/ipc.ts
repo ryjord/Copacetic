@@ -14,6 +14,7 @@ import {
 } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/spellcheck';
 import { readClearChoice } from '../../shared/clearing';
+import { openChromiumLicences } from '../system/chromium-licences';
 import { conflictFor, readShortcutOverrides } from '../../shared/shortcuts';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
@@ -265,6 +266,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('app.getInfo', (browser) => browser.getAppInfo());
   handle('app.openExternal', (browser, _event, url) => browser.openExternal(asString(url)));
   handle('app.revealDiagnostics', (browser) => browser.revealDiagnostics());
+  handle('app.openChromiumLicences', () => openChromiumLicences());
   handle('app.defaultBrowserStatus', (_browser) => defaultBrowserStatus());
   handle('app.makeDefaultBrowser', (_browser) => makeDefaultBrowser());
   handle('app.spellcheckChoices', (browser) => browser.profile.sessions.spellcheckChoices());
