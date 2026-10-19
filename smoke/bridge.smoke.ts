@@ -31,6 +31,7 @@ describe('the bridge between the chrome and the main process', () => {
         'connections',
         'data',
         'downloads',
+        'favicons',
         'filters',
         'find',
         'groups',
