@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 
 // Icons
-import { ChevronDown, Folder, Inbox, List, Plus } from 'lucide-react';
+import { ChevronDown, Inbox, List, Plus } from 'lucide-react';
 
 // Utils
 import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
@@ -96,15 +96,13 @@ export function FolderTree({
 
   const rowClasses = (isSelected: boolean, isDropTarget: boolean) =>
     cn(
-      'group flex h-8 w-full items-center gap-2 rounded-md pr-2 text-[12.5px] transition-colors',
-      isSelected ? 'bg-active/45 text-ink' : 'text-ink-dim hover:bg-hover',
-      isDropTarget && 'outline outline-1 outline-line-strong',
+      'group flex min-h-8 w-full items-center gap-2 rounded-sm pr-2 text-body transition-colors',
+      isSelected ? 'bg-hover text-ink' : 'text-ink-dim hover:bg-hover hover:text-ink',
+      isDropTarget && 'outline outline-1 outline-ink-faint',
     );
 
   return (
-    <div className="flex w-60 shrink-0 flex-col gap-0.5 border-r border-line py-3 pl-3 pr-2">
-      <p className="px-2 pb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Folders</p>
-
+    <nav aria-label="Bookmark folders" className="flex w-60 shrink-0 flex-col gap-0.5 border-r border-line p-3">
       <button
         type="button"
         onClick={() => onSelect({ kind: 'all' })}
@@ -112,9 +110,9 @@ export function FolderTree({
         onDrop={(event) => handleDrop(event, null)}
         className={cn(rowClasses(selection.kind === 'all', false), 'pl-2')}
       >
-        <List size={13} className="shrink-0" />
+        <List size={16} strokeWidth={1.75} className="shrink-0" />
         <span className="flex-1 truncate text-left">All bookmarks</span>
-        <span className="shrink-0 font-mono text-[11px] text-ink-faint">{bookmarks.length}</span>
+        <span className="shrink-0 text-body-sm text-ink-faint tabular-nums">{bookmarks.length}</span>
       </button>
 
       {visibleTree(folders).map(({ folder, depth, hasChildren }) => {
@@ -147,19 +145,19 @@ export function FolderTree({
                 onClick={() => send((api) => api.bookmarkFolders.update(folder.id, { collapsed: !folder.collapsed }))}
                 className="shrink-0 rounded text-ink-faint transition-colors hover:text-ink"
               >
-                <ChevronDown size={11} className={cn('transition-transform', folder.collapsed && '-rotate-90')} />
+                <ChevronDown size={14} className={cn('transition-transform', folder.collapsed && '-rotate-90')} />
               </button>
             ) : (
-              <span className="w-[11px] shrink-0" aria-hidden />
+              <span className="w-3.5 shrink-0" aria-hidden />
             )}
 
-            <span className="size-2 shrink-0 rounded-[2px]" style={{ background: colour }} />
+            <span className="size-2 shrink-0 rounded-full" style={{ background: colour }} />
 
             {renamingId === folder.id ? (
               <InlineRenameField
                 value={folder.name}
                 label={folder.name}
-                className="h-5 flex-1 px-1 text-[12px]"
+                className="h-6 flex-1 px-1 text-body"
                 onCommit={(next) => {
                   send((api) => api.bookmarkFolders.update(folder.id, { name: next }));
                   onChanged();
@@ -175,18 +173,22 @@ export function FolderTree({
                   setDraggingId(folder.id);
                 }}
                 onDragEnd={() => setDraggingId(null)}
-                // Selecting and renaming are both a click on the same word, so
-                // the second click renames — the first has to be free to say
-                // which folder is being looked at.
-                onClick={() => (isSelected ? setRenamingId(folder.id) : onSelect({ kind: 'folder', id: folder.id }))}
-                title={`${folder.name} — click to open, click again to rename, right-click for more`}
-                className="min-w-0 flex-1 truncate text-left"
+                onClick={() => onSelect({ kind: 'folder', id: folder.id })}
+                // Renaming is asked for, by double-click, F2 or the folder's menu, never by a second click.
+                onDoubleClick={() => setRenamingId(folder.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'F2') {
+                    event.preventDefault();
+                    setRenamingId(folder.id);
+                  }
+                }}
+                className="min-w-0 flex-1 truncate py-1 text-left"
               >
                 {folder.name}
               </button>
             )}
 
-            <span className="shrink-0 font-mono text-[11px] text-ink-faint">{counted.withDescendants}</span>
+            <span className="shrink-0 text-body-sm text-ink-faint tabular-nums">{counted.withDescendants}</span>
           </div>
         );
       })}
@@ -200,9 +202,9 @@ export function FolderTree({
         onDrop={(event) => handleDrop(event, null)}
         className={cn(rowClasses(selection.kind === 'unfiled', false), 'pl-2')}
       >
-        <Inbox size={13} className="shrink-0" />
+        <Inbox size={16} strokeWidth={1.75} className="shrink-0" />
         <span className="flex-1 truncate text-left">Unfiled</span>
-        <span className="shrink-0 font-mono text-[11px] text-ink-faint">{unfiled}</span>
+        <span className="shrink-0 text-body-sm text-ink-faint tabular-nums">{unfiled}</span>
       </button>
 
       <div className="flex-1" />
@@ -221,12 +223,11 @@ export function FolderTree({
             setRenamingId(created.id);
           }
         }}
-        className="flex h-8 items-center gap-2 rounded-md pl-2 pr-2 text-[12px] text-ink-faint transition-colors hover:bg-hover hover:text-ink-dim"
+        className="flex h-8 items-center gap-2 rounded-sm px-2 text-body text-ink-dim transition-colors hover:bg-hover hover:text-ink"
       >
-        <Plus size={12} className="shrink-0" />
+        <Plus size={16} strokeWidth={1.75} className="shrink-0" />
         <span>New folder</span>
-        <Folder size={11} className="ml-auto opacity-0" aria-hidden />
       </button>
-    </div>
+    </nav>
   );
 }

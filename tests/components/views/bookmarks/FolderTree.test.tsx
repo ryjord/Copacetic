@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { BookmarkFolder } from '../../electron/shared/bookmark-folders';
-import type { Bookmark } from '../../electron/shared/types';
-import { DRAG_BOOKMARK, DRAG_FOLDER, FolderTree } from '../../src/components/views/bookmarks/FolderTree';
+import type { BookmarkFolder } from '../../../../electron/shared/bookmark-folders';
+import type { Bookmark } from '../../../../electron/shared/types';
+import { DRAG_BOOKMARK, DRAG_FOLDER, FolderTree } from '../../../../src/components/views/bookmarks/FolderTree';
 
 const file = vi.fn();
 const move = vi.fn();
@@ -123,15 +123,25 @@ describe('clicking a folder', () => {
     expect(onSelect).toHaveBeenCalledWith({ kind: 'folder', id: 'work' });
   });
 
-  it('renames it when it already is', () => {
+  // A second click used to rename, which nobody could discover and anybody could trigger by accident.
+  it('does not rename it when it is clicked again', () => {
     draw({ kind: 'folder', id: 'work' });
     fireEvent.click(screen.getByRole('button', { name: /^work$/ }));
+    expect(screen.queryByRole('textbox', { name: /Rename work/ })).toBeNull();
+  });
+
+  it.each([
+    ['a double-click', (row: HTMLElement) => fireEvent.doubleClick(row)],
+    ['F2', (row: HTMLElement) => fireEvent.keyDown(row, { key: 'F2' })],
+  ])('renames it on %s', (_how, ask) => {
+    draw({ kind: 'folder', id: 'work' });
+    ask(screen.getByRole('button', { name: /^work$/ }));
     expect(screen.getByRole('textbox', { name: /Rename work/ })).toBeTruthy();
   });
 
   it('keeps a new name when the field is left', () => {
     draw({ kind: 'folder', id: 'work' });
-    fireEvent.click(screen.getByRole('button', { name: /^work$/ }));
+    fireEvent.doubleClick(screen.getByRole('button', { name: /^work$/ }));
     const field = screen.getByRole('textbox', { name: /Rename work/ }) as HTMLInputElement;
     fireEvent.change(field, { target: { value: 'Client work' } });
     fireEvent.blur(field);
@@ -140,7 +150,7 @@ describe('clicking a folder', () => {
 
   it('discards the typing on Escape, and puts the old name back in the field', () => {
     draw({ kind: 'folder', id: 'work' });
-    fireEvent.click(screen.getByRole('button', { name: /^work$/ }));
+    fireEvent.doubleClick(screen.getByRole('button', { name: /^work$/ }));
     const field = screen.getByRole('textbox', { name: /Rename work/ }) as HTMLInputElement;
     fireEvent.change(field, { target: { value: 'Thrown away' } });
     fireEvent.keyDown(field, { key: 'Escape' });
