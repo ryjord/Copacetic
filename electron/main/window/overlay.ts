@@ -2,6 +2,7 @@ import { WebContentsView, type BaseWindow, type WebFrameMain } from 'electron';
 import { guardChromeWebContents } from '../security/security';
 import { chromeEntryUrl, preloadPath } from '../app/env';
 import type { ContentBounds } from '../tabs/tab-layout';
+import type { OverlayRegion } from '../../shared/overlay-regions';
 
 /**
  * The one layer in this window that can be drawn on top of a page.
@@ -13,19 +14,24 @@ import type { ContentBounds } from '../tabs/tab-layout';
  * something that may last four seconds.
  *
  * A view is the only thing that can sit above another view, so this is one:
- * transparent, stacked after the tabs, and no taller than what it is showing.
- * It is hidden outright when it has nothing to show, because a view of zero
- * useful height still swallows every click that lands on it.
+ * transparent, stacked after the tabs, and no larger than what it is showing.
+ * There are two, one held to each top corner of the page, because one view
+ * spanning both would swallow every click on the page between them. Each is
+ * hidden outright when it has nothing to show, for the same reason.
  */
 export class OverlayLayer {
   private readonly view: WebContentsView;
+  private width = 0;
   private height = 0;
   private bounds: ContentBounds = { x: 0, y: 0, width: 0, height: 0 };
   private isDisposed = false;
   /** Set by a question, spent the moment the overlay is actually on screen. */
   private wantsFocus = false;
 
-  constructor(private readonly window: BaseWindow) {
+  constructor(
+    private readonly window: BaseWindow,
+    private readonly region: OverlayRegion,
+  ) {
     this.view = new WebContentsView({
       webPreferences: {
         preload: preloadPath(),
@@ -49,7 +55,7 @@ export class OverlayLayer {
     // frame that navigated somewhere else would keep every privilege the whole
     // browser has — bookmarks, settings, the vault — so it is not allowed to.
     guardChromeWebContents(this.view.webContents);
-    void this.view.webContents.loadURL(`${chromeEntryUrl()}overlay/`);
+    void this.view.webContents.loadURL(`${chromeEntryUrl()}overlay/?region=${region}`);
   }
 
   /**
@@ -104,13 +110,14 @@ export class OverlayLayer {
   }
 
   /**
-   * How tall the overlay's own content is, measured by the overlay itself.
+   * How large the overlay's own content is, measured by the overlay itself.
    *
    * The main process cannot know how many lines a message wraps to, and a
-   * guessed height either clips the last row or leaves a transparent band that
+   * guessed size either clips the last row or leaves a transparent band that
    * still eats clicks.
    */
-  setHeight(height: number): void {
+  setSize(width: number, height: number): void {
+    this.width = Math.max(0, Math.round(width));
     this.height = Math.max(0, Math.round(height));
     this.apply();
   }
@@ -133,15 +140,17 @@ export class OverlayLayer {
       return;
     }
 
-    if (this.height === 0) {
+    if (this.width === 0 || this.height === 0) {
       this.view.setVisible(false);
       return;
     }
 
+    const width = Math.min(this.width, this.bounds.width);
     this.view.setBounds({
-      x: this.bounds.x,
+      // The content is laid out against the same corner, so moving the view never moves what it draws.
+      x: this.region === 'leading' ? this.bounds.x : this.bounds.x + this.bounds.width - width,
       y: this.bounds.y,
-      width: this.bounds.width,
+      width,
       height: Math.min(this.height, this.bounds.height),
     });
     // Re-added rather than merely shown: a tab created since the last notice

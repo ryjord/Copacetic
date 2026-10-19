@@ -1,20 +1,33 @@
 'use client';
 
-import { CaseSensitive, ChevronDown, ChevronUp, X } from 'lucide-react';
+// Libs
 import { useEffect, useRef, useState } from 'react';
-import type { FindState } from '@shared/types';
+
+// Components
 import { IconButton } from '@/components/ui/IconButton/IconButton';
-import { send } from '@/lib/bridge';
+
+// Icons
+import { CaseSensitive, ChevronDown, ChevronUp, X } from 'lucide-react';
+
+// Utils
+import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
-/** Find sits in the chrome column rather than floating over the page, because a WebContentsView always paints above the chrome's HTML. */
+// Types
+import type { FindState } from '@shared/types';
+
+/** Floats over the page's top-right corner in the trailing overlay, so opening it never moves the page. */
 export function FindBar({ find }: { find: FindState }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(find.query);
 
   useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
+    const focusField = () => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    };
+    focusField();
+    return getBridge()?.on.focusFind(focusField);
   }, []);
 
   useEffect(() => {
@@ -26,7 +39,11 @@ export function FindBar({ find }: { find: FindState }) {
   const hasMatches = find.totalMatches > 0;
 
   return (
-    <div className="flex h-[34px] items-center gap-2 border-t border-line bg-raised px-2.5">
+    <div
+      role="search"
+      aria-label="Find on page"
+      className="animate-pop flex h-11 w-[380px] items-center gap-1 rounded-lg border border-line bg-raised pl-3 pr-1.5 shadow-popover"
+    >
       <input
         ref={inputRef}
         value={draft}
@@ -44,42 +61,33 @@ export function FindBar({ find }: { find: FindState }) {
         placeholder="Find on page"
         aria-label="Find on page"
         spellCheck={false}
-        className="h-6 w-64 rounded bg-sunken px-2 text-[12px] text-ink outline-none placeholder:text-ink-faint"
+        className="h-full min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-faint"
       />
-
       <span
+        role="status"
         className={cn(
-          'min-w-[64px] font-mono text-[11px] tabular-nums',
+          'shrink-0 px-1.5 text-body-sm tabular-nums',
           hasQuery && !hasMatches ? 'text-alert' : 'text-ink-faint',
         )}
       >
         {hasQuery ? (hasMatches ? `${find.activeMatch} of ${find.totalMatches}` : 'No matches') : ''}
       </span>
-
       <IconButton
         label="Match case"
-        size="sm"
         tone={find.matchCase ? 'active' : 'default'}
+        aria-pressed={find.matchCase}
         onClick={() => send((api) => api.find.setMatchCase(!find.matchCase))}
       >
-        <CaseSensitive size={14} />
+        <CaseSensitive size={16} strokeWidth={1.75} />
       </IconButton>
-
-      <IconButton
-        label="Previous match"
-        size="sm"
-        disabled={!hasMatches}
-        onClick={() => send((api) => api.find.previous())}
-      >
-        <ChevronUp size={14} />
+      <IconButton label="Previous match" disabled={!hasMatches} onClick={() => send((api) => api.find.previous())}>
+        <ChevronUp size={16} strokeWidth={1.75} />
       </IconButton>
-
-      <IconButton label="Next match" size="sm" disabled={!hasMatches} onClick={() => send((api) => api.find.next())}>
-        <ChevronDown size={14} />
+      <IconButton label="Next match" disabled={!hasMatches} onClick={() => send((api) => api.find.next())}>
+        <ChevronDown size={16} strokeWidth={1.75} />
       </IconButton>
-
-      <IconButton label="Close find" size="sm" className="ml-auto" onClick={() => send((api) => api.find.stop())}>
-        <X size={14} />
+      <IconButton label="Close find" onClick={() => send((api) => api.find.stop())}>
+        <X size={16} strokeWidth={1.75} />
       </IconButton>
     </div>
   );

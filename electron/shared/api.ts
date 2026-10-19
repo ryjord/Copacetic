@@ -67,8 +67,8 @@ export interface CopaceticApi {
   chrome: {
     setContentInsets(insets: ContentInsetsInput): Promise<void>;
     setOverlayVisible(visible: boolean): Promise<void>;
-    /** Told by the overlay layer itself, which is the only thing that can measure it. */
-    setOverlayHeight(height: number): Promise<void>;
+    /** Told by an overlay layer itself, which is the only thing that can measure it. */
+    setOverlaySize(width: number, height: number): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;
@@ -145,6 +145,7 @@ export interface CopaceticApi {
     clearCompleted(): Promise<void>;
   };
   find: {
+    open(): Promise<void>;
     start(query: string): Promise<void>;
     next(): Promise<void>;
     previous(): Promise<void>;
@@ -272,5 +273,8 @@ export interface CopaceticApi {
 
     /** The group whose label should become editable, which is the one thing a native menu cannot do. */
     renameGroup(listener: (groupId: string) => void): Unsubscribe;
+
+    /** Find was asked for while already open. */
+    focusFind(listener: () => void): Unsubscribe;
   };
 }

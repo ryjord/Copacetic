@@ -18,6 +18,8 @@ export const PUSH = {
   notice: 'push:notice',
   /** A notice is finished with. Said so the layer drawing it can stop. */
   noticeSettled: 'push:notice-settled',
+  /** Find was asked for again while open, so its field should take the keyboard and select what it holds. */
+  focusFind: 'push:focus-find',
   /** The same, for a bookmark folder: a native menu cannot hold a text field. */
   renameBookmarkFolder: 'push:rename-bookmark-folder',
 } as const;

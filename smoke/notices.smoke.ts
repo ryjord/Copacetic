@@ -116,6 +116,7 @@ describe('a notice said before anyone was listening', () => {
       const window = BrowserWindow.getAllWindows()[0];
       return (
         window?.contentView.children.map((view) => ({
+          url: 'webContents' in view ? (view as Electron.WebContentsView).webContents.getURL() : '',
           bounds: view.getBounds(),
           visible: view.getVisible?.() ?? null,
         })) ?? []
@@ -126,18 +127,21 @@ describe('a notice said before anyone was listening', () => {
     // The chrome does not give up a pixel for it, which is the whole point.
     expect(after).toBe(before);
 
-    // Last in the list is last painted, which is what puts it above the page.
-    const overlay = layers.at(-1);
-    const page = layers.at(-2);
+    const overlay = layers.find((layer) => layer.url.includes('region=trailing'));
+    const page = layers.find((layer) => layer.visible && layer.url.startsWith('https://example.com'));
+    // Last painted is what puts it above the page.
+    expect(layers.findIndex((layer) => layer === overlay)).toBeGreaterThan(
+      layers.findIndex((layer) => layer === page),
+    );
     expect(overlay?.visible).toBe(true);
     expect(overlay?.bounds.height).toBeGreaterThan(0);
 
-    // Sitting exactly where the page sits, rather than anywhere else that
-    // happens to be near it: the two must be measured from the same rectangle
-    // or the overlay drifts away from the thing it is covering.
-    expect(overlay?.bounds.x).toBe(page?.bounds.x);
-    expect(overlay?.bounds.width).toBe(page?.bounds.width);
+    // Held to the page's top-right corner and no wider than the card, so the rest of the page still takes clicks.
     expect(overlay?.bounds.y).toBe(page?.bounds.y);
+    expect((overlay?.bounds.x ?? 0) + (overlay?.bounds.width ?? 0)).toBe(
+      (page?.bounds.x ?? 0) + (page?.bounds.width ?? 0),
+    );
+    expect(overlay?.bounds.width).toBeLessThan((page?.bounds.width ?? 0) / 2);
 
     const drawn = await copacetic.overlay.evaluate(
       () => document.querySelector('[role="status"]')?.textContent ?? '',

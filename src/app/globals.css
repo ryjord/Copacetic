@@ -164,6 +164,11 @@
     cursor: default;
   }
 
+  /* An overlay view is sized to what it draws; anything opaque around that would cover the page. */
+  body:has([data-overlay-region]) {
+    background-color: transparent;
+  }
+
   input,
   textarea {
     user-select: text;

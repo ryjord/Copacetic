@@ -141,7 +141,9 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('chrome.openMainMenu', (_event, x, y) =>
     showMainMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
-  handle('chrome.setOverlayHeight', (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
+  handle('chrome.setOverlaySize', (event, width, height) =>
+    browser.setOverlaySize(event.senderFrame, asNumber(width, 0), asNumber(height, 0)),
+  );
   handle('favicons.forUrls', (_event, urls) => browser.store.faviconsFor(pickUrls(urls)));
   handle('filters.update', () => browser.updateFilterLists());
   handle('bookmarks.file', (_event, id, folderId) => {
@@ -179,10 +181,11 @@ export function registerIpcHandlers(browser: Browser): void {
 
   // ------------------------------------------------------------------- find
 
+  handle('find.open', () => browser.openFind());
   handle('find.start', (_event, query) => browser.tabs.startFind(asString(query)));
   handle('find.next', () => browser.tabs.findNext(true));
   handle('find.previous', () => browser.tabs.findNext(false));
-  handle('find.stop', () => browser.tabs.stopFind());
+  handle('find.stop', () => browser.stopFind());
   handle('find.setMatchCase', (_event, matchCase) => browser.tabs.setFindMatchCase(matchCase === true));
 
   // --------------------------------------------------------------- settings

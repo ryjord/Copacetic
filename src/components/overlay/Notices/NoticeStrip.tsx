@@ -1,7 +1,11 @@
 'use client';
 
-// React
+// Libs
 import { useEffect, useState } from 'react';
+
+// Components
+import { Button } from '@/components/ui/Button/Button';
+import { IconButton } from '@/components/ui/IconButton/IconButton';
 
 // Icons
 import { Check, CircleAlert, Info, X } from 'lucide-react';
@@ -14,20 +18,12 @@ import { cn } from '@/lib/utils';
 import { type Notice, admit, dismiss, dismissAfterMs } from '@shared/notices';
 
 const LOOK: Record<Notice['tone'], { icon: typeof Info; className: string }> = {
-  info: { icon: Info, className: 'border-active/35 bg-active/10' },
-  done: { icon: Check, className: 'border-clear/30 bg-clear/10' },
-  ask: { icon: CircleAlert, className: 'border-caution/35 bg-caution/10' },
+  info: { icon: Info, className: 'text-ink-dim' },
+  done: { icon: Check, className: 'text-clear' },
+  ask: { icon: CircleAlert, className: 'text-caution' },
 };
 
-/**
- * What the app has to say.
- *
- * Rendered into the overlay layer rather than the chrome — see
- * `electron/main/app/overlay.ts`. A WebContentsView paints above all of the
- * chrome's HTML, so a notice drawn there could only take space from the page,
- * never sit on top of it. In a view of its own it floats, and nothing moves for
- * something that may last four seconds.
- */
+/** What the app has to say, as cards over the page's top-right corner, so nothing moves for something that lasts four seconds. */
 export function NoticeStrip() {
   const [notices, setNotices] = useState<Notice[]>([]);
 
@@ -79,39 +75,32 @@ export function NoticeStrip() {
   };
 
   return (
-    <div className="flex shrink-0 flex-col">
+    <div className="flex flex-col items-end gap-2">
       {notices.map((notice) => {
         const { icon: Icon, className } = LOOK[notice.tone];
-
         return (
           <div
             key={notice.id}
             role="status"
-            className={cn('flex items-center gap-2.5 border-b px-3 py-2 text-[12px]', className)}
+            className="animate-pop flex w-[340px] items-start gap-2.5 rounded-lg border border-line bg-raised py-2.5 pl-3 pr-1.5 shadow-popover"
           >
-            <Icon size={13} className="shrink-0 text-ink-dim" />
-            <span className="min-w-0 flex-1 text-ink-dim">{notice.message}</span>
-
-            {notice.tone === 'ask' && notice.confirm && (
-              <button
-                type="button"
-                onClick={() => answer(notice, true)}
-                className="shrink-0 rounded-field border border-line-strong px-2.5 py-1 text-[11.5px] text-ink transition-colors hover:bg-raised"
-              >
-                {notice.confirm}
-              </button>
-            )}
-
-            <button
-              type="button"
-              // A question that is closed is a question answered with no, which
-              // is a real answer and has to reach whatever asked it.
-              aria-label={notice.tone === 'ask' ? 'No' : 'Dismiss'}
+            <Icon size={16} strokeWidth={1.75} className={cn('mt-px shrink-0', className)} aria-hidden />
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-2 pt-px">
+              <p className="text-body text-ink">{notice.message}</p>
+              {notice.tone === 'ask' && notice.confirm && (
+                <Button size="sm" variant="primary" onClick={() => answer(notice, true)}>
+                  {notice.confirm}
+                </Button>
+              )}
+            </div>
+            <IconButton
+              // A question that is closed is a question answered with no, which is a real answer.
+              label={notice.tone === 'ask' ? 'No' : 'Dismiss'}
+              size="sm"
               onClick={() => answer(notice, false)}
-              className="shrink-0 rounded p-0.5 text-ink-faint transition-colors hover:text-ink"
             >
-              <X size={12} />
-            </button>
+              <X size={14} strokeWidth={1.75} />
+            </IconButton>
           </div>
         );
       })}

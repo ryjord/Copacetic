@@ -45,6 +45,7 @@ import { createSecurityDelegate, watchAuthChallenges } from '../security/browser
 import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
 import { OverlayLayer } from '../window/overlay';
+import type { OverlayRegion } from '../../shared/overlay-regions';
 import { VaultSession } from '../vault/vault-session';
 import { log } from '../system/diagnostics';
 import { UpdateManager } from '../system/updates';
@@ -89,7 +90,10 @@ export class Browser {
     this.window = createChromeWindow();
     this.publisher = new StatePublisher({
       snapshot: () => this.getState(),
-      send: (patch) => this.window.webContents.send(PUSH.state, patch),
+      send: (patch) => {
+        this.window.webContents.send(PUSH.state, patch);
+        this.eachOverlay((overlay) => overlay.send(PUSH.state, patch));
+      },
       canSend: () => !this.window.isDestroyed() && !this.window.webContents.isDestroyed(),
       // The tabs changed often enough to be worth telling the interface about,
       // which is exactly when they are worth writing down. The session file has
@@ -165,15 +169,18 @@ export class Browser {
       // moves whenever a row of the chrome opens or closes, not only on a
       // resize, and an overlay refreshed only with its own height stayed where
       // it was while the page moved out from under it.
-      (bounds) => this.overlay?.setContentBounds(bounds),
+      (bounds) => this.eachOverlay((overlay) => overlay.setContentBounds(bounds)),
     );
 
-    this.overlay = new OverlayLayer(this.window);
-    this.overlay.setContentBounds(this.tabs.contentBounds());
+    this.overlays = {
+      leading: new OverlayLayer(this.window, 'leading'),
+      trailing: new OverlayLayer(this.window, 'trailing'),
+    };
+    this.eachOverlay((overlay) => overlay.setContentBounds(this.tabs.contentBounds()));
 
     const changed = () => this.scheduleStatePush();
     const push = (channel: string, payload?: unknown) => this.pushToChrome(channel, payload);
-    this.notices = new NoticeCentre({ overlay: this.overlay });
+    this.notices = new NoticeCentre({ overlay: this.overlays.trailing });
     this.bookmarks = new BookmarkCommands({ store: this.store, changed, push });
     this.groups = new GroupCommands({
       store: this.store,
@@ -382,8 +389,19 @@ export class Browser {
     }
   }
 
-  /** The only layer in this window that can be drawn on top of a page. */
-  private readonly overlay: OverlayLayer;
+  /** The only layers in this window that can be drawn on top of a page, one held to each top corner. */
+  private readonly overlays: Record<OverlayRegion, OverlayLayer>;
+
+  private eachOverlay(action: (overlay: OverlayLayer) => void): void {
+    // Unset while the tab manager is being built, which reports bounds before the overlays exist.
+    if (this.overlays) {
+      Object.values(this.overlays).forEach(action);
+    }
+  }
+
+  private overlayFor(frame: WebFrameMain | null): OverlayLayer | null {
+    return Object.values(this.overlays).find((overlay) => overlay.ownsFrame(frame)) ?? null;
+  }
 
   /**
    * Whether a frame asking for something is one of this browser's own.
@@ -393,7 +411,7 @@ export class Browser {
    * preload to ask with in the first place.
    */
   isOwnFrame(frame: WebFrameMain | null): boolean {
-    return frame === this.window.webContents.mainFrame || this.overlay.ownsFrame(frame);
+    return frame === this.window.webContents.mainFrame || this.overlayFor(frame) !== null;
   }
 
   /**
@@ -422,10 +440,24 @@ export class Browser {
     return { ok: outcome.ok, message };
   }
 
-  /** How tall the overlay's own content is, which only the overlay can measure. */
-  setOverlayHeight(height: number): void {
-    this.overlay.setContentBounds(this.tabs.contentBounds());
-    this.overlay.setHeight(height);
+  /** How large an overlay's own content is, which only that overlay can measure. */
+  setOverlaySize(frame: WebFrameMain | null, width: number, height: number): void {
+    const overlay = this.overlayFor(frame);
+    overlay?.setContentBounds(this.tabs.contentBounds());
+    overlay?.setSize(width, height);
+  }
+
+  /** Opens find, or brings the keyboard back to it if it is already open. */
+  openFind(): void {
+    this.tabs.openFind();
+    this.overlays.trailing.takeFocus();
+    this.overlays.trailing.send(PUSH.focusFind);
+  }
+
+  stopFind(): void {
+    this.tabs.stopFind();
+    // The field that had the keyboard is gone, so it goes back to the page it was searching.
+    this.tabs.focusActive();
   }
 
   openDownloadsFolder(): void {
@@ -481,7 +513,7 @@ export class Browser {
   private dispose(): void {
     this.prepareForQuit();
     this.updates.stop();
-    this.overlay.dispose();
+    this.eachOverlay((overlay) => overlay.dispose());
     this.tabs.dispose();
     this.prompts.settleAll();
     this.stopWatchingAuth();

@@ -800,7 +800,7 @@ export class TabManager {
     this.onChanged();
   }
 
-  private focusActive(): void {
+  focusActive(): void {
     const tab = this.activeTab();
     if (!tab || tab.isStartPage || tab.error) {
       return;

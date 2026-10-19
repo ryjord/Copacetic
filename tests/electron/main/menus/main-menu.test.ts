@@ -11,7 +11,8 @@ const opened: string[] = [];
 function fakeBrowser({ hasClosedTabs = true } = {}) {
   return {
     commands: { newTab: () => {}, newHushTab: () => {}, reopenClosedTab: () => {}, printActiveTab: () => {} },
-    tabs: { hasClosedTabs: () => hasClosedTabs, openFind: () => {} },
+    tabs: { hasClosedTabs: () => hasClosedTabs },
+    openFind: () => {},
     openSurface: (surface: string) => opened.push(surface),
   } as never;
 }

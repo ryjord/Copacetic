@@ -30,6 +30,7 @@ const api = {
     notice: (listener: (notice: Notice) => void) => subscribe(PUSH.notice, listener),
     noticeSettled: (listener: (id: string) => void) => subscribe(PUSH.noticeSettled, listener),
     renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),
+    focusFind: (listener: () => void) => subscribe(PUSH.focusFind, listener),
   },
 } as CopaceticApi;
 

@@ -74,7 +74,7 @@ export function buildApplicationMenu(browser: Browser): Menu {
         accelerator: 'CmdOrCtrl+L',
         click: () => browser.focusOmnibox(),
       },
-      { label: 'Find on page…', accelerator: 'CmdOrCtrl+F', click: () => browser.tabs.openFind() },
+      { label: 'Find on page…', accelerator: 'CmdOrCtrl+F', click: () => browser.openFind() },
       { label: 'Find next', accelerator: 'CmdOrCtrl+G', click: () => browser.tabs.findNext(true) },
       { label: 'Find previous', accelerator: 'CmdOrCtrl+Shift+G', click: () => browser.tabs.findNext(false) },
     ],

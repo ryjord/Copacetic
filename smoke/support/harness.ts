@@ -54,8 +54,10 @@ export class SmokeApp {
     private readonly app: ElectronApplication,
     readonly chrome: Page,
     readonly profile: string,
-    /** The layer drawn above the page. A view of its own, so a page of its own. */
+    /** The layer drawn over the page's top-right corner, where find and notices are. A view of its own, so a page of its own. */
     readonly overlay: Page,
+    /** The layer drawn over the page's top-left corner, where a site's questions are. */
+    readonly leading: Page,
   ) {}
 
   /**
@@ -102,10 +104,12 @@ export class SmokeApp {
     // went to the chrome, found a button that happened to match, and the spec
     // failed somewhere else entirely. A missing overlay is a failure with a
     // name now, not a silent substitution.
-    const overlay = await windowWhere((url) => url.includes('/overlay'), 'overlay layer');
+    const overlay = await windowWhere((url) => url.includes('region=trailing'), 'trailing overlay');
     await overlay.waitForLoadState('domcontentloaded');
+    const leading = await windowWhere((url) => url.includes('region=leading'), 'leading overlay');
+    await leading.waitForLoadState('domcontentloaded');
 
-    return new SmokeApp(app, chrome, profile, overlay);
+    return new SmokeApp(app, chrome, profile, overlay, leading);
   }
 
   /**

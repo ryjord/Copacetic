@@ -54,7 +54,7 @@ export const CHANNELS = {
 
   'chrome.setContentInsets': 'chrome:set-content-insets',
   'chrome.setOverlayVisible': 'chrome:set-overlay-visible',
-  'chrome.setOverlayHeight': 'chrome:set-overlay-height',
+  'chrome.setOverlaySize': 'chrome:set-overlay-size',
   'chrome.getState': 'chrome:get-state',
   'chrome.pendingSurface': 'surface:pending',
   'chrome.openMainMenu': 'chrome:open-main-menu',
@@ -101,6 +101,7 @@ export const CHANNELS = {
   'downloads.remove': 'downloads:remove',
   'downloads.clearCompleted': 'downloads:clear-completed',
 
+  'find.open': 'find:open',
   'find.start': 'find:start',
   'find.next': 'find:next',
   'find.previous': 'find:previous',

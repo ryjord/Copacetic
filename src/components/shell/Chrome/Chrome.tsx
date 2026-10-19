@@ -16,7 +16,6 @@ import { reachedForAnotherTab } from '@shared/surfaces';
 import { AuthBanner } from '@/components/overlay/AuthPrompt/AuthBanner';
 import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
 import { ConnectionPanel } from '@/components/overlay/SiteInfo/ConnectionPanel';
-import { FindBar } from '@/components/overlay/FindBar/FindBar';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
 import { PermissionBanner } from '@/components/overlay/PermissionPrompt/PermissionBanner';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
@@ -31,7 +30,6 @@ export function Chrome() {
 
   const isReady = useBrowserStore((state) => state.isReady);
   const surface = useBrowserStore((state) => state.surface);
-  const find = useBrowserStore((state) => state.find);
   const theme = useBrowserStore((state) => state.settings.theme);
   const permissionPrompts = useBrowserStore((state) => state.permissionPrompts);
   const tabs = useBrowserStore((state) => state.orderedTabs);
@@ -119,7 +117,7 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [find.isOpen, permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length, showBookmarksBar]);
+  }, [permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length, showBookmarksBar]);
 
   /*
    * Reaching for a tab is asking to see it. The first state arriving is not.
@@ -195,7 +193,6 @@ export function Chrome() {
 
       {authPrompt && <AuthBanner key={authPrompt.id} prompt={authPrompt} />}
       {isConnectionPanelOpen && <ConnectionPanel tab={activeTab} />}
-      {find.isOpen && <FindBar find={find} />}
       {prompt && <PermissionBanner prompt={prompt} />}
 
       <LiveAnnouncer />

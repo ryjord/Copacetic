@@ -126,7 +126,7 @@ export function CommandPalette() {
             label: 'Find on page',
             accelerator: 'CmdOrCtrl+F',
             group: 'Page',
-            run: then(() => send((api) => api.find.start(''))),
+            run: then(() => send((api) => api.find.open())),
           },
           {
             id: 'bookmark',

@@ -20,7 +20,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     { label: 'History', ...shortcut('CmdOrCtrl+Y'), click: () => browser.openSurface('history') },
     { label: 'Downloads', ...shortcut('CmdOrCtrl+Shift+J'), click: () => browser.openSurface('downloads') },
     { type: 'separator' },
-    { label: 'Find on page…', ...shortcut('CmdOrCtrl+F'), click: () => browser.tabs.openFind() },
+    { label: 'Find on page…', ...shortcut('CmdOrCtrl+F'), click: () => browser.openFind() },
     { label: 'Print…', ...shortcut('CmdOrCtrl+P'), click: () => browser.commands.printActiveTab() },
     { type: 'separator' },
     { label: 'Command palette', ...shortcut('CmdOrCtrl+K'), click: () => browser.openSurface('palette') },
