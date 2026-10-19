@@ -8,6 +8,7 @@ import { ClearBrowsingDialog } from '@/components/views/clearing/ClearBrowsingDi
 import { Button } from '@/components/ui/Button/Button';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
+import { SavedSessions } from '@/components/views/settings/data/SavedSessions';
 
 // Utils
 import { ask, send } from '@/lib/bridge/bridge';
@@ -91,6 +92,8 @@ export function DataPane() {
           ))
         )}
       </SettingGroup>
+
+      <SavedSessions />
 
       <SettingGroup title={t('settings.data.export.title')}>
         <SettingRow

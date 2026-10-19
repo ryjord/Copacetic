@@ -490,6 +490,16 @@ export const settings = {
     },
   },
   data: {
+    sessions: {
+      title: 'Saved sessions',
+      empty: 'No saved sessions',
+      emptyHelp: 'Save a window’s tabs from the menu beside the new tab button, and they are kept here by name.',
+      detail: '{tabs}, saved {date}',
+      tabCount: { one: '{count} tab', other: '{count} tabs' },
+      open: 'Open',
+      rename: 'Rename',
+      remove: 'Delete',
+    },
     browsing: {
       title: 'Browsing data',
       label: 'Clear browsing data',
