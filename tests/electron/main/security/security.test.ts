@@ -194,6 +194,19 @@ describe('permissions a page asks for', () => {
     expect(delegated.remembered).toEqual({});
   });
 
+  // With no page to ask, persistence was assumed, and a decision was written that nothing could vouch for.
+  it('keeps nothing when the request comes from no known page', async () => {
+    delegated.answerWith('allow', true);
+    await (fake.captured.request as unknown as (c: unknown, p: string, cb: (v: boolean) => void, d: unknown) => void)(
+      null,
+      'notifications',
+      () => {},
+      { requestingUrl: 'https://example.com/page' },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(delegated.remembered).toEqual({});
+  });
+
   it('keeps nothing for a Hush tab, even when remembering was ticked', async () => {
     delegated.answerWith('allow', true);
     const hushSession = { isPersistent: () => false };

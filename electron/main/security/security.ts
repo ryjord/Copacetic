@@ -231,7 +231,8 @@ async function resolvePermission(
     description: prompted.description,
   });
   // Never for a Hush tab, ticked or not: the decision is keyed by origin, so it would write the site's name to disk.
-  if (answer.remember && contents?.session.isPersistent() !== false) {
+  // Only a page known to be in a persistent session: without one, remembering would be a guess that writes to disk.
+  if (answer.remember && contents?.session.isPersistent() === true) {
     delegate.rememberDecision(origin, prompted.kind, answer.decision);
   }
   return answer.decision === 'allow';
