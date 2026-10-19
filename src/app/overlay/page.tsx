@@ -18,6 +18,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
+import { useInterfaceTokens } from '@/lib/state/useInterfaceTokens';
 
 // Types
 import { type OverlayRegion, isOverlayRegion } from '@shared/chrome/overlay-regions';
@@ -33,6 +34,7 @@ export default function OverlayPage() {
   const region = useRegion();
   const applyState = useBrowserStore((state) => state.applyState);
   const ref = useRef<HTMLDivElement>(null);
+  useInterfaceTokens();
 
   useEffect(() => {
     const api = getBridge();

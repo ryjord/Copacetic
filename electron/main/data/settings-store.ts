@@ -1,10 +1,14 @@
 // Utils
 import {
+  isAccentColour,
   isAppearanceId,
+  isInterfaceTextSize,
   isSleepAfterMinutes,
   isThemeId,
   isWebRtcPolicy,
   readPermissionDefaults,
+  readToolbarItems,
+  readWallpaperDim,
 } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
 import { readShortcutOverrides } from '../../shared/chrome/shortcuts';
@@ -23,6 +27,11 @@ export const DEFAULT_SETTINGS: Settings = {
   appearance: 'system',
   theme: 'deep',
   density: 'comfortable',
+  accentColour: 'blue',
+  interfaceTextSize: 'default',
+  toolbarItems: ['bookmarks', 'profile', 'downloads'],
+  wallpaperDim: 0,
+  wallpaperBlur: false,
   httpsFirst: true,
   blockTrackers: true,
   restoreTabsOnLaunch: true,
@@ -193,6 +202,13 @@ function reviveSettings(raw: unknown): Settings | null {
     appearance: isAppearanceId(appearance) ? appearance : DEFAULT_SETTINGS.appearance,
     theme: isThemeId(theme) ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',
+    accentColour: isAccentColour(raw.accentColour) ? raw.accentColour : DEFAULT_SETTINGS.accentColour,
+    interfaceTextSize: isInterfaceTextSize(raw.interfaceTextSize)
+      ? raw.interfaceTextSize
+      : DEFAULT_SETTINGS.interfaceTextSize,
+    toolbarItems: readToolbarItems(raw.toolbarItems) ?? DEFAULT_SETTINGS.toolbarItems,
+    wallpaperDim: readWallpaperDim(raw.wallpaperDim) ?? DEFAULT_SETTINGS.wallpaperDim,
+    wallpaperBlur: raw.wallpaperBlur === true,
     // An unknown resolver falls back to the system rather than to one nobody chose.
     dnsMode: asString(raw.dnsMode) === 'encrypted' ? 'encrypted' : 'system',
     dnsResolverId: resolverFor(asString(raw.dnsResolverId)) ? asString(raw.dnsResolverId) : DEFAULT_RESOLVER_ID,

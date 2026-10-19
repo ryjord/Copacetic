@@ -258,6 +258,8 @@ export const settings = {
         slate: 'Slate',
         ember: 'Ember',
         moss: 'Moss',
+        dusk: 'Dusk',
+        sand: 'Sand',
       },
       shade: {
         label: 'Shade',

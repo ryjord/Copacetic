@@ -50,6 +50,8 @@ const THEME_LABELS: Record<ThemeId, string> = {
   slate: t('settings.appearance.startPage.colour.slate'),
   ember: t('settings.appearance.startPage.colour.ember'),
   moss: t('settings.appearance.startPage.colour.moss'),
+  dusk: t('settings.appearance.startPage.colour.dusk'),
+  sand: t('settings.appearance.startPage.colour.sand'),
 };
 
 const ZOOM_LEVELS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2].map((level) => ({

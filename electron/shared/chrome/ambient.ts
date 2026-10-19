@@ -14,12 +14,14 @@ export interface Hsl {
   l: number;
 }
 
-/** The four atmospheres, as the stylesheet defines them. Kept in step with globals.css by the test that reads both. */
+/** The atmospheres, as the stylesheet defines them. Kept in step with globals.css by the test that reads both. */
 export const AMBIENT_NEAR: Record<string, string> = {
   deep: '#123043',
   slate: '#1e2730',
   ember: '#3a1f21',
   moss: '#16302a',
+  dusk: '#2a2140',
+  sand: '#352d22',
 };
 
 export const AMBIENT_FAR: Record<string, string> = {
@@ -27,14 +29,18 @@ export const AMBIENT_FAR: Record<string, string> = {
   slate: '#2a3440',
   ember: '#46281c',
   moss: '#1d3a2b',
+  dusk: '#3a2234',
+  sand: '#3a3424',
 };
 
-/** The same four, for the light appearance: the same hues, lifted so the clock stays readable on them. */
+/** The same ones, for the light appearance: the same hues, lifted so the clock stays readable on them. */
 export const AMBIENT_NEAR_LIGHT: Record<string, string> = {
   deep: '#d4e5f0',
   slate: '#dfe5ea',
   ember: '#f2e0da',
   moss: '#d9ebe2',
+  dusk: '#e2dcef',
+  sand: '#efe6d6',
 };
 
 export const AMBIENT_FAR_LIGHT: Record<string, string> = {
@@ -42,6 +48,8 @@ export const AMBIENT_FAR_LIGHT: Record<string, string> = {
   slate: '#e3e7ed',
   ember: '#f2e6da',
   moss: '#dfebe0',
+  dusk: '#eedcea',
+  sand: '#ede9d8',
 };
 
 export function hexToHsl(hex: string): Hsl | null {

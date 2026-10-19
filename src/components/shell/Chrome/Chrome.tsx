@@ -24,6 +24,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { getBridge, isRunningInShell, send } from '@/lib/bridge/bridge';
 import { isMacPlatform } from '@/lib/platform';
+import { useInterfaceTokens } from '@/lib/state/useInterfaceTokens';
 import { ambientLightStopsFor, ambientStopsFor } from '@shared/chrome/ambient';
 import { t } from '@shared/i18n/translate';
 import { reachedForAnotherTab } from '@shared/tabs/surfaces';
@@ -43,7 +44,6 @@ export function Chrome() {
   const activeTabId = useBrowserStore((state) => state.activeTabId);
   const split = useBrowserStore((state) => shownSplit(state.split, state.activeTabId));
 
-  const density = useBrowserStore((state) => state.settings.density);
   const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
   const showBookmarksBar = useBrowserStore((state) => state.settings.showBookmarksBar);
@@ -157,9 +157,7 @@ export function Chrome() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  useEffect(() => {
-    document.documentElement.dataset.density = density;
-  }, [density]);
+  useInterfaceTokens();
 
   // Turned here rather than by a filter, so what the settings pane names is
   // what the start page paints.

@@ -334,7 +334,7 @@ export interface SearchEngine {
  * check a string against them at runtime and a union cannot be checked. The
  * type is derived from the list so the two cannot disagree.
  */
-export const THEME_IDS = ['deep', 'slate', 'ember', 'moss'] as const;
+export const THEME_IDS = ['deep', 'slate', 'ember', 'moss', 'dusk', 'sand'] as const;
 
 /** Light or dark for the whole interface; `system` follows the operating system. */
 export const APPEARANCES = ['system', 'light', 'dark'] as const;
@@ -343,6 +343,46 @@ export type AppearanceId = (typeof APPEARANCES)[number];
 
 export function isAppearanceId(value: string): value is AppearanceId {
   return (APPEARANCES as readonly string[]).includes(value);
+}
+
+/** Interaction colour choices. None is green, amber, red or violet: those mean secure, warning, danger and Hush, whatever is chosen here. */
+export const ACCENT_COLOURS = ['blue', 'indigo', 'teal', 'rose', 'graphite'] as const;
+
+export type AccentColour = (typeof ACCENT_COLOURS)[number];
+
+export function isAccentColour(value: unknown): value is AccentColour {
+  return (ACCENT_COLOURS as readonly unknown[]).includes(value);
+}
+
+export const INTERFACE_TEXT_SIZES = ['small', 'default', 'large', 'larger'] as const;
+
+export type InterfaceTextSize = (typeof INTERFACE_TEXT_SIZES)[number];
+
+export function isInterfaceTextSize(value: unknown): value is InterfaceTextSize {
+  return (INTERFACE_TEXT_SIZES as readonly unknown[]).includes(value);
+}
+
+/** Buttons the toolbar can show beside the address bar. Back, forward, reload and the menu are always there. */
+export const TOOLBAR_ITEMS = ['home', 'bookmarks', 'reader', 'split', 'profile', 'downloads'] as const;
+
+export type ToolbarItemId = (typeof TOOLBAR_ITEMS)[number];
+
+export function readToolbarItems(raw: unknown): ToolbarItemId[] | null {
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  // Kept in the list's own order, so the toolbar draws them the same way whatever order they were ticked in.
+  return TOOLBAR_ITEMS.filter((item) => raw.includes(item));
+}
+
+/** How far a start page photo is darkened, in percent; capped so the photo never disappears entirely. */
+export const WALLPAPER_DIM_MAX = 80;
+
+export function readWallpaperDim(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+    return null;
+  }
+  return Math.min(WALLPAPER_DIM_MAX, Math.max(0, Math.round(raw)));
 }
 
 /**
@@ -492,6 +532,11 @@ export interface Settings {
   /** The start page's colour, and nothing else's. */
   theme: ThemeId;
   density: DensityId;
+  accentColour: AccentColour;
+  interfaceTextSize: InterfaceTextSize;
+  toolbarItems: ToolbarItemId[];
+  wallpaperDim: number;
+  wallpaperBlur: boolean;
   /** Rewrite `http://` navigations to `https://` and fall back only on failure. */
   httpsFirst: boolean;
   blockTrackers: boolean;

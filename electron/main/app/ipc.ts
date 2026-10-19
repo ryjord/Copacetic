@@ -9,12 +9,16 @@ import { resolverFor } from '../../shared/browsing/dns';
 import { generatePassword, readRecipe } from '../../shared/passwords/password-generator';
 import {
   clampZoom,
+  isAccentColour,
   isAppearanceId,
+  isInterfaceTextSize,
   isSleepAfterMinutes,
   isThemeId,
   isPermissionDecisionKey,
   isWebRtcPolicy,
   readPermissionDefaults,
+  readToolbarItems,
+  readWallpaperDim,
 } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
 import { readClearChoice } from '../../shared/data/clearing';
@@ -629,6 +633,23 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (value.density === 'comfortable' || value.density === 'compact') {
     patch.density = value.density;
+  }
+  if (isAccentColour(value.accentColour)) {
+    patch.accentColour = value.accentColour;
+  }
+  if (isInterfaceTextSize(value.interfaceTextSize)) {
+    patch.interfaceTextSize = value.interfaceTextSize;
+  }
+  const toolbarItems = readToolbarItems(value.toolbarItems);
+  if (toolbarItems) {
+    patch.toolbarItems = toolbarItems;
+  }
+  const wallpaperDim = readWallpaperDim(value.wallpaperDim);
+  if (wallpaperDim !== null) {
+    patch.wallpaperDim = wallpaperDim;
+  }
+  if (typeof value.wallpaperBlur === 'boolean') {
+    patch.wallpaperBlur = value.wallpaperBlur;
   }
   if (typeof value.checkForUpdates === 'boolean') {
     patch.checkForUpdates = value.checkForUpdates;
