@@ -73,10 +73,9 @@ describe('more than one window', () => {
         ?.close(),
     );
     expect(await until(async () => (await windowCount()) === 1)).toBe(true);
-    const state = await copacetic
-      .chromePages()
-      .at(-1)!
-      .evaluate(async () => (await window.copacetic.chrome.getState()).tabs.length);
+    // The closed window's page can linger in the list for a moment on Windows, so the survivor is chosen by being open.
+    const survivor = copacetic.chromePages().find((page) => !page.isClosed());
+    const state = await survivor!.evaluate(async () => (await window.copacetic.chrome.getState()).tabs.length);
     expect(state).toBeGreaterThan(0);
   }, 60_000);
 });

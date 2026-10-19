@@ -127,7 +127,9 @@ function copyleftNativesIn(root) {
   return found;
 }
 
-const { FuseState, FuseV1Options, getCurrentFuseWire } = fuses;
+const { FuseV1Options, getCurrentFuseWire } = fuses;
+// The wire's own bytes, ASCII 1 and 0; the package does not export its names for them.
+const FuseState = { ENABLE: 49, DISABLE: 48 };
 const binary = packagedBinary();
 console.log(`Starting ${path.relative(process.cwd(), binary)}`);
 
