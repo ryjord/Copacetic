@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({
   Menu: { buildFromTemplate: () => ({ popup: () => {} }) },
+  shell: { openExternal: async () => {} },
 }));
 
 const { mainMenuItems } = await import('../../../../electron/main/menus/main-menu');
@@ -10,7 +11,14 @@ const opened: string[] = [];
 
 function fakeBrowser({ hasClosedTabs = true } = {}) {
   return {
-    commands: { newTab: () => {}, newHushTab: () => {}, reopenClosedTab: () => {}, printActiveTab: () => {} },
+    commands: {
+      newTab: () => {},
+      newHushTab: () => {},
+      reopenClosedTab: () => {},
+      printActiveTab: () => {},
+      toggleTabDevTools: () => opened.push('devtools'),
+    },
+    openDownloadsFolder: () => opened.push('downloads folder'),
     tabs: { hasClosedTabs: () => hasClosedTabs },
     openFind: () => {},
     openSurface: (surface: string) => opened.push(surface),
@@ -60,5 +68,16 @@ describe('the main menu', () => {
     expect(mainMenuItems(fakeBrowser()).find((item) => item.label === 'Find on page…')?.accelerator).toBe(
       'Alt+CmdOrCtrl+F',
     );
+  });
+
+  // On Windows and Linux there is no menu bar, so these were reachable only by shortcut, or not at all.
+  it('reaches DevTools, the downloads folder and help from the one menu every platform shows', () => {
+    opened.length = 0;
+    const items = mainMenuItems(fakeBrowser());
+    const submenu = (label: string) =>
+      (items.find((item) => item.label === label)?.submenu ?? []) as { label?: string; click?: () => void }[];
+    submenu('More tools').forEach((item) => item.click?.());
+    expect(opened).toEqual(['devtools', 'downloads folder']);
+    expect(submenu('Help').map((item) => item.label)).toEqual(['Copacetic on GitHub', 'Report a problem']);
   });
 });

@@ -1,7 +1,9 @@
-import { Menu, type MenuItemConstructorOptions } from 'electron';
+import { Menu, type MenuItemConstructorOptions, shell } from 'electron';
 import type { Browser } from '../app/browser';
 import { profileMenuItems } from './profile-menu';
 import { acceleratorFor, readShortcutOverrides } from '../../shared/shortcuts';
+
+const PROJECT_URL = 'https://github.com/ryjord/Copacetic';
 
 /** Everything the toolbar no longer gives its own button, in the order people look for it. */
 export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
@@ -30,6 +32,26 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     { type: 'separator' },
     { label: 'Command palette', ...shortcut('palette'), click: () => browser.openSurface('palette') },
     { label: 'Settings…', ...shortcut('settings'), click: () => browser.openSurface('settings') },
+    // Windows and Linux show no menu bar, so this is the only menu a pointer can reach there.
+    {
+      label: 'More tools',
+      submenu: [
+        {
+          label: 'Developer tools',
+          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+          registerAccelerator: false,
+          click: () => browser.commands.toggleTabDevTools(),
+        },
+        { label: 'Open downloads folder', click: () => browser.openDownloadsFolder() },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        { label: 'Copacetic on GitHub', click: () => void shell.openExternal(PROJECT_URL) },
+        { label: 'Report a problem', click: () => void shell.openExternal(`${PROJECT_URL}/issues/new`) },
+      ],
+    },
     // Windows and Linux have no menu bar in a frameless window, so this is the only way to quit by pointer.
     ...(process.platform === 'darwin'
       ? []
