@@ -30,7 +30,7 @@ import {
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
 import { inheritFromOpener } from '../../shared/opening';
-import { type SessionCandidate, sessionFrom, tabAfterClosing } from './tab-choices';
+import { type SessionCandidate, sessionFrom, tabAfterClosing, clampToRun, pinnedFirst } from './tab-choices';
 import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
 import type { SessionSnapshot } from '../data/session-store';
@@ -157,6 +157,7 @@ export class TabManager {
           groupId: tab.groupId,
           isStartPage: tab.isStartPage,
           isHush: tab.isHush,
+          isPinned: tab.isPinned,
         });
       }
     }
@@ -190,6 +191,7 @@ export class TabManager {
       zoomFactor: tab.zoomFactor,
       isStartPage: tab.isStartPage,
       isHush: tab.isHush,
+      isPinned: tab.isPinned,
       groupId: tab.groupId,
       isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
     };
@@ -317,6 +319,10 @@ export class TabManager {
       }
     }
     return null;
+  }
+
+  isPinned(id: TabId): boolean {
+    return this.tabs.get(id)?.isPinned === true;
   }
 
   has(id: TabId): boolean {
@@ -531,6 +537,7 @@ export class TabManager {
       openerWebContentsId?: number;
       hush?: boolean;
       groupId?: string | null;
+      pinned?: boolean;
     } = {},
   ): TabId {
     // Last line of defence. Callers are expected to have already decided the
@@ -586,6 +593,7 @@ export class TabManager {
       id,
       view,
       isHush: inherited.hush,
+      isPinned: options.pinned === true,
       record: inherited.hush ? HUSH_RECORD : this.storedRecord(),
       isStartPage,
       url: isStartPage ? START_PAGE_URL : rawUrl,
@@ -605,6 +613,7 @@ export class TabManager {
     this.tabs.set(id, tab);
     const insertAt = options.index ?? this.insertionIndexFor(options.openerWebContentsId);
     this.order.splice(Math.min(Math.max(0, insertAt), this.order.length), 0, id);
+    this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
 
     this.window.contentView.addChildView(view);
     // Sized once up front so a background tab loads against the real viewport
@@ -819,12 +828,26 @@ export class TabManager {
     if (from === -1) {
       return;
     }
-    const clamped = Math.min(Math.max(0, toIndex), this.order.length - 1);
+    const clamped = clampToRun(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true, id, toIndex);
     if (from === clamped) {
       return;
     }
     this.order.splice(from, 1);
     this.order.splice(clamped, 0, id);
+    this.onChanged();
+  }
+
+  /** Pins a tab to the start of the strip, or lets it go. A pinned tab leaves its group, as in every other browser. */
+  setPinned(id: TabId, isPinned: boolean): void {
+    const tab = this.tabs.get(id);
+    if (!tab || tab.isPinned === isPinned) {
+      return;
+    }
+    tab.isPinned = isPinned;
+    if (isPinned) {
+      tab.groupId = null;
+    }
+    this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
     this.onChanged();
   }
 

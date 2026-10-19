@@ -53,6 +53,7 @@ export interface CopaceticApi {
     stop(id: TabId): Promise<void>;
     setMuted(id: TabId, muted: boolean): Promise<void>;
     duplicate(id: TabId): Promise<void>;
+    setPinned(id: TabId, isPinned: boolean): Promise<void>;
     /** Loads the plain HTTP version of a page whose HTTPS version failed, after the person chose to. */
     continueOverHttp(id: TabId): Promise<void>;
     /** Continues to a site whose certificate was refused, for this certificate and this session only. */

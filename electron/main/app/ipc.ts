@@ -80,6 +80,9 @@ export function registerIpcHandlers(profile: Profile): void {
   handle('tabs.stop', (browser, _event, id) => browser.tabs.stop(asString(id)));
   handle('tabs.setMuted', (browser, _event, id, muted) => browser.tabs.setMuted(asString(id), muted === true));
   handle('tabs.duplicate', (browser, _event, id) => browser.tabs.duplicate(asString(id)));
+  handle('tabs.setPinned', (browser, _event, id, isPinned) =>
+    browser.tabs.setPinned(asString(id), isPinned === true),
+  );
   handle('tabs.continueOverHttp', (browser, _event, id) => browser.tabs.continueOverHttp(asString(id)));
   handle('tabs.acceptCertificate', (browser, _event, id) => browser.tabs.acceptCertificate(asString(id)));
   handle('tabs.reopenClosed', (browser) => browser.commands.reopenClosedTab());

@@ -186,7 +186,9 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       ref={ref}
       className={cn(
         // A set width, not a basis: container queries zero its natural width. Shrinks to its icon before scrolling.
-        'no-drag group @container relative h-[var(--chrome-tab-height)] w-55 min-w-9 shrink rounded-tab transition-[background-color,opacity] duration-150',
+        'no-drag group @container relative h-[var(--chrome-tab-height)] rounded-tab transition-[background-color,opacity] duration-150',
+        // Pinned: always just its icon, which the compact rules below give it without a separate layout.
+        tab.isPinned ? 'w-9 shrink-0' : 'w-55 min-w-9 shrink',
         tab.isHush
           ? isActive
             ? 'bg-hush/20'
@@ -221,7 +223,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
         send((api) => api.tabs.openContextMenu(tab.id));
       }}
       role="tab"
-      aria-label={tab.isHush ? `${title}, Hush tab` : title}
+      aria-label={[title, tab.isPinned ? 'pinned' : null, tab.isHush ? 'Hush tab' : null].filter(Boolean).join(', ')}
       aria-selected={isActive}
       // Only the selected tab is a tab stop; the rest are reached with arrows.
       tabIndex={isActive ? 0 : -1}

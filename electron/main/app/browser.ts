@@ -181,7 +181,11 @@ export class Browser {
   private restoreTabs(session: SessionSnapshot): void {
     // A group whose tabs were all Hush comes back empty and is left alone: nothing that was in it was written down.
     session.tabs.forEach((tab, index) => {
-      this.tabs.create(tab.url, { activate: index === session.activeIndex, groupId: tab.groupId });
+      this.tabs.create(tab.url, {
+        activate: index === session.activeIndex,
+        groupId: tab.groupId,
+        pinned: tab.isPinned === true,
+      });
     });
     if (this.tabs.tabCount === 0) {
       this.tabs.create(START_PAGE_URL);

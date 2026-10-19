@@ -39,6 +39,8 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com' } = {})
       urlFor: () => url,
       groupIdFor: () => null,
       isHush: () => false,
+      isPinned: () => false,
+      setPinned: record('tabs.setPinned'),
       titleFor: () => 'Example',
       hasClosedTabs: () => hasClosedTabs,
       create: record('tabs.create'),

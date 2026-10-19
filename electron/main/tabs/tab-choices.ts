@@ -33,6 +33,7 @@ export interface SessionCandidate {
   groupId: string | null;
   isStartPage: boolean;
   isHush: boolean;
+  isPinned: boolean;
 }
 
 /**
@@ -60,8 +61,31 @@ export function sessionFrom(tabs: readonly SessionCandidate[], activeId: TabId |
     if (tab.id === activeId) {
       activeIndex = saved.length;
     }
-    saved.push({ url: tab.url, groupId: tab.groupId });
+    saved.push({ url: tab.url, groupId: tab.groupId, ...(tab.isPinned ? { isPinned: true } : {}) });
   }
 
   return { tabs: saved, activeIndex };
+}
+
+/**
+ * The strip's order with every pinned tab ahead of every other.
+ *
+ * Stable, so each run keeps its own order: a tab just pinned lands at the end
+ * of the pinned run, one just unpinned becomes the first of the rest, and a
+ * tab opened beside a pinned one cannot land inside the pinned run.
+ */
+export function pinnedFirst(order: readonly TabId[], isPinned: (id: TabId) => boolean): TabId[] {
+  return [...order.filter(isPinned), ...order.filter((id) => !isPinned(id))];
+}
+
+/** Where a moved tab may go: inside its own run, so dragging cannot mix pinned tabs with the rest. */
+export function clampToRun(
+  order: readonly TabId[],
+  isPinned: (id: TabId) => boolean,
+  id: TabId,
+  toIndex: number,
+): number {
+  const pinnedCount = order.filter(isPinned).length;
+  const [lowest, highest] = isPinned(id) ? [0, pinnedCount - 1] : [pinnedCount, order.length - 1];
+  return Math.min(Math.max(lowest, toIndex), highest);
 }

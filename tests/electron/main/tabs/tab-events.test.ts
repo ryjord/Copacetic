@@ -39,6 +39,7 @@ function setup(overrides: Partial<TabRecord> = {}) {
     id: 'tab-1',
     view: { webContents: contents },
     isHush: false,
+    isPinned: false,
     isStartPage: false,
     url: 'https://example.com/page',
     title: 'Example',

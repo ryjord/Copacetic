@@ -16,6 +16,7 @@ function tab(id: string, url: string): TabState {
     faviconDataUrl: null,
     groupId: null,
     isHush: false,
+    isPinned: false,
     isLoading: false,
     canGoBack: false,
     canGoForward: false,

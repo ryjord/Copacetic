@@ -48,6 +48,7 @@ const tab = (certificateChange = ''): TabState =>
     zoomFactor: 1,
     isStartPage: false,
     isHush: false,
+    isPinned: false,
     isBookmarked: false,
   }) as TabState;
 

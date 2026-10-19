@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { type SessionCandidate, sessionFrom, tabAfterClosing } from '../../../../electron/main/tabs/tab-choices';
+import {
+  type SessionCandidate,
+  sessionFrom,
+  tabAfterClosing,
+  pinnedFirst,
+  clampToRun,
+} from '../../../../electron/main/tabs/tab-choices';
 
 const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate => ({
   id,
@@ -7,6 +13,7 @@ const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate
   groupId: null,
   isStartPage: false,
   isHush: false,
+  isPinned: false,
   ...over,
 });
 
@@ -102,5 +109,41 @@ describe('what is written down to reopen', () => {
     const snapshot = sessionFrom([tab('a'), tab('h', { isHush: true })], 'h');
     expect(snapshot.tabs).toHaveLength(1);
     expect(snapshot.activeIndex).toBe(0);
+  });
+});
+
+describe('pinned tabs in the strip', () => {
+  const pinned = new Set(['p1', 'p2']);
+  const isPinned = (id: string) => pinned.has(id);
+
+  it('come before every other tab, each run keeping its own order', () => {
+    expect(pinnedFirst(['a', 'p1', 'b', 'p2', 'c'], isPinned)).toEqual(['p1', 'p2', 'a', 'b', 'c']);
+  });
+
+  // The stable order is the whole rule: just pinned lands last among the pinned, just unpinned first among the rest.
+  it('put a tab just pinned at the end of the pinned run, and one just let go at the start of the rest', () => {
+    expect(pinnedFirst(['p1', 'a', 'p2', 'b'], isPinned)).toEqual(['p1', 'p2', 'a', 'b']);
+    expect(pinnedFirst(['p1', 'x', 'a'], isPinned)).toEqual(['p1', 'x', 'a']);
+  });
+
+  it('keep a move inside its own run', () => {
+    const order = ['p1', 'p2', 'a', 'b', 'c'];
+    expect(clampToRun(order, isPinned, 'a', 0)).toBe(2);
+    expect(clampToRun(order, isPinned, 'p1', 4)).toBe(1);
+    expect(clampToRun(order, isPinned, 'b', 4)).toBe(4);
+  });
+
+  it('are remembered as pinned, and only pinned ones say so', () => {
+    const written = sessionFrom(
+      [
+        { id: 'p1', url: 'https://mail.example/', groupId: null, isStartPage: false, isHush: false, isPinned: true },
+        { id: 'a', url: 'https://news.example/', groupId: null, isStartPage: false, isHush: false, isPinned: false },
+      ],
+      'a',
+    );
+    expect(written.tabs).toEqual([
+      { url: 'https://mail.example/', groupId: null, isPinned: true },
+      { url: 'https://news.example/', groupId: null },
+    ]);
   });
 });

@@ -89,6 +89,8 @@ export interface TabState {
   isStartPage: boolean;
   /** A Hush tab: nothing it does is written to this machine. */
   isHush: boolean;
+  /** Kept at the start of the strip as an icon, and brought back pinned. */
+  isPinned: boolean;
   /** The group this tab is in, if any. */
   groupId: string | null;
   isBookmarked: boolean;

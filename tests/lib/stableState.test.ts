@@ -13,6 +13,7 @@ const tab = (id: string, over: Partial<TabState> = {}): TabState => ({
   canGoBack: false,
   canGoForward: false,
   isHush: false,
+  isPinned: false,
   groupId: null,
   isAudible: false,
   isMuted: false,

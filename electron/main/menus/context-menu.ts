@@ -147,6 +147,10 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     },
     { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
     { label: 'Move to new window', enabled: url !== null, click: () => browser.moveTabToNewWindow(tabId) },
+    {
+      label: browser.tabs.isPinned(tabId) ? 'Unpin tab' : 'Pin tab',
+      click: () => browser.tabs.setPinned(tabId, !browser.tabs.isPinned(tabId)),
+    },
     { label: 'Reload', click: () => browser.tabs.reload(tabId) },
     { type: 'separator' },
     groupSubmenu(browser, tabId),

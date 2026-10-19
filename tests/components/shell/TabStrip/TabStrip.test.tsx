@@ -35,6 +35,7 @@ function tab(id: string, title: string): TabState {
     canGoBack: false,
     canGoForward: false,
     isHush: false,
+    isPinned: false,
     isAudible: false,
     isMuted: false,
     security: {
@@ -173,5 +174,13 @@ describe('the new tab button', () => {
     render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     fireEvent.contextMenu(screen.getByRole('button', { name: 'New tab' }));
     expect(openNewTabMenu).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a pinned tab in the strip', () => {
+  // Drawn as only its icon, so its name has to say what the title would have.
+  it('says it is pinned, along with its title', () => {
+    render(<TabStrip tabs={[{ ...tab('one', 'Mail'), isPinned: true }]} groups={[]} activeTabId="one" />);
+    expect(screen.getByRole('tab', { name: 'Mail, pinned' })).toBeTruthy();
   });
 });

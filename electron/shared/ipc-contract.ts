@@ -44,6 +44,7 @@ export const CHANNELS = {
   'tabs.stop': 'tab:stop',
   'tabs.setMuted': 'tab:set-muted',
   'tabs.duplicate': 'tab:duplicate',
+  'tabs.setPinned': 'tab:set-pinned',
   'tabs.continueOverHttp': 'tab:continue-over-http',
   'tabs.acceptCertificate': 'tab:accept-certificate',
   'tabs.reopenClosed': 'tab:reopen-closed',

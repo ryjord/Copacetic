@@ -51,8 +51,22 @@ describe('nothing a Hush tab does is written down', () => {
   it('is left out of the session snapshot', () => {
     const written = sessionFrom(
       [
-        { id: 'a', url: 'https://ordinary.example/', groupId: null, isStartPage: false, isHush: false },
-        { id: 'h', url: 'https://secret.example/', groupId: 'work', isStartPage: false, isHush: true },
+        {
+          id: 'a',
+          url: 'https://ordinary.example/',
+          groupId: null,
+          isStartPage: false,
+          isHush: false,
+          isPinned: false,
+        },
+        {
+          id: 'h',
+          url: 'https://secret.example/',
+          groupId: 'work',
+          isStartPage: false,
+          isHush: true,
+          isPinned: false,
+        },
       ],
       'a',
     );

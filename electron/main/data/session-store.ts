@@ -5,6 +5,8 @@ export interface SessionTab {
   url: string;
   /** The group it was in. Never set for a Hush tab, which is not written here at all. */
   groupId: string | null;
+  /** Written only when true, so a session from before pinning reads the same. */
+  isPinned?: boolean;
 }
 
 /** One window's tabs, and which of them was in front. */
@@ -106,7 +108,7 @@ function reviveWindow(raw: unknown): SessionSnapshot {
           return [];
         }
         const groupId = asString(entry.groupId);
-        return [{ url, groupId: groupId || null }];
+        return [{ url, groupId: groupId || null, ...(entry.isPinned === true ? { isPinned: true } : {}) }];
       })
     : [];
   return { tabs, activeIndex: clamp(asNumber(raw.activeIndex, 0), 0, Math.max(0, tabs.length - 1)) };

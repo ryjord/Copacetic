@@ -89,6 +89,13 @@ describe('the saved session, read back off disk', () => {
     ]);
   });
 
+  it('keeps a tab pinned, and reads one from before pinning as not', () => {
+    expect(oneWindow({ tabs: [{ url: 'a', isPinned: true }, { url: 'b' }], activeIndex: 0 })?.tabs).toEqual([
+      { url: 'a', groupId: null, isPinned: true },
+      { url: 'b', groupId: null },
+    ]);
+  });
+
   it('treats a group id that is not a string as no group', () => {
     expect(oneWindow({ tabs: [{ url: 'a', groupId: 42 }], activeIndex: 0 })?.tabs).toEqual([
       { url: 'a', groupId: null },
