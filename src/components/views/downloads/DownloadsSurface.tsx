@@ -1,235 +1,259 @@
 'use client';
 
-import { FolderOpen, Pause, Play, Trash2, X } from 'lucide-react';
+// Libs
 import { useState } from 'react';
+
+// Components
+import { Button } from '@/components/ui/Button/Button';
+import { EmptyState } from '@/components/ui/EmptyState/EmptyState';
+import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { SearchField } from '@/components/ui/TextField/TextField';
+import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
+import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
+
+// Icons
+import { ChevronDown, Download, File, FolderOpen, Pause, Play, X } from 'lucide-react';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
+import { ask, send } from '@/lib/bridge';
+import { formatBytes, formatDateHeading, formatEta, formatRate, formatTimeOfDay } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+// Types
 import type { DownloadState } from '@shared/types';
 import { crossedSites, describeChain } from '@shared/download-provenance';
-import { IconButton } from '@/components/ui/IconButton/IconButton';
-import { send } from '@/lib/bridge';
-import { formatBytes, formatEta, formatRate, formatRelativeTime } from '@/lib/format';
-import { cn } from '@/lib/utils';
-import { useBrowserStore } from '@/store/useBrowserStore';
-import { EmptyState, SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
 
 export function DownloadsSurface() {
   const downloads = useBrowserStore((state) => state.downloads);
+  const [query, setQuery] = useState('');
   const [notice, setNotice] = useState('');
 
-  const hasFinished = downloads.some((download) => download.status !== 'progressing' && download.status !== 'paused');
+  const isFinished = (download: DownloadState) => download.status !== 'progressing' && download.status !== 'paused';
+  const needle = query.trim().toLowerCase();
+  const shown = downloads.filter((download) => !needle || download.filename.toLowerCase().includes(needle));
 
   return (
     <SurfaceShell
       title="Downloads"
       actions={
-        hasFinished ? (
-          <button
-            type="button"
-            onClick={() => send((api) => api.downloads.clearCompleted())}
-            className="rounded-md px-2.5 py-1 text-[12px] text-ink-dim transition-colors hover:bg-hover hover:text-ink"
-          >
-            Clear finished
-          </button>
-        ) : null
+        <>
+          {downloads.length > 0 && (
+            <SearchField value={query} onChange={setQuery} label="Search downloads" className="w-56" />
+          )}
+          {downloads.some(isFinished) && (
+            <Button size="sm" onClick={() => send((api) => api.downloads.clearCompleted())}>
+              Clear finished
+            </Button>
+          )}
+        </>
       }
     >
-      {notice && <p className="border-b border-line bg-raised px-6 py-2 text-[12px] text-caution">{notice}</p>}
-
-      {downloads.length === 0 ? (
-        <EmptyState title="Nothing downloaded yet" hint="Files you download will be listed here." />
-      ) : (
-        <ul className="divide-y divide-line">
-          {downloads.map((download) => (
-            <DownloadRow key={download.id} download={download} onNotice={setNotice} />
-          ))}
-        </ul>
-      )}
+      <div className="mx-auto w-full max-w-220 px-4 pb-8">
+        {notice && (
+          <p role="status" className="mt-4 rounded-sm bg-caution/10 px-3 py-2 text-body-sm text-caution">
+            {notice}
+          </p>
+        )}
+        {downloads.length === 0 ? (
+          <EmptyState icon={Download} title="No downloads yet" hint="Files you download appear here." />
+        ) : shown.length === 0 ? (
+          <EmptyState title="Nothing matches" hint="Try another part of the file name." />
+        ) : (
+          groupByDay(shown).map(([heading, items]) => (
+            <section key={heading}>
+              <h2 className="label px-3 pb-1.5 pt-5">{heading}</h2>
+              <ul className="flex flex-col">
+                {items.map((download) => (
+                  <DownloadRow key={download.id} download={download} onNotice={setNotice} />
+                ))}
+              </ul>
+            </section>
+          ))
+        )}
+      </div>
     </SurfaceShell>
   );
 }
 
 function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice: (message: string) => void }) {
+  const [isShowingDetails, setIsShowingDetails] = useState(false);
   const isActive = download.status === 'progressing' || download.status === 'paused';
+  const isOpenable = download.status === 'completed' && download.fileExists;
   const hasKnownSize = download.totalBytes > 0;
   const percent = hasKnownSize ? Math.min(100, (download.receivedBytes / download.totalBytes) * 100) : 0;
+  const route = describeChain(download.urlChain);
+  const isElsewhere = crossedSites(download.urlChain);
+  const hasDetails = Boolean((route && !isElsewhere) || download.sha256);
+
+  const open = async () => {
+    const message = await ask((api) => api.downloads.openFile(download.id), '');
+    if (message) {
+      onNotice(message);
+    }
+  };
 
   return (
-    <li className="group flex items-center gap-4 px-6 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-3">
-          <button
-            type="button"
-            disabled={download.status !== 'completed'}
-            onClick={() =>
-              void (async () => {
-                const api = window.copacetic;
-                if (!api) {
-                  return;
-                }
-                const message = await api.downloads.openFile(download.id);
-                if (message) {
-                  onNotice(message);
-                }
-              })()
-            }
-            className={cn(
-              'truncate text-left text-[13px]',
-              download.status === 'completed' ? 'text-ink hover:underline' : 'cursor-default text-ink-dim',
-            )}
-            title={download.savePath}
-          >
-            {download.filename}
-          </button>
-          {/* The file is on disk — it was asked for. What is not written down
-              is where it came from, because that is browsing and a Hush tab
-              keeps none. Said on the row, since the list looks the same either
-              way until Copacetic closes. */}
-          {download.isHush && (
-            <span
-              className="label shrink-0 text-ink-faint"
-              title="Started in a Hush tab. The file is saved; where it came from is not written down, so this row goes when Copacetic closes."
+    <li className="group rounded-sm px-3 py-2.5 hover:bg-hover">
+      <div className="flex items-center gap-3">
+        <File size={20} strokeWidth={1.5} className="shrink-0 text-ink-faint" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!isOpenable}
+              onClick={() => void open()}
+              title={download.savePath}
+              className={cn(
+                'min-w-0 truncate text-left text-body',
+                isOpenable ? 'text-ink hover:underline' : 'cursor-default text-ink-dim',
+              )}
             >
-              Not written down
-            </span>
-          )}
-          <StatusWord download={download} />
+              {download.filename}
+            </button>
+            <DownloadPill download={download} />
+          </div>
+          <p className="mt-0.5 truncate text-body-sm text-ink-dim tabular-nums">{detailLine(download)}</p>
+          {/* Shown on the row rather than behind Details: a file from somewhere other than where you clicked is worth seeing. */}
+          {isElsewhere && route && <p className="mt-0.5 text-body-sm text-caution">{route}</p>}
         </div>
 
-        {isActive && (
-          <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-line">
-            {hasKnownSize ? (
-              <div
-                className="h-full rounded-full bg-active transition-[width] duration-200"
-                style={{ width: `${percent}%` }}
-              />
-            ) : (
-              <div className="animate-indeterminate h-full w-full rounded-full bg-active" />
-            )}
-          </div>
-        )}
-
-        <p className="mt-1.5 font-mono text-[11px] text-ink-faint">{detailLine(download)}</p>
-        <Provenance download={download} />
+        <div className="flex shrink-0 items-center gap-0.5">
+          {download.status === 'progressing' && (
+            <IconButton label="Pause download" onClick={() => send((api) => api.downloads.pause(download.id))}>
+              <Pause size={16} />
+            </IconButton>
+          )}
+          {download.status === 'paused' && (
+            <IconButton label="Resume download" onClick={() => send((api) => api.downloads.resume(download.id))}>
+              <Play size={16} />
+            </IconButton>
+          )}
+          {isActive && (
+            <IconButton label="Cancel download" onClick={() => send((api) => api.downloads.cancel(download.id))}>
+              <X size={16} />
+            </IconButton>
+          )}
+          {isOpenable && (
+            <IconButton label="Show in folder" onClick={() => send((api) => api.downloads.revealFile(download.id))}>
+              <FolderOpen size={16} />
+            </IconButton>
+          )}
+          {hasDetails && (
+            <IconButton
+              label={isShowingDetails ? 'Hide details' : 'Show details'}
+              aria-expanded={isShowingDetails}
+              onClick={() => setIsShowingDetails((shown) => !shown)}
+            >
+              <ChevronDown size={16} className={cn('transition-transform', isShowingDetails && 'rotate-180')} />
+            </IconButton>
+          )}
+          {!isActive && (
+            <IconButton
+              label="Remove from list"
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              onClick={() => send((api) => api.downloads.remove(download.id))}
+            >
+              <X size={16} />
+            </IconButton>
+          )}
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-        {download.status === 'progressing' && (
-          <IconButton
-            label="Pause download"
-            size="sm"
-            onClick={() => send((api) => api.downloads.pause(download.id))}
-          >
-            <Pause size={13} />
-          </IconButton>
-        )}
-        {download.status === 'paused' && (
-          <IconButton
-            label="Resume download"
-            size="sm"
-            onClick={() => send((api) => api.downloads.resume(download.id))}
-          >
-            <Play size={13} />
-          </IconButton>
-        )}
-        {isActive && (
-          <IconButton
-            label="Cancel download"
-            size="sm"
-            onClick={() => send((api) => api.downloads.cancel(download.id))}
-          >
-            <X size={13} />
-          </IconButton>
-        )}
-        {download.status === 'completed' && (
-          <IconButton
-            label="Show in folder"
-            size="sm"
-            onClick={() => send((api) => api.downloads.revealFile(download.id))}
-          >
-            <FolderOpen size={13} />
-          </IconButton>
-        )}
-        <IconButton
-          label="Remove from list"
-          size="sm"
-          onClick={() => send((api) => api.downloads.remove(download.id))}
-        >
-          <Trash2 size={13} />
-        </IconButton>
-      </div>
+      {isActive && (
+        <div className="ml-8 mt-2 h-1 overflow-hidden rounded-full bg-line" aria-hidden>
+          {hasKnownSize ? (
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-200"
+              style={{ width: `${percent}%` }}
+            />
+          ) : (
+            <div className="animate-indeterminate h-full w-full rounded-full bg-accent" />
+          )}
+        </div>
+      )}
+
+      {/* Where it came from, and what arrived: a checksum you were never shown is one you cannot compare. */}
+      {isShowingDetails && (
+        <dl className="ml-8 mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-sm">
+          {route && !isElsewhere && (
+            <>
+              <dt className="text-ink-faint">From</dt>
+              <dd className="min-w-0 break-all text-ink-dim select-text">{route}</dd>
+            </>
+          )}
+          {download.sha256 && (
+            <>
+              <dt className="text-ink-faint">SHA-256</dt>
+              <dd className="min-w-0 break-all font-mono text-ink-dim select-text">{download.sha256}</dd>
+            </>
+          )}
+        </dl>
+      )}
     </li>
   );
 }
 
-function StatusWord({ download }: { download: DownloadState }) {
-  const styles: Record<DownloadState['status'], string> = {
-    progressing: 'text-active',
-    paused: 'text-caution',
-    completed: 'text-clear',
-    cancelled: 'text-ink-faint',
-    interrupted: 'text-alert',
-  };
-  const words: Record<DownloadState['status'], string> = {
-    progressing: 'Downloading',
-    paused: 'Paused',
-    completed: download.fileExists ? 'Saved' : 'Moved',
-    cancelled: 'Cancelled',
-    interrupted: 'Failed',
-  };
-  return <span className={cn('label shrink-0', styles[download.status])}>{words[download.status]}</span>;
+/** Only states worth noticing get a word; a finished download is the ordinary case and says nothing. */
+function DownloadPill({ download }: { download: DownloadState }) {
+  if (download.status === 'paused') {
+    return <StatusPill status="warning">Paused</StatusPill>;
+  }
+  if (download.status === 'interrupted') {
+    return <StatusPill status="danger">Failed</StatusPill>;
+  }
+  if (download.status === 'cancelled') {
+    return <StatusPill status="neutral">Cancelled</StatusPill>;
+  }
+  if (download.status === 'completed' && !download.fileExists) {
+    return <StatusPill status="neutral">Missing</StatusPill>;
+  }
+  // The file is saved, but where it came from is not written down; the row goes when Copacetic closes.
+  if (download.isHush) {
+    return <StatusPill status="hush">Hush</StatusPill>;
+  }
+  return null;
 }
 
 function detailLine(download: DownloadState): string {
   const parts: string[] = [];
-
   if (download.status === 'progressing' || download.status === 'paused') {
     parts.push(
       download.totalBytes > 0
         ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}`
         : formatBytes(download.receivedBytes),
     );
-    const rate = formatRate(download.bytesPerSecond);
-    if (rate && download.status === 'progressing') {
-      parts.push(rate);
-    }
-    const eta = formatEta(download.receivedBytes, download.totalBytes, download.bytesPerSecond);
-    if (eta && download.status === 'progressing') {
-      parts.push(eta);
+    if (download.status === 'progressing') {
+      parts.push(
+        formatRate(download.bytesPerSecond),
+        formatEta(download.receivedBytes, download.totalBytes, download.bytesPerSecond),
+      );
     }
   } else {
     parts.push(formatBytes(download.receivedBytes));
-    if (download.completedAt) {
-      parts.push(formatRelativeTime(download.completedAt));
-    }
   }
-
-  if (download.status === 'completed' && !download.fileExists) {
-    parts.push('no longer at that path');
+  parts.push(hostFor(download.url));
+  if (download.completedAt && !(download.status === 'progressing' || download.status === 'paused')) {
+    parts.push(formatTimeOfDay(download.completedAt));
   }
-
-  return parts.join(' · ');
+  return parts.filter(Boolean).join(' · ');
 }
 
-/**
- * Where a file actually came from, and what actually arrived. A list that shows
- * only the last hop is showing the least interesting one, and a checksum you
- * were never given is one you cannot compare.
- */
-function Provenance({ download }: { download: DownloadState }) {
-  const route = describeChain(download.urlChain);
-  const isElsewhere = crossedSites(download.urlChain);
-
-  if (!route && !download.sha256) {
-    return null;
+function hostFor(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
   }
+}
 
-  return (
-    <div className="mt-1 space-y-0.5">
-      {route && <p className={cn('text-[11px]', isElsewhere ? 'text-caution' : 'text-ink-faint')}>{route}</p>}
-      {download.sha256 && (
-        <p className="break-all font-mono text-[10.5px] text-ink-faint" title="SHA-256 of the file on disk">
-          sha256 {download.sha256}
-        </p>
-      )}
-    </div>
-  );
+function groupByDay(downloads: DownloadState[]): [string, DownloadState[]][] {
+  const groups = new Map<string, DownloadState[]>();
+  for (const download of downloads) {
+    const heading = formatDateHeading(download.startedAt);
+    groups.set(heading, [...(groups.get(heading) ?? []), download]);
+  }
+  return [...groups.entries()];
 }

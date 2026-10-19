@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { DownloadState } from '@shared/types';
 
 vi.mock('@/lib/bridge', () => ({
@@ -54,21 +54,33 @@ describe('what a download tells you about itself', () => {
     expect(document.body.textContent).toContain('You asked get.example.com and the file came from cdn.other.test');
   });
 
+  // A routine redirect is a detail; it is there when asked for and quiet until then.
   it('reads as routine when the redirect stayed on one site', () => {
     downloads = [download({ urlChain: ['https://www.example.com/a', 'https://dl.example.com/b'] })];
     render(<DownloadsSurface />);
+    expect(document.body.textContent).not.toContain('Redirected within');
+    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
     expect(document.body.textContent).toContain('Redirected within example.com');
   });
 
   it('shows the hash of what actually arrived', () => {
     downloads = [download({ sha256: 'abc123def456' })];
     render(<DownloadsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
     expect(document.body.textContent).toContain('abc123def456');
   });
 
-  it('shows no hash line before one has been computed', () => {
+  it('offers no details before a hash has been computed', () => {
     downloads = [download({ sha256: null })];
     render(<DownloadsSurface />);
-    expect(document.body.textContent).not.toContain('sha256');
+    expect(screen.queryByRole('button', { name: 'Show details' })).toBeNull();
+  });
+
+  // A finished download is the ordinary case and says nothing; one whose file has gone says so.
+  it('marks a file that is no longer where it was saved', () => {
+    downloads = [download({ fileExists: false })];
+    render(<DownloadsSurface />);
+    expect(screen.getByText('Missing')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Show in folder' })).toBeNull();
   });
 });

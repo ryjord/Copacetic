@@ -97,7 +97,7 @@ export function HistorySurface() {
         </>
       }
     >
-      <div className="mx-auto w-full max-w-[880px] px-4 pb-8">
+      <div className="mx-auto w-full max-w-220 px-4 pb-8">
         {entries === null ? (
           <SkeletonRows count={10} className="pt-6" />
         ) : entries.length === 0 ? (
