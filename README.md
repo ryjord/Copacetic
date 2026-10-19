@@ -360,8 +360,9 @@ is a renderer process, which is the price of pages not sharing one.
 
 ## Running it
 
-Requires Node 22.22.2 or newer. The floor is jsdom's, which the test suite
-uses; the suite does not start at all below it. CI runs Node 22.
+Requires Node 24 or newer. The data layer uses `node:sqlite`, which the test
+suite loads directly and Node 22 does not expose to it; Electron 43 runs Node 24
+itself. CI runs Node 24.
 
 ```bash
 npm install
