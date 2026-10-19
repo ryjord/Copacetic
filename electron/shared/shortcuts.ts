@@ -87,3 +87,24 @@ export function readableAccelerator(accelerator: string, isMac: boolean): string
     .replace('Escape', 'Esc')
     .trim();
 }
+
+const MAC_GLYPHS: Record<string, string> = { Cmd: '⌘', CmdOrCtrl: '⌘', Ctrl: '⌃', Alt: '⌥', Option: '⌥', Shift: '⇧' };
+const WORDS: Record<string, string> = { CmdOrCtrl: 'Ctrl', Cmd: 'Ctrl', Option: 'Alt', Escape: 'Esc', Plus: '+' };
+
+/**
+ * The keys of a shortcut, one per cap, the way each platform prints them:
+ * `⇧⌘T` on a Mac, `Ctrl` `Shift` `T` elsewhere. Modifiers first, in the
+ * platform's own order.
+ */
+export function acceleratorKeys(accelerator: string, isMac: boolean): string[] {
+  const parts = accelerator.split('+').filter(Boolean);
+  const order = isMac
+    ? ['Ctrl', 'Alt', 'Option', 'Shift', 'Cmd', 'CmdOrCtrl']
+    : ['Cmd', 'CmdOrCtrl', 'Ctrl', 'Alt', 'Option', 'Shift'];
+  const modifiers = parts
+    .filter((part) => order.includes(part))
+    .sort((aPart, bPart) => order.indexOf(aPart) - order.indexOf(bPart));
+  const keys = parts.filter((part) => !order.includes(part));
+  const label = (part: string) => (isMac ? (MAC_GLYPHS[part] ?? WORDS[part] ?? part) : (WORDS[part] ?? part));
+  return [...modifiers, ...keys].map(label);
+}

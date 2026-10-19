@@ -9,6 +9,7 @@ import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
 import { ErrorPage } from '@/components/views/error/ErrorPage';
 import { StartPage } from '@/components/views/start/StartPage';
 import { getBridge, isRunningInShell, send } from '@/lib/bridge';
+import { isMacPlatform } from '@/lib/platform';
 import { ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { reachedForAnotherTab } from '@shared/surfaces';
@@ -176,9 +177,9 @@ export function Chrome() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-base">
       <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 px-2.5 pt-1.5">
         {/* Room for the macOS traffic lights, which sit inside this strip. */}
-        {isMac() && <div className="w-[68px] shrink-0" aria-hidden />}
+        {isMacPlatform() && <div className="w-[68px] shrink-0" aria-hidden />}
         <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
-        {!isMac() && <WindowControls />}
+        {!isMacPlatform() && <WindowControls />}
       </header>
 
       <Toolbar tab={activeTab} />
@@ -236,11 +237,4 @@ function OutsideShellNotice() {
       </p>
     </div>
   );
-}
-
-function isMac(): boolean {
-  if (typeof navigator === 'undefined') {
-    return false;
-  }
-  return navigator.platform.toLowerCase().includes('mac');
 }
