@@ -373,6 +373,8 @@ export const settings = {
       permissionAllowed: '{permission} allowed',
       permissionBlocked: '{permission} blocked',
       zoom: 'Zoom {percent}%',
+      opensInHush: 'Opens in Hush',
+      opensInGroup: 'Opens in “{group}”',
     },
     trackersAllowed: 'Trackers allowed',
     defaults: {
@@ -386,7 +388,7 @@ export const settings = {
       empty: {
         title: 'Sites',
         label: 'Nothing is kept about any site yet',
-        help: 'Permissions you answer with Remember, zoom levels you change and sites you let show trackers appear here.',
+        help: 'Permissions you answer with Remember, zoom levels you change, sites you let show trackers and sites you always open in Hush or a group appear here.',
       },
       search: 'Search sites',
       filtered: 'Sites with an answer for {permission}',
@@ -405,6 +407,11 @@ export const settings = {
       zoom: 'Zoom {percent}%',
       trackersHelp: 'Turned off for this site, from its connection details.',
       blockAgain: 'Block again',
+      opensInHush: 'Always opens in Hush',
+      opensInGroup: 'Always opens in “{group}”',
+      opensHelp: 'Following a link here or typing its address opens it there, in a tab of its own.',
+      opensGroupGone: 'Always opens in a group that has been deleted',
+      openAnywhere: 'Open anywhere',
     },
   },
   profiles: {

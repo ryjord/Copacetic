@@ -17,6 +17,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
+import { groupIdOf } from '@shared/tabs/open-rules';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import {
   PERMISSION_NAMES,
@@ -145,6 +146,9 @@ function SiteRows({
   onReset: () => void;
 }) {
   const settings = useBrowserStore((state) => state.settings);
+  const groups = useBrowserStore((state) => state.groups);
+  const opensInGroupId = site.opensIn ? groupIdOf(site.opensIn) : null;
+  const opensInGroup = groups.find((group) => group.id === opensInGroupId);
   return (
     <>
       <SettingRow
@@ -223,6 +227,33 @@ function SiteRows({
                   }
                 >
                   {t('settings.sites.site.blockAgain')}
+                </Button>
+              }
+            />
+          )}
+          {site.opensIn && (
+            <SettingRow
+              label={
+                site.opensIn === 'hush'
+                  ? t('settings.sites.site.opensInHush')
+                  : opensInGroup
+                    ? t('settings.sites.site.opensInGroup', { group: opensInGroup.name })
+                    : t('settings.sites.site.opensGroupGone')
+              }
+              help={t('settings.sites.site.opensHelp')}
+              control={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    updateSettings({
+                      openRules: Object.fromEntries(
+                        Object.entries(settings.openRules).filter(([key]) => key !== site.site),
+                      ),
+                    })
+                  }
+                >
+                  {t('settings.sites.site.openAnywhere')}
                 </Button>
               }
             />

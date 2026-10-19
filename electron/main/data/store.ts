@@ -16,6 +16,7 @@ import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput }
 import { BookmarksStore } from './bookmarks-store';
 import { BookmarkFoldersStore } from './bookmark-folders-store';
 import { NamedSessionsStore } from './named-sessions-store';
+import { withoutGroup } from '../../shared/tabs/open-rules';
 import { afterDeleting, type BookmarkFolder } from '../../shared/data/bookmark-folders';
 import { GroupsStore } from './groups-store';
 import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tabs/tab-groups';
@@ -145,8 +146,10 @@ export class BrowserStore {
     this.groups.update(id, changes);
   }
 
+  /** Its rules go with it, so a site never waits to open in a group that is not there. */
   removeGroup(id: string): void {
     this.groups.remove(id);
+    this.settings.updateSettings({ openRules: withoutGroup(this.settings.getSettings().openRules, id) });
   }
 
   // ------------------------------------------------------------ certificates
@@ -238,6 +241,7 @@ export class BrowserStore {
       permissions: keysFor(settings.permissionDecisions),
       blockingOff: settings.blockerAllowlist.filter((entry) => sameSite(entry, site)).length,
       certificates: this.certificatesStore.origins().filter((origin) => sameSite(origin, site)).length,
+      openRules: Object.keys(settings.openRules).filter((key) => sameSite(key, site)).length,
       // The store does not own the sessions, so it cannot see cookies. The
       // browser adds that count before either sentence is said.
       cookies: 0,
@@ -287,6 +291,7 @@ export class BrowserStore {
       zoomLevels: without(settings.zoomLevels),
       permissionDecisions: without(settings.permissionDecisions),
       blockerAllowlist: settings.blockerAllowlist.filter((entry) => !sameSite(entry, site)),
+      openRules: without(settings.openRules),
     });
 
     return found;

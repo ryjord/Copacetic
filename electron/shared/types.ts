@@ -8,6 +8,7 @@ import type { DnsMode } from './browsing/dns';
 import type { TabGroup } from './tabs/tab-groups';
 import type { SplitView } from './tabs/split-view';
 import type { NamedSessionSummary } from './data/named-sessions';
+import type { OpenRules } from './tabs/open-rules';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -507,6 +508,8 @@ export interface Settings {
   zoomLevels: Record<string, number>;
   // Sites where tracker blocking is switched off, by registrable domain.
   blockerAllowlist: string[];
+  /** Sites that always open in Hush or in one group, by site. */
+  openRules: OpenRules;
   // Encrypted DNS is off until chosen: switching who resolves your names without
   // saying so is the move it exists to protect against.
   dnsMode: DnsMode;

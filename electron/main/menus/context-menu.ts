@@ -8,12 +8,46 @@ import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome/
 import { isPageNavigableUrl } from '../../shared/browsing/url';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tabs/tab-groups';
 import { isInSplit } from '../../shared/tabs/split-view';
+import { groupIdOf, groupTarget, openRuleFor } from '../../shared/tabs/open-rules';
 import { countIn, pathOf } from '../../shared/data/bookmark-folders';
 import { countTraces, describeTraces, siteOf } from '../../shared/data/forgetting';
 
 // Types
 import type { TabId } from '../../shared/types';
+import type { OpenTarget } from '../../shared/tabs/open-rules';
 import type { Browser } from '../app/browser';
+
+/** Where this tab's site always opens: offered for a page, never for Hush, which already keeps nothing. */
+function openRuleItems(browser: Browser, tabId: TabId): MenuItemConstructorOptions[] {
+  const url = browser.tabs.urlFor(tabId);
+  const site = url && isPageNavigableUrl(url) ? siteOf(url) : '';
+  if (!url || !site || browser.tabs.isHush(tabId)) {
+    return [];
+  }
+  const settings = browser.store.getSettings();
+  const setRule = (target: OpenTarget | null) => {
+    const others = Object.fromEntries(Object.entries(settings.openRules).filter(([key]) => key !== site));
+    browser.profile.updateSettings({ openRules: target ? { ...others, [site]: target } : others });
+  };
+  const existing = openRuleFor(settings.openRules, url);
+  if (existing) {
+    const groupId = groupIdOf(existing);
+    const place = groupId ? (browser.store.groupFor(groupId)?.name ?? '') : t('main.menu.context.hushPlace');
+    return [{ label: t('main.menu.context.stopAlwaysOpening', { site, place }), click: () => setRule(null) }];
+  }
+  const group = browser.store.groupFor(browser.tabs.groupIdFor(tabId));
+  return [
+    { label: t('main.menu.context.alwaysInHush', { site }), click: () => setRule('hush') },
+    ...(group
+      ? [
+          {
+            label: t('main.menu.context.alwaysInGroup', { site, group: group.name }),
+            click: () => setRule(groupTarget(group.id)),
+          },
+        ]
+      : []),
+  ];
+}
 
 function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
   if (isInSplit(browser.tabs.getSplit(), tabId)) {
@@ -209,6 +243,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     },
     { label: t('main.menu.view.reload'), click: () => browser.tabs.reload(tabId) },
     splitItem(browser, tabId),
+    ...openRuleItems(browser, tabId),
     { type: 'separator' },
     groupSubmenu(browser, tabId),
     { type: 'separator' },

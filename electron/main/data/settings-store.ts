@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
   permissionDefaults: {},
   zoomLevels: {},
   blockerAllowlist: [],
+  openRules: {},
   hasWallpaper: false,
   defaultZoomFactor: 1,
   spellcheck: true,
@@ -50,7 +51,12 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /** The per-site keys, which live in the database and are only ever empty in the JSON file. */
-const SITE_KEYS = { permissionDecisions: {}, zoomLevels: {}, blockerAllowlist: [] } satisfies Partial<Settings>;
+const SITE_KEYS = {
+  permissionDecisions: {},
+  zoomLevels: {},
+  blockerAllowlist: [],
+  openRules: {},
+} satisfies Partial<Settings>;
 
 /**
  * Everything the user chose, bounded on the way in and on the way out.
@@ -78,11 +84,12 @@ export class SettingsStore {
       permissionDecisions: this.site.permissionDecisions(),
       zoomLevels: this.site.zoomLevels(),
       blockerAllowlist: this.site.trackerExceptions(),
+      openRules: this.site.openRules(),
     };
   }
 
   updateSettings(patch: Partial<Settings>): Settings {
-    const { permissionDecisions, zoomLevels, blockerAllowlist, ...rest } = patch;
+    const { permissionDecisions, zoomLevels, blockerAllowlist, openRules, ...rest } = patch;
     if (permissionDecisions) {
       this.site.replacePermissionDecisions(permissionDecisions);
     }
@@ -91,6 +98,9 @@ export class SettingsStore {
     }
     if (blockerAllowlist) {
       this.site.replaceTrackerExceptions(blockerAllowlist);
+    }
+    if (openRules) {
+      this.site.replaceOpenRules(openRules);
     }
     this.file.update((current) => normaliseSettings({ ...current, ...rest, ...SITE_KEYS }));
     return this.getSettings();
@@ -202,6 +212,8 @@ function reviveSettings(raw: unknown): Settings | null {
     blockerAllowlist: Array.isArray(raw.blockerAllowlist)
       ? raw.blockerAllowlist.filter((site): site is string => typeof site === 'string' && site.length > 0)
       : [],
+    // Only ever in the database; the file's copy is always empty.
+    openRules: {},
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
     spellcheck: asBoolean(raw.spellcheck, DEFAULT_SETTINGS.spellcheck),
     spellcheckLanguages: readSpellcheckLanguages(raw.spellcheckLanguages),

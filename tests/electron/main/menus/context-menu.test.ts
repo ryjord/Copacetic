@@ -35,6 +35,8 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSle
     scheduleStatePush: record('scheduleStatePush'),
     store: {
       listNamedSessions: () => [],
+      getSettings: () => ({ openRules: {} }),
+      groupFor: () => null,
       isBookmarked: () => false,
       toggleBookmark: record('toggleBookmark'),
       listGroups: () => [],

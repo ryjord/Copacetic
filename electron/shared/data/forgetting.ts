@@ -78,6 +78,8 @@ export interface SiteTraces {
    * told the site was forgotten was still signed in to it.
    */
   cookies: number;
+  /** A rule that the site always opens in Hush or a group. */
+  openRules: number;
 }
 
 export const NOTHING: SiteTraces = {
@@ -88,6 +90,7 @@ export const NOTHING: SiteTraces = {
   blockingOff: 0,
   certificates: 0,
   cookies: 0,
+  openRules: 0,
 };
 
 /** Whether two addresses belong to the same site, by registrable domain. */
@@ -174,6 +177,7 @@ export function describeTraces(traces: SiteTraces): string {
   add(traces.blockingOff, 'main.forgetting.traces.blockingOff');
   add(traces.certificates, 'main.forgetting.traces.certificates');
   add(traces.cookies, 'main.forgetting.traces.cookies');
+  add(traces.openRules, 'main.forgetting.traces.openRules');
 
   if (parts.length === 0) {
     return t('main.forgetting.nothingKept');

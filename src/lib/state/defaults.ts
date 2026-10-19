@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   permissionDefaults: {},
   zoomLevels: {},
   blockerAllowlist: [],
+  openRules: {},
   hasWallpaper: false,
   defaultZoomFactor: 1,
   spellcheck: true,

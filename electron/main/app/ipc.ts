@@ -22,6 +22,8 @@ import { conflictFor, readShortcutOverrides } from '../../shared/chrome/shortcut
 import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/browsing/url';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
+import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
+import { siteOf as siteOfAddress } from '../../shared/data/forgetting';
 import {
   showBookmarkContextMenu,
   showSiteContextMenu,
@@ -622,6 +624,16 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
       }
     }
     patch.zoomLevels = levels;
+  }
+
+  if (isRecord(value.openRules)) {
+    const rules: Settings['openRules'] = {};
+    for (const [site, target] of Object.entries(value.openRules).slice(0, MAX_OPEN_RULES)) {
+      if (site.length > 0 && site.length <= MAX_SITE_LENGTH && siteOfAddress(site) === site && isOpenTarget(target)) {
+        rules[site] = target;
+      }
+    }
+    patch.openRules = rules;
   }
 
   if (Array.isArray(value.blockerAllowlist)) {

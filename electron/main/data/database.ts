@@ -141,6 +141,16 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 8,
+    sql: `
+      -- Where a site always opens: 'hush', or 'group:' and a group's id.
+      CREATE TABLE open_rules (
+        site TEXT PRIMARY KEY,
+        target TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];

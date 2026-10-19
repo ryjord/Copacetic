@@ -45,6 +45,7 @@ import {
 } from './tab-choices';
 import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tabs/tab-groups';
+import { type Placement, placeByRule, openRuleFor } from '../../shared/tabs/open-rules';
 import {
   EVEN_SPLIT_RATIO,
   type SplitView,
@@ -673,10 +674,13 @@ export class TabManager {
     // every tab is born, so no caller can forget it.
     const opener =
       options.openerWebContentsId === undefined ? null : this.findByWebContentsId(options.openerWebContentsId);
-    const inherited = inheritFromOpener(opener ? { isHush: opener.isHush, groupId: opener.groupId } : null, {
+    const fromOpener = inheritFromOpener(opener ? { isHush: opener.isHush, groupId: opener.groupId } : null, {
       hush: options.hush,
       groupId: options.groupId,
     });
+    // A caller that said where the tab goes has already decided; otherwise the site's rule does.
+    const isPlacedByCaller = options.hush !== undefined || options.groupId !== undefined;
+    const inherited = isPlacedByCaller ? fromOpener : this.placementFor(fromOpener, rawUrl);
 
     const id = randomUUID();
     const settings = this.store.getSettings();
@@ -805,6 +809,13 @@ export class TabManager {
       }
       this.pageFocusHandler?.();
     });
+    const followRule = (event: Electron.Event<{ url: string; isMainFrame: boolean }>) => {
+      if (event.isMainFrame && this.placeByOpenRule(tab, event.url)) {
+        event.preventDefault();
+      }
+    };
+    view.webContents.on('will-navigate', followRule);
+    view.webContents.on('will-redirect', followRule);
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
     // A view with no document yet answers no DevTools command at all, so it is
@@ -1191,7 +1202,7 @@ export class TabManager {
 
     const settings = this.store.getSettings();
     const resolution = resolveOmniboxInput(input, settings.searchEngine, { httpsFirst: settings.httpsFirst });
-    if (!resolution) {
+    if (!resolution || this.placeByOpenRule(tab, resolution.target)) {
       return;
     }
     // Woken without its old history, which would otherwise be restored over the address just asked for.
@@ -1202,6 +1213,45 @@ export class TabManager {
         ? this.httpsFirst.typed(page.id, input, resolution.target)
         : resolution.target;
     void ready.then(() => this.loadUrl(tab, target));
+  }
+
+  private placementFor(place: Placement, url: string): Placement {
+    const target = openRuleFor(this.store.getSettings().openRules, url);
+    return placeByRule(place, target, (groupId) => this.store.groupFor(groupId) !== null);
+  }
+
+  /**
+   * Hands a page to a tab where its site's rule says it opens, and reports
+   * whether it did. A tab with nothing in it yet gives itself up; one with a
+   * page keeps it, as following a link never loses the page it was on.
+   */
+  private placeByOpenRule(tab: TabRecord, url: string): boolean {
+    const current: Placement = { hush: tab.isHush, groupId: tab.groupId };
+    const place = this.placementFor(current, url);
+    if (place === current) {
+      return false;
+    }
+    // Same session either way, so joining the group is enough and the page loads where it is.
+    if (
+      !place.hush &&
+      partitionFor({ isHush: false, group: this.store.groupFor(place.groupId) }, this.partitions) === tab.partition
+    ) {
+      tab.groupId = place.groupId;
+      this.onChanged();
+      return false;
+    }
+    const isEmpty = tab.isStartPage || ['', 'about:blank'].includes(pageOf(tab)?.getURL() ?? '');
+    this.create(url, {
+      index: this.order.indexOf(tab.id) + 1,
+      activate: this.activeId === tab.id,
+      hush: place.hush,
+      groupId: place.groupId,
+    });
+    if (isEmpty) {
+      // After the navigation event that asked has returned, since closing a page from inside its own event is not safe.
+      setImmediate(() => this.close(tab.id, { isReplaced: true }));
+    }
+    return true;
   }
 
   private async loadUrl(tab: TabRecord, url: string): Promise<void> {

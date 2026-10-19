@@ -15,7 +15,8 @@ vi.mock('@/lib/bridge/bridge', () => ({
 
 let settings: Settings = DEFAULT_SETTINGS_SHAPE;
 vi.mock('@/store/useBrowserStore', () => ({
-  useBrowserStore: (select: (state: { settings: Settings }) => unknown) => select({ settings }),
+  useBrowserStore: (select: (state: { settings: Settings; groups: [] }) => unknown) =>
+    select({ settings, groups: [] }),
 }));
 
 const { SitesPane } = await import('@/components/views/settings/sites/SitesPane');
@@ -47,6 +48,7 @@ describe('the site settings pane', () => {
       permissionDecisions: {},
       zoomLevels: {},
       blockerAllowlist: ['shop.example.net'],
+      openRules: {},
     });
   });
 

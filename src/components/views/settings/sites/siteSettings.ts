@@ -4,6 +4,7 @@ import { t } from '@shared/i18n/translate';
 // Types
 import { PERMISSION_LABELS, type PermissionDecision, type PermissionKind, type Settings } from '@shared/types';
 import { hostOf, registrableDomainOf } from '@shared/browsing/url';
+import type { OpenTarget } from '@shared/tabs/open-rules';
 
 export interface SitePermission {
   origin: string;
@@ -17,9 +18,10 @@ export interface SiteSettings {
   permissions: SitePermission[];
   zoomLevels: { origin: string; zoomFactor: number }[];
   allowsTrackers: boolean;
+  opensIn: OpenTarget | null;
 }
 
-type SiteKeys = Pick<Settings, 'permissionDecisions' | 'zoomLevels' | 'blockerAllowlist'>;
+type SiteKeys = Pick<Settings, 'permissionDecisions' | 'zoomLevels' | 'blockerAllowlist' | 'openRules'>;
 
 /** What each permission is called in a list of them, where the full sentence would not fit. */
 export const PERMISSION_NAMES: Record<PermissionKind, string> = {
@@ -72,7 +74,7 @@ export function sitesFrom(settings: SiteKeys): SiteSettings[] {
     if (existing) {
       return existing;
     }
-    const fresh: SiteSettings = { site, permissions: [], zoomLevels: [], allowsTrackers: false };
+    const fresh: SiteSettings = { site, permissions: [], zoomLevels: [], allowsTrackers: false, opensIn: null };
     bySite.set(site, fresh);
     return fresh;
   };
@@ -86,6 +88,9 @@ export function sitesFrom(settings: SiteKeys): SiteSettings[] {
   // Kept by site already, which is what the blocker matches against.
   settings.blockerAllowlist.forEach((site) => {
     entryFor(site).allowsTrackers = true;
+  });
+  Object.entries(settings.openRules).forEach(([site, target]) => {
+    entryFor(site).opensIn = target;
   });
 
   return [...bySite.values()].sort((aSite, bSite) => aSite.site.localeCompare(bSite.site));
@@ -131,6 +136,7 @@ export function withoutSite(settings: SiteKeys, site: string): SiteKeys {
     ),
     zoomLevels: Object.fromEntries(Object.entries(settings.zoomLevels).filter(([origin]) => siteOf(origin) !== site)),
     blockerAllowlist: settings.blockerAllowlist.filter((entry) => entry !== site),
+    openRules: Object.fromEntries(Object.entries(settings.openRules).filter(([key]) => key !== site)),
   };
 }
 
@@ -149,6 +155,7 @@ export function summaryOf(site: SiteSettings): string {
       t('settings.sites.summary.zoom', { percent: Math.round(zoom.zoomFactor * 100) }),
     ),
     ...(site.allowsTrackers ? [t('settings.sites.trackersAllowed')] : []),
+    ...(site.opensIn === 'hush' ? [t('settings.sites.summary.opensInHush')] : []),
   ];
   return parts.join(' · ');
 }

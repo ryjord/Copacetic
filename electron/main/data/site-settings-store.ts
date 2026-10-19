@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { PermissionDecision } from '../../shared/types';
+import { type OpenRules, isOpenTarget } from '../../shared/tabs/open-rules';
 import { inTransaction } from './database';
 
 /** The per-site parts of the settings: what each site may do, how far it is zoomed, and where trackers are allowed. */
@@ -90,6 +91,24 @@ export class SiteSettingsStore {
       this.database.exec('DELETE FROM tracker_exceptions');
       const insert = this.database.prepare('INSERT OR IGNORE INTO tracker_exceptions (site, position) VALUES (?, ?)');
       sites.forEach((site, position) => insert.run(site, position));
+    });
+    this.scrub();
+  }
+
+  openRules(): OpenRules {
+    return Object.fromEntries(
+      this.database
+        .prepare('SELECT site, target FROM open_rules')
+        .all()
+        .flatMap((row) => (isOpenTarget(row.target) ? [[String(row.site), row.target]] : [])),
+    );
+  }
+
+  replaceOpenRules(rules: OpenRules): void {
+    inTransaction(this.database, () => {
+      this.database.exec('DELETE FROM open_rules');
+      const insert = this.database.prepare('INSERT INTO open_rules (site, target) VALUES (?, ?)');
+      Object.entries(rules).forEach(([site, target]) => insert.run(site, target));
     });
     this.scrub();
   }

@@ -10,6 +10,7 @@ const kept = {
   } as const,
   zoomLevels: { 'https://docs.example.com': 1.25 },
   blockerAllowlist: ['shop.example.net'],
+  openRules: { 'bank.example': 'hush' } as const,
 };
 
 describe('what is kept about each site', () => {
@@ -24,7 +25,12 @@ describe('what is kept about each site', () => {
   });
 
   it('lists each site once, alphabetically, with tracker exceptions among them', () => {
-    expect(sitesFrom(kept).map((site) => site.site)).toEqual(['example.com', 'example.org', 'shop.example.net']);
+    expect(sitesFrom(kept).map((site) => site.site)).toEqual([
+      'bank.example',
+      'example.com',
+      'example.org',
+      'shop.example.net',
+    ]);
     expect(sitesFrom(kept).find((site) => site.site === 'shop.example.net')?.allowsTrackers).toBe(true);
   });
 
@@ -47,6 +53,12 @@ describe('resetting one site', () => {
     ]);
     expect(patch.zoomLevels).toEqual({});
     expect(patch.blockerAllowlist).toEqual(['shop.example.net']);
+    expect(patch.openRules).toEqual({ 'bank.example': 'hush' });
+  });
+
+  it('lets a site open anywhere again when its rule was all there was', () => {
+    expect(sitesFrom(kept).find((site) => site.site === 'bank.example')?.opensIn).toBe('hush');
+    expect(withoutSite(kept, 'bank.example').openRules).toEqual({});
   });
 
   it('forgets a tracker exception when that is all there was', () => {
