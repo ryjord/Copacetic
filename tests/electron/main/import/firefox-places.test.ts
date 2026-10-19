@@ -50,8 +50,8 @@ afterEach(() => {
 });
 
 describe("a Firefox profile's bookmarks", () => {
-  it('names the folders as Firefox shows them, and leaves tags out', () => {
-    const { bookmarks, skipped } = readFirefoxBookmarks(places);
+  it('names the folders as Firefox shows them, and leaves tags out', async () => {
+    const { bookmarks, skipped } = await readFirefoxBookmarks(places);
     expect(bookmarks).toEqual([
       {
         url: 'https://toolbar.test/',
@@ -64,15 +64,15 @@ describe("a Firefox profile's bookmarks", () => {
     expect(skipped).toBe(1);
   });
 
-  it('reads a copy and leaves nothing behind', () => {
-    readFirefoxBookmarks(places);
+  it('reads a copy and leaves nothing behind', async () => {
+    await readFirefoxBookmarks(places);
     expect(readdirSync(directory)).toEqual(['places.sqlite']);
   });
 });
 
 describe("a Firefox profile's history", () => {
-  it('takes recent, visible web pages, newest first', () => {
-    const visits = readFirefoxHistory(places, { since: Date.now() - 90 * day, limit: 100 });
+  it('takes recent, visible web pages, newest first', async () => {
+    const visits = await readFirefoxHistory(places, { since: Date.now() - 90 * day, limit: 100 });
     expect(visits.map((visit) => visit.url)).toEqual(['https://toolbar.test/', 'https://deep.test/']);
     expect(visits[0]?.visitCount).toBe(4);
     expect(Math.abs((visits[0]?.lastVisitedAt ?? 0) - (Date.now() - day))).toBeLessThan(60_000);

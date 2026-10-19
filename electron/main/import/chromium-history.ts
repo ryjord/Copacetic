@@ -1,13 +1,11 @@
 // Libs
-import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 // Utils
 import { MAX_IMPORTED_TITLE, isImportable } from '../../shared/bookmark-import';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import { WINDOWS_EPOCH_OFFSET_MS } from './chromium-time';
+import { withCopyOf } from './copy-aside';
 
 export interface ImportedVisit {
   url: string;
@@ -21,14 +19,11 @@ export interface ImportedVisit {
  *
  * Read from a copy, journal and all: the browser may be running and holding its own file.
  */
-export function readChromiumHistory(file: string, options: { since: number; limit: number }): ImportedVisit[] {
-  const scratch = mkdtempSync(path.join(tmpdir(), 'copacetic-import-'));
-  try {
-    const copy = path.join(scratch, 'History');
-    copyFileSync(file, copy);
-    ['-journal', '-wal']
-      .filter((suffix) => existsSync(`${file}${suffix}`))
-      .forEach((suffix) => copyFileSync(`${file}${suffix}`, `${copy}${suffix}`));
+export function readChromiumHistory(
+  file: string,
+  options: { since: number; limit: number },
+): Promise<ImportedVisit[]> {
+  return withCopyOf(file, 'copacetic-import-', (copy) => {
     const database = new DatabaseSync(copy);
     try {
       // Converted in SQL: microseconds since 1601 are past what a JavaScript number holds exactly.
@@ -52,7 +47,5 @@ export function readChromiumHistory(file: string, options: { since: number; limi
     } finally {
       database.close();
     }
-  } finally {
-    rmSync(scratch, { recursive: true, force: true });
-  }
+  });
 }

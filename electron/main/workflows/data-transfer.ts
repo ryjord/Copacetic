@@ -137,7 +137,7 @@ export class DataTransfer {
   }
 
   /** Bookmarks and the history this browser keeps, from another browser's profile. Passwords stay where they are. */
-  importFromBrowser(sourceId: string): string {
+  async importFromBrowser(sourceId: string): Promise<string> {
     const source = findReadableProfiles(THIS_MACHINE()).find((profile) => profile.id === sourceId);
     if (!source) {
       return t('main.import.browser.gone');
@@ -145,7 +145,7 @@ export class DataTransfer {
 
     const parts: string[] = [];
     try {
-      const read = source.readBookmarks();
+      const read = await source.readBookmarks();
       if (read) {
         const { added, alreadyHad } = this.deps.store.importBookmarks(
           read.bookmarks,
@@ -162,7 +162,7 @@ export class DataTransfer {
     }
 
     try {
-      const visits = source.readHistory({ since: Date.now() - MAX_HISTORY_AGE_MS, limit: MAX_HISTORY_ENTRIES });
+      const visits = await source.readHistory({ since: Date.now() - MAX_HISTORY_AGE_MS, limit: MAX_HISTORY_ENTRIES });
       if (visits) {
         const { added } = this.deps.store.importHistory(visits);
         parts.push(t('main.import.browser.historyPages', { count: added }));

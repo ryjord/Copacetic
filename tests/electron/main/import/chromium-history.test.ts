@@ -38,31 +38,39 @@ afterEach(() => {
 const read = (limit = 100) => readChromiumHistory(historyFile, { since: Date.now() - 90 * day, limit });
 
 describe("a Chromium profile's history", () => {
-  it('reads the pages inside the window, newest first, at the right time', () => {
-    const visits = read();
+  it('reads the pages inside the window, newest first, at the right time', async () => {
+    const visits = await read();
     expect(visits.map((visit) => visit.url)).toEqual(['https://recent.example/', 'https://older.example/']);
     expect(Math.abs(visits[0]!.lastVisitedAt - (Date.now() - day))).toBeLessThan(1000);
     expect(visits[0]?.visitCount).toBe(7);
   });
 
-  it('stops at the limit, keeping the newest', () => {
-    expect(read(1).map((visit) => visit.url)).toEqual(['https://recent.example/']);
+  it('stops at the limit, keeping the newest', async () => {
+    expect((await read(1)).map((visit) => visit.url)).toEqual(['https://recent.example/']);
   });
 
   // Hidden rows are subframes and redirects Chromium itself never shows as history.
-  it('leaves out hidden rows and pages that are not on the web', () => {
-    const urls = read().map((visit) => visit.url);
+  it('leaves out hidden rows and pages that are not on the web', async () => {
+    const urls = (await read()).map((visit) => visit.url);
     expect(urls).not.toContain('https://hidden.example/');
     expect(urls).not.toContain('chrome://settings/');
   });
 
-  it("leaves the other browser's file as it was, and no copy behind", () => {
+  it("leaves the other browser's file as it was, and no copy behind", async () => {
     const before = readdirSync(directory);
     const copies = () => readdirSync(tmpdir()).filter((name) => name.startsWith('copacetic-import-'));
     // Compared with what was there already, so another test reading at the same time is not counted.
     const copiesBefore = new Set(copies());
-    read();
+    await read();
     expect(readdirSync(directory)).toEqual(before);
     expect(copies().filter((name) => !copiesBefore.has(name))).toEqual([]);
+  });
+
+  // A file too large to be anyone's history would freeze every window while it was copied.
+  it('refuses a file too large to be a real profile, before copying any of it', async () => {
+    const { MAX_IMPORT_FILE_BYTES } = await import('../../../../electron/main/import/copy-aside');
+    const { truncateSync } = await import('node:fs');
+    truncateSync(historyFile, MAX_IMPORT_FILE_BYTES + 1);
+    await expect(read()).rejects.toThrow('too large');
   });
 });

@@ -1,7 +1,4 @@
 // Libs
-import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 // Utils
@@ -14,6 +11,7 @@ import {
 } from '../../shared/bookmark-import';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import { t } from '../../shared/i18n/translate';
+import { withCopyOf } from './copy-aside';
 
 // Types
 import type { ImportedVisit } from './chromium-history';
@@ -29,24 +27,16 @@ const TAGS_ROOT = 'tags________';
 const BOOKMARK = 1;
 const FOLDER = 2;
 
-/** Read from a copy, write-ahead log and all: Firefox may be running and holding its own file. */
-function withCopyOf<T>(file: string, read: (database: DatabaseSync) => T): T {
-  const scratch = mkdtempSync(path.join(tmpdir(), 'copacetic-firefox-import-'));
-  try {
-    const copy = path.join(scratch, 'places.sqlite');
-    copyFileSync(file, copy);
-    ['-wal', '-journal']
-      .filter((suffix) => existsSync(`${file}${suffix}`))
-      .forEach((suffix) => copyFileSync(`${file}${suffix}`, `${copy}${suffix}`));
+/** Opens the copy, runs the query, and closes it again, whatever the query does. */
+function inCopyOf<T>(file: string, query: (database: DatabaseSync) => T): Promise<T> {
+  return withCopyOf(file, 'copacetic-firefox-import-', (copy) => {
     const database = new DatabaseSync(copy);
     try {
-      return read(database);
+      return query(database);
     } finally {
       database.close();
     }
-  } finally {
-    rmSync(scratch, { recursive: true, force: true });
-  }
+  });
 }
 
 interface PlacesRow {
@@ -102,8 +92,8 @@ export function bookmarksFromPlaces(rows: readonly PlacesRow[]): ImportedBookmar
   return { bookmarks, skipped: candidates.length - importable.length };
 }
 
-export function readFirefoxBookmarks(file: string): ImportedBookmarks {
-  return withCopyOf(file, (database) => {
+export function readFirefoxBookmarks(file: string): Promise<ImportedBookmarks> {
+  return inCopyOf(file, (database) => {
     const rows = database
       .prepare(
         `SELECT b.id, b.type, b.parent, coalesce(b.title, '') AS title, b.guid, p.url, b.dateAdded AS added_at
@@ -127,8 +117,11 @@ export function readFirefoxBookmarks(file: string): ImportedBookmarks {
 }
 
 /** The most recent pages Firefox remembers, in the shape the Chromium reader produces. */
-export function readFirefoxHistory(file: string, options: { since: number; limit: number }): ImportedVisit[] {
-  return withCopyOf(file, (database) => {
+export function readFirefoxHistory(
+  file: string,
+  options: { since: number; limit: number },
+): Promise<ImportedVisit[]> {
+  return inCopyOf(file, (database) => {
     // Microseconds since 1970, divided down in SQL to the milliseconds Copacetic keeps.
     const rows = database
       .prepare(
