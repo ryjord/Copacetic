@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   ambientHue: 0,
   checkForUpdates: true,
   permissionDecisions: {},
+  permissionDefaults: {},
   zoomLevels: {},
   blockerAllowlist: [],
   hasWallpaper: false,

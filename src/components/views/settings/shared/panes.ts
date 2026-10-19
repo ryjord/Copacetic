@@ -110,6 +110,8 @@ export const SETTINGS_PANES = [
     terms: [
       'Site settings',
       'Permissions',
+      'When a site asks',
+      'Block by default',
       'Camera',
       'Microphone',
       'Location',

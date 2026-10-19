@@ -216,6 +216,39 @@ export type PermissionKind =
 
 export type PermissionDecision = 'allow' | 'deny';
 
+/** The kinds a site has to ask about, in the order settings lists them. */
+export const ASKABLE_PERMISSIONS = [
+  'notifications',
+  'geolocation',
+  'media',
+  'clipboard-read',
+  'midi',
+  'openExternal',
+] as const satisfies readonly PermissionKind[];
+export type AskablePermission = (typeof ASKABLE_PERMISSIONS)[number];
+
+// No 'allow': a blanket yes would hand every page the camera or your location without a word.
+export type PermissionDefault = 'ask' | 'block';
+
+/** What a site nobody has decided about gets, by kind; a kind left out is asked about. */
+export type PermissionDefaults = Partial<Record<AskablePermission, PermissionDefault>>;
+
+export function isAskablePermission(kind: string): kind is AskablePermission {
+  return ASKABLE_PERMISSIONS.some((askable) => askable === kind);
+}
+
+/** Only known kinds and known answers survive, from the renderer or from disk. */
+export function readPermissionDefaults(value: unknown): PermissionDefaults {
+  if (typeof value !== 'object' || value === null) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([kind, answer]) => isAskablePermission(kind) && (answer === 'ask' || answer === 'block'),
+    ),
+  );
+}
+
 /** A person's answer to a prompt, and whether they asked for it to be kept. */
 export interface PermissionAnswer {
   decision: PermissionDecision;
@@ -425,6 +458,8 @@ export interface Settings {
   checkForUpdates: boolean;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
+  /** What a site without a decision gets, by kind. */
+  permissionDefaults: PermissionDefaults;
   // Per-origin zoom, remembered because a site that needs zooming needs it every time.
   zoomLevels: Record<string, number>;
   // Sites where tracker blocking is switched off, by registrable domain.

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button/Button';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { SearchField } from '@/components/ui/TextField/TextField';
+import { Select } from '@/components/ui/Select/Select';
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 
 // Store
@@ -23,6 +24,14 @@ import {
   withoutSite,
 } from '@/components/views/settings/sites/siteSettings';
 
+// Types
+import { ASKABLE_PERMISSIONS, type PermissionDefault } from '@shared/types';
+
+const DEFAULT_OPTIONS: readonly { id: PermissionDefault; label: string }[] = [
+  { id: 'ask', label: 'Ask' },
+  { id: 'block', label: 'Block' },
+];
+
 /** Everything kept about particular sites, one site at a time, in the one place it can all be changed. */
 export function SitesPane() {
   const settings = useBrowserStore((state) => state.settings);
@@ -35,17 +44,21 @@ export function SitesPane() {
 
   if (sites.length === 0) {
     return (
-      <SettingGroup title="Sites">
-        <SettingRow
-          label="Nothing is kept about any site yet"
-          help="Permissions you answer with Remember, zoom levels you change and sites you let show trackers appear here."
-        />
-      </SettingGroup>
+      <>
+        <PermissionDefaults />
+        <SettingGroup title="Sites">
+          <SettingRow
+            label="Nothing is kept about any site yet"
+            help="Permissions you answer with Remember, zoom levels you change and sites you let show trackers appear here."
+          />
+        </SettingGroup>
+      </>
     );
   }
 
   return (
     <>
+      <PermissionDefaults />
       <SearchField value={query} onChange={setQuery} label="Search sites" />
       <SettingGroup title={`Sites (${sites.length})`}>
         {shown.length === 0 && <SettingRow label="No site matches" />}
@@ -60,6 +73,30 @@ export function SitesPane() {
         ))}
       </SettingGroup>
     </>
+  );
+}
+
+/** What a site you have not answered gets; a site you answered keeps its answer. */
+function PermissionDefaults() {
+  const defaults = useBrowserStore((state) => state.settings.permissionDefaults);
+  return (
+    <SettingGroup title="When a site asks">
+      {ASKABLE_PERMISSIONS.map((kind) => (
+        <SettingRow
+          key={kind}
+          label={PERMISSION_NAMES[kind]}
+          help={defaults[kind] === 'block' ? 'Refused without asking, unless you allowed the site.' : undefined}
+          control={
+            <Select
+              label={`${PERMISSION_NAMES[kind]} by default`}
+              options={DEFAULT_OPTIONS}
+              value={defaults[kind] ?? 'ask'}
+              onChange={(answer) => updateSettings({ permissionDefaults: { ...defaults, [kind]: answer } })}
+            />
+          }
+        />
+      ))}
+    </SettingGroup>
   );
 }
 

@@ -1,6 +1,7 @@
 import { type BrowserWindow, app, dialog, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { sanitiseChromeText } from '../../shared/chrome-text';
+import { isAskablePermission } from '../../shared/types';
 import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/types';
 import { hostOf, isPageNavigableUrl } from '../../shared/url';
 import type { PendingPrompts } from './pending-prompts';
@@ -99,6 +100,8 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
     },
 
     getStoredDecision: (origin, kind) => deps.store.getPermissionDecision(origin, kind),
+    getDefaultPermission: (kind) =>
+      isAskablePermission(kind) ? (deps.store.getSettings().permissionDefaults[kind] ?? 'ask') : 'ask',
     rememberDecision: (origin, kind, decision) => deps.store.setPermissionDecision(origin, kind, decision),
 
     blocksThirdPartyCookiesOn: (site) => {

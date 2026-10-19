@@ -1,6 +1,6 @@
 import { type Session, type WebContents, app, desktopCapturer, shell } from 'electron';
 import { type DisplaySource, displayChoices } from '../../shared/display-sources';
-import type { PermissionAnswer, PermissionDecision, PermissionKind } from '../../shared/types';
+import type { PermissionAnswer, PermissionDecision, PermissionDefault, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
 import { observeCertificates } from './certificates';
 import { installRequestHeaders } from './request-headers';
@@ -20,6 +20,8 @@ export interface SecurityDelegate {
   /** A page tried to hand off to another application. */
   confirmExternalOpen(url: string, openerWebContentsId: number): Promise<boolean>;
   getStoredDecision(origin: string, kind: PermissionKind): PermissionDecision | null;
+  /** What a site gets when nothing is stored for it. */
+  getDefaultPermission(kind: PermissionKind): PermissionDefault;
   rememberDecision(origin: string, kind: PermissionKind, decision: PermissionDecision): void;
   /** Whether a page on this site keeps third-party cookies out; the site's tracker exception lets them in. */
   blocksThirdPartyCookiesOn(site: string): boolean;
@@ -211,6 +213,9 @@ async function resolvePermission(
   const stored = delegate.getStoredDecision(origin, prompted.kind);
   if (stored) {
     return stored === 'allow';
+  }
+  if (delegate.getDefaultPermission(prompted.kind) === 'block') {
+    return false;
   }
 
   const answer = await delegate.requestPermission({

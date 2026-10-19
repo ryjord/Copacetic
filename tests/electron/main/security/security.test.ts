@@ -71,7 +71,10 @@ function fakeContents(url = 'https://example.com/', session: unknown = { isPersi
   };
 }
 
-function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
+function fakeDelegate(
+  stored: Record<string, PermissionDecision> = {},
+  defaults: Record<string, 'ask' | 'block'> = {},
+) {
   const asked: { origin: string; kind: PermissionKind }[] = [];
   const opened: string[] = [];
   const handed: string[] = [];
@@ -103,6 +106,7 @@ function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
         return false;
       },
       getStoredDecision: (origin: string, kind: string) => stored[`${origin}|${kind}`] ?? null,
+      getDefaultPermission: (kind: string) => defaults[kind] ?? 'ask',
       rememberDecision: (origin: string, kind: string, decision: PermissionDecision) => {
         remembered[`${origin}|${kind}`] = decision;
       },
@@ -204,6 +208,24 @@ describe('permissions a page asks for', () => {
 
     expect(await ask(session.captured, 'geolocation')).toBe(false);
     expect(stored.asked).toHaveLength(0);
+  });
+
+  it('refuses without asking when the default for that kind is to block', async () => {
+    const blocking = fakeDelegate({}, { notifications: 'block' });
+    const session = fakeSession();
+    hardenWebSession(session.session as never, blocking.delegate as never);
+
+    expect(await ask(session.captured, 'notifications')).toBe(false);
+    expect(blocking.asked).toHaveLength(0);
+  });
+
+  // A site someone allowed on purpose keeps that, whatever the default for everyone else.
+  it('lets a stored allow outrank a blocking default', async () => {
+    const allowed = fakeDelegate({ 'https://example.com|notifications': 'allow' }, { notifications: 'block' });
+    const session = fakeSession();
+    hardenWebSession(session.session as never, allowed.delegate as never);
+
+    expect(await ask(session.captured, 'notifications')).toBe(true);
   });
 
   // An origin that cannot be named cannot be remembered against, and a prompt

@@ -1,4 +1,10 @@
-import { isAppearanceId, isSleepAfterMinutes, isThemeId, isWebRtcPolicy } from '../../shared/types';
+import {
+  isAppearanceId,
+  isSleepAfterMinutes,
+  isThemeId,
+  isWebRtcPolicy,
+  readPermissionDefaults,
+} from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
@@ -21,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ambientHue: 0,
   checkForUpdates: true,
   permissionDecisions: {},
+  permissionDefaults: {},
   zoomLevels: {},
   blockerAllowlist: [],
   hasWallpaper: false,
@@ -179,6 +186,7 @@ function reviveSettings(raw: unknown): Settings | null {
     ambientHue: clampHue(raw.ambientHue),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     permissionDecisions: decisions,
+    permissionDefaults: readPermissionDefaults(raw.permissionDefaults),
     zoomLevels: reviveZoomLevels(raw.zoomLevels),
     // Derived from whether the file exists, so it is never read from disk.
     hasWallpaper: false,

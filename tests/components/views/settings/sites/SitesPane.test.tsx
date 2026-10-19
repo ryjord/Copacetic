@@ -69,4 +69,19 @@ describe('the site settings pane', () => {
     render(<SitesPane />);
     expect(screen.getByText('Nothing is kept about any site yet')).toBeTruthy();
   });
+
+  it('offers a default for every kind a site can ask about, even with no sites kept', () => {
+    settings = { ...DEFAULT_SETTINGS_SHAPE };
+    render(<SitesPane />);
+    expect(screen.getByText('When a site asks')).toBeTruthy();
+    ['Notifications', 'Location', 'Camera and microphone', 'Clipboard', 'MIDI devices', 'Opening other apps'].forEach(
+      (name) => expect(screen.getByLabelText(`${name} by default`)).toBeTruthy(),
+    );
+  });
+
+  it('says what a blocking default means', () => {
+    settings = { ...DEFAULT_SETTINGS_SHAPE, permissionDefaults: { notifications: 'block' } };
+    render(<SitesPane />);
+    expect(screen.getByText('Refused without asking, unless you allowed the site.')).toBeTruthy();
+  });
 });

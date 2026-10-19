@@ -28,6 +28,7 @@ describe('every setting can actually be changed', () => {
     startPageWidgets: ['search', 'clock'],
     checkForUpdates: false,
     permissionDecisions: { 'https://example.com|camera': 'allow' },
+    permissionDefaults: { notifications: 'block', geolocation: 'ask' },
     zoomLevels: { 'https://example.com': 1.5 },
     blockerAllowlist: ['example.com'],
     defaultZoomFactor: 1.25,
@@ -68,6 +69,11 @@ describe('but only settings, and only sane ones', () => {
     expect(asSettingsPatch({ permissionDecisions: { 'a|b': 'maybe', 'c|d': 'allow' } })).toEqual({
       permissionDecisions: { 'c|d': 'allow' },
     });
+    expect(
+      asSettingsPatch({
+        permissionDefaults: { notifications: 'block', media: 'allow', fullscreen: 'block', bogus: 'ask' },
+      }),
+    ).toEqual({ permissionDefaults: { notifications: 'block' } });
     expect(asSettingsPatch({ zoomLevels: { a: 'big', b: 2 } })).toEqual({ zoomLevels: { b: 2 } });
     expect(asSettingsPatch({ blockerAllowlist: ['ok.com', 42, '', null] })).toEqual({ blockerAllowlist: ['ok.com'] });
   });
