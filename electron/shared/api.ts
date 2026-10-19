@@ -170,6 +170,8 @@ export interface CopaceticApi {
     forget(origin: string, kind: PermissionKind): Promise<void>;
   };
   window: {
+    /** Another window, on a new tab. */
+    openNew(): Promise<void>;
     minimize(): Promise<void>;
     toggleMaximize(): Promise<void>;
     close(): Promise<void>;

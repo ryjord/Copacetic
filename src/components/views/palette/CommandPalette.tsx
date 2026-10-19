@@ -62,6 +62,13 @@ export function CommandPalette() {
     };
     const list: Command[] = [
       {
+        id: 'new-window',
+        label: 'New window',
+        accelerator: 'CmdOrCtrl+N',
+        group: 'Tabs',
+        run: then(() => send((api) => api.window.openNew())),
+      },
+      {
         id: 'new-tab',
         label: 'New tab',
         accelerator: 'CmdOrCtrl+T',

@@ -7,6 +7,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
   const shortcut = (accelerator: string) => ({ accelerator, registerAccelerator: false });
 
   return [
+    { label: 'New window', ...shortcut('CmdOrCtrl+N'), click: () => browser.openNewWindow() },
     { label: 'New tab', ...shortcut('CmdOrCtrl+T'), click: () => browser.commands.newTab() },
     { label: 'New Hush tab', ...shortcut('CmdOrCtrl+Shift+N'), click: () => browser.commands.newHushTab() },
     {

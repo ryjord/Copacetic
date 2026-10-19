@@ -36,9 +36,9 @@ import { DEFAULT_SETTINGS, SettingsStore, normaliseSettings } from './settings-s
 export { DEFAULT_SETTINGS, normaliseSettings };
 import { CertificatesStore } from './certificates-store';
 import { FaviconsStore } from './favicons-store';
-import { SessionStore, type SessionSnapshot } from './session-store';
+import { type SavedSession, SessionStore, type SessionSnapshot } from './session-store';
 
-export type { SessionSnapshot };
+export type { SavedSession, SessionSnapshot };
 
 export class BrowserStore {
   private readonly database = openDatabase(path.join(app.getPath('userData'), 'copacetic.db'));
@@ -389,11 +389,11 @@ export class BrowserStore {
 
   // ----------------------------------------------------------------- session
 
-  saveSession(snapshot: SessionSnapshot): void {
-    this.session.save(snapshot);
+  saveSession(session: SavedSession): void {
+    this.session.save(session);
   }
 
-  getSession(): SessionSnapshot {
+  getSession(): SavedSession {
     return this.session.get();
   }
 

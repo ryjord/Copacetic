@@ -318,6 +318,10 @@ export class TabManager {
     return null;
   }
 
+  has(id: TabId): boolean {
+    return this.tabs.has(id);
+  }
+
   tabIdForWebContentsId(webContentsId: number): TabId | null {
     return this.findByWebContentsId(webContentsId)?.id ?? null;
   }

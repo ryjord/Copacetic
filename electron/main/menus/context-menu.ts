@@ -146,6 +146,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
       click: () => browser.commands.reopenClosedTab(),
     },
     { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
+    { label: 'Move to new window', enabled: url !== null, click: () => browser.moveTabToNewWindow(tabId) },
     { label: 'Reload', click: () => browser.tabs.reload(tabId) },
     { type: 'separator' },
     groupSubmenu(browser, tabId),

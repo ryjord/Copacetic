@@ -5,7 +5,13 @@ import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/typ
 import { hostOf, isPageNavigableUrl } from '../../shared/url';
 import type { PendingPrompts } from './pending-prompts';
 import type { BrowserStore } from '../data/store';
-import type { TabManager } from '../tabs/tabs';
+
+/** What a page's request needs of the tabs, answered by whichever window holds the page. */
+export interface TabDirectory {
+  tabIdForWebContentsId(webContentsId: number): TabId | null;
+  urlFor(id: TabId): string | null;
+  create(url: string, options: { activate?: boolean; openerWebContentsId?: number }): void;
+}
 import { describeAuthPrompt, isPromptWorthy } from './auth';
 import type { SecurityDelegate } from './security';
 
@@ -27,12 +33,18 @@ export function mayBeHandedToOs(url: string): boolean {
 }
 
 interface BrowserDelegateDeps {
-  window: BrowserWindow;
+  /** The window a dialog belongs to, if any is open; on macOS there may be none. */
+  window: () => BrowserWindow | undefined;
   store: BrowserStore;
   prompts: PendingPrompts;
   /** Read when a page asks, because the sessions it guards are made before the tabs are. */
-  tabs: () => TabManager;
+  tabs: () => TabDirectory;
   onPromptsChanged: () => void;
+}
+
+// Attached to a window when there is one, so the question is not lost behind it.
+function showQuestion(parent: BrowserWindow | undefined, options: Electron.MessageBoxOptions) {
+  return parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options);
 }
 
 /** What every web session asks of the browser: the person's answers, and where pages may go. */
@@ -69,7 +81,7 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
       if (!scheme || !mayBeHandedToOs(url)) {
         return false;
       }
-      const { response } = await dialog.showMessageBox(deps.window, {
+      const { response } = await showQuestion(deps.window(), {
         type: 'question',
         buttons: ['Open', 'Cancel'],
         defaultId: 1,
@@ -91,7 +103,7 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
 
     chooseDisplaySource: async (origin, choices) => {
       const host = sanitiseChromeText(hostOf(origin) || origin, 120);
-      const { response } = await dialog.showMessageBox(deps.window, {
+      const { response } = await showQuestion(deps.window(), {
         type: 'question',
         buttons: [...choices.map((choice) => sanitiseChromeText(choice.name, 60)), 'Cancel'],
         defaultId: choices.length,

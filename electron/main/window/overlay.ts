@@ -1,4 +1,4 @@
-import { WebContentsView, type BaseWindow, type WebFrameMain } from 'electron';
+import { WebContentsView, type BaseWindow, type WebContents, type WebFrameMain } from 'electron';
 import { guardChromeWebContents } from '../security/security';
 import { focusContents } from '../system/launch-mode';
 import { chromeEntryUrl, preloadPath } from '../app/env';
@@ -66,6 +66,11 @@ export class OverlayLayer {
    * webContents, so the guard that only knows the chrome window would refuse
    * even its own request to be measured.
    */
+  /** Whether these are this overlay's own contents, for routing what they ask to the window they belong to. */
+  holds(contents: WebContents): boolean {
+    return !this.isDisposed && contents === this.view.webContents;
+  }
+
   ownsFrame(frame: WebFrameMain | null): boolean {
     if (this.isDisposed || this.view.webContents.isDestroyed()) {
       return false;

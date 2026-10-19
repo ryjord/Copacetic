@@ -7,17 +7,24 @@ export interface SessionTab {
   groupId: string | null;
 }
 
+/** One window's tabs, and which of them was in front. */
 export interface SessionSnapshot {
   tabs: SessionTab[];
   activeIndex: number;
 }
 
+/** Every window to reopen, the one that was in front last so it comes back in front. */
+export interface SavedSession {
+  windows: SessionSnapshot[];
+}
+
 /**
  * Version 2 carries which group each tab was in, so a group comes back with its
  * tabs rather than as an empty name. Version 1 was a bare list of addresses.
+ * Version 3 holds a list of windows; everything before it was one window.
  */
 export const SESSION_PLAN: SchemaPlan = {
-  current: 2,
+  current: 3,
   steps: [
     {
       to: 2,
@@ -40,24 +47,35 @@ export const SESSION_PLAN: SchemaPlan = {
         };
       },
     },
+    {
+      to: 3,
+      describe: 'a session holds every window, not just one',
+      up: (raw: unknown) => {
+        // Already a list of windows: wrapping it again would bury every tab one level too deep.
+        if (!isRecord(raw) || Array.isArray(raw.windows)) {
+          return raw;
+        }
+        return { windows: Array.isArray(raw.tabs) ? [{ tabs: raw.tabs, activeIndex: raw.activeIndex }] : [] };
+      },
+    },
   ],
 };
 
 /** The tabs to reopen next launch. Written often, so it flushes on a longer delay. */
 export class SessionStore {
-  private readonly file = new PersistedFile<SessionSnapshot>(
+  private readonly file = new PersistedFile<SavedSession>(
     'session.json',
-    () => ({ tabs: [], activeIndex: 0 }),
+    () => ({ windows: [] }),
     reviveSession,
     1_000,
     SESSION_PLAN,
   );
 
-  save(snapshot: SessionSnapshot): void {
-    this.file.set(snapshot);
+  save(session: SavedSession): void {
+    this.file.set(session);
   }
 
-  get(): SessionSnapshot {
+  get(): SavedSession {
     return this.file.get();
   }
 
@@ -66,9 +84,17 @@ export class SessionStore {
   }
 }
 
-export function reviveSession(raw: unknown): SessionSnapshot | null {
-  if (!isRecord(raw)) {
+export function reviveSession(raw: unknown): SavedSession | null {
+  if (!isRecord(raw) || !Array.isArray(raw.windows)) {
     return null;
+  }
+  // A window with nothing to reopen, every tab Hush or a start page, is not a window to bring back.
+  return { windows: raw.windows.map(reviveWindow).filter((window) => window.tabs.length > 0) };
+}
+
+function reviveWindow(raw: unknown): SessionSnapshot {
+  if (!isRecord(raw)) {
+    return { tabs: [], activeIndex: 0 };
   }
   const tabs = Array.isArray(raw.tabs)
     ? raw.tabs.flatMap((entry) => {

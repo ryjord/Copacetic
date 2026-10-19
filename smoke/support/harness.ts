@@ -248,6 +248,13 @@ export class SmokeApp {
     return didWindowHaveIt ? false : null;
   }
 
+  /** Every window's chrome, in the order Playwright met them; the overlays are pages too and are left out. */
+  chromePages(): Page[] {
+    return this.app
+      .windows()
+      .filter((page) => !page.url().includes('/overlay') && !page.url().startsWith('devtools'));
+  }
+
   /** Polls until `condition` holds, for the things the app does on its own schedule. */
   private async until(condition: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;

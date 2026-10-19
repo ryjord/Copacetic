@@ -1,10 +1,12 @@
 import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
 import type { Browser } from '../app/browser';
+import type { Profile } from '../app/profile';
 
 const isMac = process.platform === 'darwin';
 
 /** The application menu is not decoration. */
-export function buildApplicationMenu(browser: Browser): Menu {
+export function buildApplicationMenu(profile: Profile): Menu {
+  const inWindow = windowActions(profile);
   const template: MenuItemConstructorOptions[] = [];
 
   if (isMac) {
@@ -13,7 +15,11 @@ export function buildApplicationMenu(browser: Browser): Menu {
       submenu: [
         { role: 'about' },
         { type: 'separator' },
-        { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => browser.openSurface('settings') },
+        {
+          label: 'Settings…',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => inWindow((browser) => browser.openSurface('settings')),
+        },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -29,16 +35,29 @@ export function buildApplicationMenu(browser: Browser): Menu {
   template.push({
     label: 'File',
     submenu: [
-      { label: 'New tab', accelerator: 'CmdOrCtrl+T', click: () => browser.commands.newTab() },
-      { label: 'New Hush tab', accelerator: 'CmdOrCtrl+Shift+N', click: () => browser.commands.newHushTab() },
+      { label: 'New window', accelerator: 'CmdOrCtrl+N', click: () => void profile.openWindow() },
+      { label: 'New tab', accelerator: 'CmdOrCtrl+T', click: () => inWindow((browser) => browser.commands.newTab()) },
+      {
+        label: 'New Hush tab',
+        accelerator: 'CmdOrCtrl+Shift+N',
+        click: () => inWindow((browser) => browser.commands.newHushTab()),
+      },
       {
         label: 'Reopen closed tab',
         accelerator: 'CmdOrCtrl+Shift+T',
-        click: () => browser.commands.reopenClosedTab(),
+        click: () => inWindow((browser) => browser.commands.reopenClosedTab()),
       },
       { type: 'separator' },
-      { label: 'Close tab', accelerator: 'CmdOrCtrl+W', click: () => browser.commands.closeActiveTab() },
-      { label: 'Print…', accelerator: 'CmdOrCtrl+P', click: () => browser.commands.printActiveTab() },
+      {
+        label: 'Close tab',
+        accelerator: 'CmdOrCtrl+W',
+        click: () => inWindow((browser) => browser.commands.closeActiveTab()),
+      },
+      {
+        label: 'Print…',
+        accelerator: 'CmdOrCtrl+P',
+        click: () => inWindow((browser) => browser.commands.printActiveTab()),
+      },
       ...(isMac ? [] : ([{ type: 'separator' }, { role: 'quit' }] as MenuItemConstructorOptions[])),
     ],
   });
@@ -65,18 +84,26 @@ export function buildApplicationMenu(browser: Browser): Menu {
             {
               label: 'Settings…',
               accelerator: 'CmdOrCtrl+,',
-              click: () => browser.openSurface('settings'),
+              click: () => inWindow((browser) => browser.openSurface('settings')),
             },
             { type: 'separator' },
           ] as MenuItemConstructorOptions[])),
       {
         label: 'Open address bar',
         accelerator: 'CmdOrCtrl+L',
-        click: () => browser.focusOmnibox(),
+        click: () => inWindow((browser) => browser.focusOmnibox()),
       },
-      { label: 'Find on page…', accelerator: 'CmdOrCtrl+F', click: () => browser.openFind() },
-      { label: 'Find next', accelerator: 'CmdOrCtrl+G', click: () => browser.tabs.findNext(true) },
-      { label: 'Find previous', accelerator: 'CmdOrCtrl+Shift+G', click: () => browser.tabs.findNext(false) },
+      { label: 'Find on page…', accelerator: 'CmdOrCtrl+F', click: () => inWindow((browser) => browser.openFind()) },
+      {
+        label: 'Find next',
+        accelerator: 'CmdOrCtrl+G',
+        click: () => inWindow((browser) => browser.tabs.findNext(true)),
+      },
+      {
+        label: 'Find previous',
+        accelerator: 'CmdOrCtrl+Shift+G',
+        click: () => inWindow((browser) => browser.tabs.findNext(false)),
+      },
     ],
   });
 
@@ -86,30 +113,46 @@ export function buildApplicationMenu(browser: Browser): Menu {
       {
         label: 'Reload',
         accelerator: 'CmdOrCtrl+R',
-        click: () => browser.commands.withActiveTab((id) => browser.tabs.reload(id)),
+        click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.reload(id))),
       },
       {
         label: 'Reload, ignoring cache',
         accelerator: 'CmdOrCtrl+Shift+R',
-        click: () => browser.commands.withActiveTab((id) => browser.tabs.reload(id, true)),
+        click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.reload(id, true))),
       },
       {
         label: 'Stop',
         accelerator: 'CmdOrCtrl+.',
-        click: () => browser.commands.withActiveTab((id) => browser.tabs.stop(id)),
+        click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.stop(id))),
       },
       { type: 'separator' },
-      { label: 'Zoom in', accelerator: 'CmdOrCtrl+Plus', click: () => browser.commands.adjustZoom('in') },
-      { label: 'Zoom out', accelerator: 'CmdOrCtrl+-', click: () => browser.commands.adjustZoom('out') },
-      { label: 'Actual size', accelerator: 'CmdOrCtrl+0', click: () => browser.commands.adjustZoom('reset') },
+      {
+        label: 'Zoom in',
+        accelerator: 'CmdOrCtrl+Plus',
+        click: () => inWindow((browser) => browser.commands.adjustZoom('in')),
+      },
+      {
+        label: 'Zoom out',
+        accelerator: 'CmdOrCtrl+-',
+        click: () => inWindow((browser) => browser.commands.adjustZoom('out')),
+      },
+      {
+        label: 'Actual size',
+        accelerator: 'CmdOrCtrl+0',
+        click: () => inWindow((browser) => browser.commands.adjustZoom('reset')),
+      },
       { type: 'separator' },
       { role: 'togglefullscreen' },
       { type: 'separator' },
-      { label: 'Command palette', accelerator: 'CmdOrCtrl+K', click: () => browser.openSurface('palette') },
+      {
+        label: 'Command palette',
+        accelerator: 'CmdOrCtrl+K',
+        click: () => inWindow((browser) => browser.openSurface('palette')),
+      },
       {
         label: 'Developer tools',
         accelerator: isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
-        click: () => browser.commands.toggleTabDevTools(),
+        click: () => inWindow((browser) => browser.commands.toggleTabDevTools()),
       },
     ],
   });
@@ -120,17 +163,25 @@ export function buildApplicationMenu(browser: Browser): Menu {
       {
         label: 'Back',
         accelerator: 'CmdOrCtrl+[',
-        click: () => browser.commands.withActiveTab((id) => browser.tabs.goBack(id)),
+        click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.goBack(id))),
       },
       {
         label: 'Forward',
         accelerator: 'CmdOrCtrl+]',
-        click: () => browser.commands.withActiveTab((id) => browser.tabs.goForward(id)),
+        click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.goForward(id))),
       },
-      { label: 'Home', accelerator: 'CmdOrCtrl+Shift+H', click: () => browser.commands.goHome() },
+      {
+        label: 'Home',
+        accelerator: 'CmdOrCtrl+Shift+H',
+        click: () => inWindow((browser) => browser.commands.goHome()),
+      },
       { type: 'separator' },
-      { label: 'Show all history', accelerator: 'CmdOrCtrl+Y', click: () => browser.openSurface('history') },
-      { label: 'Clear browsing data…', click: () => browser.openSurface('settings') },
+      {
+        label: 'Show all history',
+        accelerator: 'CmdOrCtrl+Y',
+        click: () => inWindow((browser) => browser.openSurface('history')),
+      },
+      { label: 'Clear browsing data…', click: () => inWindow((browser) => browser.openSurface('settings')) },
     ],
   });
 
@@ -140,12 +191,12 @@ export function buildApplicationMenu(browser: Browser): Menu {
       {
         label: 'Bookmark this page',
         accelerator: 'CmdOrCtrl+D',
-        click: () => browser.commands.toggleBookmarkForActiveTab(),
+        click: () => inWindow((browser) => browser.commands.toggleBookmarkForActiveTab()),
       },
       {
         label: 'Show all bookmarks',
         accelerator: 'CmdOrCtrl+Shift+B',
-        click: () => browser.openSurface('bookmarks'),
+        click: () => inWindow((browser) => browser.openSurface('bookmarks')),
       },
     ],
   });
@@ -153,12 +204,24 @@ export function buildApplicationMenu(browser: Browser): Menu {
   template.push({
     label: 'Tabs',
     submenu: [
-      { label: 'Next tab', accelerator: 'Ctrl+Tab', click: () => browser.commands.cycleTab(1) },
-      { label: 'Previous tab', accelerator: 'Ctrl+Shift+Tab', click: () => browser.commands.cycleTab(-1) },
+      {
+        label: 'Next tab',
+        accelerator: 'Ctrl+Tab',
+        click: () => inWindow((browser) => browser.commands.cycleTab(1)),
+      },
+      {
+        label: 'Previous tab',
+        accelerator: 'Ctrl+Shift+Tab',
+        click: () => inWindow((browser) => browser.commands.cycleTab(-1)),
+      },
       { type: 'separator' },
-      ...tabSelectionItems(browser),
+      ...tabSelectionItems(inWindow),
       { type: 'separator' },
-      { label: 'Downloads', accelerator: 'CmdOrCtrl+Shift+J', click: () => browser.openSurface('downloads') },
+      {
+        label: 'Downloads',
+        accelerator: 'CmdOrCtrl+Shift+J',
+        click: () => inWindow((browser) => browser.openSurface('downloads')),
+      },
       ...(isMac
         ? ([
             { type: 'separator' },
@@ -177,7 +240,7 @@ export function buildApplicationMenu(browser: Browser): Menu {
         label: 'Copacetic on GitHub',
         click: () => void shell.openExternal('https://github.com/ryjord/Copacetic'),
       },
-      { label: 'Open downloads folder', click: () => browser.openDownloadsFolder() },
+      { label: 'Open downloads folder', click: () => inWindow((browser) => browser.openDownloadsFolder()) },
       ...(isMac ? [] : ([{ type: 'separator' }, { role: 'about' }] as MenuItemConstructorOptions[])),
     ],
   });
@@ -186,19 +249,42 @@ export function buildApplicationMenu(browser: Browser): Menu {
 }
 
 /** Cmd+1..8 select a tab by position; Cmd+9 always jumps to the last one. */
-function tabSelectionItems(browser: Browser): MenuItemConstructorOptions[] {
+type InWindow = (act: (browser: Browser) => void) => void;
+
+/**
+ * Runs a menu item against the window in front.
+ *
+ * On macOS the menu bar is there with no window open at all, and an item that
+ * needs one opens one first rather than doing nothing.
+ */
+function windowActions(profile: Profile): InWindow {
+  return (act) => {
+    const focused = profile.focused();
+    if (focused) {
+      act(focused);
+      return;
+    }
+    void profile.openWindow().then(act);
+  };
+}
+
+function tabSelectionItems(inWindow: InWindow): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = [];
   for (let position = 1; position <= 8; position += 1) {
     items.push({
       label: `Tab ${position}`,
       accelerator: `CmdOrCtrl+${position}`,
-      click: () => browser.commands.selectTabAt(position - 1),
+      click: () => inWindow((browser) => browser.commands.selectTabAt(position - 1)),
     });
   }
-  items.push({ label: 'Last tab', accelerator: 'CmdOrCtrl+9', click: () => browser.commands.selectTabAt(-1) });
+  items.push({
+    label: 'Last tab',
+    accelerator: 'CmdOrCtrl+9',
+    click: () => inWindow((browser) => browser.commands.selectTabAt(-1)),
+  });
   return items;
 }
 
-export function installApplicationMenu(browser: Browser): void {
-  Menu.setApplicationMenu(buildApplicationMenu(browser));
+export function installApplicationMenu(profile: Profile): void {
+  Menu.setApplicationMenu(buildApplicationMenu(profile));
 }

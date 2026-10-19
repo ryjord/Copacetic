@@ -1,7 +1,6 @@
 import { app, dialog, nativeImage } from 'electron';
 import { existsSync } from 'node:fs';
-import { Browser } from './app/browser';
-import { showPageContextMenu } from './menus/context-menu';
+import { Profile } from './app/profile';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
@@ -41,7 +40,8 @@ function sentenceFor(error: unknown): string {
   return message.trim() || 'Something went wrong, and the diagnostics log says what.';
 }
 
-let browser: Browser | null = null;
+// One for the life of the app; windows come and go inside it.
+let profile: Profile | null = null;
 
 async function start(): Promise<void> {
   app.setName('Copacetic');
@@ -52,13 +52,15 @@ async function start(): Promise<void> {
   let pendingUrl: string | null = null;
 
   const openUrl = (url: string) => {
-    // macOS keeps the app alive with no window, and this arrives regardless.
-    if (browser && !browser.window.isDestroyed()) {
+    if (!profile) {
+      pendingUrl = url;
+      return;
+    }
+    // macOS keeps the app alive with no window, and this arrives regardless, so it may need one.
+    void profile.focusedOrNew().then((browser) => {
       browser.tabs.create(url, { activate: true });
       browser.window.focus();
-    } else {
-      pendingUrl = url;
-    }
+    });
   };
 
   // macOS never puts the address on the command line; it sends this instead.
@@ -71,7 +73,8 @@ async function start(): Promise<void> {
 
   app.on('second-instance', (_event, argv) => {
     const url = urlFromArguments(argv);
-    if (browser && !browser.window.isDestroyed()) {
+    const browser = profile?.focused();
+    if (browser) {
       if (browser.window.isMinimized()) {
         browser.window.restore();
       }
@@ -94,7 +97,11 @@ async function start(): Promise<void> {
   log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
 
-  await openWindow();
+  profile = new Profile();
+  registerIpcHandlers(profile);
+  installApplicationMenu(profile);
+  profile.start();
+  await profile.restoreWindows();
 
   // Cold start: the address is either on the command line, or was handed over
   // by the system before there was a window to put it in.
@@ -105,41 +112,18 @@ async function start(): Promise<void> {
   }
 
   app.on('activate', () => {
-    if (browser && !browser.window.isDestroyed()) {
-      browser.window.show();
+    if (!profile || profile.allWindows().length > 0) {
       return;
     }
     // macOS keeps an application running after its last window closes, and
     // clicking the dock icon is how a person asks for it back. Returning early
     // here left the app alive with no window and no way to open one - running,
     // in the dock, and unusable until it was force-quit.
-    void openWindow().catch((error: unknown) => {
+    void profile.openWindow().catch((error: unknown) => {
       log.error('could not reopen the window', describeError(error));
       dialog.showErrorBox('Copacetic could not open a window', sentenceFor(error));
     });
   });
-}
-
-/**
- * Builds the window and everything wired to it.
- *
- * Written once because it happens twice: at startup, and again when someone
- * clicks the dock icon of an application whose last window they closed.
- */
-async function openWindow(): Promise<void> {
-  // Registered against the previous window otherwise, which is gone.
-  removeIpcHandlers();
-
-  browser = new Browser();
-  browser.tabs.onPageContextMenu((tabId, params) => {
-    if (browser) {
-      showPageContextMenu(browser, tabId, params);
-    }
-  });
-  registerIpcHandlers(browser);
-  installApplicationMenu(browser);
-
-  await browser.start();
 }
 
 app.on('window-all-closed', () => {
@@ -151,7 +135,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  browser?.prepareForQuit();
+  profile?.prepareForQuit();
 });
 
 /**
@@ -171,7 +155,7 @@ app.on('before-quit', () => {
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
     try {
-      browser?.prepareForQuit();
+      profile?.prepareForQuit();
     } finally {
       app.exit(0);
     }

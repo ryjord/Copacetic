@@ -33,8 +33,8 @@ const { registerIpcHandlers, removeIpcHandlers } = await import('../../../electr
  */
 describe('the IPC contract', () => {
   it('has a handler for every method and nothing besides', () => {
-    const browser = new Proxy({}, { get: () => () => undefined });
-    registerIpcHandlers(browser as never);
+    const profile = new Proxy({}, { get: () => () => undefined });
+    registerIpcHandlers(profile as never);
     expect([...registered.keys()].sort()).toEqual(Object.values(CHANNELS).sort());
   });
 
@@ -49,9 +49,17 @@ describe('the IPC contract', () => {
       { isOwnFrame: () => false },
       { get: (target, key) => (key in target ? Reflect.get(target, key) : () => undefined) },
     );
-    registerIpcHandlers(browser as never);
+    registerIpcHandlers({ browserFor: () => browser } as never);
     const handler = registered.get(CHANNELS['tabs.close'])!;
-    expect(() => handler({ senderFrame: {} }, 'tab-id')).toThrow(/unexpected frame/);
+    expect(() => handler({ senderFrame: {}, sender: {} }, 'tab-id')).toThrow(/unexpected frame/);
+  });
+
+  // Routed by who sent it; contents that belong to no window, a page in a tab included, are answered by none.
+  it('refuses a call from contents no window owns', async () => {
+    registered.clear();
+    registerIpcHandlers({ browserFor: () => null } as never);
+    const handler = registered.get(CHANNELS['tabs.close'])!;
+    expect(() => handler({ senderFrame: {}, sender: {} }, 'tab-id')).toThrow(/unexpected frame/);
   });
 
   it('can take every handler away again', () => {

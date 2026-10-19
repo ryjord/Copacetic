@@ -32,6 +32,8 @@ const SAMPLES: Record<string, unknown[]> = {
     { urls: ['https://a.example/', 'https://b.example/'], activeIndex: 1 },
     { tabs: [{ url: 'https://a.example/', groupId: null }], activeIndex: 0 },
     { tabs: [], activeIndex: 0 },
+    { windows: [{ tabs: [{ url: 'https://a.example/', groupId: null }], activeIndex: 0 }] },
+    { windows: [] },
     {},
   ],
 };

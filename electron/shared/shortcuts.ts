@@ -9,6 +9,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
   {
     title: 'Tabs',
     shortcuts: [
+      { accelerator: 'CmdOrCtrl+N', description: 'New window' },
       { accelerator: 'CmdOrCtrl+T', description: 'New tab' },
       { accelerator: 'CmdOrCtrl+Shift+N', description: 'New Hush tab' },
       { accelerator: 'CmdOrCtrl+W', description: 'Close tab' },

@@ -18,6 +18,7 @@ import { clampZoom, isAppearanceId, isThemeId } from '../../shared/types';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import type { Browser } from './browser';
+import type { Profile } from './profile';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import {
@@ -40,51 +41,56 @@ import { HISTORY_PAGE_SIZE } from '../data/store';
 type Untrusted<Args extends unknown[]> = { [Index in keyof Args]: unknown };
 
 /** Every handler is registered through `handle`, which drops any message that did not come from one of the browser's own top-level frames, the chrome window or the overlay. */
-export function registerIpcHandlers(browser: Browser): void {
+export function registerIpcHandlers(profile: Profile): void {
   const handle = <Method extends ApiMethod>(
     method: Method,
     handler: (
+      browser: Browser,
       event: IpcMainInvokeEvent,
       ...args: Untrusted<ApiArgs<Method>>
     ) => ApiResult<Method> | Promise<ApiResult<Method>>,
   ) => {
     const channel = CHANNELS[method];
     ipcMain.handle(channel, (event, ...args) => {
-      if (!browser.isOwnFrame(event.senderFrame)) {
+      // Answered by the window that asked: its chrome or one of its overlays, and nothing else.
+      const browser = profile.browserFor(event.sender);
+      if (!browser?.isOwnFrame(event.senderFrame)) {
         throw new Error(`Rejected ${channel} from an unexpected frame`);
       }
       // Every element is unknown either way; this only gives the list the method's length.
-      return handler(event, ...(args as Untrusted<ApiArgs<Method>>));
+      return handler(browser, event, ...(args as Untrusted<ApiArgs<Method>>));
     });
   };
 
   // ------------------------------------------------------------------- tabs
 
-  handle('tabs.create', (_event, url, activate) =>
+  handle('tabs.create', (browser, _event, url, activate) =>
     browser.tabs.create(asString(url) || undefined, { activate: activate !== false }),
   );
-  handle('tabs.createHush', () => browser.commands.newHushTab());
-  handle('tabs.close', (_event, id) => browser.tabs.close(asString(id)));
-  handle('tabs.activate', (_event, id) => browser.tabs.activate(asString(id)));
-  handle('tabs.move', (_event, id, index) => browser.tabs.move(asString(id), asInteger(index)));
-  handle('tabs.navigate', (_event, id, input) => browser.tabs.navigate(asString(id), asString(input)));
-  handle('tabs.goBack', (_event, id) => browser.tabs.goBack(asString(id)));
-  handle('tabs.goForward', (_event, id) => browser.tabs.goForward(asString(id)));
-  handle('tabs.reload', (_event, id, bypassCache) => browser.tabs.reload(asString(id), bypassCache === true));
-  handle('tabs.stop', (_event, id) => browser.tabs.stop(asString(id)));
-  handle('tabs.setMuted', (_event, id, muted) => browser.tabs.setMuted(asString(id), muted === true));
-  handle('tabs.duplicate', (_event, id) => browser.tabs.duplicate(asString(id)));
-  handle('tabs.continueOverHttp', (_event, id) => browser.tabs.continueOverHttp(asString(id)));
-  handle('tabs.acceptCertificate', (_event, id) => browser.tabs.acceptCertificate(asString(id)));
-  handle('tabs.reopenClosed', () => browser.commands.reopenClosedTab());
-  handle('tabs.print', (_event, id) => browser.tabs.print(asString(id)));
-  handle('tabs.setZoom', (_event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
-  handle('tabs.openContextMenu', (_event, id) => showTabContextMenu(browser, asString(id)));
-  handle('tabs.openNewTabMenu', () => showNewTabMenu(browser));
+  handle('tabs.createHush', (browser) => browser.commands.newHushTab());
+  handle('tabs.close', (browser, _event, id) => browser.tabs.close(asString(id)));
+  handle('tabs.activate', (browser, _event, id) => browser.tabs.activate(asString(id)));
+  handle('tabs.move', (browser, _event, id, index) => browser.tabs.move(asString(id), asInteger(index)));
+  handle('tabs.navigate', (browser, _event, id, input) => browser.tabs.navigate(asString(id), asString(input)));
+  handle('tabs.goBack', (browser, _event, id) => browser.tabs.goBack(asString(id)));
+  handle('tabs.goForward', (browser, _event, id) => browser.tabs.goForward(asString(id)));
+  handle('tabs.reload', (browser, _event, id, bypassCache) =>
+    browser.tabs.reload(asString(id), bypassCache === true),
+  );
+  handle('tabs.stop', (browser, _event, id) => browser.tabs.stop(asString(id)));
+  handle('tabs.setMuted', (browser, _event, id, muted) => browser.tabs.setMuted(asString(id), muted === true));
+  handle('tabs.duplicate', (browser, _event, id) => browser.tabs.duplicate(asString(id)));
+  handle('tabs.continueOverHttp', (browser, _event, id) => browser.tabs.continueOverHttp(asString(id)));
+  handle('tabs.acceptCertificate', (browser, _event, id) => browser.tabs.acceptCertificate(asString(id)));
+  handle('tabs.reopenClosed', (browser) => browser.commands.reopenClosedTab());
+  handle('tabs.print', (browser, _event, id) => browser.tabs.print(asString(id)));
+  handle('tabs.setZoom', (browser, _event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
+  handle('tabs.openContextMenu', (browser, _event, id) => showTabContextMenu(browser, asString(id)));
+  handle('tabs.openNewTabMenu', (browser) => showNewTabMenu(browser));
 
   // ----------------------------------------------------------------- chrome
 
-  handle('chrome.setContentInsets', (_event, insets) => {
+  handle('chrome.setContentInsets', (browser, _event, insets) => {
     if (!isRecord(insets)) {
       return;
     }
@@ -95,113 +101,117 @@ export function registerIpcHandlers(browser: Browser): void {
       bottom: asNumber(insets.bottom, 0),
     });
   });
-  handle('chrome.setOverlayVisible', (_event, visible) => browser.tabs.setOverlayVisible(visible === true));
-  handle('chrome.getState', () => browser.getState());
+  handle('chrome.setOverlayVisible', (browser, _event, visible) => browser.tabs.setOverlayVisible(visible === true));
+  handle('chrome.getState', (browser) => browser.getState());
 
   // ---------------------------------------------------------------- omnibox
 
-  handle('omnibox.suggest', (_event, query) => browser.store.suggest(asString(query)));
-  handle('omnibox.showSuggestions', (_event, view) => browser.showSuggestions(toSuggestionView(view)));
-  handle('omnibox.choose', (_event, target) => browser.chooseSuggestion(asString(target)));
+  handle('omnibox.suggest', (browser, _event, query) => browser.store.suggest(asString(query)));
+  handle('omnibox.showSuggestions', (browser, _event, view) => browser.showSuggestions(toSuggestionView(view)));
+  handle('omnibox.choose', (browser, _event, target) => browser.chooseSuggestion(asString(target)));
 
   // ---------------------------------------------------------------- history
 
-  handle('history.list', (_event, query, offset) =>
+  handle('history.list', (browser, _event, query, offset) =>
     browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, Math.max(0, Number(offset) || 0)),
   );
-  handle('history.remove', (_event, id) => {
+  handle('history.remove', (browser, _event, id) => {
     browser.store.removeHistory(asString(id));
     browser.scheduleStatePush();
   });
-  handle('history.clear', (_event, range) => browser.sites.clearBrowsing(asClearRange(range)));
-  handle('history.topSites', (_event, limit) => browser.store.topSites(asInteger(limit, 8)));
+  handle('history.clear', (browser, _event, range) => browser.sites.clearBrowsing(asClearRange(range)));
+  handle('history.topSites', (browser, _event, limit) => browser.store.topSites(asInteger(limit, 8)));
 
   // -------------------------------------------------------------- bookmarks
 
-  handle('bookmarks.list', () => browser.store.listBookmarks());
-  handle('bookmarks.toggle', (_event, url, title) => {
+  handle('bookmarks.list', (browser) => browser.store.listBookmarks());
+  handle('bookmarks.toggle', (browser, _event, url, title) => {
     const bookmarked = browser.store.toggleBookmark(asString(url), asString(title));
     browser.bookmarks.changed();
     browser.scheduleStatePush();
     return bookmarked;
   });
-  handle('bookmarks.remove', (_event, id) => {
+  handle('bookmarks.remove', (browser, _event, id) => {
     browser.store.removeBookmark(asString(id));
     browser.bookmarks.changed();
     browser.scheduleStatePush();
   });
-  handle('bookmarks.openInActiveTab', (_event, url) => browser.commands.openInActiveTab(asString(url)));
-  handle('bookmarks.openContextMenu', (_event, id) => showBookmarkContextMenu(browser, asString(id)));
-  handle('history.traces', (_event, address) => browser.sites.traces(asString(address)));
-  handle('history.totalBlocked', () => browser.store.totalBlocked());
-  handle('data.kept', () => browser.sites.kept());
-  handle('history.openContextMenu', (_event, address) => showSiteContextMenu(browser, asString(address)));
-  handle('data.clearKept', (_event, kind) => browser.sites.clearKept(asString(kind) as KeptKind));
-  handle('history.forgetSite', (_event, address) => browser.sites.forget(asString(address)));
-  handle('notices.answer', (_event, id, confirmed) => browser.notices.answer(asString(id), confirmed === true));
-  handle('notices.pending', () => browser.notices.pending());
-  handle('chrome.pendingSurface', () => browser.pendingSurface());
-  handle('chrome.openMainMenu', (_event, x, y) =>
+  handle('bookmarks.openInActiveTab', (browser, _event, url) => browser.commands.openInActiveTab(asString(url)));
+  handle('bookmarks.openContextMenu', (browser, _event, id) => showBookmarkContextMenu(browser, asString(id)));
+  handle('history.traces', (browser, _event, address) => browser.sites.traces(asString(address)));
+  handle('history.totalBlocked', (browser) => browser.store.totalBlocked());
+  handle('data.kept', (browser) => browser.sites.kept());
+  handle('history.openContextMenu', (browser, _event, address) => showSiteContextMenu(browser, asString(address)));
+  handle('data.clearKept', (browser, _event, kind) => browser.sites.clearKept(asString(kind) as KeptKind));
+  handle('history.forgetSite', (browser, _event, address) => browser.sites.forget(asString(address)));
+  handle('notices.answer', (browser, _event, id, confirmed) =>
+    browser.notices.answer(asString(id), confirmed === true),
+  );
+  handle('notices.pending', (browser) => browser.notices.pending());
+  handle('chrome.pendingSurface', (browser) => browser.pendingSurface());
+  handle('chrome.openMainMenu', (browser, _event, x, y) =>
     showMainMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
-  handle('chrome.focusOverlay', (event) => browser.focusOverlay(event.senderFrame));
-  handle('chrome.toggleSiteInfo', () => browser.toggleSiteInfo());
-  handle('chrome.closeSiteInfo', () => browser.closeSiteInfo());
-  handle('chrome.setOverlaySize', (event, width, height) =>
+  handle('chrome.focusOverlay', (browser, event) => browser.focusOverlay(event.senderFrame));
+  handle('chrome.toggleSiteInfo', (browser) => browser.toggleSiteInfo());
+  handle('chrome.closeSiteInfo', (browser) => browser.closeSiteInfo());
+  handle('chrome.setOverlaySize', (browser, event, width, height) =>
     browser.setOverlaySize(event.senderFrame, asNumber(width, 0), asNumber(height, 0)),
   );
-  handle('favicons.forUrls', (_event, urls) => browser.store.faviconsFor(pickUrls(urls)));
-  handle('filters.update', () => browser.updateFilterLists());
-  handle('bookmarks.file', (_event, id, folderId) => {
+  handle('favicons.forUrls', (browser, _event, urls) => browser.store.faviconsFor(pickUrls(urls)));
+  handle('filters.update', (browser) => browser.updateFilterLists());
+  handle('bookmarks.file', (browser, _event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
     browser.bookmarks.changed();
     browser.scheduleStatePush();
   });
 
-  handle('bookmarkFolders.list', () => browser.store.listBookmarkFolders());
-  handle('bookmarkFolders.create', (_event, name, colour, parentId) =>
+  handle('bookmarkFolders.list', (browser) => browser.store.listBookmarkFolders());
+  handle('bookmarkFolders.create', (browser, _event, name, colour, parentId) =>
     browser.bookmarks.createFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
   );
-  handle('bookmarkFolders.update', (_event, id, changes) =>
+  handle('bookmarkFolders.update', (browser, _event, id, changes) =>
     browser.bookmarks.updateFolder(asString(id), asGroupChanges(changes)),
   );
-  handle('bookmarkFolders.move', (_event, id, parentId) =>
+  handle('bookmarkFolders.move', (browser, _event, id, parentId) =>
     browser.bookmarks.moveFolder(asString(id), asOptionalId(parentId)),
   );
-  handle('bookmarkFolders.remove', (_event, id) => browser.bookmarks.deleteFolder(asString(id)));
-  handle('bookmarkFolders.openAsGroup', (_event, id) => browser.groups.openFolder(asString(id)));
-  handle('bookmarkFolders.openContextMenu', (_event, id) => showBookmarkFolderContextMenu(browser, asString(id)));
-  handle('bookmarkFolders.openMenu', (_event, id, x, y) =>
+  handle('bookmarkFolders.remove', (browser, _event, id) => browser.bookmarks.deleteFolder(asString(id)));
+  handle('bookmarkFolders.openAsGroup', (browser, _event, id) => browser.groups.openFolder(asString(id)));
+  handle('bookmarkFolders.openContextMenu', (browser, _event, id) =>
+    showBookmarkFolderContextMenu(browser, asString(id)),
+  );
+  handle('bookmarkFolders.openMenu', (browser, _event, id, x, y) =>
     showBookmarkFolderMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
 
   // -------------------------------------------------------------- downloads
 
-  handle('downloads.pause', (_event, id) => browser.downloads.pause(asString(id)));
-  handle('downloads.resume', (_event, id) => browser.downloads.resume(asString(id)));
-  handle('downloads.cancel', (_event, id) => browser.downloads.cancel(asString(id)));
-  handle('downloads.openFile', (_event, id) => browser.downloads.openFile(asString(id)));
-  handle('downloads.revealFile', (_event, id) => browser.downloads.revealFile(asString(id)));
-  handle('downloads.remove', (_event, id) => browser.downloads.remove(asString(id)));
-  handle('downloads.clearCompleted', () => browser.downloads.clearCompleted());
+  handle('downloads.pause', (browser, _event, id) => browser.downloads.pause(asString(id)));
+  handle('downloads.resume', (browser, _event, id) => browser.downloads.resume(asString(id)));
+  handle('downloads.cancel', (browser, _event, id) => browser.downloads.cancel(asString(id)));
+  handle('downloads.openFile', (browser, _event, id) => browser.downloads.openFile(asString(id)));
+  handle('downloads.revealFile', (browser, _event, id) => browser.downloads.revealFile(asString(id)));
+  handle('downloads.remove', (browser, _event, id) => browser.downloads.remove(asString(id)));
+  handle('downloads.clearCompleted', (browser) => browser.downloads.clearCompleted());
 
   // ------------------------------------------------------------------- find
 
-  handle('find.open', () => browser.openFind());
-  handle('find.start', (_event, query) => browser.tabs.startFind(asString(query)));
-  handle('find.next', () => browser.tabs.findNext(true));
-  handle('find.previous', () => browser.tabs.findNext(false));
-  handle('find.stop', () => browser.stopFind());
-  handle('find.setMatchCase', (_event, matchCase) => browser.tabs.setFindMatchCase(matchCase === true));
+  handle('find.open', (browser) => browser.openFind());
+  handle('find.start', (browser, _event, query) => browser.tabs.startFind(asString(query)));
+  handle('find.next', (browser) => browser.tabs.findNext(true));
+  handle('find.previous', (browser) => browser.tabs.findNext(false));
+  handle('find.stop', (browser) => browser.stopFind());
+  handle('find.setMatchCase', (browser, _event, matchCase) => browser.tabs.setFindMatchCase(matchCase === true));
 
   // --------------------------------------------------------------- settings
 
-  handle('settings.get', () => browser.store.getSettings());
-  handle('settings.update', (_event, patch) => browser.updateSettings(asSettingsPatch(patch)));
+  handle('settings.get', (browser) => browser.store.getSettings());
+  handle('settings.update', (browser, _event, patch) => browser.updateSettings(asSettingsPatch(patch)));
 
   // ------------------------------------------------------------ permissions
 
-  handle('permissions.respond', (_event, id, decision, remember) =>
+  handle('permissions.respond', (browser, _event, id, decision, remember) =>
     browser.respondToPermission(
       asString(id),
       decision === 'allow' ? 'allow' : ('deny' as PermissionDecision),
@@ -209,57 +219,58 @@ export function registerIpcHandlers(browser: Browser): void {
     ),
   );
 
-  handle('permissions.forget', (_event, origin, kind) =>
+  handle('permissions.forget', (browser, _event, origin, kind) =>
     browser.forgetPermission(asString(origin), asString(kind) as PermissionKind),
   );
 
   // ----------------------------------------------------------------- window
 
-  handle('window.minimize', () => browser.window.minimize());
-  handle('window.toggleMaximize', () => {
+  handle('window.openNew', (browser) => browser.openNewWindow());
+  handle('window.minimize', (browser) => browser.window.minimize());
+  handle('window.toggleMaximize', (browser) => {
     if (browser.window.isMaximized()) {
       browser.window.unmaximize();
     } else {
       browser.window.maximize();
     }
   });
-  handle('window.close', () => browser.window.close());
+  handle('window.close', (browser) => browser.window.close());
 
   // -------------------------------------------------------------------- app
 
-  handle('app.getInfo', () => browser.getAppInfo());
-  handle('app.openExternal', (_event, url) => browser.openExternal(asString(url)));
-  handle('app.revealDiagnostics', () => browser.revealDiagnostics());
-  handle('app.defaultBrowserStatus', () => defaultBrowserStatus());
-  handle('app.makeDefaultBrowser', () => makeDefaultBrowser());
+  handle('app.getInfo', (browser) => browser.getAppInfo());
+  handle('app.openExternal', (browser, _event, url) => browser.openExternal(asString(url)));
+  handle('app.revealDiagnostics', (browser) => browser.revealDiagnostics());
+  handle('app.defaultBrowserStatus', (_browser) => defaultBrowserStatus());
+  handle('app.makeDefaultBrowser', (_browser) => makeDefaultBrowser());
 
   // ------------------------------------------------------------------ vault
 
   // Every field is read back off the payload as a string: the renderer is the
   // one place a malformed shape can come from, and a password is not a thing to
   // pass through on trust.
-  handle('vault.list', () => browser.vault.state());
-  handle('vault.add', (_event, input) =>
+  handle('vault.list', (browser) => browser.vault.state());
+  handle('vault.add', (browser, _event, input) =>
     browser.vault.add({
       origin: asString(isRecord(input) ? input.origin : ''),
       username: asString(isRecord(input) ? input.username : ''),
       password: asString(isRecord(input) ? input.password : ''),
     }),
   );
-  handle('vault.update', (_event, id, changes) => {
+  handle('vault.update', (browser, _event, id, changes) => {
     const patch = isRecord(changes) ? changes : {};
     const result = browser.vault.update(asString(id), pickStrings(patch, ['origin', 'username', 'password']));
     return result?.error ?? '';
   });
-  handle('vault.remove', (_event, id) => browser.vault.remove(asString(id)));
-  handle('vault.reveal', (_event, id) => browser.vault.reveal(asString(id)));
-  handle('vault.exportAll', () => browser.transfer.exportPasswords());
-  handle('vault.importFile', () => browser.transfer.importPasswords());
-  handle('vault.lockState', () => browser.vaultSession.lockInfo());
-  handle('vault.unlock', () => browser.vaultSession.unlock());
-  handle('vault.lock', () => browser.vaultSession.lock());
-  handle('vault.facts', () => browser.vaultSession.facts());
-  handle('vault.generate', (_event, length) =>
+  handle('vault.remove', (browser, _event, id) => browser.vault.remove(asString(id)));
+  handle('vault.reveal', (browser, _event, id) => browser.vault.reveal(asString(id)));
+  handle('vault.exportAll', (browser) => browser.transfer.exportPasswords());
+  handle('vault.importFile', (browser) => browser.transfer.importPasswords());
+  handle('vault.lockState', (browser) => browser.vaultSession.lockInfo());
+  handle('vault.unlock', (browser) => browser.vaultSession.unlock());
+  handle('vault.lock', (browser) => browser.vaultSession.lock());
+  handle('vault.facts', (browser) => browser.vaultSession.facts());
+  handle('vault.generate', (browser, _event, length) =>
     generatePassword(
       { ...DEFAULT_RECIPE, length: Number(length) || DEFAULT_RECIPE.length },
       (count) => new Uint8Array(randomBytes(count)),
@@ -268,55 +279,57 @@ export function registerIpcHandlers(browser: Browser): void {
 
   // -------------------------------------------------------------- wallpaper
 
-  handle('wallpaper.get', () => readWallpaper());
-  handle('wallpaper.preview', () => readWallpaperPreview());
-  // Each changes what the start page shows, so the chrome is told afterwards.
+  handle('wallpaper.get', (_browser) => readWallpaper());
+  handle('wallpaper.preview', (_browser) => readWallpaperPreview());
+  // Each changes what the start page shows in every window, so every window is told afterwards.
   const thenPush = <Result>(result: Result): Result => {
-    browser.scheduleStatePush();
+    profile.scheduleStatePush();
     return result;
   };
-  handle('wallpaper.choose', async () => thenPush(await chooseWallpaper(browser.window)));
-  handle('wallpaper.clear', () => thenPush(clearWallpaper()));
-  handle('wallpaper.staged', () => stagedWallpaper());
-  handle('wallpaper.keep', () => thenPush(commitStagedChanges()));
-  handle('wallpaper.remove', () => thenPush(stageWallpaperRemoval()));
+  handle('wallpaper.choose', async (browser) => thenPush(await chooseWallpaper(browser.window)));
+  handle('wallpaper.clear', (_browser) => thenPush(clearWallpaper()));
+  handle('wallpaper.staged', (_browser) => stagedWallpaper());
+  handle('wallpaper.keep', (_browser) => thenPush(commitStagedChanges()));
+  handle('wallpaper.remove', (_browser) => thenPush(stageWallpaperRemoval()));
 
   // ------------------------------------------------------------------ groups
 
-  handle('groups.create', (_event, tabId, name, colour, ownSession) =>
+  handle('groups.create', (browser, _event, tabId, name, colour, ownSession) =>
     browser.groups.create(asString(tabId), asString(name), asGroupColour(colour), ownSession === true),
   );
-  handle('groups.update', (_event, id, changes) => browser.groups.update(asString(id), asGroupChanges(changes)));
-  handle('groups.remove', (_event, id) => browser.groups.remove(asString(id)));
-  handle('groups.openContextMenu', (_event, id) => showGroupContextMenu(browser, asString(id)));
-  handle('groups.setForTab', (_event, tabId, groupId) =>
+  handle('groups.update', (browser, _event, id, changes) =>
+    browser.groups.update(asString(id), asGroupChanges(changes)),
+  );
+  handle('groups.remove', (browser, _event, id) => browser.groups.remove(asString(id)));
+  handle('groups.openContextMenu', (browser, _event, id) => showGroupContextMenu(browser, asString(id)));
+  handle('groups.setForTab', (browser, _event, tabId, groupId) =>
     browser.groups.setForTab(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
   );
-  handle('wallpaper.discard', () => thenPush(discardStagedWallpaper()));
+  handle('wallpaper.discard', (_browser) => thenPush(discardStagedWallpaper()));
 
   // ------------------------------------------------------------------- data
 
-  handle('data.export', (_event, kind) =>
+  handle('data.export', (browser, _event, kind) =>
     browser.transfer.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'),
   );
-  handle('data.importBookmarks', () => browser.transfer.importBookmarks());
+  handle('data.importBookmarks', (browser) => browser.transfer.importBookmarks());
 
   // ------------------------------------------------------------------- auth
 
-  handle('auth.respond', (_event, id, username, password) =>
+  handle('auth.respond', (browser, _event, id, username, password) =>
     browser.respondToAuth(asString(id), asString(username), asString(password)),
   );
-  handle('auth.cancel', (_event, id) => browser.cancelAuth(asString(id)));
+  handle('auth.cancel', (browser, _event, id) => browser.cancelAuth(asString(id)));
 
   // ------------------------------------------------------------ connections
 
-  handle('connections.list', (_event, id) => browser.connectionsFor(asString(id)));
+  handle('connections.list', (browser, _event, id) => browser.connectionsFor(asString(id)));
 
   // ---------------------------------------------------------------- updates
 
-  handle('updates.check', () => browser.updates.check());
-  handle('updates.install', () => browser.updates.install());
-  handle('updates.openReleases', () => browser.updates.openReleasesPage());
+  handle('updates.check', (browser) => browser.updates.check());
+  handle('updates.install', (browser) => browser.updates.install());
+  handle('updates.openReleases', (browser) => browser.updates.openReleasesPage());
 }
 
 export function removeIpcHandlers(): void {

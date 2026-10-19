@@ -68,7 +68,12 @@ function everyItem(template: Template): Record<string, unknown>[] {
   });
 }
 
-buildApplicationMenu(recorder('') as Parameters<typeof buildApplicationMenu>[0]);
+// A profile whose window in front records every path a click reaches through it.
+const profileWithWindow = () =>
+  ({ focused: () => recorder(''), openWindow: async () => recorder('') }) as unknown as Parameters<
+    typeof buildApplicationMenu
+  >[0];
+buildApplicationMenu(profileWithWindow());
 const items = everyItem(captured);
 for (const item of items) {
   if (typeof item.click === 'function') {
@@ -131,7 +136,7 @@ describe('what every platform can reach', () => {
     try {
       vi.resetModules();
       const { buildApplicationMenu: build } = await import('../../../../electron/main/menus/menu');
-      build(recorder('') as Parameters<typeof build>[0]);
+      build(profileWithWindow());
       return everyItem(captured);
     } finally {
       Object.defineProperty(process, 'platform', { value: original, configurable: true });
