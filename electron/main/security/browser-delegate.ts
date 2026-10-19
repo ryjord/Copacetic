@@ -188,6 +188,9 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
  * any one window, so a window that reopened used to add a second one and every
  * challenge after that was prompted twice.
  */
+// Every open profile listens, and a proxy challenge belongs to none of them; the first to see it answers it.
+const claimedChallenges = new WeakSet<object>();
+
 export function watchAuthChallenges(deps: BrowserDelegateDeps): () => void {
   const onLogin = (
     event: Electron.Event,
@@ -204,6 +207,10 @@ export function watchAuthChallenges(deps: BrowserDelegateDeps): () => void {
     if (!isPromptWorthy({ isProxy: authInfo.isProxy, challengeUrl: details.url, tabUrl })) {
       return;
     }
+    if (claimedChallenges.has(details)) {
+      return;
+    }
+    claimedChallenges.add(details);
 
     // Taking the event means Copacetic owns the answer; without this Chromium cancels the challenge itself.
     event.preventDefault();

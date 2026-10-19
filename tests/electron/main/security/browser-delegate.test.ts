@@ -1,13 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const loginListeners: ((...args: unknown[]) => void)[] = [];
 vi.mock('electron', () => ({
-  app: { getPath: () => '/tmp', getVersion: () => '0.0.0' },
+  app: {
+    getPath: () => '/tmp',
+    getVersion: () => '0.0.0',
+    on: (name: string, listener: (...args: unknown[]) => void) => name === 'login' && loginListeners.push(listener),
+    removeListener: () => {},
+  },
   dialog: {},
   session: { fromPartition: () => ({}) },
   shell: {},
 }));
 
-const { ExternalOpenGate, REFUSED_COOLDOWN_MS, mayBeHandedToOs } =
+const { ExternalOpenGate, REFUSED_COOLDOWN_MS, mayBeHandedToOs, watchAuthChallenges } =
   await import('../../../../electron/main/security/browser-delegate');
 
 /**
@@ -90,5 +96,26 @@ describe('asking about one app link at a time', () => {
     expect(await gate.ask(2, async () => true)).toBe(true);
     now = REFUSED_COOLDOWN_MS;
     expect(await gate.ask(1, async () => true)).toBe(true);
+  });
+});
+
+// Each open profile listens on the app, and a proxy belongs to none of them, so each one asked.
+describe('a proxy asking for a password', () => {
+  it('is asked about once, however many profiles are open', () => {
+    const added: string[] = [];
+    const profile = () => ({
+      window: () => undefined,
+      store: {},
+      prompts: { addAuth: (prompt: { id: string }) => added.push(prompt.id), forgetAuth: () => {} },
+      tabs: () => ({ tabIdForWebContentsId: () => null, urlFor: () => null, create: () => {} }),
+      onPromptsChanged: () => {},
+    });
+    watchAuthChallenges(profile() as never);
+    watchAuthChallenges(profile() as never);
+
+    const details = { url: 'http://proxy.example:3128/' };
+    const authInfo = { isProxy: true, host: 'proxy.example', port: 3128, realm: 'office', scheme: 'basic' };
+    loginListeners.forEach((listener) => listener({ preventDefault: () => {} }, null, details, authInfo, () => {}));
+    expect(added).toHaveLength(1);
   });
 });
