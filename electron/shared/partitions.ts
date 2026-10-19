@@ -38,8 +38,13 @@ export function orphanedGroupPartitions(
   liveGroupIds: readonly string[],
   partitions: ProfilePartitions,
 ): string[] {
-  const live = new Set(liveGroupIds.map((groupId) => `${partitions.groupPrefix}${groupId}`));
-  return directoryNames.filter((name) => name.startsWith(partitions.groupPrefix) && !live.has(name));
+  // Electron lowercases a partition's folder name and group ids are mixed case, so both sides are compared folded.
+  const prefix = partitions.groupPrefix.toLowerCase();
+  const live = new Set(liveGroupIds.map((groupId) => `${prefix}${groupId}`.toLowerCase()));
+  return directoryNames.filter((name) => {
+    const folded = name.toLowerCase();
+    return folded.startsWith(prefix) && !live.has(folded);
+  });
 }
 
 /**

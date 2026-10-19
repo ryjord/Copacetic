@@ -312,6 +312,14 @@ describe('partitions a deleted group left behind', () => {
     expect(orphanedGroupPartitions([directory], ['live'], PARTITIONS)).toEqual([]);
   });
 
+  // Measured in Electron 43: persist:copacetic-group-_M_UQVyELaNR is stored as copacetic-group-_m_uqvyelanr.
+  it("keeps a live group whose id has capitals, which Electron's folder name does not", () => {
+    expect(orphanedGroupPartitions(['copacetic-group-_m_uqvyelanr'], ['_M_UQVyELaNR'], PARTITIONS)).toEqual([]);
+    expect(orphanedGroupPartitions(['copacetic-group-_m_uqvyelanr'], ['other'], PARTITIONS)).toEqual([
+      'copacetic-group-_m_uqvyelanr',
+    ]);
+  });
+
   // Each profile sweeps only its own: another profile's live groups look like orphans from here.
   it("never names another profile's group sessions", () => {
     const other = groupPartition(partitionsFor('work'), 'theirs').replace('persist:', '');
