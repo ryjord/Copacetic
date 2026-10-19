@@ -31,6 +31,7 @@ const PART_SOURCES: Record<string, string> = {
   passwords: 'electron/main/workflows/password-fill.ts',
   notices: 'electron/main/notices/notice-centre.ts',
   store: 'electron/main/data/store.ts',
+  profile: 'electron/main/app/profile.ts',
 };
 
 const sourceFor = (path: string): string => {
@@ -68,11 +69,13 @@ function everyItem(template: Template): Record<string, unknown>[] {
   });
 }
 
-// A profile whose window in front records every path a click reaches through it.
+// Profiles whose window in front records every path a click reaches through it.
 const profileWithWindow = () =>
-  ({ focused: () => recorder(''), openWindow: async () => recorder('') }) as unknown as Parameters<
-    typeof buildApplicationMenu
-  >[0];
+  ({
+    focused: () => recorder(''),
+    focusedOrNew: async () => recorder(''),
+    first: recorder('profile'),
+  }) as unknown as Parameters<typeof buildApplicationMenu>[0];
 buildApplicationMenu(profileWithWindow());
 const items = everyItem(captured);
 for (const item of items) {

@@ -72,6 +72,12 @@ export class BrowserStore {
     this.certificatesStore = new CertificatesStore(directory);
   }
 
+  /** Everything written, then the database closed; nothing can be read or written after this. */
+  close(): void {
+    this.flushAll();
+    this.database.close();
+  }
+
   flushAll(): void {
     // Folds the write-ahead log into the database, so the file on its own is complete when the app goes.
     this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)');

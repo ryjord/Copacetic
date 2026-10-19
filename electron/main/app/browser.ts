@@ -210,7 +210,7 @@ export class Browser {
       find: this.tabs.getFindState(),
       permissionPrompts: this.profile.prompts.permissionPrompts(),
       authPrompts: this.profile.prompts.authPrompts(),
-      settings: { ...this.store.getSettings(), hasWallpaper: this.wallpaper.isSet() },
+      settings: { ...this.profile.settings(), hasWallpaper: this.wallpaper.isSet() },
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
       siteInfo: this.siteInfo,

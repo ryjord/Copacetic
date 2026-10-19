@@ -53,3 +53,20 @@ export function orphanedGroupPartitions(
 export function remembersDownloads(partition: string): boolean {
   return partition.startsWith('persist:');
 }
+
+// Every partition a profile other than the first is given starts with this, followed by its id.
+const PROFILE_PARTITION_START = 'copacetic-profile-';
+
+/** Partition directories of profiles that have been removed. The first profile's never match: they carry no id. */
+export function removedProfilePartitions(
+  directoryNames: readonly string[],
+  liveProfileIds: readonly string[],
+): string[] {
+  return directoryNames.filter((name) => {
+    if (!name.startsWith(PROFILE_PARTITION_START)) {
+      return false;
+    }
+    const id = name.slice(PROFILE_PARTITION_START.length).split('-')[0] ?? '';
+    return !liveProfileIds.includes(id);
+  });
+}

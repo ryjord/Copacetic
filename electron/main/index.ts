@@ -1,6 +1,6 @@
 import { app, dialog, nativeImage } from 'electron';
 import { existsSync } from 'node:fs';
-import { Profile } from './app/profile';
+import { Profiles } from './app/profiles';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
@@ -12,7 +12,6 @@ import { markQuit, markRunning } from './system/exit-marker';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/url';
-import { FIRST_PROFILE_ID } from '../shared/partitions';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
@@ -42,8 +41,8 @@ function sentenceFor(error: unknown): string {
   return message.trim() || 'Something went wrong, and the diagnostics log says what.';
 }
 
-// One for the life of the app; windows come and go inside it.
-let profile: Profile | null = null;
+// One for the life of the app; profiles and their windows come and go inside it.
+let profiles: Profiles | null = null;
 
 async function start(): Promise<void> {
   app.setName('Copacetic');
@@ -54,12 +53,12 @@ async function start(): Promise<void> {
   let pendingUrl: string | null = null;
 
   const openUrl = (url: string) => {
-    if (!profile) {
+    if (!profiles) {
       pendingUrl = url;
       return;
     }
     // macOS keeps the app alive with no window, and this arrives regardless, so it may need one.
-    void profile.focusedOrNew().then((browser) => {
+    void profiles.focusedOrNew().then((browser) => {
       browser.tabs.create(url, { activate: true });
       browser.window.focus();
     });
@@ -75,7 +74,7 @@ async function start(): Promise<void> {
 
   app.on('second-instance', (_event, argv) => {
     const url = urlFromArguments(argv);
-    const browser = profile?.focused();
+    const browser = profiles?.focused();
     if (browser) {
       if (browser.window.isMinimized()) {
         browser.window.restore();
@@ -100,11 +99,11 @@ async function start(): Promise<void> {
   handleAppProtocol();
 
   const didLastRunEndBadly = markRunning(app.getPath('userData'));
-  profile = new Profile(FIRST_PROFILE_ID, app.getPath('userData'));
-  registerIpcHandlers(profile);
-  installApplicationMenu(profile);
-  profile.start();
-  await profile.restoreWindows(didLastRunEndBadly);
+  profiles = new Profiles();
+  registerIpcHandlers(profiles);
+  installApplicationMenu(profiles);
+  profiles.start();
+  await profiles.restoreWindows(didLastRunEndBadly);
 
   // Cold start: the address is either on the command line, or was handed over
   // by the system before there was a window to put it in.
@@ -115,14 +114,14 @@ async function start(): Promise<void> {
   }
 
   app.on('activate', () => {
-    if (!profile || profile.allWindows().length > 0) {
+    if (!profiles || profiles.allWindows().length > 0) {
       return;
     }
     // macOS keeps an application running after its last window closes, and
     // clicking the dock icon is how a person asks for it back. Returning early
     // here left the app alive with no window and no way to open one - running,
     // in the dock, and unusable until it was force-quit.
-    void profile.openWindow().catch((error: unknown) => {
+    void profiles.first.openWindow().catch((error: unknown) => {
       log.error('could not reopen the window', describeError(error));
       dialog.showErrorBox('Copacetic could not open a window', sentenceFor(error));
     });
@@ -138,7 +137,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  profile?.prepareForQuit();
+  profiles?.prepareForQuit();
 });
 
 /**
@@ -158,7 +157,7 @@ app.on('before-quit', () => {
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
     try {
-      profile?.prepareForQuit();
+      profiles?.prepareForQuit();
       markQuit(app.getPath('userData'));
     } finally {
       app.exit(0);
@@ -169,7 +168,7 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
 app.on('will-quit', () => {
   removeIpcHandlers();
   // Only once there is a profile: a second copy that quits at once must not clear the first one's mark.
-  if (profile) {
+  if (profiles) {
     markQuit(app.getPath('userData'));
   }
 });

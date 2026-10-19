@@ -1,21 +1,10 @@
-import {
-  BrowserWindow,
-  type WebContents,
-  app,
-  net,
-  session as electronSession,
-  safeStorage,
-  shell,
-  systemPreferences,
-} from 'electron';
+import { BrowserWindow, type WebContents, app, net, safeStorage, shell, systemPreferences } from 'electron';
 import { existsSync } from 'node:fs';
-import path from 'node:path';
 import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } from '../../shared/types';
-import { hostResolverFor } from '../../shared/dns';
-import { ContentBlocker } from '../security/blocker';
+import type { ContentBlocker } from '../security/blocker';
 import { BlockingPolicy } from '../security/blocking-policy';
 import { HttpsFirst } from '../security/https-first';
-import { hardenChromeSession, type SecurityDelegate } from '../security/security';
+import type { SecurityDelegate } from '../security/security';
 import { type ProfilePartitions, partitionsFor } from '../../shared/partitions';
 import { PendingPrompts } from '../security/pending-prompts';
 import { type TabDirectory, createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
@@ -26,21 +15,31 @@ import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
 import { VaultSession } from '../vault/vault-session';
 import type { Vault } from '../vault/vault';
 import type { SessionSnapshot } from '../data/session-store';
-import { UpdateManager } from '../system/updates';
+import type { UpdateManager } from '../system/updates';
 import { log } from '../system/diagnostics';
 import { Wallpaper } from '../system/wallpaper';
-import { applyAppearance, onAppearanceChange } from '../window/appearance';
-import { filtersRoot, isDevelopment } from './env';
+import { isDevelopment } from './env';
+import type { AppWideSetting } from '../../shared/profiles';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
 
+/** What a profile is given by the app that holds it: the parts there is only one of. */
+export interface ProfileHost {
+  blocker: ContentBlocker;
+  updates: UpdateManager;
+  appSettings(): Pick<Settings, AppWideSetting>;
+  updateAppSettings(patch: Partial<Pick<Settings, AppWideSetting>>): void;
+  /** A window of this profile opened or closed, which decides what the next launch reopens. */
+  windowsChanged(): void;
+}
+
 /**
- * Everything that belongs to the person rather than to a window.
+ * Everything that belongs to one person rather than to a window.
  *
- * One for the life of the app: the store and its database, the vault, the
- * blocker, downloads, updates, every session and the questions pages ask. A
- * window comes and goes; closing the last one on macOS used to throw all of
- * this away and build it again, cancelling every download in progress.
+ * The store and its database, the vault, downloads, every session and the
+ * questions pages ask. A window comes and goes; closing the last one on macOS
+ * used to throw all of this away and build it again, cancelling every download
+ * in progress.
  */
 export class Profile {
   readonly store: BrowserStore;
@@ -60,8 +59,9 @@ export class Profile {
   private readonly windows = new Set<Browser>();
   /** The window last in front, for menus and notices when none is focused at this moment. */
   private lastFocused: Browser | null = null;
+  /** When one of this profile's windows was last in front, to tell which profile a menu means. */
+  private lastFocusedAt = 0;
   private readonly stopWatchingAuth: () => void;
-  private readonly stopWatchingAppearance: () => void;
   private isQuitting = false;
 
   get vault(): Vault {
@@ -72,13 +72,13 @@ export class Profile {
   constructor(
     readonly id: string,
     readonly directory: string,
+    private readonly host: ProfileHost,
   ) {
     this.partitions = partitionsFor(id);
     this.store = new BrowserStore(directory);
     this.wallpaper = new Wallpaper(directory);
-    // Before any window exists, so each is created in the colour it will be painted.
-    applyAppearance(this.store.getSettings().appearance);
-    hardenChromeSession(electronSession.defaultSession);
+    this.blocker = host.blocker;
+    this.updates = host.updates;
     sweepOrphanedGroupPartitions(
       app.getPath('userData'),
       this.store.listGroups().map((group) => group.id),
@@ -98,13 +98,8 @@ export class Profile {
       () => this.scheduleStatePush(),
     );
     const settings = this.store.getSettings();
-    this.blocker = new ContentBlocker();
     this.blocking = new BlockingPolicy(settings.blockTrackers, settings.blockerAllowlist);
     this.httpsFirst = new HttpsFirst(settings.httpsFirst);
-    // A list fetched on request is preferred to the one that shipped, and the shipped one is the floor.
-    if (!this.blocker.loadShippedLists(path.join(app.getPath('userData'), 'filters'))) {
-      this.blocker.loadShippedLists(filtersRoot());
-    }
     this.downloads = new DownloadManager(
       () => this.scheduleStatePush(),
       this.store.downloadsTable,
@@ -123,7 +118,6 @@ export class Profile {
           () => this.downloads.keep(download.id),
         ),
     );
-    this.updates = new UpdateManager(() => this.scheduleStatePush());
 
     const delegateDeps = {
       window: () => this.focused()?.window,
@@ -148,14 +142,11 @@ export class Profile {
     this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details));
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
-    this.stopWatchingAppearance = onAppearanceChange(() => this.windows.forEach((window) => window.repaint()));
   }
 
-  /** Applied before the first page, so nothing is looked up the plaintext way first. */
-  start(): void {
-    const settings = this.store.getSettings();
-    app.configureHostResolver(hostResolverFor(settings.dnsMode, settings.dnsResolverId));
-    this.updates.start(settings.checkForUpdates);
+  /** This profile's settings, with the app-wide ones as the app has them. */
+  settings(): Settings {
+    return { ...this.store.getSettings(), ...this.host.appSettings() };
   }
 
   /**
@@ -166,14 +157,21 @@ export class Profile {
     const window = new Browser(this);
     this.windows.add(window);
     this.lastFocused = window;
+    this.lastFocusedAt = Date.now();
     window.window.on('focus', () => {
       this.lastFocused = window;
+      this.lastFocusedAt = Date.now();
     });
     // Saved on close, while its tabs are still there: by closed the window has already disposed them.
     window.window.on('close', () => this.saveSession(this.windows.size > 1 ? window : null));
     window.window.on('closed', () => this.windowClosed(window));
     await window.start(options);
+    this.host.windowsChanged();
     return window;
+  }
+
+  lastInFrontAt(): number {
+    return this.lastFocusedAt;
   }
 
   /** Opens the windows from last time, or one new one, offering last time's back if the app crashed. */
@@ -275,24 +273,17 @@ export class Profile {
   // -------------------------------------------------------------- settings
 
   updateSettings(patch: Partial<Settings>): Settings {
-    const next = this.store.updateSettings(patch);
-    if (patch.appearance !== undefined) {
-      applyAppearance(patch.appearance);
-    }
+    const { appearance, dnsMode, dnsResolverId, checkForUpdates, ...own } = patch;
+    this.host.updateAppSettings({ appearance, dnsMode, dnsResolverId, checkForUpdates });
+    const next = this.store.updateSettings(own);
     if (patch.httpsFirst !== undefined) {
       this.httpsFirst.setEnabled(patch.httpsFirst);
-    }
-    if (patch.dnsMode !== undefined || patch.dnsResolverId !== undefined) {
-      app.configureHostResolver(hostResolverFor(next.dnsMode, next.dnsResolverId));
     }
     if (patch.blockTrackers !== undefined) {
       this.blocking.setEnabled(patch.blockTrackers);
     }
     if (patch.blockerAllowlist !== undefined) {
       this.blocking.setAllowlist(next.blockerAllowlist);
-    }
-    if (patch.checkForUpdates !== undefined) {
-      this.updates.start(patch.checkForUpdates);
     }
     if (patch.spellcheck !== undefined) {
       this.sessions.setSpellcheck(next.spellcheck);
@@ -301,7 +292,7 @@ export class Profile {
       this.windows.forEach((window) => window.tabs.setWebRtcPolicy(next.webRtcPolicy));
     }
     this.scheduleStatePush();
-    return next;
+    return this.settings();
   }
 
   getAppInfo(): AppInfo {
@@ -422,6 +413,7 @@ export class Profile {
     if (this.lastFocused === window) {
       this.lastFocused = [...this.windows].at(-1) ?? null;
     }
+    this.host.windowsChanged();
   }
 
   prepareForQuit(): void {
@@ -437,11 +429,11 @@ export class Profile {
     this.store.flushAll();
   }
 
+  /** Lets go of everything on disk, so a removed profile's folder can be deleted. */
   dispose(): void {
     this.prepareForQuit();
-    this.updates.stop();
     this.prompts.settleAll();
     this.stopWatchingAuth();
-    this.stopWatchingAppearance();
+    this.store.close();
   }
 }

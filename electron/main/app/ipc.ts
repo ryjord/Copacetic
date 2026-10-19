@@ -8,7 +8,7 @@ import { clampZoom, isAppearanceId, isSleepAfterMinutes, isThemeId, isWebRtcPoli
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
 import type { Browser } from './browser';
-import type { Profile } from './profile';
+import type { Profiles } from './profiles';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import {
@@ -31,7 +31,7 @@ import { HISTORY_PAGE_SIZE } from '../data/store';
 type Untrusted<Args extends unknown[]> = { [Index in keyof Args]: unknown };
 
 /** Every handler is registered through `handle`, which drops any message that did not come from one of the browser's own top-level frames, the chrome window or the overlay. */
-export function registerIpcHandlers(profile: Profile): void {
+export function registerIpcHandlers(profiles: Profiles): void {
   const handle = <Method extends ApiMethod>(
     method: Method,
     handler: (
@@ -43,7 +43,7 @@ export function registerIpcHandlers(profile: Profile): void {
     const channel = CHANNELS[method];
     ipcMain.handle(channel, (event, ...args) => {
       // Answered by the window that asked: its chrome or one of its overlays, and nothing else.
-      const browser = profile.browserFor(event.sender);
+      const browser = profiles.browserFor(event.sender);
       if (!browser?.isOwnFrame(event.senderFrame)) {
         throw new Error(`Rejected ${channel} from an unexpected frame`);
       }
@@ -215,7 +215,7 @@ export function registerIpcHandlers(profile: Profile): void {
 
   // --------------------------------------------------------------- settings
 
-  handle('settings.get', (browser) => browser.store.getSettings());
+  handle('settings.get', (browser) => browser.profile.settings());
   handle('settings.update', (browser, _event, patch) => browser.updateSettings(asSettingsPatch(patch)));
 
   // ------------------------------------------------------------ permissions

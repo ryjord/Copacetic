@@ -1,12 +1,12 @@
 import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
 import type { Browser } from '../app/browser';
-import type { Profile } from '../app/profile';
+import type { Profiles } from '../app/profiles';
 
 const isMac = process.platform === 'darwin';
 
 /** The application menu is not decoration. */
-export function buildApplicationMenu(profile: Profile): Menu {
-  const inWindow = windowActions(profile);
+export function buildApplicationMenu(profiles: Profiles): Menu {
+  const inWindow = windowActions(profiles);
   const template: MenuItemConstructorOptions[] = [];
 
   if (isMac) {
@@ -35,7 +35,12 @@ export function buildApplicationMenu(profile: Profile): Menu {
   template.push({
     label: 'File',
     submenu: [
-      { label: 'New window', accelerator: 'CmdOrCtrl+N', click: () => void profile.openWindow() },
+      // In the profile of the window in front, as a new tab is.
+      {
+        label: 'New window',
+        accelerator: 'CmdOrCtrl+N',
+        click: () => void (profiles.focused()?.profile ?? profiles.first).openWindow(),
+      },
       { label: 'New tab', accelerator: 'CmdOrCtrl+T', click: () => inWindow((browser) => browser.commands.newTab()) },
       {
         label: 'New Hush tab',
@@ -257,14 +262,9 @@ type InWindow = (act: (browser: Browser) => void) => void;
  * On macOS the menu bar is there with no window open at all, and an item that
  * needs one opens one first rather than doing nothing.
  */
-function windowActions(profile: Profile): InWindow {
+function windowActions(profiles: Profiles): InWindow {
   return (act) => {
-    const focused = profile.focused();
-    if (focused) {
-      act(focused);
-      return;
-    }
-    void profile.openWindow().then(act);
+    void profiles.focusedOrNew().then(act);
   };
 }
 
@@ -285,6 +285,6 @@ function tabSelectionItems(inWindow: InWindow): MenuItemConstructorOptions[] {
   return items;
 }
 
-export function installApplicationMenu(profile: Profile): void {
-  Menu.setApplicationMenu(buildApplicationMenu(profile));
+export function installApplicationMenu(profiles: Profiles): void {
+  Menu.setApplicationMenu(buildApplicationMenu(profiles));
 }
