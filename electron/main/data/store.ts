@@ -24,6 +24,7 @@ import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folder
 import { GroupsStore } from './groups-store';
 import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
 import { app } from 'electron';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDatabase } from './database';
@@ -60,6 +61,8 @@ export class BrowserStore {
 
   /** Everything one profile keeps, in its folder. */
   constructor(directory = app.getPath('userData')) {
+    // A profile made this run has no folder yet, and SQLite will not make one.
+    mkdirSync(directory, { recursive: true });
     this.database = openDatabase(path.join(directory, 'copacetic.db'));
     this.settings = new SettingsStore(new SiteSettingsStore(this.database), directory);
     this.history = new HistoryStore(this.database, directory);
