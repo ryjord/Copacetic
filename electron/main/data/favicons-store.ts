@@ -140,7 +140,10 @@ export class FaviconsStore {
       return;
     }
     const costs = this.database
-      .prepare('SELECT origin, length(data_url) AS bytes, updated_at FROM favicons')
+      // Newest written first, rowid breaking a tie: icons arriving within one millisecond still leave oldest first.
+      .prepare(
+        'SELECT origin, length(data_url) AS bytes, updated_at FROM favicons ORDER BY updated_at DESC, rowid DESC',
+      )
       .all()
       .map((row) => ({ origin: String(row.origin), bytes: Number(row.bytes), updatedAt: Number(row.updated_at) }));
     const kept = originsWithinBounds(costs, MAX_FAVICON_ENTRIES, MAX_FAVICON_BYTES);
