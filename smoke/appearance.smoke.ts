@@ -38,6 +38,7 @@ describe('choosing an appearance', () => {
     const colour = await copacetic.main(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0]?.getBackgroundColor(),
     );
-    expect(colour?.toLowerCase()).toBe('#0b0f14');
+    // The tab strip's dark ground, which is what the window shows before the chrome paints.
+    expect(colour?.toLowerCase()).toBe('#0e1114');
   }, 60_000);
 });
