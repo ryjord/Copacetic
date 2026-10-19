@@ -139,5 +139,5 @@ jobs:
         with:
           name: packaged-${{ matrix.os }}
           path: release/**/*
-          retention-days: 5
+          retention-days: 3
           if-no-files-found: ignore

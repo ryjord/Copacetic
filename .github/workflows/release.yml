@@ -355,12 +355,14 @@ jobs:
       # minor line would evict every older line, and someone pinned to 1.3 would
       # find 1.3 had vanished from apt while 1.4.11, 1.4.12 and 1.4.13 sat there.
       #
-      # So it keeps the newest package of each minor line instead. That is one
-      # 1.2, one 1.3, one 1.4, one 1.5 - the four a person might reasonably still
-      # be on - and it stays four however many patches each line accumulates.
-      - name: Prune the pool to the newest package of each minor line
+      # So it keeps the newest package of each minor line instead, from the
+      # oldest line still supported: one 1.4, one 1.5, and so on, however many
+      # patches each line accumulates. Lines before it are dropped entirely.
+      - name: Prune the pool to the newest package of each supported minor line
         if: steps.gate.outputs.run == 'true'
         working-directory: pages/apt/pool/main
+        env:
+          OLDEST_SUPPORTED_LINE: '1.4'
         run: |
           set -eu
           if ! ls ./*.deb >/dev/null 2>&1; then
@@ -375,6 +377,11 @@ jobs:
           lines=$(ls -1 ./*.deb | sed 's/.*_\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/' | sort -u)
           keep=""
           for line in $lines; do
+            # Older than the oldest supported line when it sorts first of the two.
+            if [ "$line" != "$OLDEST_SUPPORTED_LINE" ] && \
+               [ "$(printf '%s\n%s\n' "$line" "$OLDEST_SUPPORTED_LINE" | sort -V | head -1)" = "$line" ]; then
+              continue
+            fi
             newest=$(ls -1 ./*.deb | grep "_${line}\." | sort -V | tail -1)
             keep="$keep $newest"
           done
