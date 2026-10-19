@@ -11,8 +11,10 @@
  * inside itself, and moving them out was only safe to do because the packaged
  * binary was launched by hand afterwards. This is that check, written down.
  *
- * Run after `electron-builder --dir`.
+ * Run after `electron-builder --dir -c.electronFuses.enableNodeCliInspectArguments=true`: Playwright drives
+ * the app through the inspector, which the release itself switches off.
  */
+import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses';
 import { _electron as electron } from 'playwright';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -126,6 +128,29 @@ function copyleftNativesIn(root) {
 
 const binary = packagedBinary();
 console.log(`Starting ${path.relative(process.cwd(), binary)}`);
+
+/**
+ * The switches compiled into the Electron binary, read back from it rather than
+ * trusted from the config: each closes a way to run code as Copacetic that
+ * does not go through Copacetic, such as ELECTRON_RUN_AS_NODE or a loose app
+ * folder beside the archive.
+ */
+const EXPECTED_FUSES = {
+  [FuseV1Options.RunAsNode]: FuseState.DISABLE,
+  [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: FuseState.DISABLE,
+  [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: FuseState.ENABLE,
+  [FuseV1Options.OnlyLoadAppFromAsar]: FuseState.ENABLE,
+  [FuseV1Options.GrantFileProtocolExtraPrivileges]: FuseState.DISABLE,
+};
+const wire = await getCurrentFuseWire(binary);
+const wrongFuses = Object.entries(EXPECTED_FUSES)
+  .filter(([fuse, state]) => wire[fuse] !== state)
+  .map(([fuse]) => FuseV1Options[fuse]);
+if (wrongFuses.length > 0) {
+  console.error(`\nThe packaged binary has these fuses in the wrong state: ${wrongFuses.join(', ')}.`);
+  process.exit(1);
+}
+console.log('The packaged binary has its fuses set.');
 
 const shippedTree =
   process.platform === 'darwin' ? path.dirname(path.dirname(path.dirname(binary))) : path.dirname(binary);

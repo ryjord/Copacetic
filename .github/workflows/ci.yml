@@ -96,8 +96,10 @@ jobs:
       - name: Fetch Electron for the licences it carries
         run: node node_modules/electron/install.js
 
+      # The one fuse left on for this tree is the inspector, which is how the check below drives the app.
+      # The release keeps it off; the check reads every other fuse back from the binary.
       - name: Check the packaged tree assembles
-        run: npx electron-builder --dir --publish never
+        run: npx electron-builder --dir --publish never -c.electronFuses.enableNodeCliInspectArguments=true
 
       # Assembling it is not the same as it working. Everything above runs
       # `electron .` against the source tree, which proves the code is right and
