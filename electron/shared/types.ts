@@ -414,6 +414,8 @@ export interface Settings {
   /** Underlines misspelt words in what is typed into pages. */
   spellcheck: boolean;
   webRtcPolicy: WebRtcPolicy;
+  /** Cookies sent to or set by a site other than the page's; a site's tracker exception lets them through. */
+  blockThirdPartyCookies: boolean;
   /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
   showBookmarksBar: boolean;
 }

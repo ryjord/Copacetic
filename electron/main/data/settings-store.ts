@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultZoomFactor: 1,
   spellcheck: true,
   webRtcPolicy: 'publicOnly',
+  blockThirdPartyCookies: true,
 };
 
 /** The per-site keys, which live in the database and are only ever empty in the JSON file. */
@@ -182,6 +183,7 @@ function reviveSettings(raw: unknown): Settings | null {
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
     spellcheck: asBoolean(raw.spellcheck, DEFAULT_SETTINGS.spellcheck),
     webRtcPolicy: isWebRtcPolicy(webRtcPolicy) ? webRtcPolicy : DEFAULT_SETTINGS.webRtcPolicy,
+    blockThirdPartyCookies: asBoolean(raw.blockThirdPartyCookies, DEFAULT_SETTINGS.blockThirdPartyCookies),
   });
 }
 

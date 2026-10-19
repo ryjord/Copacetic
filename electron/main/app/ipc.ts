@@ -424,6 +424,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.spellcheck === 'boolean') {
     patch.spellcheck = value.spellcheck;
   }
+  if (typeof value.blockThirdPartyCookies === 'boolean') {
+    patch.blockThirdPartyCookies = value.blockThirdPartyCookies;
+  }
   if (typeof value.webRtcPolicy === 'string' && isWebRtcPolicy(value.webRtcPolicy)) {
     patch.webRtcPolicy = value.webRtcPolicy;
   }

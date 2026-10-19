@@ -3,6 +3,7 @@ import { type DisplaySource, displayChoices } from '../../shared/display-sources
 import type { PermissionAnswer, PermissionDecision, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
 import { observeCertificates } from './certificates';
+import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
 
@@ -49,6 +50,8 @@ export interface SecurityDelegate {
   confirmExternalOpen(url: string, openerWebContentsId: number): Promise<boolean>;
   getStoredDecision(origin: string, kind: PermissionKind): PermissionDecision | null;
   rememberDecision(origin: string, kind: PermissionKind, decision: PermissionDecision): void;
+  /** Whether a page on this site keeps third-party cookies out; the site's tracker exception lets them in. */
+  blocksThirdPartyCookiesOn(site: string): boolean;
   /** A page wants to share the screen; resolves with the id of what the person picked, or null. */
   chooseDisplaySource(origin: string, choices: DisplaySource[]): Promise<string | null>;
 }
@@ -174,8 +177,11 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   session.setDevicePermissionHandler(() => false);
   session.setBluetoothPairingHandler((_details, callback) => callback({ confirmed: false }));
 
-  // What this browser says it is, on the wire and in the languages it offers.
-  describeSession(session, process.platform, app.getLocale());
+  // What this browser says it is, on the wire and in the languages it offers, and which cookies cross sites.
+  installRequestHeaders(session, {
+    clientHints: describeSession(session, process.platform, app.getLocale()),
+    blocksThirdPartyCookiesOn: (site) => delegate.blocksThirdPartyCookiesOn(site),
+  });
 }
 
 /** Screen sharing needs a click on the page and a choice in the chooser, every time. */

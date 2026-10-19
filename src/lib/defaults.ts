@@ -23,4 +23,5 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   defaultZoomFactor: 1,
   spellcheck: true,
   webRtcPolicy: 'publicOnly',
+  blockThirdPartyCookies: true,
 };

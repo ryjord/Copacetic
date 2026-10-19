@@ -101,6 +101,11 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
     getStoredDecision: (origin, kind) => deps.store.getPermissionDecision(origin, kind),
     rememberDecision: (origin, kind, decision) => deps.store.setPermissionDecision(origin, kind, decision),
 
+    blocksThirdPartyCookiesOn: (site) => {
+      const settings = deps.store.getSettings();
+      return settings.blockThirdPartyCookies && !settings.blockerAllowlist.includes(site);
+    },
+
     chooseDisplaySource: async (origin, choices) => {
       const host = sanitiseChromeText(hostOf(origin) || origin, 120);
       const { response } = await showQuestion(deps.window(), {

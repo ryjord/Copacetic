@@ -28,24 +28,13 @@ import { describeError, log } from './diagnostics';
  * Nothing here is new information: the version and platform are already in the
  * user agent this same session sends.
  */
-export function describeSession(session: Session, platform: string, locale: string): void {
+export function describeSession(session: Session, platform: string, locale: string): Record<string, string> {
   const userAgent = stripElectronFromUserAgent(session.getUserAgent());
   session.setUserAgent(userAgent, acceptLanguagesFor(locale));
 
+  // Handed back rather than sent from here: a session has one request-headers listener, and it is shared.
   const hints = clientHintsFor(userAgent, platform, process.arch);
-  if (!hints) {
-    return;
-  }
-
-  const headers = clientHintHeaders(hints);
-  session.webRequest.onBeforeSendHeaders((details, callback) => {
-    // Chrome sends these to secure origins only.
-    if (!details.url.startsWith('https://')) {
-      callback({ requestHeaders: details.requestHeaders });
-      return;
-    }
-    callback({ requestHeaders: { ...details.requestHeaders, ...headers } });
-  });
+  return hints ? clientHintHeaders(hints) : {};
 }
 
 /**

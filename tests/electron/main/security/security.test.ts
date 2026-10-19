@@ -50,7 +50,10 @@ function fakeSession() {
       setCertificateVerifyProc: (fn: Handler) => (captured.certificate = fn),
       setUserAgent: (value: string) => (captured.userAgent = (() => value) as Handler),
       getUserAgent: () => 'Mozilla/5.0 (Macintosh) Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36',
-      webRequest: { onBeforeSendHeaders: (fn: Handler) => (captured.beforeSend = fn) },
+      webRequest: {
+        onBeforeSendHeaders: (fn: Handler) => (captured.beforeSend = fn),
+        onHeadersReceived: (fn: Handler) => (captured.headersReceived = fn),
+      },
     },
   };
 }
@@ -108,6 +111,7 @@ function fakeDelegate(stored: Record<string, PermissionDecision> = {}) {
       rememberDecision: (origin: string, kind: string, decision: PermissionDecision) => {
         remembered[`${origin}|${kind}`] = decision;
       },
+      blocksThirdPartyCookiesOn: () => true,
       chooseDisplaySource: async (_origin: string, choices: { id: string; name: string }[]) => {
         offered.push(choices.map((choice) => choice.name));
         return pick;

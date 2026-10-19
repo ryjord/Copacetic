@@ -80,6 +80,8 @@ export const SETTINGS_PANES = [
       'Filter lists',
       'DNS',
       'Secure DNS',
+      'Cookies',
+      'Third-party cookies',
       'WebRTC',
       'IP address',
       'Calls',

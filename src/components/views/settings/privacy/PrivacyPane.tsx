@@ -146,6 +146,20 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
         )}
       </SettingGroup>
 
+      <SettingGroup title="Cookies">
+        <SettingRow
+          label="Block third-party cookies"
+          help="A site other than the one you are on cannot send or set a cookie with what it loads into the page, which is how most tracking across sites works. A site you let show trackers is let through too. Cookies a third-party frame sets with script are not covered."
+          control={
+            <Switch
+              label="Block third-party cookies"
+              checked={settings.blockThirdPartyCookies}
+              onChange={(blockThirdPartyCookies) => updateSettings({ blockThirdPartyCookies })}
+            />
+          }
+        />
+      </SettingGroup>
+
       <SettingGroup title="Calls and video">
         <SettingRow
           label="Addresses WebRTC may reveal"
