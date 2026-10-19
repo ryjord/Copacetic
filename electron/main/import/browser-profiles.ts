@@ -1,12 +1,17 @@
+// Libs
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { ImportedBookmarks } from '../../shared/bookmark-import';
-import type { ImportSource } from '../../shared/types';
+
+// Utils
 import { bookmarksFromChromium } from './chromium-bookmarks';
 import { type ImportedVisit, readChromiumHistory } from './chromium-history';
 import { type Machine, findChromiumProfiles } from './chromium-profiles';
 import { readFirefoxBookmarks, readFirefoxHistory } from './firefox-places';
 import { findFirefoxProfiles } from './firefox-profiles';
+
+// Types
+import type { ImportedBookmarks } from '../../shared/bookmark-import';
+import type { ImportSource } from '../../shared/types';
 
 /** Another browser's profile, and how to read what it keeps; something it does not keep reads as null. */
 export interface ReadableProfile extends ImportSource {

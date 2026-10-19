@@ -1,7 +1,12 @@
+// Libs
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import type { ImportSource } from '../../shared/types';
+
+// Utils
 import { isRecord } from '../data/persistence';
+
+// Types
+import type { ImportSource } from '../../shared/types';
 
 interface ChromiumBrowser {
   id: string;

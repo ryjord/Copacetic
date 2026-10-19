@@ -1,12 +1,17 @@
+// Libs
 import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
-import type { TabId } from '../../shared/types';
+
+// Utils
 import { t } from '../../shared/i18n/translate';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-text';
 import { isPageNavigableUrl } from '../../shared/url';
-import type { Browser } from '../app/browser';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tab-groups';
 import { countIn, pathOf } from '../../shared/bookmark-folders';
 import { countTraces, describeTraces, siteOf } from '../../shared/forgetting';
+
+// Types
+import type { TabId } from '../../shared/types';
+import type { Browser } from '../app/browser';
 
 /** The menu shown when someone right-clicks inside a page. */
 export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {

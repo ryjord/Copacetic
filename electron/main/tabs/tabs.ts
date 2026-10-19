@@ -1,3 +1,4 @@
+// Libs
 import {
   type BrowserWindow,
   type ContextMenuParams,
@@ -6,10 +7,11 @@ import {
   type WebContents,
   dialog,
 } from 'electron';
+import { randomUUID } from 'node:crypto';
+
+// Utils
 import { sanitiseFilename } from '../data/downloads';
 import { focusContents } from '../system/launch-mode';
-import { randomUUID } from 'node:crypto';
-import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
 import {
   START_PAGE_URL,
   fallbackTitleFor,
@@ -18,8 +20,6 @@ import {
   originOf,
   resolveOmniboxInput,
 } from '../../shared/url';
-import type { ContentBlocker } from '../security/blocker';
-import type { HttpsFirst } from '../security/https-first';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
 import { fetchFaviconDataUrl } from './tab-favicon';
 import {
@@ -42,7 +42,6 @@ import {
 } from './tab-choices';
 import { clampZoom } from '../../shared/types';
 import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
-import type { SessionSnapshot } from '../data/session-store';
 import {
   acceptRefused,
   exceptionFor,
@@ -59,9 +58,15 @@ import { type TabRecord, pageOf } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
 import { type SecurityDelegate, guardTabWebContents } from '../security/security';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
+import type { ContentBlocker } from '../security/blocker';
+import type { HttpsFirst } from '../security/https-first';
+import type { SessionSnapshot } from '../data/session-store';
 import type { ProfilePartitions } from '../../shared/partitions';
 import type { BrowserStore } from '../data/store';
-import { t } from '../../shared/i18n/translate';
 
 export class TabManager {
   private readonly tabs = new Map<TabId, TabRecord>();

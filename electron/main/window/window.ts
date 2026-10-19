@@ -1,5 +1,8 @@
+// Libs
 import { BrowserWindow, screen } from 'electron';
 import { existsSync } from 'node:fs';
+
+// Utils
 import { PersistedFile, asBoolean, asNumber, isRecord } from '../data/persistence';
 import { devIconPath, isDevelopment, preloadPath } from '../app/env';
 import { guardChromeWebContents } from '../security/security';

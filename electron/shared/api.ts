@@ -1,3 +1,4 @@
+// Types
 import type { KeptAboutSites, KeptKind, SiteTraces } from './forgetting';
 import type { ChromeSurface } from './channels';
 import type { BookmarkFolder } from './bookmark-folders';

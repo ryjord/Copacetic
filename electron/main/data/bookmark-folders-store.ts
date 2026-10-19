@@ -1,10 +1,13 @@
-import type { DatabaseSync } from 'node:sqlite';
+// Utils
 import { type BookmarkFolder, wouldCycle } from '../../shared/bookmark-folders';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asString, isRecord, newId } from './persistence';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { DatabaseSync } from 'node:sqlite';
 
 const MAX_NAME = 60;
 const LEGACY_FILE = 'bookmark-folders.json';

@@ -1,7 +1,10 @@
+// Libs
 import { type DownloadItem, type Session, app, shell } from 'electron';
 import { createReadStream, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+
+// Types
 import type { DownloadState, DownloadStatus } from '../../shared/types';
 /** How long an answer about a file on disk is worth reusing. */
 const EXISTS_REMEMBERED_MS = 5_000;

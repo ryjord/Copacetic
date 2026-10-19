@@ -1,7 +1,12 @@
+// Libs
 import { app, net, shell } from 'electron';
-import type { UpdateDelivery, UpdateState, UpdateStatus } from '../../shared/types';
+
+// Utils
 import { isNewerVersion } from '../../shared/version';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { UpdateDelivery, UpdateState, UpdateStatus } from '../../shared/types';
 
 const REPO = 'ryjord/Copacetic';
 const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;

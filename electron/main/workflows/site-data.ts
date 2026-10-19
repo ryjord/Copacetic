@@ -1,4 +1,4 @@
-import type { Session } from 'electron';
+// Utils
 import { type ClearChoice, defaultClearChoice } from '../../shared/clearing';
 import {
   type KeptAboutSites,
@@ -8,15 +8,18 @@ import {
   sameSite,
   siteOf,
 } from '../../shared/forgetting';
+import { forgetCertificateExceptions } from '../security/certificate-exceptions';
+import { forgetCertificates } from '../security/certificates';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { Session } from 'electron';
 import type { ClearRange } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { DownloadManager } from '../data/downloads';
 import type { BrowserStore } from '../data/store';
 import type { BlockingPolicy } from '../security/blocking-policy';
-import { forgetCertificateExceptions } from '../security/certificate-exceptions';
-import { forgetCertificates } from '../security/certificates';
 import type { SessionRegistry } from '../sessions/session-registry';
-import { t } from '../../shared/i18n/translate';
 
 interface SiteDataDeps {
   store: BrowserStore;

@@ -1,6 +1,9 @@
+// Libs
 import { dialog, nativeImage, type BrowserWindow } from 'electron';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+
+// Utils
 import { t } from '../../shared/i18n/translate';
 
 /** Wide enough for any display this will run on, small enough to stay sane. */

@@ -1,6 +1,9 @@
+// Libs
 import { app, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+
+// Utils
 import { t } from '../../shared/i18n/translate';
 
 const FILE = 'LICENSES.chromium.html';

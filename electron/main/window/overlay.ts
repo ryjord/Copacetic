@@ -1,7 +1,12 @@
+// Libs
 import { WebContentsView, type BaseWindow, type WebContents, type WebFrameMain } from 'electron';
+
+// Utils
 import { guardChromeWebContents } from '../security/security';
 import { focusContents } from '../system/launch-mode';
 import { chromeEntryUrl, preloadPath } from '../app/env';
+
+// Types
 import type { ContentBounds } from '../tabs/tab-layout';
 import type { OverlayRegion } from '../../shared/overlay-regions';
 

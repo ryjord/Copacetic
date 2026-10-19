@@ -1,12 +1,17 @@
+// Libs
 import { type Session, app, session as electronSession } from 'electron';
-import type { TabGroup } from '../../shared/tab-groups';
+
+// Utils
 import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/partitions';
-import type { DownloadManager } from '../data/downloads';
-import type { ContentBlocker } from '../security/blocker';
-import type { BlockingPolicy } from '../security/blocking-policy';
 import { type SecurityDelegate, hardenWebSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
 import { type SpellcheckChoices, spellcheckLanguagesFor } from '../../shared/spellcheck';
+
+// Types
+import type { TabGroup } from '../../shared/tab-groups';
+import type { DownloadManager } from '../data/downloads';
+import type { ContentBlocker } from '../security/blocker';
+import type { BlockingPolicy } from '../security/blocking-policy';
 
 interface SessionRegistryDeps {
   partitions: ProfilePartitions;

@@ -1,10 +1,10 @@
+// Libs
 import { BrowserWindow, type WebContents, app, net, safeStorage, shell, systemPreferences } from 'electron';
 import { existsSync } from 'node:fs';
-import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } from '../../shared/types';
-import type { ContentBlocker } from '../security/blocker';
+
+// Utils
 import { BlockingPolicy } from '../security/blocking-policy';
 import { HttpsFirst } from '../security/https-first';
-import type { SecurityDelegate } from '../security/security';
 import { type ProfilePartitions, partitionsFor } from '../../shared/partitions';
 import { PendingPrompts } from '../security/pending-prompts';
 import { type TabDirectory, createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
@@ -13,16 +13,21 @@ import { BrowserStore } from '../data/store';
 import { DownloadManager } from '../data/downloads';
 import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
 import { VaultSession } from '../vault/vault-session';
-import type { Vault } from '../vault/vault';
-import type { SessionSnapshot } from '../data/session-store';
-import type { UpdateManager } from '../system/updates';
 import { log } from '../system/diagnostics';
 import { Wallpaper } from '../system/wallpaper';
 import { isDevelopment } from './env';
-import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } from '../../shared/types';
+import type { ContentBlocker } from '../security/blocker';
+import type { SecurityDelegate } from '../security/security';
+import type { Vault } from '../vault/vault';
+import type { SessionSnapshot } from '../data/session-store';
+import type { UpdateManager } from '../system/updates';
+import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
 
 /** What a profile is given by the app that holds it: the parts there is only one of. */
 export interface ProfileHost {

@@ -1,6 +1,9 @@
+// Utils
 import { MAX_IMPORTED_TITLE, isImportable } from '../../shared/bookmark-import';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import { isRecord } from '../data/persistence';
+
+// Types
 import type { ImportedVisit } from './chromium-history';
 
 /**

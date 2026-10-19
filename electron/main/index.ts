@@ -1,5 +1,8 @@
+// Libs
 import { app, dialog, nativeImage } from 'electron';
 import { existsSync } from 'node:fs';
+
+// Utils
 import { Profiles } from './app/profiles';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';

@@ -1,9 +1,12 @@
-import type { DatabaseSync } from 'node:sqlite';
-import type { Bookmark, BookmarkEditResult } from '../../shared/types';
+// Utils
 import { isPageNavigableUrl } from '../../shared/url';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';
+
+// Types
+import type { DatabaseSync } from 'node:sqlite';
+import type { Bookmark, BookmarkEditResult } from '../../shared/types';
 
 const LEGACY_FILE = 'bookmarks.json';
 const COLUMNS = 'id, url, title, created_at, folder_id';

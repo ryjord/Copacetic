@@ -1,5 +1,8 @@
-import type { BookmarkFolder } from '../../shared/bookmark-folders';
+// Utils
 import { PUSH } from '../../shared/channels';
+
+// Types
+import type { BookmarkFolder } from '../../shared/bookmark-folders';
 import type { GroupColourId } from '../../shared/tab-groups';
 import type { BrowserStore } from '../data/store';
 

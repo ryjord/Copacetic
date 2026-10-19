@@ -1,12 +1,11 @@
+// Libs
 import { BrowserWindow, type WebContents, app, session as electronSession } from 'electron';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
+
+// Utils
 import { hostResolverFor } from '../../shared/dns';
 import { FIRST_PROFILE_ID } from '../../shared/partitions';
-import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
-import type { ShortcutOverrides } from '../../shared/shortcuts';
-import type { GroupColourId } from '../../shared/tab-groups';
-import type { Settings } from '../../shared/types';
 import { profileDirectory, sweepRemovedProfiles } from '../data/profile-folders';
 import { ProfilesStore } from '../data/profiles-store';
 import { ContentBlocker } from '../security/blocker';
@@ -14,9 +13,15 @@ import { hardenChromeSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
 import { UpdateManager } from '../system/updates';
 import { applyAppearance, onAppearanceChange } from '../window/appearance';
-import type { Browser } from './browser';
 import { filtersRoot } from './env';
 import { Profile, type ProfileHost } from './profile';
+
+// Types
+import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
+import type { ShortcutOverrides } from '../../shared/shortcuts';
+import type { GroupColourId } from '../../shared/tab-groups';
+import type { Settings } from '../../shared/types';
+import type { Browser } from './browser';
 
 /**
  * Every profile, and the things the app has only one of.

@@ -1,8 +1,11 @@
+// Libs
 import { protocol } from 'electron';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+
+// Utils
 import { APP_HOST, APP_SCHEME, rendererRoot } from '../app/env';
 
 const MIME_TYPES: Record<string, string> = {

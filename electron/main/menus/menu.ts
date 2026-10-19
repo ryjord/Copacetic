@@ -1,8 +1,13 @@
+// Libs
 import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
-import type { Browser } from '../app/browser';
-import type { Profiles } from '../app/profiles';
+
+// Utils
 import { acceleratorFor, readShortcutOverrides } from '../../shared/shortcuts';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { Browser } from '../app/browser';
+import type { Profiles } from '../app/profiles';
 
 const isMac = process.platform === 'darwin';
 

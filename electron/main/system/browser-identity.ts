@@ -1,5 +1,4 @@
-import type { Session, WebContents } from 'electron';
-import type { ClientHints } from '../../shared/browser-identity';
+// Utils
 import {
   CHROME_OBJECT_SCRIPT,
   acceptLanguagesFor,
@@ -8,6 +7,10 @@ import {
   stripElectronFromUserAgent,
 } from '../../shared/browser-identity';
 import { describeError, log } from './diagnostics';
+
+// Types
+import type { Session, WebContents } from 'electron';
+import type { ClientHints } from '../../shared/browser-identity';
 
 /**
  * Applies what `electron/shared/browser-identity.ts` decides.

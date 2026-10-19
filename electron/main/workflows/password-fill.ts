@@ -1,10 +1,13 @@
+// Utils
 import { offerFor } from '../../shared/credential-matching';
+import { fillScriptFor } from '../system/fill-script';
+import { t } from '../../shared/i18n/translate';
+
+// Types
 import type { TabId } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { VaultSession } from '../vault/vault-session';
-import { fillScriptFor } from '../system/fill-script';
 import type { TabManager } from '../tabs/tabs';
-import { t } from '../../shared/i18n/translate';
 
 interface PasswordFillDeps {
   tabs: TabManager;

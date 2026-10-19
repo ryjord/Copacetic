@@ -1,12 +1,17 @@
+// Libs
 import { type Session, type WebContents, app, desktopCapturer, shell } from 'electron';
+
+// Utils
 import { type DisplaySource, displayChoices } from '../../shared/display-sources';
-import type { PermissionAnswer, PermissionDecision, PermissionDefault, PermissionKind } from '../../shared/types';
 import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
 import { observeCertificates } from './certificates';
 import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { PermissionAnswer, PermissionDecision, PermissionDefault, PermissionKind } from '../../shared/types';
 
 export interface SecurityDelegate {
   /** Ask the user, via the chrome UI, and resolve with their answer. */

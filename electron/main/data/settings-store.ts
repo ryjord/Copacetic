@@ -1,3 +1,4 @@
+// Utils
 import {
   isAppearanceId,
   isSleepAfterMinutes,
@@ -5,12 +6,14 @@ import {
   isWebRtcPolicy,
   readPermissionDefaults,
 } from '../../shared/types';
-import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/spellcheck';
 import { readShortcutOverrides } from '../../shared/shortcuts';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
+
+// Types
+import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import type { SiteSettingsStore } from './site-settings-store';
 
 export const DEFAULT_SETTINGS: Settings = {

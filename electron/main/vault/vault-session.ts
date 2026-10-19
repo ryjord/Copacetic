@@ -1,6 +1,8 @@
+// Libs
 import path from 'node:path';
+
+// Utils
 import { type KeychainDescription, describeKeychain } from '../../shared/vault-keychain';
-import type { VaultFacts, VaultLock } from '../../shared/types';
 import {
   LOCKED,
   type LockState,
@@ -14,6 +16,9 @@ import {
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { VaultFacts, VaultLock } from '../../shared/types';
 
 /**
  * The parts of the machine the vault has to ask about: the keychain that holds

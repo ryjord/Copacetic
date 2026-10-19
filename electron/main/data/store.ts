@@ -1,3 +1,30 @@
+// Libs
+import { app } from 'electron';
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+
+// Utils
+import {
+  type KeptAboutSites,
+  type KeptKind,
+  NOTHING,
+  type SiteTraces,
+  sameSite,
+  siteOf,
+} from '../../shared/forgetting';
+import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../../shared/url';
+import { BookmarksStore } from './bookmarks-store';
+import { BookmarkFoldersStore } from './bookmark-folders-store';
+import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folders';
+import { GroupsStore } from './groups-store';
+import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tab-groups';
+import { openDatabase } from './database';
+import { backUpBeforeMigrating, forgetLegacyCopies } from './legacy-import';
+import { DownloadsTable } from './downloads-table';
+import { SiteSettingsStore } from './site-settings-store';
+import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
+
+// Types
 import type {
   Bookmark,
   BookmarkEditResult,
@@ -8,31 +35,9 @@ import type {
   Suggestion,
   TopSite,
 } from '../../shared/types';
-import {
-  type KeptAboutSites,
-  type KeptKind,
-  NOTHING,
-  type SiteTraces,
-  sameSite,
-  siteOf,
-} from '../../shared/forgetting';
-import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../../shared/url';
 import type { RememberedCertificate } from '../../shared/certificate-changes';
-import { BookmarksStore } from './bookmarks-store';
-import { BookmarkFoldersStore } from './bookmark-folders-store';
-import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folders';
-import { GroupsStore } from './groups-store';
-import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tab-groups';
 import type { ImportedBookmark } from '../../shared/bookmark-import';
-import { app } from 'electron';
-import { mkdirSync } from 'node:fs';
-import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { openDatabase } from './database';
-import { backUpBeforeMigrating, forgetLegacyCopies } from './legacy-import';
-import { DownloadsTable } from './downloads-table';
-import { SiteSettingsStore } from './site-settings-store';
-import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
 
 export { HISTORY_PAGE_SIZE };
 export type { HistoryPage };

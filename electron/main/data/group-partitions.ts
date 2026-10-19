@@ -1,5 +1,8 @@
+// Libs
 import { readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
+
+// Utils
 import { type ProfilePartitions, orphanedGroupPartitions } from '../../shared/partitions';
 import { describeError, log } from '../system/diagnostics';
 

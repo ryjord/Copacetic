@@ -1,8 +1,13 @@
+// Libs
 import { Menu, type MenuItemConstructorOptions, shell } from 'electron';
-import type { Browser } from '../app/browser';
+
+// Utils
 import { profileMenuItems } from './profile-menu';
 import { acceleratorFor, readShortcutOverrides } from '../../shared/shortcuts';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { Browser } from '../app/browser';
 
 const PROJECT_URL = 'https://github.com/ryjord/Copacetic';
 

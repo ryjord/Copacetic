@@ -1,9 +1,14 @@
-import type { DatabaseSync } from 'node:sqlite';
+// Libs
 import path from 'node:path';
-import type { DownloadState, DownloadStatus } from '../../shared/types';
+
+// Utils
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';
+
+// Types
+import type { DatabaseSync } from 'node:sqlite';
+import type { DownloadState, DownloadStatus } from '../../shared/types';
 
 const LEGACY_FILE = 'downloads.json';
 

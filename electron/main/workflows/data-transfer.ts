@@ -1,19 +1,24 @@
-import type { BrowserWindow } from 'electron';
+// Libs
 import { homedir } from 'node:os';
+
+// Utils
 import { bookmarksFromHtml } from '../../shared/bookmark-import';
 import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
-import type { ExportKind, ImportSource } from '../../shared/types';
 import { fileStamp, readChosenFile, writeChosenFile } from '../system/file-dialogs';
-import type { VaultSession } from '../vault/vault-session';
 import { bookmarksToHtml, historyToJson } from '../data/export';
 import { MAX_HISTORY_AGE_MS, MAX_HISTORY_ENTRIES } from '../data/history-store';
 import { findReadableProfiles } from '../import/browser-profiles';
 import { visitsFromHistoryFile } from '../import/history-file';
-import type { Machine } from '../import/chromium-profiles';
 import { describeError, log } from '../system/diagnostics';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { BrowserWindow } from 'electron';
+import type { ExportKind, ImportSource } from '../../shared/types';
+import type { VaultSession } from '../vault/vault-session';
+import type { Machine } from '../import/chromium-profiles';
 import type { BrowserStore } from '../data/store';
 import type { BookmarkCommands } from './bookmarks';
-import { t } from '../../shared/i18n/translate';
 
 interface DataTransferDeps {
   window: BrowserWindow;

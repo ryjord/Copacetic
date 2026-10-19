@@ -1,4 +1,7 @@
+// Libs
 import { randomBytes } from 'node:crypto';
+
+// Utils
 import { FIRST_PROFILE_ID } from '../../shared/partitions';
 import { MAX_PROFILE_NAME, type ProfileSummary } from '../../shared/profiles';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';

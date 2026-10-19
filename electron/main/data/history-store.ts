@@ -1,10 +1,13 @@
-import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
-import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
+// Utils
 import { hostOf, originOf } from '../../shared/url';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
-import type { ImportedVisit } from '../import/chromium-history';
 import { asNumber, asString, isRecord, newId } from './persistence';
+
+// Types
+import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
+import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
+import type { ImportedVisit } from '../import/chromium-history';
 
 export const MAX_HISTORY_ENTRIES = 10_000;
 export const MAX_HISTORY_AGE_MS = 90 * 24 * 60 * 60 * 1000;

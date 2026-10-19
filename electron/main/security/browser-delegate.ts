@@ -1,12 +1,17 @@
+// Libs
 import { type BrowserWindow, app, dialog, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
+
+// Utils
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import { isAskablePermission } from '../../shared/types';
-import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/types';
 import { hostOf, isPageNavigableUrl } from '../../shared/url';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/types';
 import type { PendingPrompts } from './pending-prompts';
 import type { BrowserStore } from '../data/store';
-import { t } from '../../shared/i18n/translate';
 
 /** What a page's request needs of the tabs, answered by whichever window holds the page. */
 export interface TabDirectory {

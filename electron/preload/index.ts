@@ -1,7 +1,12 @@
+// Libs
 import { contextBridge, ipcRenderer } from 'electron';
-import type { CopaceticApi } from '../shared/api';
+
+// Utils
 import { PUSH, type ChromeSurface, type PushChannel } from '../shared/channels';
 import { type ApiMethod, CHANNELS } from '../shared/ipc-contract';
+
+// Types
+import type { CopaceticApi } from '../shared/api';
 import type { Notice } from '../shared/notices';
 import type { BrowserStatePatch } from '../shared/state-slices';
 import type { SuggestionView } from '../shared/suggestion-view';

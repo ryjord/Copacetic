@@ -1,3 +1,4 @@
+// Libs
 import {
   copyFileSync,
   existsSync,
@@ -8,10 +9,14 @@ import {
   rmSync,
   statSync,
 } from 'node:fs';
-import type { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
+
+// Utils
 import { describeError, log } from '../system/diagnostics';
 import { inTransaction } from './database';
+
+// Types
+import type { DatabaseSync } from 'node:sqlite';
 
 /**
  * Brings what a JSON file from an earlier version held into the database, once.

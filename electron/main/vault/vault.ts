@@ -1,7 +1,10 @@
+// Utils
 import { asNumber, asString, isRecord, newId } from '../data/persistence';
+import { t } from '../../shared/i18n/translate';
+
+// Types
 import type { CsvCredential } from '../../shared/credential-csv';
 import type { VaultEntry, VaultState } from '../../shared/types';
-import { t } from '../../shared/i18n/translate';
 
 /** The OS keychain, behind an interface so the rules above it can be tested without one. */
 export interface SecretStore {

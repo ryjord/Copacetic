@@ -1,15 +1,18 @@
-import type { ContextMenuParams } from 'electron';
-import type { TabId } from '../../shared/types';
+// Utils
 import { clampZoom } from '../../shared/types';
 import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/url';
-import type { ContentBlocker } from '../security/blocker';
-import type { HttpsFirst } from '../security/https-first';
 import { canAcceptRefused } from '../security/certificate-exceptions';
-import type { BrowserStore } from '../data/store';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';
-import type { TabRecord } from './tab-record';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { ContextMenuParams } from 'electron';
+import type { TabId } from '../../shared/types';
+import type { ContentBlocker } from '../security/blocker';
+import type { HttpsFirst } from '../security/https-first';
+import type { BrowserStore } from '../data/store';
+import type { TabRecord } from './tab-record';
 
 /**
  * What the page can tell us about itself. Everything here is reported by the

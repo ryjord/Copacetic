@@ -1,8 +1,13 @@
+// Libs
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+
+// Utils
+import { t } from '../../shared/i18n/translate';
+
+// Types
 import type { Machine } from './chromium-profiles';
 import type { ImportSource } from '../../shared/types';
-import { t } from '../../shared/i18n/translate';
 
 /** A Firefox profile found on disk. As with Chromium, the directory never leaves the main process. */
 export interface FirefoxProfile extends ImportSource {

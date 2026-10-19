@@ -1,11 +1,16 @@
+// Libs
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
+
+// Utils
+import { registrableDomainOf } from '../../shared/url';
+import { t } from '../../shared/i18n/translate';
+
+// Types
 import type { Session } from 'electron';
 import type { ConnectionEntry } from '../../shared/types';
-import { registrableDomainOf } from '../../shared/url';
 import type { BlockingPolicy } from './blocking-policy';
-import { t } from '../../shared/i18n/translate';
 
 /** What a shipped list says about itself, for a pane that has to name it. */
 export interface FilterListInfo {

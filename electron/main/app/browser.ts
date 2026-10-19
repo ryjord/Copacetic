@@ -1,28 +1,11 @@
+// Libs
 import { type BrowserWindow, type WebContents, type WebFrameMain, dialog } from 'electron';
+
+// Utils
 import { PUSH, type ChromeSurface } from '../../shared/channels';
-import type {
-  AppInfo,
-  BrowserState,
-  ConnectionEntry,
-  PermissionDecision,
-  PermissionKind,
-  Settings,
-  SiteInfoState,
-  TabId,
-} from '../../shared/types';
 import { START_PAGE_URL } from '../../shared/url';
-import type { OverlayRegion } from '../../shared/overlay-regions';
-import type { SuggestionView } from '../../shared/suggestion-view';
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
-import type { ContentBlocker } from '../security/blocker';
-import type { DownloadManager } from '../data/downloads';
-import type { BrowserStore } from '../data/store';
-import type { SessionSnapshot } from '../data/session-store';
-import type { Wallpaper } from '../system/wallpaper';
 import { focusContents, showWindow } from '../system/launch-mode';
-import type { UpdateManager } from '../system/updates';
-import type { Vault } from '../vault/vault';
-import type { VaultSession } from '../vault/vault-session';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
 import { StatePublisher } from '../state/state-publisher';
@@ -38,8 +21,30 @@ import { createChromeWindow } from '../window/window';
 import { surfaceColour } from '../window/appearance';
 import { showPageContextMenu } from '../menus/context-menu';
 import { chromeEntryUrl, isDevelopment } from './env';
-import type { Profile } from './profile';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type {
+  AppInfo,
+  BrowserState,
+  ConnectionEntry,
+  PermissionDecision,
+  PermissionKind,
+  Settings,
+  SiteInfoState,
+  TabId,
+} from '../../shared/types';
+import type { OverlayRegion } from '../../shared/overlay-regions';
+import type { SuggestionView } from '../../shared/suggestion-view';
+import type { ContentBlocker } from '../security/blocker';
+import type { DownloadManager } from '../data/downloads';
+import type { BrowserStore } from '../data/store';
+import type { SessionSnapshot } from '../data/session-store';
+import type { Wallpaper } from '../system/wallpaper';
+import type { UpdateManager } from '../system/updates';
+import type { Vault } from '../vault/vault';
+import type { VaultSession } from '../vault/vault-session';
+import type { Profile } from './profile';
 
 /**
  * One browser window: its tabs, the layers drawn over its pages, and the verbs

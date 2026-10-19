@@ -1,11 +1,14 @@
+// Utils
 import { PUSH } from '../../shared/channels';
-import type { TabId } from '../../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, viewSourceUrlFor } from '../../shared/url';
 import { nextZoomStep } from '../../shared/zoom';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { TabId } from '../../shared/types';
 import type { BrowserStore } from '../data/store';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { TabManager } from '../tabs/tabs';
-import { t } from '../../shared/i18n/translate';
 
 interface TabCommandsDeps {
   store: BrowserStore;

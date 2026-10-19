@@ -1,7 +1,10 @@
-import type { DatabaseSync } from 'node:sqlite';
+// Utils
 import { originOf } from '../../shared/url';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord } from './persistence';
+
+// Types
+import type { DatabaseSync } from 'node:sqlite';
 
 const MAX_FAVICON_ENTRIES = 600;
 const LEGACY_FILE = 'favicons.json';

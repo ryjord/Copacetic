@@ -1,7 +1,12 @@
+// Libs
 import { app, shell } from 'electron';
+
+// Utils
 import { isPageNavigableUrl } from '../../shared/url';
-import type { DefaultBrowserStatus } from '../../shared/types';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { DefaultBrowserStatus } from '../../shared/types';
 
 /**
  * Becoming the default browser is three different features wearing one name.

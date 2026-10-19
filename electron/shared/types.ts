@@ -1,8 +1,11 @@
+// Utils
+import { t } from './i18n/translate';
+
+// Types
 import type { ShortcutOverrides } from './shortcuts';
 import type { ProfileSummary } from './profiles';
 import type { DnsMode } from './dns';
 import type { TabGroup } from './tab-groups';
-import { t } from './i18n/translate';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 

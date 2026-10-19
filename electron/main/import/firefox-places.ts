@@ -1,7 +1,10 @@
+// Libs
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+
+// Utils
 import {
   type ImportedBookmark,
   type ImportedBookmarks,
@@ -10,8 +13,10 @@ import {
   isImportable,
 } from '../../shared/bookmark-import';
 import { sanitiseChromeText } from '../../shared/chrome-text';
-import type { ImportedVisit } from './chromium-history';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { ImportedVisit } from './chromium-history';
 
 // Firefox's own root folders carry internal titles; these are the names its window shows. Tags are not bookmarks.
 const ROOT_NAMES: Record<string, string> = {

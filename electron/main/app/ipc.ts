@@ -1,6 +1,8 @@
-import type { KeptKind } from '../../shared/forgetting';
+// Libs
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { randomBytes } from 'node:crypto';
+
+// Utils
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
 import { resolverFor } from '../../shared/dns';
 import { generatePassword, readRecipe } from '../../shared/password-generator';
@@ -17,10 +19,7 @@ import { readSpellcheckLanguages } from '../../shared/spellcheck';
 import { readClearChoice } from '../../shared/clearing';
 import { openChromiumLicences } from '../system/chromium-licences';
 import { conflictFor, readShortcutOverrides } from '../../shared/shortcuts';
-import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
-import type { Browser } from './browser';
-import type { Profiles } from './profiles';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import {
@@ -36,6 +35,12 @@ import { showMainMenu } from '../menus/main-menu';
 import { showProfileMenu } from '../menus/profile-menu';
 import { toSuggestionView } from '../../shared/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
+
+// Types
+import type { KeptKind } from '../../shared/forgetting';
+import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
+import type { Browser } from './browser';
+import type { Profiles } from './profiles';
 
 /**
  * The arguments a method declares, each one unknown: they come from a renderer
