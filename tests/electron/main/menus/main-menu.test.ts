@@ -17,6 +17,8 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
       reopenClosedTab: () => {},
       printActiveTab: () => {},
       toggleTabDevTools: () => opened.push('devtools'),
+      viewSourceOfActiveTab: () => opened.push('view source'),
+      saveActiveTab: () => {},
     },
     openDownloadsFolder: () => opened.push('downloads folder'),
     tabs: { hasClosedTabs: () => hasClosedTabs },
@@ -77,7 +79,7 @@ describe('the main menu', () => {
     const submenu = (label: string) =>
       (items.find((item) => item.label === label)?.submenu ?? []) as { label?: string; click?: () => void }[];
     submenu('More tools').forEach((item) => item.click?.());
-    expect(opened).toEqual(['devtools', 'downloads folder']);
+    expect(opened).toEqual(['devtools', 'view source', 'downloads folder']);
     expect(submenu('Help').map((item) => item.label)).toEqual(['Copacetic on GitHub', 'Report a problem']);
   });
 });

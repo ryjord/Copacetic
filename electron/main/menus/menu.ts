@@ -79,6 +79,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.commands.closeActiveTab()),
       },
       {
+        label: 'Save page as…',
+        accelerator: key('save-page'),
+        click: () => inWindow((browser) => browser.commands.saveActiveTab()),
+      },
+      {
         label: 'Print…',
         accelerator: key('print'),
         click: () => inWindow((browser) => browser.commands.printActiveTab()),
@@ -173,6 +178,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         label: 'Command palette',
         accelerator: key('palette'),
         click: () => inWindow((browser) => browser.openSurface('palette')),
+      },
+      {
+        label: 'View page source',
+        accelerator: key('view-source'),
+        click: () => inWindow((browser) => browser.commands.viewSourceOfActiveTab()),
       },
       {
         label: 'Developer tools',

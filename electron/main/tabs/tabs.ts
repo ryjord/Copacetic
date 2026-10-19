@@ -4,7 +4,9 @@ import {
   type Session,
   WebContentsView,
   type WebContents,
+  dialog,
 } from 'electron';
+import { sanitiseFilename } from '../data/downloads';
 import { focusContents } from '../system/launch-mode';
 import { randomUUID } from 'node:crypto';
 import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
@@ -423,6 +425,28 @@ export class TabManager {
       contents.closeDevTools();
     } else {
       contents.openDevTools({ mode: 'detach' });
+    }
+  }
+
+  /** Asks where, then writes the page and what it is made of. Resolves empty, or with why it was not saved. */
+  async savePage(id: TabId): Promise<string> {
+    const contents = this.contentsFor(id);
+    if (!contents || this.window.isDestroyed()) {
+      return 'There is no page here to save.';
+    }
+    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
+      title: 'Save page as',
+      defaultPath: `${sanitiseFilename(contents.getTitle() || 'Page')}.html`,
+      filters: [{ name: 'Web page, complete', extensions: ['html', 'htm'] }],
+    });
+    if (canceled || !filePath) {
+      return '';
+    }
+    try {
+      await contents.savePage(filePath, 'HTMLComplete');
+      return '';
+    } catch (error) {
+      return error instanceof Error ? error.message : 'The page could not be saved.';
     }
   }
 

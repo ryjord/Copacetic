@@ -124,7 +124,9 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     separate();
     push({ label: 'Copy page address', click: () => clipboard.writeText(browser.tabs.urlFor(tabId) ?? '') });
     push({ label: 'Bookmark this page', click: () => browser.commands.toggleBookmarkForActiveTab() });
+    push({ label: 'Save page as…', click: () => browser.commands.savePage(tabId) });
     push({ label: 'Print…', click: () => browser.commands.print(tabId) });
+    push({ label: 'View page source', click: () => browser.commands.viewSource(tabId) });
     separate();
   }
 

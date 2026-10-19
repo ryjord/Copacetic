@@ -9,6 +9,7 @@ import {
   originOf,
   resolveOmniboxInput,
   splitUrlForDisplay,
+  viewSourceUrlFor,
 } from '../../../electron/shared/url';
 
 const resolve = (input: string, options?: { httpsFirst?: boolean }) =>
@@ -385,5 +386,24 @@ describe('a private host written in a way that used to slip through', () => {
   it('refuses a remote page an icon on this machine, however it is spelled', () => {
     expect(isFetchableFavicon('https://example.com/', 'http://[::ffff:7f00:1]:8080/admin')).toBe(false);
     expect(isFetchableFavicon('https://example.com/', 'http://localhost./status')).toBe(false);
+  });
+});
+
+describe('viewing source', () => {
+  it('wraps a web address, and nothing else', () => {
+    expect(viewSourceUrlFor('https://example.com/a')).toBe('view-source:https://example.com/a');
+    expect(viewSourceUrlFor('file:///etc/passwd')).toBeNull();
+    expect(viewSourceUrlFor('view-source:https://example.com/')).toBeNull();
+  });
+
+  it('lets a person go to the source of a web page, but not of anything else', () => {
+    expect(isNavigableUrl('view-source:https://example.com/')).toBe(true);
+    expect(isNavigableUrl('view-source:file:///etc/passwd')).toBe(false);
+    expect(isNavigableUrl('view-source:javascript:alert(1)')).toBe(false);
+  });
+
+  // A page never drives a tab to it; only a person does.
+  it('is not somewhere a page may send a tab', () => {
+    expect(isPageNavigableUrl('view-source:https://example.com/')).toBe(false);
   });
 });

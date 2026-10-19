@@ -1,6 +1,6 @@
 import { PUSH } from '../../shared/channels';
 import type { TabId } from '../../shared/types';
-import { START_PAGE_URL, buildSearchUrl, isNavigableUrl } from '../../shared/url';
+import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, viewSourceUrlFor } from '../../shared/url';
 import { nextZoomStep } from '../../shared/zoom';
 import type { BrowserStore } from '../data/store';
 import type { NoticeCentre } from '../notices/notice-centre';
@@ -97,6 +97,36 @@ export class TabCommands {
 
   toggleTabDevTools(): void {
     this.withActiveTab((tabId) => this.deps.tabs.toggleDevTools(tabId));
+  }
+
+  saveActiveTab(): void {
+    this.withActiveTab((tabId) => this.savePage(tabId));
+  }
+
+  savePage(tabId: TabId): void {
+    void this.deps.tabs.savePage(tabId).then((problem) => {
+      if (problem) {
+        this.deps.notices.notify({
+          id: `save-failed-${tabId}`,
+          tone: 'info',
+          key: 'save-failed',
+          message: `The page was not saved: ${problem}`,
+        });
+      }
+    });
+  }
+
+  viewSourceOfActiveTab(): void {
+    this.withActiveTab((tabId) => this.viewSource(tabId));
+  }
+
+  /** In a tab of its own beside the page, as every browser does, so the page itself is left alone. */
+  viewSource(tabId: TabId): void {
+    const target = viewSourceUrlFor(this.deps.tabs.urlFor(tabId) ?? '');
+    // A Hush page's source is browsing too, so it opens Hush as well.
+    if (target) {
+      this.deps.tabs.create(target, { hush: this.deps.tabs.isHush(tabId) });
+    }
   }
 
   printActiveTab(): void {

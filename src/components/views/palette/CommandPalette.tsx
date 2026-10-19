@@ -179,6 +179,20 @@ export function CommandPalette() {
             run: then(() => send((api) => api.bookmarks.toggle(activeTab.url, activeTab.title))),
           },
           {
+            id: 'save-page',
+            label: 'Save page as',
+            group: 'Page',
+            keywords: 'download html',
+            run: then(() => send((api) => api.tabs.savePage(tabId))),
+          },
+          {
+            id: 'view-source',
+            label: 'View page source',
+            group: 'Page',
+            keywords: 'html code',
+            run: then(() => send((api) => api.tabs.viewSource(tabId))),
+          },
+          {
             id: 'print',
             label: 'Print',
             accelerator: 'CmdOrCtrl+P',

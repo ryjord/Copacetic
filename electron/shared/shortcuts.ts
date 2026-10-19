@@ -55,6 +55,8 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { accelerator: 'CmdOrCtrl+-', description: 'Zoom out', id: 'zoom-out' },
       { accelerator: 'CmdOrCtrl+0', description: 'Reset zoom', id: 'zoom-reset' },
       { accelerator: 'CmdOrCtrl+P', description: 'Print', id: 'print' },
+      { accelerator: 'CmdOrCtrl+S', description: 'Save page as', id: 'save-page' },
+      { accelerator: 'CmdOrCtrl+U', description: 'View page source', id: 'view-source' },
     ],
   },
   {

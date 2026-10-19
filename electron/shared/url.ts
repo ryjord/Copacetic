@@ -51,9 +51,22 @@ export function buildSearchUrl(query: string, engineId: SearchEngineId): string 
 
 export function isNavigableUrl(value: string): boolean {
   try {
-    return NAVIGABLE_SCHEMES.has(new URL(value).protocol);
+    const protocol = new URL(value).protocol;
+    return protocol === 'view-source:'
+      ? viewSourceUrlFor(value.slice('view-source:'.length)) !== null
+      : NAVIGABLE_SCHEMES.has(protocol);
   } catch {
     return false;
+  }
+}
+
+/** The source of a web page, and only a web page's: never a file's, nor another source view's. */
+export function viewSourceUrlFor(url: string): string | null {
+  try {
+    const protocol = new URL(url).protocol;
+    return protocol === 'http:' || protocol === 'https:' ? `view-source:${url}` : null;
+  } catch {
+    return null;
   }
 }
 
