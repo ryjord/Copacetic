@@ -15,6 +15,7 @@
  */
 import { _electron as electron } from 'playwright';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -167,6 +168,47 @@ if (process.platform === 'darwin') {
 // run as a plain Node process, which fails with a message about nothing.
 const environment = { ...process.env, COPACETIC_LAUNCH_IN_BACKGROUND: '1' };
 delete environment.ELECTRON_RUN_AS_NODE;
+// The AppImage runtime sets this, and it is what makes a Linux build update itself; the tree stands in for one.
+if (process.platform === 'linux') {
+  environment.APPIMAGE = binary;
+}
+
+/**
+ * A release feed on this machine offering a version far ahead of this one.
+ *
+ * electron-updater loads only in a packaged build, so nothing else in the suite
+ * ever ran it, and it was broken for twelve releases with every test green. The
+ * feed answers every channel's file, since a beta asks for beta.yml; asking for
+ * the installer named in it is the proof the updater loaded, read the feed and
+ * decided it was newer. The download then fails its checksum, which is fine.
+ */
+async function startUpdateFeed() {
+  const installer = process.platform === 'win32' ? 'Copacetic-Setup-99.0.0.exe' : 'Copacetic-99.0.0.AppImage';
+  const feed = [
+    'version: 99.0.0',
+    'files:',
+    `  - url: ${installer}`,
+    '    sha512: AAAA',
+    '    size: 4',
+    `path: ${installer}`,
+    'sha512: AAAA',
+    "releaseDate: '2026-01-01T00:00:00.000Z'",
+    '',
+  ].join('\n');
+  const requested = [];
+  const server = createServer((request, response) => {
+    requested.push(request.url ?? '');
+    if ((request.url ?? '').endsWith('.yml')) {
+      response.writeHead(200, { 'content-type': 'text/yaml' }).end(feed);
+      return;
+    }
+    response.writeHead(200).end('nope');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+  return { url: `http://127.0.0.1:${port}/`, requested, installer, close: () => server.close() };
+}
 
 const profile = mkdtempSync(path.join(tmpdir(), 'copacetic-packaged-'));
 let app;
@@ -207,6 +249,33 @@ try {
     throw new Error('the packaged app has no working history database');
   }
   console.log('The packaged app opened its database and searched it.');
+
+  // macOS is updated by hand until the builds are signed, so there is no updater there to exercise.
+  if (process.platform !== 'darwin') {
+    const feed = await startUpdateFeed();
+    try {
+      await app.evaluate((_electron, url) => {
+        const { autoUpdater } = process.mainModule.require('electron-updater');
+        autoUpdater.setFeedURL({ provider: 'generic', url });
+      }, feed.url);
+      await chrome.evaluate(() => window.copacetic.updates.check());
+      const askedForInstaller = await until(
+        async () => feed.requested.some((request) => request.includes(feed.installer.replace(/\.[^.]+$/, ''))),
+        45_000,
+      );
+      if (!askedForInstaller) {
+        const status = await chrome.evaluate(async () => (await window.copacetic.chrome.getState()).update.status);
+        throw new Error(
+          `the updater never asked for the newer build (asked for ${feed.requested.join(', ') || 'nothing'}; status ${JSON.stringify(status)})`,
+        );
+      }
+      console.log(
+        `The updater loaded, read the feed (${feed.requested.find((request) => request.endsWith('.yml'))}) and fetched the newer build.`,
+      );
+    } finally {
+      feed.close();
+    }
+  }
 } catch (error) {
   failure = error;
 } finally {
