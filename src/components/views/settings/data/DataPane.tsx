@@ -12,7 +12,7 @@ import { SavedSessions } from '@/components/views/settings/data/SavedSessions';
 import { TranslationModels } from '@/components/views/settings/data/TranslationModels';
 
 // Utils
-import { ask, send } from '@/lib/bridge/bridge';
+import { ask } from '@/lib/bridge/bridge';
 import { CLEAR_RANGES } from '@/lib/text/clearing';
 import { t } from '@shared/i18n/translate';
 
@@ -81,8 +81,9 @@ export function DataPane() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => {
-                    send((api) => api.data.clearKept(entry.id));
+                  onClick={async () => {
+                    // Counted again once it is gone, not while it is still going.
+                    await ask((api) => api.data.clearKept(entry.id), undefined);
                     reload();
                   }}
                 >
@@ -188,8 +189,8 @@ export function DataPane() {
         range={range}
         open={isConfirming}
         onOpenChange={setIsConfirming}
-        onConfirm={(choice) => {
-          send((api) => api.history.clear(range, choice));
+        onConfirm={async (choice) => {
+          await ask((api) => api.history.clear(range, choice), undefined);
           reload();
         }}
       />

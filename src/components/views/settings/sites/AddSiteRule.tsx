@@ -63,9 +63,10 @@ export function AddSiteRule({ settings }: { settings: Pick<Settings, 'permission
       <SettingRow
         label={t('settings.sites.addRule.label')}
         help={problem || undefined}
+        isStacked
         control={
           <form
-            className="flex items-center gap-2"
+            className="flex w-full flex-wrap items-center gap-2"
             onSubmit={(event) => {
               event.preventDefault();
               add();
@@ -76,7 +77,7 @@ export function AddSiteRule({ settings }: { settings: Pick<Settings, 'permission
               placeholder={t('settings.sites.addRule.placeholder')}
               value={address}
               onChange={(event) => setAddress(event.target.value)}
-              className="w-40"
+              className="min-w-48 flex-1"
             />
             <Select label={t('settings.sites.addRule.kind')} options={KINDS} value={kind} onChange={setKind} />
             <Select

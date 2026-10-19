@@ -217,7 +217,7 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
           )}
           {download.sha256 && (
             <>
-              <dt className="text-ink-faint">SHA-256</dt>
+              <dt className="text-ink-faint">{t('views.downloads.sha256')}</dt>
               <dd className="min-w-0 break-all font-mono text-ink-dim select-text">{download.sha256}</dd>
             </>
           )}
@@ -247,7 +247,7 @@ function DownloadPill({ download }: { download: DownloadState }) {
   }
   // The file is saved, but where it came from is not written down; the row goes when Copacetic closes.
   if (download.isHush) {
-    return <StatusPill status="hush">Hush</StatusPill>;
+    return <StatusPill status="hush">{t('views.downloads.pill.hush')}</StatusPill>;
   }
   return null;
 }

@@ -62,7 +62,7 @@ function FinishedCard({ download, onClose }: { download: DownloadState; onClose:
   const [isHeld, setIsHeld] = useState(false);
   const isComplete = download.status === 'completed';
 
-  // Paused while the pointer is on it, so reaching for a button never races the card away.
+  // Paused while the pointer or the keyboard is on it, so reaching for a button never races the card away.
   useEffect(() => {
     if (isHeld) {
       return;
@@ -77,6 +77,13 @@ function FinishedCard({ download, onClose }: { download: DownloadState; onClose:
       role="status"
       onPointerEnter={() => setIsHeld(true)}
       onPointerLeave={() => setIsHeld(false)}
+      onFocus={() => setIsHeld(true)}
+      onBlur={(event) => {
+        // Still held while focus moves between its own buttons.
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsHeld(false);
+        }
+      }}
       className="animate-pop flex w-85 items-start gap-2.5 rounded-lg border border-line bg-raised py-2.5 pl-3 pr-1.5 shadow-popover"
     >
       <Icon

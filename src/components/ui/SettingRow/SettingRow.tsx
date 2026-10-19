@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface SettingGroupProps {
   title?: string;
@@ -22,17 +23,26 @@ interface SettingRowProps {
   /** One sentence at most. Anything longer belongs on the transparency page. */
   help?: ReactNode;
   control?: ReactNode;
+  /** The control on its own line under the label, for a row whose controls would squeeze the label to one word a line. */
+  isStacked?: boolean;
 }
 
 /** One setting: what it is, one line about it, and the control. */
-export function SettingRow({ label, help, control }: SettingRowProps) {
+export function SettingRow({ label, help, control, isStacked = false }: SettingRowProps) {
   return (
-    <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-2.5">
+    <div
+      className={cn(
+        'flex min-h-14 gap-4 px-4 py-2.5',
+        isStacked ? 'flex-col items-stretch gap-2.5' : 'items-center justify-between',
+      )}
+    >
       <div className="min-w-0">
         <div className="text-reading font-medium text-ink">{label}</div>
         {help && <div className="mt-0.5 text-body text-ink-dim">{help}</div>}
       </div>
-      {control && <div className="flex shrink-0 items-center gap-2">{control}</div>}
+      {control && (
+        <div className={cn('flex items-center gap-2', isStacked ? 'flex-wrap' : 'shrink-0')}>{control}</div>
+      )}
     </div>
   );
 }

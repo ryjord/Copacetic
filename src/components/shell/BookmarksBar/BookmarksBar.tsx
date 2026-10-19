@@ -1,6 +1,6 @@
 'use client';
 
-// React
+// Libs
 import { useCallback, useEffect, useState } from 'react';
 
 // Icons
@@ -11,6 +11,7 @@ import { Favicon } from '@/components/ui/Favicon/Favicon';
 
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
+import { iconFor, useFavicons } from '@/lib/favicons';
 
 // Types
 import type { BookmarkFolder } from '@shared/data/bookmark-folders';
@@ -45,6 +46,7 @@ export function BookmarksBar() {
 
   const topFolders = folders.filter((folder) => folder.parentId === null);
   const loose = bookmarks.filter((bookmark) => bookmark.folderId === null);
+  const icons = useFavicons(loose.map((bookmark) => bookmark.url));
 
   if (topFolders.length === 0 && loose.length === 0) {
     return null;
@@ -80,10 +82,22 @@ export function BookmarksBar() {
           key={bookmark.id}
           type="button"
           title={bookmark.url}
-          onClick={() => send((api) => api.bookmarks.openInActiveTab(bookmark.url))}
+          onClick={(event) => {
+            // Cmd or Ctrl, as on a link: a tab behind this one, so the page in front stays.
+            if (event.metaKey || event.ctrlKey) {
+              send((api) => api.tabs.create(bookmark.url, false));
+              return;
+            }
+            send((api) => api.bookmarks.openInActiveTab(bookmark.url));
+          }}
+          onAuxClick={(event) => {
+            if (event.button === 1) {
+              send((api) => api.tabs.create(bookmark.url, false));
+            }
+          }}
           className="flex h-6 shrink-0 items-center gap-1.5 rounded-sm px-2 text-body-sm text-ink-dim transition-colors hover:bg-hover hover:text-ink"
         >
-          <Favicon dataUrl={null} seed={bookmark.url} size={12} />
+          <Favicon dataUrl={iconFor(icons, bookmark.url)} seed={bookmark.url} size={12} />
           <span className="max-w-[18ch] truncate">{bookmark.title || bookmark.url}</span>
         </button>
       ))}

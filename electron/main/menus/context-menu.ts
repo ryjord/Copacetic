@@ -218,7 +218,11 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
   const items: MenuItemConstructorOptions[] = [
     {
       label: t('main.menu.context.newTabToTheRight'),
-      click: () => browser.tabs.create(undefined, { activate: true }),
+      click: () =>
+        browser.tabs.create(undefined, {
+          activate: true,
+          index: browser.tabs.snapshot().tabOrder.indexOf(tabId) + 1,
+        }),
     },
     { label: t('main.menu.file.newHushTab'), click: () => browser.commands.newHushTab() },
     {

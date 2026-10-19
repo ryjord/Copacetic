@@ -86,7 +86,9 @@ export const views = {
       failed: 'Failed',
       cancelled: 'Cancelled',
       missing: 'Missing',
+      hush: 'Hush',
     },
+    sha256: 'SHA-256',
   },
   error: {
     headline: {
