@@ -5,6 +5,8 @@ let copacetic: SmokeApp;
 
 beforeAll(async () => {
   copacetic = await SmokeApp.launch();
+  // A setting changed before the window has its state is applied to nothing on a slow runner.
+  await copacetic.waitForReady();
 });
 afterAll(async () => copacetic?.close());
 

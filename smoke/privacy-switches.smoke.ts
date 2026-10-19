@@ -78,8 +78,11 @@ describe('the privacy switches', () => {
         await copacetic.until(
           async () =>
             copacetic.chrome.evaluate(
-              async (id) =>
-                (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.id === id)?.isLoading === false,
+              // The page's own title, since a tab whose load has not started is not loading either.
+              async (id) => {
+                const tab = (await window.copacetic.chrome.getState()).tabs.find((candidate) => candidate.id === id);
+                return tab?.isLoading === false && Boolean(tab.title);
+              },
               tabId,
             ),
           30_000,
