@@ -2,6 +2,64 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.0.0-beta.2 - unreleased
+
+The second beta of 2.0: a new look, and the features from the 2.1 to 2.3
+plans. A prerelease, so it reaches nobody through automatic updates.
+
+### New
+
+- **A new look**, the same on every screen, with the system's own window
+  controls on Windows and Linux.
+- **Split view.** Two tabs side by side, from a tab's menu, the palette or
+  Cmd or Ctrl+Shift+E. Drag the divider, or step it with the arrow keys.
+- **Saved sessions.** Keep a window's tabs by name and open them again later
+  in a window of their own, from the menu beside the new tab button.
+- **Open rules.** Set a site to always open in Hush or in one group, from its
+  tab's menu; Settings lists every rule beside the site's other settings.
+- **Reader view**, from the View menu or Cmd or Ctrl+Alt+R. The article is
+  read without running anything in the page, and images are left out.
+- **Cookie banners hidden** without accepting or refusing anything for you.
+- **Tracking parameters taken off links** (utm_, fbclid, gclid and others)
+  before the page is asked for, and off Copy link address.
+- **A picture of the whole page**, saved as a PNG.
+- **A page report.** The hosts a page contacted, and what was blocked and by
+  which rule, saved from the site card as a file anyone can read.
+- **Memory per tab** in its tooltip and in tab search.
+- **Tab search** on Cmd or Ctrl+Shift+A, and a zoom chip in the address bar
+  that resets with one click.
+- **Permissions decided per kind.** Ask or refuse for every site, and set a
+  site up before it asks.
+- **Shortcuts you can move** to other keys, and a list you can search.
+- **Import from Firefox**, with bookmark folders kept, and history Copacetic
+  exported comes back in.
+- **Choose what Clear browsing data removes**, the spelling languages, and the
+  length and kinds of character in a generated password.
+- **Save page as, View source**, and the licence of every package shipped.
+
+### Changed
+
+- Every word the interface shows comes from one English catalogue, ready for
+  other languages later.
+- The Chrome version in the user agent is its major number only, as Chrome's
+  own is.
+
+### Fixed
+
+- A beta's user agent carried part of its version (`-beta.1`), which no other
+  browser sends.
+- A decision about a permission was remembered for pages in Hush and in
+  sessions that keep nothing.
+- An accepted certificate could reach beyond the session it was accepted in.
+- An unsigned update could install without being asked for.
+- A file renamed into a program in the save dialog was not held back.
+- Exported passwords were changed by the spreadsheet guard, and every export
+  is now readable by its owner alone.
+- One store failing at quit stopped the others being written.
+- A renderer could send arbitrarily large messages; what crosses is capped.
+- App links are asked about one at a time, and the Windows handlers abused to
+  run programs are refused.
+
 ## 2.0.0-beta.1 - 19 October 2026
 
 A beta of 2.0: the browser rebuilt on a new data layer, with the features a
