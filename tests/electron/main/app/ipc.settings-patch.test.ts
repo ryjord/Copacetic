@@ -158,3 +158,19 @@ describe('what the settings patch refuses', () => {
     expect(asSettingsPatch({ defaultZoomFactor: 1.25 }).defaultZoomFactor).toBe(1.25);
   });
 });
+
+// A renderer that went wrong, or was made to, should not be able to fill the database through a setting.
+describe('how much a settings patch may carry', () => {
+  it('keeps the hue on the colour wheel', () => {
+    expect(asSettingsPatch({ ambientHue: 725 })).toEqual({ ambientHue: 5 });
+    expect(asSettingsPatch({ ambientHue: -30 })).toEqual({ ambientHue: 330 });
+  });
+
+  it('refuses sites longer than a hostname can be, and caps the list', () => {
+    const many = Array.from({ length: 10_050 }, (_unused, index) => `site${index}.test`);
+    expect(asSettingsPatch({ blockerAllowlist: [`${'a'.repeat(300)}.test`, 'ok.test'] })).toEqual({
+      blockerAllowlist: ['ok.test'],
+    });
+    expect(asSettingsPatch({ blockerAllowlist: many }).blockerAllowlist).toHaveLength(10_000);
+  });
+});

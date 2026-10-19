@@ -128,7 +128,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   // ---------------------------------------------------------------- history
 
   handle('history.list', (browser, _event, query, offset) =>
-    browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, Math.max(0, Number(offset) || 0)),
+    browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, asBoundedInteger(offset, 0, 0, 1_000_000)),
   );
   handle('history.remove', (browser, _event, id) => {
     browser.store.removeHistory(asString(id));
@@ -138,7 +138,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
     const clearRange = asClearRange(range);
     return browser.sites.clearBrowsing(clearRange, readClearChoice(choice, clearRange));
   });
-  handle('history.topSites', (browser, _event, limit) => browser.store.topSites(asInteger(limit, 8)));
+  handle('history.topSites', (browser, _event, limit) => browser.store.topSites(asBoundedInteger(limit, 8, 1, 48)));
 
   // -------------------------------------------------------------- bookmarks
 
@@ -392,8 +392,19 @@ export function removeIpcHandlers(): void {
 // Arguments arrive from a renderer. They are shaped like the API says they are
 // right up until they are not, so every one is narrowed before use.
 
+// Far past any address, search or password a person types; a payload this size is refused, not trimmed.
+const MAX_STRING_LENGTH = 32_768;
+// A list in a settings patch is something a person built by hand, not a dump of everything they ever did.
+const MAX_LIST_LENGTH = 10_000;
+// The longest a hostname can be.
+const MAX_SITE_LENGTH = 253;
+
 function asString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
+  return typeof value === 'string' && value.length <= MAX_STRING_LENGTH ? value : '';
+}
+
+function asBoundedInteger(value: unknown, fallback: number, lowest: number, highest: number): number {
+  return Math.min(highest, Math.max(lowest, asInteger(value, fallback)));
 }
 
 function asNumber(value: unknown, fallback = 0): number {
@@ -551,7 +562,8 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     patch.showBookmarksBar = value.showBookmarksBar;
   }
   if (typeof value.ambientHue === 'number' && Number.isFinite(value.ambientHue)) {
-    patch.ambientHue = value.ambientHue;
+    // Degrees round the colour wheel, so any turn is kept as the same point on the circle.
+    patch.ambientHue = ((Math.round(value.ambientHue) % 360) + 360) % 360;
   }
   if (Array.isArray(value.startPageWidgets)) {
     const allowed = ['clock', 'search', 'topSites', 'bookmarks'];
@@ -576,7 +588,7 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
 
   if (isRecord(value.permissionDecisions)) {
     const decisions: Settings['permissionDecisions'] = {};
-    for (const [key, decision] of Object.entries(value.permissionDecisions)) {
+    for (const [key, decision] of Object.entries(value.permissionDecisions).slice(0, MAX_LIST_LENGTH)) {
       if ((decision === 'allow' || decision === 'deny') && isPermissionDecisionKey(key)) {
         decisions[key] = decision;
       }
@@ -586,7 +598,7 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
 
   if (isRecord(value.zoomLevels)) {
     const levels: Settings['zoomLevels'] = {};
-    for (const [origin, level] of Object.entries(value.zoomLevels)) {
+    for (const [origin, level] of Object.entries(value.zoomLevels).slice(0, MAX_LIST_LENGTH)) {
       if (typeof level === 'number' && Number.isFinite(level)) {
         // Clamped on the way in as well as when applied. Stored unclamped, a
         // level of 1000 was written down and read back as that site's zoom.
@@ -597,9 +609,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
 
   if (Array.isArray(value.blockerAllowlist)) {
-    patch.blockerAllowlist = value.blockerAllowlist.filter(
-      (site): site is string => typeof site === 'string' && site.length > 0,
-    );
+    patch.blockerAllowlist = value.blockerAllowlist
+      .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)
+      .slice(0, MAX_LIST_LENGTH);
   }
 
   return patch;
