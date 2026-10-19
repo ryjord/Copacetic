@@ -1,5 +1,6 @@
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -305,6 +306,32 @@ export class SmokeApp {
   /** Whether the app has written a given file into its profile yet. */
   hasProfileFile(name: string): boolean {
     return existsSync(path.join(this.profile, name));
+  }
+
+  /** History as it is in the database file, read from outside the app rather than asked of it. */
+  historyOnDisk(): { url: string; blockedCount: number }[] {
+    const file = path.join(this.profile, 'copacetic.db');
+    if (!existsSync(file)) {
+      return [];
+    }
+    const database = new DatabaseSync(file, { readOnly: true });
+    try {
+      return database
+        .prepare('SELECT url, blocked_count FROM history')
+        .all()
+        .map((row) => ({ url: String(row.url), blockedCount: Number(row.blocked_count) }));
+    } finally {
+      database.close();
+    }
+  }
+
+  /** The database and its write-ahead log as raw bytes, which is where a deleted address would linger. */
+  databaseBytes(): string {
+    return ['copacetic.db', 'copacetic.db-wal']
+      .map((name) => path.join(this.profile, name))
+      .filter((file) => existsSync(file))
+      .map((file) => readFileSync(file).toString('latin1'))
+      .join('');
   }
 
   readProfileFile(name: string): string {

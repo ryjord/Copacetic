@@ -200,6 +200,13 @@ try {
   }
 
   console.log('The packaged app starts, renders its interface, and has its bridge.');
+
+  // The database engine is Electron's own, so only the shipped binary can say it opens, migrates and searches.
+  const history = await chrome.evaluate(() => window.copacetic.history.list('anything'));
+  if (!existsSync(path.join(profile, 'copacetic.db')) || typeof history?.total !== 'number') {
+    throw new Error('the packaged app has no working history database');
+  }
+  console.log('The packaged app opened its database and searched it.');
 } catch (error) {
   failure = error;
 } finally {

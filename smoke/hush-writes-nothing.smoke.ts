@@ -57,11 +57,12 @@ describe('everything a Hush tab writes', () => {
 
     const named: string[] = [];
     for (const name of readdirSync(copacetic.profile)) {
-      if (!name.endsWith('.json')) {
+      // The JSON files and the database with its log, read as bytes, since a row can be in a page the app has not written yet.
+      if (!name.endsWith('.json') && !name.startsWith('copacetic.db')) {
         continue;
       }
       try {
-        if (readFileSync(path.join(copacetic.profile, name), 'utf8').includes('example.com')) {
+        if (readFileSync(path.join(copacetic.profile, name)).toString('latin1').includes('example.com')) {
           named.push(name);
         }
       } catch {
@@ -82,7 +83,6 @@ describe('everything a Hush tab writes', () => {
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com/ordinary-visit'));
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const history = readFileSync(path.join(copacetic.profile, 'history.json'), 'utf8');
-    expect(history).toContain('example.com');
+    expect(copacetic.historyOnDisk().some((entry) => entry.url.includes('example.com'))).toBe(true);
   }, 120_000);
 });

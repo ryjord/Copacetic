@@ -1,10 +1,18 @@
-import { sameSite } from '../../shared/forgetting';
+import { existsSync, readFileSync, renameSync } from 'node:fs';
+import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
+import path from 'node:path';
 import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
 import { hostOf, originOf } from '../../shared/url';
-import { PersistedFile, asNumber, asString, isRecord, newId } from './persistence';
+import { describeError, log } from '../system/diagnostics';
+import { asNumber, asString, isRecord, newId } from './persistence';
 
 const MAX_HISTORY_ENTRIES = 10_000;
 const MAX_HISTORY_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+// Below three characters a trigram index has nothing to match, so those searches scan instead.
+const MIN_INDEXED_QUERY = 3;
+const LEGACY_FILE = 'history.json';
+// Pruning sorts the whole table, so it runs at start and then once per this many new pages rather than on each.
+const VISITS_BETWEEN_PRUNES = 200;
 
 /** One page of history, shared so the caller and the default cannot drift apart. */
 export const HISTORY_PAGE_SIZE = 300;
@@ -15,134 +23,126 @@ export interface HistoryPage {
   total: number;
 }
 
+const CLEAR_WINDOWS_MS: Record<Exclude<ClearRange, 'all'>, number> = {
+  hour: 60 * 60 * 1000,
+  day: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+};
+
+const COLUMNS = 'id, url, title, last_visited_at, visit_count, blocked_count';
+
 /** Where you have been, pruned by age and by count so it cannot grow without limit. */
 export class HistoryStore {
-  private readonly file = new PersistedFile<HistoryEntry[]>('history.json', () => [], reviveHistory);
+  private visitsSincePrune = 0;
 
-  constructor() {
+  constructor(
+    private readonly database: DatabaseSync,
+    directory: string,
+  ) {
+    this.importLegacyFile(directory);
     this.pruneHistory();
   }
 
   recordVisit(url: string, title: string): void {
-    this.file.update((entries) => {
-      const now = Date.now();
-      const index = entries.findIndex((entry) => entry.url === url);
-      if (index === -1) {
-        return [{ id: newId(), url, title, lastVisitedAt: now, visitCount: 1 }, ...entries].slice(
-          0,
-          MAX_HISTORY_ENTRIES,
-        );
+    const now = Date.now();
+    const existing = this.database.prepare('SELECT last_visited_at, title FROM history WHERE url = ?').get(url);
+    if (!existing) {
+      this.database
+        .prepare('INSERT INTO history (id, url, title, last_visited_at) VALUES (?, ?, ?, ?)')
+        .run(newId(), url, title, now);
+      this.visitsSincePrune += 1;
+      if (this.visitsSincePrune >= VISITS_BETWEEN_PRUNES) {
+        this.pruneHistory();
       }
-
-      const existing = entries[index]!;
-      // Reloading or bouncing within the same page should refresh the title but
-      // not inflate the visit count, which drives top sites and ranking.
-      const isRepeatVisit = now - existing.lastVisitedAt > 30_000;
-      const updated: HistoryEntry = {
-        ...existing,
-        title: title || existing.title,
-        lastVisitedAt: now,
-        visitCount: existing.visitCount + (isRepeatVisit ? 1 : 0),
-      };
-      const rest = entries.slice(0, index).concat(entries.slice(index + 1));
-      return [updated, ...rest];
-    });
+      return;
+    }
+    // Reloading or bouncing within the same page refreshes the title but is not another visit: the count drives top sites.
+    const isRepeatVisit = now - Number(existing.last_visited_at) > 30_000;
+    this.database
+      .prepare('UPDATE history SET title = ?, last_visited_at = ?, visit_count = visit_count + ? WHERE url = ?')
+      .run(title || String(existing.title), now, isRepeatVisit ? 1 : 0, url);
   }
 
   // A page of history, and how many entries there are in total.
   listHistory(query = '', limit = HISTORY_PAGE_SIZE, offset = 0): HistoryPage {
-    const matches = this.matchingHistory(query);
-    return { entries: matches.slice(offset, offset + limit), total: matches.length };
-  }
-
-  private matchingHistory(query: string): HistoryEntry[] {
-    const entries = this.file.get();
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return entries;
-    }
-    return entries.filter(
-      (entry) => entry.url.toLowerCase().includes(needle) || entry.title.toLowerCase().includes(needle),
+    const { where, parameters } = matching(query);
+    const total = Number(
+      this.database.prepare(`SELECT count(*) AS total FROM history ${where}`).get(...parameters)?.total ?? 0,
     );
+    const rows = this.database
+      .prepare(`SELECT ${COLUMNS} FROM history ${where} ORDER BY last_visited_at DESC LIMIT ? OFFSET ?`)
+      .all(...parameters, limit, offset);
+    return { entries: rows.map(toEntry), total };
   }
 
-  /** Everything matching, for the export, which must never be a partial one. */
+  /** Every entry whose address or title holds the query, most recent first, for ranking the omnibox's suggestions. */
+  searchHistory(query: string, limit: number): HistoryEntry[] {
+    const { where, parameters } = matching(query);
+    return this.database
+      .prepare(`SELECT ${COLUMNS} FROM history ${where} ORDER BY last_visited_at DESC LIMIT ?`)
+      .all(...parameters, limit)
+      .map(toEntry);
+  }
+
+  /** Everything, most recent first, for the export, which must never be a partial one. */
   allHistory(): HistoryEntry[] {
-    return this.file.get();
+    return this.database.prepare(`SELECT ${COLUMNS} FROM history ORDER BY last_visited_at DESC`).all().map(toEntry);
   }
 
   removeHistory(id: string): void {
-    this.file.update((entries) => entries.filter((entry) => entry.id !== id));
+    this.database.prepare('DELETE FROM history WHERE id = ?').run(id);
+    this.scrub();
   }
 
   /**
    * Adds to what a page has refused.
    *
    * Counted as it happens rather than when a visit is recorded: a visit is
-   * recorded when the title arrives, which is early - most trackers have not
-   * been refused yet, and sampling then would report almost nothing on every
-   * page in the browser.
+   * recorded when the title arrives, which is early, before most trackers have
+   * been refused.
    */
   addBlocked(url: string, delta: number): void {
     if (delta <= 0) {
       return;
     }
-    this.file.update((entries) =>
-      entries.map((entry) =>
-        entry.url === url ? { ...entry, blockedCount: (entry.blockedCount ?? 0) + delta } : entry,
-      ),
-    );
+    this.database.prepare('UPDATE history SET blocked_count = blocked_count + ? WHERE url = ?').run(delta, url);
   }
 
   /** Every visit to one site, subdomains included. Returns how many went. */
   forgetSite(site: string): number {
-    let removed = 0;
-    this.file.update((entries) =>
-      entries.filter((entry) => {
-        if (sameSite(entry.url, site)) {
-          removed += 1;
-          return false;
-        }
-        return true;
-      }),
-    );
-    return removed;
+    const { changes } = this.database.prepare('DELETE FROM history WHERE same_site(url, ?)').run(site);
+    this.scrub();
+    return Number(changes);
   }
 
   /** How many visits are recorded for one site, without removing them. */
   countForSite(site: string): number {
-    return this.file.get().filter((entry) => sameSite(entry.url, site)).length;
+    return Number(
+      this.database.prepare('SELECT count(*) AS total FROM history WHERE same_site(url, ?)').get(site)?.total ?? 0,
+    );
   }
 
   /** Every request this browser has refused, across everything still in history. */
   totalBlocked(): number {
-    return this.file.get().reduce((total, entry) => total + (entry.blockedCount ?? 0), 0);
+    return Number(
+      this.database.prepare('SELECT coalesce(sum(blocked_count), 0) AS total FROM history').get()?.total ?? 0,
+    );
   }
 
   clearHistory(range: ClearRange): void {
     if (range === 'all') {
-      this.file.set([]);
-      return;
+      this.database.exec('DELETE FROM history');
+    } else {
+      this.database
+        .prepare('DELETE FROM history WHERE last_visited_at >= ?')
+        .run(Date.now() - CLEAR_WINDOWS_MS[range]);
     }
-    const windows: Record<Exclude<ClearRange, 'all'>, number> = {
-      hour: 60 * 60 * 1000,
-      day: 24 * 60 * 60 * 1000,
-      week: 7 * 24 * 60 * 60 * 1000,
-    };
-    const cutoff = Date.now() - windows[range];
-    this.file.update((entries) => entries.filter((entry) => entry.lastVisitedAt < cutoff));
-  }
-
-  private pruneHistory(): void {
-    const cutoff = Date.now() - MAX_HISTORY_AGE_MS;
-    this.file.update((entries) =>
-      entries.filter((entry) => entry.lastVisitedAt >= cutoff).slice(0, MAX_HISTORY_ENTRIES),
-    );
+    this.scrub();
   }
 
   topSites(faviconFor: (url: string) => string | null, limit = 8): TopSite[] {
     const byHost = new Map<string, TopSite>();
-    for (const entry of this.file.get()) {
+    for (const entry of this.allHistory()) {
       const host = hostOf(entry.url);
       if (!host) {
         continue;
@@ -160,12 +160,85 @@ export class HistoryStore {
         faviconDataUrl: faviconFor(entry.url),
       });
     }
-    return [...byHost.values()].sort((a, b) => b.visitCount - a.visitCount).slice(0, limit);
+    return [...byHost.values()].sort((aSite, bSite) => bSite.visitCount - aSite.visitCount).slice(0, limit);
   }
 
-  flush(): void {
-    this.file.flush();
+  /** Every write is already on disk; kept so the store's callers flush every part the same way. */
+  flush(): void {}
+
+  private pruneHistory(): void {
+    this.visitsSincePrune = 0;
+    this.database.prepare('DELETE FROM history WHERE last_visited_at < ?').run(Date.now() - MAX_HISTORY_AGE_MS);
+    this.database
+      .prepare(
+        'DELETE FROM history WHERE rowid NOT IN (SELECT rowid FROM history ORDER BY last_visited_at DESC LIMIT ?)',
+      )
+      .run(MAX_HISTORY_ENTRIES);
   }
+
+  /** Something was forgotten, so the old copies in the write-ahead log go too, not only the row. */
+  private scrub(): void {
+    this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  }
+
+  /**
+   * Brings in what the JSON file held, once.
+   *
+   * Renamed rather than deleted afterwards, so a problem with the import can
+   * still be recovered from, and so it is never read a second time.
+   */
+  private importLegacyFile(directory: string): void {
+    const file = path.join(directory, LEGACY_FILE);
+    if (!existsSync(file)) {
+      return;
+    }
+    try {
+      const entries = reviveHistory(JSON.parse(readFileSync(file, 'utf8'))) ?? [];
+      const insert = this.database.prepare(`INSERT OR IGNORE INTO history (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)`);
+      this.database.exec('BEGIN');
+      entries.forEach((entry) =>
+        insert.run(entry.id, entry.url, entry.title, entry.lastVisitedAt, entry.visitCount, entry.blockedCount ?? 0),
+      );
+      this.database.exec('COMMIT');
+      renameSync(file, `${file}.imported`);
+    } catch (error) {
+      if (this.database.isTransaction) {
+        this.database.exec('ROLLBACK');
+      }
+      log.warn('history.json could not be imported and was left where it was', describeError(error));
+    }
+  }
+}
+
+function matching(query: string): { where: string; parameters: SQLInputValue[] } {
+  const needle = query.trim().toLowerCase();
+  if (!needle) {
+    return { where: '', parameters: [] };
+  }
+  if (needle.length < MIN_INDEXED_QUERY) {
+    const pattern = `%${needle.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+    return {
+      where: "WHERE lower(url) LIKE ? ESCAPE '\\' OR lower(title) LIKE ? ESCAPE '\\'",
+      parameters: [pattern, pattern],
+    };
+  }
+  // A quoted phrase, with its own quotes doubled, so what was typed is matched as text and never read as query syntax.
+  const phrase = `"${needle.replace(/"/g, '""')}"`;
+  return {
+    where: 'WHERE rowid IN (SELECT rowid FROM history_search WHERE history_search MATCH ?)',
+    parameters: [phrase],
+  };
+}
+
+function toEntry(row: Record<string, unknown>): HistoryEntry {
+  return {
+    id: String(row.id),
+    url: String(row.url),
+    title: String(row.title),
+    lastVisitedAt: Number(row.last_visited_at),
+    visitCount: Number(row.visit_count),
+    blockedCount: Number(row.blocked_count),
+  };
 }
 
 function reviveHistory(raw: unknown): HistoryEntry[] | null {
@@ -187,9 +260,6 @@ function reviveHistory(raw: unknown): HistoryEntry[] | null {
         title: asString(item.title),
         lastVisitedAt: asNumber(item.lastVisitedAt, Date.now()),
         visitCount: Math.max(1, asNumber(item.visitCount, 1)),
-        // Read back, not just written. Without this the count was saved
-        // faithfully and dropped on the way in, so the running total reset to
-        // nothing every time the browser started while the numbers sat on disk.
         blockedCount: Math.max(0, asNumber(item.blockedCount, 0)),
       },
     ];

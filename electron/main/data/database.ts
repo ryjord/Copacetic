@@ -1,0 +1,104 @@
+import { existsSync, renameSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import { sameSite } from '../../shared/forgetting';
+import { log } from '../system/diagnostics';
+
+/** One step in the database's shape, applied once, in order, and recorded in `PRAGMA user_version`. */
+export interface Migration {
+  version: number;
+  sql: string;
+}
+
+export const MIGRATIONS: readonly Migration[] = [
+  {
+    version: 1,
+    sql: `
+      CREATE TABLE history (
+        rowid INTEGER PRIMARY KEY,
+        id TEXT NOT NULL UNIQUE,
+        url TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL DEFAULT '',
+        last_visited_at INTEGER NOT NULL,
+        visit_count INTEGER NOT NULL DEFAULT 1,
+        blocked_count INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX history_by_recency ON history (last_visited_at DESC);
+      -- Trigram, so a search for part of a word or an address is an index lookup rather than a scan.
+      CREATE VIRTUAL TABLE history_search USING fts5(
+        url, title, content = 'history', content_rowid = 'rowid', tokenize = 'trigram'
+      );
+      -- The index's own copy of a forgotten address is removed too, rather than marked deleted and kept until a merge.
+      INSERT INTO history_search (history_search, rank) VALUES ('secure-delete', 1);
+      CREATE TRIGGER history_search_insert AFTER INSERT ON history BEGIN
+        INSERT INTO history_search (rowid, url, title) VALUES (new.rowid, new.url, new.title);
+      END;
+      CREATE TRIGGER history_search_delete AFTER DELETE ON history BEGIN
+        INSERT INTO history_search (history_search, rowid, url, title) VALUES ('delete', old.rowid, old.url, old.title);
+      END;
+      CREATE TRIGGER history_search_update AFTER UPDATE OF url, title ON history BEGIN
+        INSERT INTO history_search (history_search, rowid, url, title) VALUES ('delete', old.rowid, old.url, old.title);
+        INSERT INTO history_search (rowid, url, title) VALUES (new.rowid, new.url, new.title);
+      END;
+    `,
+  },
+];
+
+const SIDE_FILES = ['', '-wal', '-shm'];
+
+function userVersion(database: DatabaseSync): number {
+  const row = database.prepare('PRAGMA user_version').get();
+  return typeof row?.user_version === 'number' ? row.user_version : 0;
+}
+
+function open(filePath: string): DatabaseSync {
+  const database = new DatabaseSync(filePath);
+  // WAL so a write never blocks a read, and NORMAL because WAL already keeps the file consistent through a crash.
+  database.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;');
+  // Deleted rows are overwritten, not left in free pages: forgetting a site has to mean it is gone from the file.
+  database.exec('PRAGMA secure_delete = ON;');
+  // The one rule about what counts as the same site, so SQL and the rest of the app cannot disagree.
+  database.function('same_site', { deterministic: true }, (url, site) =>
+    typeof url === 'string' && typeof site === 'string' && sameSite(url, site) ? 1 : 0,
+  );
+  return database;
+}
+
+/**
+ * Opens the database, bringing its shape up to date.
+ *
+ * A database written by a newer build is set aside rather than opened, as a
+ * newer JSON file is: guessing at a future shape and writing to it would
+ * destroy whatever the newer build kept there.
+ */
+export function openDatabase(filePath: string, migrations: readonly Migration[] = MIGRATIONS): DatabaseSync {
+  const latest = migrations.at(-1)?.version ?? 0;
+  let database = open(filePath);
+
+  const found = userVersion(database);
+  if (found > latest) {
+    database.close();
+    log.warn('the database came from a newer version and was kept aside', { found, latest });
+    SIDE_FILES.filter((suffix) => existsSync(`${filePath}${suffix}`)).forEach((suffix) =>
+      renameSync(`${filePath}${suffix}`, `${filePath}.newer${suffix}`),
+    );
+    database = open(filePath);
+  }
+
+  const current = userVersion(database);
+  migrations
+    .filter((migration) => migration.version > current)
+    .forEach((migration) => {
+      // One transaction per step, so a failure leaves the database at the last step that finished.
+      database.exec('BEGIN');
+      try {
+        database.exec(migration.sql);
+        database.exec(`PRAGMA user_version = ${migration.version}`);
+        database.exec('COMMIT');
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
+    });
+
+  return database;
+}

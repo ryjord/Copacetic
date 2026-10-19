@@ -43,7 +43,7 @@ describe('what a page refused', () => {
     );
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    const entries = onDisk<{ url: string; blockedCount?: number }[]>('history.json') ?? [];
+    const entries = copacetic.historyOnDisk();
     const page = entries.find((entry) => entry.url.includes('example.com'));
     expect(page?.blockedCount).toBeGreaterThanOrEqual(3);
 
@@ -70,7 +70,7 @@ describe('what a page refused', () => {
       return total;
     });
 
-    const entries = onDisk<{ url: string; blockedCount?: number }[]>('history.json') ?? [];
+    const entries = copacetic.historyOnDisk();
     const counted = entries.reduce((total, entry) => total + (entry.blockedCount ?? 0), 0);
 
     expect(refusedByBlocker).toBeGreaterThan(0);
@@ -113,8 +113,9 @@ describe('forgetting one site', () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const history = onDisk<{ url: string }[]>('history.json') ?? [];
-    expect(history.some((entry) => entry.url.includes('example.com'))).toBe(false);
+    expect(copacetic.historyOnDisk().some((entry) => entry.url.includes('example.com'))).toBe(false);
+    // Gone from the bytes too, not just from the table: a deleted row lingers in free pages and the log otherwise.
+    expect(copacetic.databaseBytes()).not.toContain('example.com');
 
     const settings = onDisk<{ zoomLevels: Record<string, number>; blockerAllowlist: string[] }>('settings.json');
     expect(Object.keys(settings?.zoomLevels ?? {})).toEqual([]);

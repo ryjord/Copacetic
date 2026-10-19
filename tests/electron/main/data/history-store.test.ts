@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 vi.mock('electron', () => ({ app: { getPath: () => process.env.COPA_HISTORY_DIR } }));
 
 const { HistoryStore } = await import('../../../../electron/main/data/history-store');
+const { openDatabase } = await import('../../../../electron/main/data/database');
 
 let dir: string;
 const historyPath = () => path.join(dir, 'history.json');
-const onDisk = () => JSON.parse(readFileSync(historyPath(), 'utf8')) as Record<string, unknown>[];
+// A new connection to the same file each time, which is what a restart is.
+const openStore = () => new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir);
 
 beforeEach(() => {
   dir = mkdtempSync(path.join(tmpdir(), 'copacetic-history-'));
@@ -27,35 +29,33 @@ beforeEach(() => {
  */
 describe('what survives a restart', () => {
   it('keeps the blocked-request count, which is the whole point of recording it', () => {
-    const first = new HistoryStore();
+    const first = openStore();
     first.recordVisit('https://example.com/one', 'One');
     first.addBlocked('https://example.com/one', 12);
     first.flush();
 
-    expect(onDisk()[0]?.blockedCount).toBe(12);
-
-    // A second store is a restart: same file, read back through the reviver.
-    const second = new HistoryStore();
+    // A second store is a restart: the same file, read back.
+    const second = openStore();
     expect(second.totalBlocked()).toBe(12);
   });
 
   it('adds up across pages rather than reporting only the last', () => {
-    const store = new HistoryStore();
+    const store = openStore();
     store.recordVisit('https://a.example/', 'A');
     store.recordVisit('https://b.example/', 'B');
     store.addBlocked('https://a.example/', 3);
     store.addBlocked('https://b.example/', 4);
     store.flush();
 
-    expect(new HistoryStore().totalBlocked()).toBe(7);
+    expect(openStore().totalBlocked()).toBe(7);
   });
 
   it('keeps the title, the time and the visit count too', () => {
-    const store = new HistoryStore();
+    const store = openStore();
     store.recordVisit('https://example.com/page', 'A page');
     store.flush();
 
-    const restarted = new HistoryStore().listHistory();
+    const restarted = openStore().listHistory();
     const entry = restarted.entries.find((candidate) => candidate.url.includes('/page'));
     expect(entry?.title).toBe('A page');
     expect(entry?.visitCount).toBe(1);
@@ -74,7 +74,7 @@ describe('what survives a restart', () => {
         { id: 'a', url: 'https://old.example/', title: 'Old', lastVisitedAt: Date.now(), visitCount: 1 },
       ]),
     );
-    const store = new HistoryStore();
+    const store = openStore();
     expect(store.totalBlocked()).toBe(0);
     expect(store.listHistory().entries).toHaveLength(1);
   });
@@ -102,7 +102,7 @@ describe('what survives a restart', () => {
       ]),
     );
 
-    const store = new HistoryStore();
+    const store = openStore();
     // Both entries load; neither contributes a count that was not a count.
     expect(store.listHistory().entries).toHaveLength(2);
     expect(store.totalBlocked()).toBe(0);
@@ -118,12 +118,14 @@ describe('what history refuses to do', () => {
   // drives top sites, so inflating it would reorder someone's start page from
   // one page being refreshed.
   it('does not count a reload as another visit', () => {
-    const store = new HistoryStore();
+    const store = openStore();
     store.recordVisit('https://example.com/page', 'A page');
     store.recordVisit('https://example.com/page', 'A page');
     store.flush();
 
-    const entry = new HistoryStore().listHistory().entries.find((candidate) => candidate.url.includes('/page'));
+    const entry = openStore()
+      .listHistory()
+      .entries.find((candidate) => candidate.url.includes('/page'));
     expect(entry?.visitCount).toBe(1);
   });
 
@@ -139,7 +141,113 @@ describe('what history refuses to do', () => {
       ]),
     );
 
-    const urls = new HistoryStore().listHistory().entries.map((entry) => entry.url);
+    const urls = openStore()
+      .listHistory()
+      .entries.map((entry) => entry.url);
     expect(urls).toEqual(['https://new.example/']);
+  });
+});
+
+describe('the history.json a previous version kept', () => {
+  it('is brought in once, and put aside rather than deleted', () => {
+    writeFileSync(
+      historyPath(),
+      JSON.stringify([
+        { id: 'a', url: 'https://kept.example/', title: 'Kept', lastVisitedAt: Date.now(), visitCount: 3 },
+      ]),
+    );
+    expect(
+      openStore()
+        .listHistory()
+        .entries.map((entry) => entry.url),
+    ).toEqual(['https://kept.example/']);
+    expect(existsSync(historyPath())).toBe(false);
+    expect(existsSync(`${historyPath()}.imported`)).toBe(true);
+    // A second start does not bring it in again, or read the set-aside copy.
+    expect(openStore().listHistory().total).toBe(1);
+  });
+
+  it('is left alone, and nothing is lost, when it cannot be read', () => {
+    writeFileSync(historyPath(), '{ not json');
+    expect(openStore().listHistory().total).toBe(0);
+    expect(readFileSync(historyPath(), 'utf8')).toBe('{ not json');
+  });
+});
+
+describe('searching history', () => {
+  const seeded = () => {
+    const store = openStore();
+    store.recordVisit('https://docs.example.com/guide/getting-started', 'Getting started');
+    store.recordVisit('https://news.example.org/', 'Morning briefing');
+    return store;
+  };
+
+  it('finds part of an address or a title, ignoring case', () => {
+    const store = seeded();
+    expect(store.listHistory('GUIDE').entries.map((entry) => entry.title)).toEqual(['Getting started']);
+    expect(store.listHistory('brief').entries.map((entry) => entry.title)).toEqual(['Morning briefing']);
+  });
+
+  // Too short for the trigram index, so these take the other path and must still work.
+  it('finds a one or two letter query', () => {
+    expect(seeded().listHistory('or').total).toBe(1);
+  });
+
+  // Typed text is matched as text; quotes or operators in it are never read as query syntax.
+  it('treats what was typed as text, whatever it contains', () => {
+    const store = seeded();
+    expect(() => store.listHistory('"guide" OR news*')).not.toThrow();
+    expect(store.listHistory('"guide" OR news*').total).toBe(0);
+    expect(store.listHistory('100%').total).toBe(0);
+  });
+
+  it('counts every match, not just the page it returns', () => {
+    const store = openStore();
+    Array.from({ length: 5 }, (_unused, index) =>
+      store.recordVisit(`https://example.com/page-${index}`, `Page ${index}`),
+    );
+    const page = store.listHistory('page', 2);
+    expect(page.entries).toHaveLength(2);
+    expect(page.total).toBe(5);
+  });
+});
+
+/**
+ * Forgetting has to mean the address is gone from the files, not just from the
+ * table: SQLite keeps deleted rows in free pages, its write-ahead log and the
+ * search index until something overwrites them.
+ */
+describe('what forgetting leaves on disk', () => {
+  const onDisk = () =>
+    ['copacetic.db', 'copacetic.db-wal']
+      .map((name) => path.join(dir, name))
+      .filter((file) => existsSync(file))
+      .map((file) => readFileSync(file).toString('latin1'))
+      .join('');
+
+  it('leaves no trace of a forgotten site', () => {
+    const store = openStore();
+    store.recordVisit('https://secret-clinic.example/appointments', 'Appointments');
+    store.recordVisit('https://news.example.org/', 'News');
+    expect(onDisk()).toContain('secret-clinic');
+
+    expect(store.forgetSite('secret-clinic.example')).toBe(1);
+    expect(onDisk()).not.toContain('secret-clinic');
+    expect(store.listHistory().total).toBe(1);
+  });
+
+  it('leaves no trace of a cleared history', () => {
+    const store = openStore();
+    store.recordVisit('https://private-matter.example/', 'Private');
+    store.clearHistory('all');
+    expect(onDisk()).not.toContain('private-matter');
+  });
+
+  it('leaves no trace of one removed entry', () => {
+    const store = openStore();
+    store.recordVisit('https://one-off.example/', 'One off');
+    const [entry] = store.listHistory().entries;
+    store.removeHistory(entry!.id);
+    expect(onDisk()).not.toContain('one-off');
   });
 });

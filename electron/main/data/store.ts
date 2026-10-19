@@ -22,6 +22,9 @@ import { BookmarkFoldersStore } from './bookmark-folders-store';
 import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folders';
 import { GroupsStore } from './groups-store';
 import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
+import { app } from 'electron';
+import path from 'node:path';
+import { openDatabase } from './database';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
 
 export { HISTORY_PAGE_SIZE };
@@ -37,7 +40,8 @@ export type { SessionSnapshot };
 
 export class BrowserStore {
   private readonly settings = new SettingsStore();
-  private readonly history = new HistoryStore();
+  private readonly database = openDatabase(path.join(app.getPath('userData'), 'copacetic.db'));
+  private readonly history = new HistoryStore(this.database, app.getPath('userData'));
   private readonly bookmarks = new BookmarksStore();
   private readonly bookmarkFolders = new BookmarkFoldersStore();
   private readonly groups = new GroupsStore();
@@ -50,6 +54,8 @@ export class BrowserStore {
   constructor() {}
 
   flushAll(): void {
+    // Folds the write-ahead log into the database, so the file on its own is complete when the app goes.
+    this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     this.settings.flush();
     this.history.flush();
     this.bookmarks.flush();
@@ -401,9 +407,10 @@ export class BrowserStore {
     const now = Date.now();
     const bookmarkedUrls = new Set(this.bookmarks.list().map((bookmark) => bookmark.url));
 
-    const entries = this.history.allHistory();
+    // Only entries holding the query can score, so the search index picks them rather than every entry being read.
+    const entries = this.history.searchHistory(query, MAX_CANDIDATES);
     // Entries that fell out of history should not keep their parsed forms alive.
-    if (this.scoreFieldCache.size > entries.length * 2) {
+    if (this.scoreFieldCache.size > MAX_SCORE_FIELDS) {
       this.scoreFieldCache.clear();
     }
 
@@ -457,6 +464,12 @@ export class BrowserStore {
     });
   }
 }
+
+// The most recent matches ranked; only a one or two letter query ever has more, and recency decides those anyway.
+const MAX_CANDIDATES = 2_000;
+
+// Twice what history holds at most, so the cache is cleared only once entries have come and gone.
+const MAX_SCORE_FIELDS = 20_000;
 
 // The lowercased forms scoring compares against, parsed once per entry.
 interface ScoreFields {
