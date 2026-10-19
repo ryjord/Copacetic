@@ -18,7 +18,7 @@ import type { ContentBlocker } from '../security/blocker';
 import type { DownloadManager } from '../data/downloads';
 import type { BrowserStore } from '../data/store';
 import type { SessionSnapshot } from '../data/session-store';
-import { hasWallpaper } from '../system/wallpaper';
+import type { Wallpaper } from '../system/wallpaper';
 import { focusContents, showWindow } from '../system/launch-mode';
 import type { UpdateManager } from '../system/updates';
 import type { Vault } from '../vault/vault';
@@ -72,6 +72,10 @@ export class Browser {
     return this.profile.vaultSession;
   }
 
+  get wallpaper(): Wallpaper {
+    return this.profile.wallpaper;
+  }
+
   get vault(): Vault {
     return this.profile.vault;
   }
@@ -88,7 +92,7 @@ export class Browser {
     return this.profile.updates;
   }
 
-  constructor(private readonly profile: Profile) {
+  constructor(readonly profile: Profile) {
     this.window = createChromeWindow();
     this.publisher = new StatePublisher({
       snapshot: () => this.getState(),
@@ -205,7 +209,7 @@ export class Browser {
       find: this.tabs.getFindState(),
       permissionPrompts: this.profile.prompts.permissionPrompts(),
       authPrompts: this.profile.prompts.authPrompts(),
-      settings: { ...this.store.getSettings(), hasWallpaper: hasWallpaper() },
+      settings: { ...this.store.getSettings(), hasWallpaper: this.wallpaper.isSet() },
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
       siteInfo: this.siteInfo,

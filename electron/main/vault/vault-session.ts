@@ -25,7 +25,7 @@ export interface VaultHost {
   platform: string;
   canPromptTouchID(): boolean;
   promptTouchID(reason: string): Promise<void>;
-  userDataPath(): string;
+  profileDirectory(): string;
 }
 
 /**
@@ -43,7 +43,9 @@ export class VaultSession {
     private readonly onChanged: () => void,
     private readonly now: () => number = Date.now,
   ) {
-    this.file = new PersistedFile<VaultFile>('vault.json', () => EMPTY_VAULT_FILE, reviveVaultFile);
+    this.file = new PersistedFile<VaultFile>('vault.json', () => EMPTY_VAULT_FILE, reviveVaultFile, {
+      directory: this.host.profileDirectory(),
+    });
     this.vault = new Vault(
       {
         isAvailable: () => this.host.isEncryptionAvailable(),
@@ -76,7 +78,7 @@ export class VaultSession {
 
   facts(): VaultFacts {
     return {
-      filePath: path.join(this.host.userDataPath(), 'vault.json'),
+      filePath: path.join(this.host.profileDirectory(), 'vault.json'),
       hasKeychain: this.host.isEncryptionAvailable(),
       canAskWhoYouAre: this.method() !== 'none',
       // No certificate is bought, so this is false everywhere until one is.

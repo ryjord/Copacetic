@@ -10,8 +10,8 @@ import { describeError, log } from '../system/diagnostics';
  * cannot be deleted from under it. A group removed while its tabs stayed open
  * keeps its session until here, so those tabs are not signed out mid-page.
  */
-export function sweepOrphanedGroupPartitions(profileDirectory: string, liveGroupIds: readonly string[]): number {
-  const partitionsDirectory = path.join(profileDirectory, 'Partitions');
+export function sweepOrphanedGroupPartitions(appDataDirectory: string, liveGroupIds: readonly string[]): number {
+  const partitionsDirectory = path.join(appDataDirectory, 'Partitions');
   let directoryNames: string[];
   try {
     directoryNames = readdirSync(partitionsDirectory);

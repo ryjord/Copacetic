@@ -44,13 +44,15 @@ const SITE_KEYS = { permissionDecisions: {}, zoomLevels: {}, blockerAllowlist: [
  * Callers see one Settings object either way.
  */
 export class SettingsStore {
-  private readonly file = new PersistedFile<Settings>(
-    'settings.json',
-    () => ({ ...DEFAULT_SETTINGS }),
-    reviveSettings,
-  );
+  private readonly file: PersistedFile<Settings>;
 
-  constructor(private readonly site: SiteSettingsStore) {
+  constructor(
+    private readonly site: SiteSettingsStore,
+    directory?: string,
+  ) {
+    this.file = new PersistedFile<Settings>('settings.json', () => ({ ...DEFAULT_SETTINGS }), reviveSettings, {
+      directory,
+    });
     this.moveSiteSettingsOutOfFile();
   }
 

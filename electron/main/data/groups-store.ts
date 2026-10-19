@@ -8,7 +8,11 @@ import { PersistedFile, asString, isRecord, newId } from './persistence';
  * to be written down by accident.
  */
 export class GroupsStore {
-  private readonly file = new PersistedFile<TabGroup[]>('groups.json', () => [], reviveGroups);
+  private readonly file: PersistedFile<TabGroup[]>;
+
+  constructor(directory?: string) {
+    this.file = new PersistedFile<TabGroup[]>('groups.json', () => [], reviveGroups, { directory });
+  }
 
   list(): TabGroup[] {
     return this.file.get();

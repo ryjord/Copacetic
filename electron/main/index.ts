@@ -99,7 +99,7 @@ async function start(): Promise<void> {
   handleAppProtocol();
 
   const didLastRunEndBadly = markRunning(app.getPath('userData'));
-  profile = new Profile();
+  profile = new Profile(app.getPath('userData'));
   registerIpcHandlers(profile);
   installApplicationMenu(profile);
   profile.start();

@@ -8,11 +8,11 @@ import { PersistedFile, isRecord } from './persistence';
  * locally-installed root cannot be noticed at all.
  */
 export class CertificatesStore {
-  private readonly file = new PersistedFile<Record<string, RememberedCertificate>>(
-    'certificates.json',
-    () => ({}),
-    reviveCertificates,
-  );
+  private readonly file: PersistedFile<Record<string, RememberedCertificate>>;
+
+  constructor(directory?: string) {
+    this.file = new PersistedFile('certificates.json', () => ({}), reviveCertificates, { directory });
+  }
 
   for(origin: string): RememberedCertificate | null {
     return this.file.get()[origin] ?? null;

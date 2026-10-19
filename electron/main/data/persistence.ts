@@ -10,6 +10,24 @@ import path from 'node:path';
 import { describeError, log } from '../system/diagnostics';
 import { UNVERSIONED, type SchemaPlan, type SchemaVersions, migrate, schemaVersionsFor } from './schema';
 
+export interface PersistedFileOptions {
+  /** The profile's folder. Left out, it is the app's own, which is the first profile's. */
+  directory?: string;
+  flushDelayMs?: number;
+  /** How this file's shape has changed over time. Files that have never changed shape need nothing here. */
+  plan?: SchemaPlan;
+  /**
+   * The two disk operations a flush performs.
+   *
+   * A seam, and it exists for one reason: the durability of this write is the
+   * whole point of the class, and nothing could check it. Mocking `node:fs`
+   * does not reach this module under the test runner - measured, not assumed
+   * - so a revert to a plain unflushed write would have left every test
+   * green. Production passes nothing and gets the real ones.
+   */
+  disk?: DiskOperations;
+}
+
 /** A single JSON file on disk, written atomically and flushed on a debounce. */
 export class PersistedFile<T> {
   private value: T;
@@ -19,25 +37,20 @@ export class PersistedFile<T> {
 
   private readonly versions: SchemaVersions;
 
+  private readonly flushDelayMs: number;
+  private readonly plan: SchemaPlan;
+  private readonly disk: DiskOperations;
+
   constructor(
     private readonly filename: string,
     private readonly fallback: () => T,
     private readonly revive: (raw: unknown) => T | null,
-    private readonly flushDelayMs = 400,
-    /** How this file's shape has changed over time. Files that have never changed shape need nothing here. */
-    private readonly plan: SchemaPlan = UNVERSIONED,
-    /**
-     * The two disk operations a flush performs.
-     *
-     * A seam, and it exists for one reason: the durability of this write is the
-     * whole point of the class, and nothing could check it. Mocking `node:fs`
-     * does not reach this module under the test runner - measured, not assumed
-     * - so a revert to a plain unflushed write would have left every test
-     * green. Production passes nothing and gets the real ones.
-     */
-    private readonly disk: DiskOperations = REAL_DISK,
+    options: PersistedFileOptions = {},
   ) {
-    const dir = app.getPath('userData');
+    this.flushDelayMs = options.flushDelayMs ?? 400;
+    this.plan = options.plan ?? UNVERSIONED;
+    this.disk = options.disk ?? REAL_DISK;
+    const dir = options.directory ?? app.getPath('userData');
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }

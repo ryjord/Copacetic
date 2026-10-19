@@ -45,24 +45,16 @@ vi.mock('electron', () => ({
   },
 }));
 
-const {
-  chooseWallpaper,
-  clearWallpaper,
-  commitStagedChanges,
-  commitStagedWallpaper,
-  discardStagedWallpaper,
-  hasWallpaper,
-  readWallpaper,
-  stageWallpaperRemoval,
-  stagedWallpaper,
-} = await import('../../../../electron/main/system/wallpaper');
+const { Wallpaper } = await import('../../../../electron/main/system/wallpaper');
+
+let wallpaper: InstanceType<typeof Wallpaper>;
 
 const wallpaperFile = () => path.join(userDataDir, 'wallpaper.jpg');
-const fakeWindow = {} as Parameters<typeof chooseWallpaper>[0];
+const fakeWindow = {} as Parameters<InstanceType<typeof Wallpaper>['choose']>[0];
 
 beforeEach(() => {
-  discardStagedWallpaper();
   userDataDir = mkdtempSync(path.join(tmpdir(), 'copacetic-wallpaper-'));
+  wallpaper = new Wallpaper(userDataDir);
   chosenFiles = [];
   dialogCancelled = false;
   sourceWidth = 800;
@@ -75,15 +67,15 @@ afterEach(() => {
 
 describe('reading a wallpaper that may not be there', () => {
   it('reports none when nothing is set', () => {
-    expect(hasWallpaper()).toBe(false);
-    expect(readWallpaper()).toBeNull();
+    expect(wallpaper.isSet()).toBe(false);
+    expect(wallpaper.read()).toBeNull();
   });
 
   // The chrome's CSP is `img-src 'self' data:`, so a path on disk is unusable
   // and widening the policy for a decoration would be a poor trade.
   it('reads back as a data URL rather than a path', () => {
     writeFileSync(wallpaperFile(), Buffer.from('jpeg'));
-    expect(readWallpaper()).toBe(`data:image/jpeg;base64,${Buffer.from('jpeg').toString('base64')}`);
+    expect(wallpaper.read()).toBe(`data:image/jpeg;base64,${Buffer.from('jpeg').toString('base64')}`);
   });
 });
 
@@ -101,8 +93,8 @@ describe('choosing one', () => {
     decoded.length = 0;
     encoded.length = 0;
 
-    expect(await chooseWallpaper(fakeWindow)).toBe('');
-    commitStagedWallpaper();
+    expect(await wallpaper.choose(fakeWindow)).toBe('');
+    wallpaper.commitStaged();
 
     // The file that was chosen is the file that was decoded, and what landed is
     // what the encoder produced from it - not a constant the test also knows.
@@ -124,8 +116,8 @@ describe('choosing one', () => {
     chosenFiles = [source];
     encoded.length = 0;
 
-    await chooseWallpaper(fakeWindow);
-    commitStagedWallpaper();
+    await wallpaper.choose(fakeWindow);
+    wallpaper.commitStaged();
 
     expect(encoded[0]?.quality).toBeGreaterThan(0);
     expect(encoded[0]?.quality).toBeLessThanOrEqual(100);
@@ -135,18 +127,18 @@ describe('choosing one', () => {
   // blank the start page.
   it('keeps its own copy in the profile', async () => {
     chosenFiles = [path.join(userDataDir, 'source.png')];
-    await chooseWallpaper(fakeWindow);
-    commitStagedWallpaper();
+    await wallpaper.choose(fakeWindow);
+    wallpaper.commitStaged();
 
     expect(existsSync(wallpaperFile())).toBe(true);
-    expect(hasWallpaper()).toBe(true);
+    expect(wallpaper.isSet()).toBe(true);
   });
 
   it('shrinks an image wider than the cap', async () => {
     sourceWidth = 6000;
     chosenFiles = [path.join(userDataDir, 'huge.png')];
-    expect(await chooseWallpaper(fakeWindow)).toBe('');
-    commitStagedWallpaper();
+    expect(await wallpaper.choose(fakeWindow)).toBe('');
+    wallpaper.commitStaged();
 
     expect(existsSync(wallpaperFile())).toBe(true);
   });
@@ -154,13 +146,13 @@ describe('choosing one', () => {
   it('writes nothing when the dialog is cancelled', async () => {
     dialogCancelled = true;
     chosenFiles = [path.join(userDataDir, 'source.png')];
-    expect(await chooseWallpaper(fakeWindow)).toBe('');
+    expect(await wallpaper.choose(fakeWindow)).toBe('');
     expect(existsSync(wallpaperFile())).toBe(false);
   });
 
   it('writes nothing when no file comes back', async () => {
     chosenFiles = [];
-    expect(await chooseWallpaper(fakeWindow)).toBe('');
+    expect(await wallpaper.choose(fakeWindow)).toBe('');
     expect(existsSync(wallpaperFile())).toBe(false);
   });
 
@@ -170,7 +162,7 @@ describe('choosing one', () => {
   it('reports a file that is not an image instead of throwing', async () => {
     decodesAsImage = false;
     chosenFiles = [path.join(userDataDir, 'notes.txt')];
-    const message = await chooseWallpaper(fakeWindow);
+    const message = await wallpaper.choose(fakeWindow);
     expect(message).toContain('could not be read');
     expect(existsSync(wallpaperFile())).toBe(false);
   });
@@ -179,12 +171,12 @@ describe('choosing one', () => {
 describe('clearing it', () => {
   it('removes the file', () => {
     writeFileSync(wallpaperFile(), Buffer.from('jpeg'));
-    clearWallpaper();
-    expect(hasWallpaper()).toBe(false);
+    wallpaper.clear();
+    expect(wallpaper.isSet()).toBe(false);
   });
 
   it('is fine when there was nothing to remove', () => {
-    expect(() => clearWallpaper()).not.toThrow();
+    expect(() => wallpaper.clear()).not.toThrow();
   });
 });
 
@@ -196,40 +188,40 @@ describe('clearing it', () => {
 describe('a wallpaper waits to be kept', () => {
   it('writes nothing when it is only picked', async () => {
     chosenFiles = [path.join(userDataDir, 'source.png')];
-    expect(await chooseWallpaper(fakeWindow)).toBe('');
+    expect(await wallpaper.choose(fakeWindow)).toBe('');
 
     expect(existsSync(wallpaperFile())).toBe(false);
-    expect(hasWallpaper()).toBe(false);
+    expect(wallpaper.isSet()).toBe(false);
   });
 
   it('can be looked at before it is kept', async () => {
     chosenFiles = [path.join(userDataDir, 'source.png')];
-    await chooseWallpaper(fakeWindow);
+    await wallpaper.choose(fakeWindow);
 
-    expect(stagedWallpaper()).toContain('data:image/jpeg;base64,');
+    expect(wallpaper.stagedImage()).toContain('data:image/jpeg;base64,');
   });
 
   it('leaves what was there alone when it is discarded', async () => {
     writeFileSync(wallpaperFile(), Buffer.from('the one already set'));
     chosenFiles = [path.join(userDataDir, 'source.png')];
-    await chooseWallpaper(fakeWindow);
-    discardStagedWallpaper();
+    await wallpaper.choose(fakeWindow);
+    wallpaper.discardStaged();
 
     expect(readFileSync(wallpaperFile()).toString()).toBe('the one already set');
-    expect(stagedWallpaper()).toBeNull();
+    expect(wallpaper.stagedImage()).toBeNull();
   });
 
   it('keeping nothing is not an error', () => {
-    expect(() => commitStagedWallpaper()).not.toThrow();
+    expect(() => wallpaper.commitStaged()).not.toThrow();
     expect(existsSync(wallpaperFile())).toBe(false);
   });
 
   // Otherwise a picked-then-kept wallpaper would come back after a removal.
   it('is forgotten when the wallpaper is removed', async () => {
     chosenFiles = [path.join(userDataDir, 'source.png')];
-    await chooseWallpaper(fakeWindow);
-    clearWallpaper();
-    commitStagedWallpaper();
+    await wallpaper.choose(fakeWindow);
+    wallpaper.clear();
+    wallpaper.commitStaged();
 
     expect(existsSync(wallpaperFile())).toBe(false);
   });
@@ -242,24 +234,24 @@ describe('a wallpaper waits to be kept', () => {
 describe('removing one also waits', () => {
   it('leaves the file alone until it is kept', () => {
     writeFileSync(wallpaperFile(), Buffer.from('still here'));
-    stageWallpaperRemoval();
+    wallpaper.stageRemoval();
 
     expect(existsSync(wallpaperFile())).toBe(true);
   });
 
   it('deletes it once it is kept', () => {
     writeFileSync(wallpaperFile(), Buffer.from('going'));
-    stageWallpaperRemoval();
-    commitStagedChanges();
+    wallpaper.stageRemoval();
+    wallpaper.commitStagedChanges();
 
     expect(existsSync(wallpaperFile())).toBe(false);
   });
 
   it('puts it back when discarded, because it was never gone', () => {
     writeFileSync(wallpaperFile(), Buffer.from('kept after all'));
-    stageWallpaperRemoval();
-    discardStagedWallpaper();
-    commitStagedChanges();
+    wallpaper.stageRemoval();
+    wallpaper.discardStaged();
+    wallpaper.commitStagedChanges();
 
     expect(readFileSync(wallpaperFile()).toString()).toBe('kept after all');
   });
@@ -272,11 +264,11 @@ describe('removing one also waits', () => {
 describe('when it cannot be written', () => {
   it('says why, and keeps what was picked', async () => {
     chosenFiles = [path.join(userDataDir, 'source.png')];
-    await chooseWallpaper(fakeWindow);
+    await wallpaper.choose(fakeWindow);
     rmSync(userDataDir, { recursive: true, force: true });
 
-    const failure = commitStagedWallpaper();
+    const failure = wallpaper.commitStaged();
     expect(failure).not.toBe('');
-    expect(stagedWallpaper()).not.toBeNull();
+    expect(wallpaper.stagedImage()).not.toBeNull();
   });
 });

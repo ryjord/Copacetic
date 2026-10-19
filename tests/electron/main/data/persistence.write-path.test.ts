@@ -39,14 +39,16 @@ beforeEach(() => {
 describe('the write path a flush actually takes', () => {
   it('writes and then renames, in that order', () => {
     const order: string[] = [];
-    const file = new PersistedFile<Thing>('ordered.json', fallback, revive, 400, undefined, {
-      write: (target, contents) => {
-        order.push('write');
-        REAL_DISK.write(target, contents);
-      },
-      rename: (from, to) => {
-        order.push('rename');
-        REAL_DISK.rename(from, to);
+    const file = new PersistedFile<Thing>('ordered.json', fallback, revive, {
+      disk: {
+        write: (target, contents) => {
+          order.push('write');
+          REAL_DISK.write(target, contents);
+        },
+        rename: (from, to) => {
+          order.push('rename');
+          REAL_DISK.rename(from, to);
+        },
       },
     });
 
@@ -61,18 +63,20 @@ describe('the write path a flush actually takes', () => {
 
   it('goes through the retrying rename, not a bare one', () => {
     let refused = 0;
-    const file = new PersistedFile<Thing>('retried.json', fallback, revive, 400, undefined, {
-      write: REAL_DISK.write,
-      rename: (from, to) =>
-        renameOverAnyLock(from, to, (a: PathLike, b: PathLike) => {
-          refused += 1;
-          if (refused === 1) {
-            const error = new Error('EPERM: operation not permitted') as NodeJS.ErrnoException;
-            error.code = 'EPERM';
-            throw error;
-          }
-          return REAL_DISK.rename(a as string, b as string);
-        }),
+    const file = new PersistedFile<Thing>('retried.json', fallback, revive, {
+      disk: {
+        write: REAL_DISK.write,
+        rename: (from, to) =>
+          renameOverAnyLock(from, to, (a: PathLike, b: PathLike) => {
+            refused += 1;
+            if (refused === 1) {
+              const error = new Error('EPERM: operation not permitted') as NodeJS.ErrnoException;
+              error.code = 'EPERM';
+              throw error;
+            }
+            return REAL_DISK.rename(a as string, b as string);
+          }),
+      },
     });
 
     file.set({ name: 'retried', count: 7 });

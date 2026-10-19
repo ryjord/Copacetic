@@ -151,14 +151,17 @@ describe('a persisted file that has changed shape', () => {
   it('migrates what is on disk when it is read', () => {
     writeFileSync(path.join(dataDir, 'thing.json'), JSON.stringify({ name: 'a bookmark' }), 'utf8');
 
-    const file = new PersistedFile('thing.json', () => ({}) as { title?: string }, revive, 10, plan);
+    const file = new PersistedFile('thing.json', () => ({}) as { title?: string }, revive, {
+      flushDelayMs: 10,
+      plan,
+    });
     expect(file.get().title).toBe('a bookmark');
   });
 
   it('writes it back in the new shape, so it is migrated once and not every time', async () => {
     writeFileSync(path.join(dataDir, 'thing.json'), JSON.stringify({ name: 'a bookmark' }), 'utf8');
 
-    new PersistedFile('thing.json', () => ({}) as { title?: string }, revive, 10, plan);
+    new PersistedFile('thing.json', () => ({}) as { title?: string }, revive, { flushDelayMs: 10, plan });
     await new Promise((resolve) => setTimeout(resolve, 80));
 
     expect(JSON.parse(readFileSync(path.join(dataDir, 'thing.json'), 'utf8'))).toEqual({ title: 'a bookmark' });
@@ -169,7 +172,10 @@ describe('a persisted file that has changed shape', () => {
     writeFileSync(path.join(dataDir, 'thing.json'), JSON.stringify({ title: 'already right' }), 'utf8');
     schemaVersionsFor(dataDir).record('thing.json', 2);
 
-    const file = new PersistedFile('thing.json', () => ({}) as { title?: string }, revive, 10, plan);
+    const file = new PersistedFile('thing.json', () => ({}) as { title?: string }, revive, {
+      flushDelayMs: 10,
+      plan,
+    });
     expect(file.get().title).toBe('already right');
   });
 
@@ -177,7 +183,7 @@ describe('a persisted file that has changed shape', () => {
     writeFileSync(path.join(dataDir, 'thing.json'), JSON.stringify({ somethingNew: true }), 'utf8');
     schemaVersionsFor(dataDir).record('thing.json', 9);
 
-    const file = new PersistedFile('thing.json', () => ({ title: 'fresh' }), revive, 10, plan);
+    const file = new PersistedFile('thing.json', () => ({ title: 'fresh' }), revive, { flushDelayMs: 10, plan });
 
     expect(file.get().title).toBe('fresh');
     expect(JSON.parse(readFileSync(path.join(dataDir, 'thing.json.newer'), 'utf8'))).toEqual({ somethingNew: true });

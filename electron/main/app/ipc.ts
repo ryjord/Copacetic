@@ -1,15 +1,5 @@
 import type { KeptKind } from '../../shared/forgetting';
 import { type IpcMainInvokeEvent, ipcMain } from 'electron';
-import {
-  chooseWallpaper,
-  clearWallpaper,
-  commitStagedChanges,
-  discardStagedWallpaper,
-  readWallpaper,
-  readWallpaperPreview,
-  stageWallpaperRemoval,
-  stagedWallpaper,
-} from '../system/wallpaper';
 import { randomBytes } from 'node:crypto';
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
 import { resolverFor } from '../../shared/dns';
@@ -298,18 +288,18 @@ export function registerIpcHandlers(profile: Profile): void {
 
   // -------------------------------------------------------------- wallpaper
 
-  handle('wallpaper.get', (_browser) => readWallpaper());
-  handle('wallpaper.preview', (_browser) => readWallpaperPreview());
-  // Each changes what the start page shows in every window, so every window is told afterwards.
-  const thenPush = <Result>(result: Result): Result => {
-    profile.scheduleStatePush();
+  handle('wallpaper.get', (browser) => browser.wallpaper.read());
+  handle('wallpaper.preview', (browser) => browser.wallpaper.readPreview());
+  // Each changes what the start page shows in every window of the profile, so each of them is told afterwards.
+  const thenPush = <Result>(browser: Browser, result: Result): Result => {
+    browser.profile.scheduleStatePush();
     return result;
   };
-  handle('wallpaper.choose', async (browser) => thenPush(await chooseWallpaper(browser.window)));
-  handle('wallpaper.clear', (_browser) => thenPush(clearWallpaper()));
-  handle('wallpaper.staged', (_browser) => stagedWallpaper());
-  handle('wallpaper.keep', (_browser) => thenPush(commitStagedChanges()));
-  handle('wallpaper.remove', (_browser) => thenPush(stageWallpaperRemoval()));
+  handle('wallpaper.choose', async (browser) => thenPush(browser, await browser.wallpaper.choose(browser.window)));
+  handle('wallpaper.clear', (browser) => thenPush(browser, browser.wallpaper.clear()));
+  handle('wallpaper.staged', (browser) => browser.wallpaper.stagedImage());
+  handle('wallpaper.keep', (browser) => thenPush(browser, browser.wallpaper.commitStagedChanges()));
+  handle('wallpaper.remove', (browser) => thenPush(browser, browser.wallpaper.stageRemoval()));
 
   // ------------------------------------------------------------------ groups
 
@@ -324,7 +314,7 @@ export function registerIpcHandlers(profile: Profile): void {
   handle('groups.setForTab', (browser, _event, tabId, groupId) =>
     browser.groups.setForTab(asString(tabId), typeof groupId === 'string' && groupId ? groupId : null),
   );
-  handle('wallpaper.discard', (_browser) => thenPush(discardStagedWallpaper()));
+  handle('wallpaper.discard', (browser) => thenPush(browser, browser.wallpaper.discardStaged()));
 
   // ------------------------------------------------------------------- data
 

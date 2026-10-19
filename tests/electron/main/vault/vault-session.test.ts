@@ -19,7 +19,7 @@ function fakeHost(overrides: Partial<VaultHost> = {}): VaultHost {
     platform: 'darwin',
     canPromptTouchID: () => true,
     promptTouchID: async () => {},
-    userDataPath: () => dataDir,
+    profileDirectory: () => dataDir,
     ...overrides,
   };
 }

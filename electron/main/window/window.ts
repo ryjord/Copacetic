@@ -25,7 +25,9 @@ const MIN_WIDTH = 720;
 const MIN_HEIGHT = 480;
 
 export function createChromeWindow(): BrowserWindow {
-  const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, 600);
+  const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, {
+    flushDelayMs: 600,
+  });
   const saved = clampToVisibleDisplay(
     boundsFile.get(),
     screen.getAllDisplays().map((display) => display.workArea),

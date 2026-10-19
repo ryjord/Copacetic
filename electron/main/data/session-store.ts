@@ -65,13 +65,15 @@ export const SESSION_PLAN: SchemaPlan = {
 
 /** The tabs to reopen next launch. Written often, so it flushes on a longer delay. */
 export class SessionStore {
-  private readonly file = new PersistedFile<SavedSession>(
-    'session.json',
-    () => ({ windows: [] }),
-    reviveSession,
-    1_000,
-    SESSION_PLAN,
-  );
+  private readonly file: PersistedFile<SavedSession>;
+
+  constructor(directory?: string) {
+    this.file = new PersistedFile<SavedSession>('session.json', () => ({ windows: [] }), reviveSession, {
+      directory,
+      flushDelayMs: 1_000,
+      plan: SESSION_PLAN,
+    });
+  }
 
   save(session: SavedSession): void {
     this.file.set(session);

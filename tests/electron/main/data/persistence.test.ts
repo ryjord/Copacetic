@@ -107,7 +107,7 @@ describe('writing is atomic', () => {
 
 describe('flushing is debounced', () => {
   it('does not touch the disk on every change', () => {
-    const file = new PersistedFile<Thing>('thing.json', fallback, revive, 10_000);
+    const file = new PersistedFile<Thing>('thing.json', fallback, revive, { flushDelayMs: 10_000 });
     file.set({ name: 'a', count: 1 });
     // Still only in memory; the debounce has not elapsed.
     expect(existsSync(filePath())).toBe(false);
@@ -115,7 +115,7 @@ describe('flushing is debounced', () => {
   });
 
   it('writes immediately when asked to flush, which is what quitting does', () => {
-    const file = new PersistedFile<Thing>('thing.json', fallback, revive, 10_000);
+    const file = new PersistedFile<Thing>('thing.json', fallback, revive, { flushDelayMs: 10_000 });
     file.set({ name: 'a', count: 1 });
     file.flush();
     expect(existsSync(filePath())).toBe(true);

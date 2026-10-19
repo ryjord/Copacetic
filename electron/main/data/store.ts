@@ -25,6 +25,7 @@ import { GroupsStore } from './groups-store';
 import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
 import { app } from 'electron';
 import path from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
 import { openDatabase } from './database';
 import { DownloadsTable } from './downloads-table';
 import { SiteSettingsStore } from './site-settings-store';
@@ -43,21 +44,33 @@ import type { ImportedVisit } from '../import/chromium-history';
 export type { SavedSession, SessionSnapshot };
 
 export class BrowserStore {
-  private readonly database = openDatabase(path.join(app.getPath('userData'), 'copacetic.db'));
-  private readonly settings = new SettingsStore(new SiteSettingsStore(this.database));
-  private readonly history = new HistoryStore(this.database, app.getPath('userData'));
-  private readonly bookmarks = new BookmarksStore(this.database, app.getPath('userData'));
-  private readonly bookmarkFolders = new BookmarkFoldersStore(this.database, app.getPath('userData'));
-  private readonly groups = new GroupsStore();
-  private readonly favicons = new FaviconsStore(this.database, app.getPath('userData'));
+  private readonly database: DatabaseSync;
+  private readonly settings: SettingsStore;
+  private readonly history: HistoryStore;
+  private readonly bookmarks: BookmarksStore;
+  private readonly bookmarkFolders: BookmarkFoldersStore;
+  private readonly groups: GroupsStore;
+  private readonly favicons: FaviconsStore;
   /** Held here so it shares the database; the download manager owns what goes in it. */
-  readonly downloadsTable = new DownloadsTable(this.database, app.getPath('userData'));
-  private readonly session = new SessionStore();
-  private readonly certificatesStore = new CertificatesStore();
+  readonly downloadsTable: DownloadsTable;
+  private readonly session: SessionStore;
+  private readonly certificatesStore: CertificatesStore;
   /** Parsed host and lowercased forms per history entry, keyed by entry id. */
   private readonly scoreFieldCache = new Map<string, ScoreFields>();
 
-  constructor() {}
+  /** Everything one profile keeps, in its folder. */
+  constructor(directory = app.getPath('userData')) {
+    this.database = openDatabase(path.join(directory, 'copacetic.db'));
+    this.settings = new SettingsStore(new SiteSettingsStore(this.database), directory);
+    this.history = new HistoryStore(this.database, directory);
+    this.bookmarks = new BookmarksStore(this.database, directory);
+    this.bookmarkFolders = new BookmarkFoldersStore(this.database, directory);
+    this.groups = new GroupsStore(directory);
+    this.favicons = new FaviconsStore(this.database, directory);
+    this.downloadsTable = new DownloadsTable(this.database, directory);
+    this.session = new SessionStore(directory);
+    this.certificatesStore = new CertificatesStore(directory);
+  }
 
   flushAll(): void {
     // Folds the write-ahead log into the database, so the file on its own is complete when the app goes.

@@ -26,6 +26,7 @@ import type { Vault } from '../vault/vault';
 import type { SessionSnapshot } from '../data/session-store';
 import { UpdateManager } from '../system/updates';
 import { log } from '../system/diagnostics';
+import { Wallpaper } from '../system/wallpaper';
 import { applyAppearance, onAppearanceChange } from '../window/appearance';
 import { filtersRoot, isDevelopment } from './env';
 import { Browser } from './browser';
@@ -49,6 +50,7 @@ export class Profile {
   readonly prompts = new PendingPrompts();
   readonly sessions: SessionRegistry;
   readonly securityDelegate: SecurityDelegate;
+  readonly wallpaper: Wallpaper;
 
   private readonly windows = new Set<Browser>();
   /** The window last in front, for menus and notices when none is focused at this moment. */
@@ -61,8 +63,10 @@ export class Profile {
     return this.vaultSession.vault;
   }
 
-  constructor() {
-    this.store = new BrowserStore();
+  /** `directory` is where this profile keeps everything; the first profile's is the app's own folder. */
+  constructor(readonly directory: string) {
+    this.store = new BrowserStore(directory);
+    this.wallpaper = new Wallpaper(directory);
     // Before any window exists, so each is created in the colour it will be painted.
     applyAppearance(this.store.getSettings().appearance);
     hardenChromeSession(electronSession.defaultSession);
@@ -79,7 +83,7 @@ export class Profile {
         platform: process.platform,
         canPromptTouchID: () => systemPreferences.canPromptTouchID?.() ?? false,
         promptTouchID: (reason) => systemPreferences.promptTouchID(reason),
-        userDataPath: () => app.getPath('userData'),
+        profileDirectory: () => directory,
       },
       () => this.scheduleStatePush(),
     );
