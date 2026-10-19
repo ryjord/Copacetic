@@ -24,4 +24,6 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   spellcheck: true,
   webRtcPolicy: 'publicOnly',
   blockThirdPartyCookies: true,
+  downloadDirectory: null,
+  askWhereToSave: false,
 };

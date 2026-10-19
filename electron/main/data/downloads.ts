@@ -7,6 +7,12 @@ import type { DownloadState, DownloadStatus } from '../../shared/types';
 const EXISTS_REMEMBERED_MS = 5_000;
 
 import type { DownloadsTable } from './downloads-table';
+
+/** What the person chose about where files go. */
+export interface DownloadPreferences {
+  downloadDirectory: string | null;
+  askWhereToSave: boolean;
+}
 import { newId } from './persistence';
 
 /** How often a download's speed sample is refreshed. */
@@ -44,6 +50,9 @@ export class DownloadManager {
    * keeps none of that.
    */
   private ephemeral: DownloadState[] = [];
+  /** Which session each download this run came from, so a retry is made in the same one. */
+  private readonly sessionOf = new Map<string, Session>();
+  private defaultSession: Session | null = null;
 
   constructor(
     private readonly onChanged: () => void,
@@ -51,6 +60,10 @@ export class DownloadManager {
     /** Injected so a test can move time and answer for the filesystem itself. */
     private readonly clock: () => number = Date.now,
     private readonly fileExistsAt: (savePath: string) => boolean = existsSync,
+    private readonly preferences: () => DownloadPreferences = () => ({
+      downloadDirectory: null,
+      askWhereToSave: false,
+    }),
   ) {
     // Anything still in flight when the app last quit cannot be resumed: the
     // DownloadItem it belonged to is gone. Report that honestly rather than
@@ -114,17 +127,30 @@ export class DownloadManager {
    * for Hush, whose whole claim is that nothing it does is.
    */
   attach(session: Session, remember = true): void {
+    if (remember && !this.defaultSession) {
+      this.defaultSession = session;
+    }
     session.on('will-download', (_event, item) => {
       const id = newId();
-      const directory = app.getPath('downloads');
-      const savePath = uniqueSavePath(directory, sanitiseFilename(item.getFilename()));
-      item.setSavePath(savePath);
+      this.sessionOf.set(id, session);
+      const { downloadDirectory, askWhereToSave } = this.preferences();
+      // A chosen folder that has since gone falls back to the system's, rather than failing the download.
+      const directory =
+        downloadDirectory && this.fileExistsAt(downloadDirectory) ? downloadDirectory : app.getPath('downloads');
+      const suggested = uniqueSavePath(directory, sanitiseFilename(item.getFilename()));
+      // Left unset, Electron asks where with the system's own dialog; the path is known once it has been answered.
+      const savePath = askWhereToSave ? '' : suggested;
+      if (askWhereToSave) {
+        item.setSaveDialogOptions({ defaultPath: suggested });
+      } else {
+        item.setSavePath(savePath);
+      }
 
       this.live.set(id, { item, lastSampleAt: Date.now(), lastSampleBytes: 0, lastStatus: 'progressing' });
       this.upsert({
         id,
         isHush: !remember,
-        filename: path.basename(savePath),
+        filename: path.basename(suggested),
         savePath,
         url: item.getURL(),
         receivedBytes: 0,
@@ -174,6 +200,7 @@ export class DownloadManager {
 
         this.patch(id, (entry) => ({
           ...entry,
+          ...this.chosenPath(item, entry),
           receivedBytes: received,
           totalBytes: item.getTotalBytes(),
           status,
@@ -187,6 +214,7 @@ export class DownloadManager {
           state === 'completed' ? 'completed' : state === 'cancelled' ? 'cancelled' : 'interrupted';
         this.patch(id, (entry) => ({
           ...entry,
+          ...this.chosenPath(item, entry),
           status,
           receivedBytes: item.getReceivedBytes(),
           totalBytes: item.getTotalBytes() || item.getReceivedBytes(),
@@ -222,6 +250,33 @@ export class DownloadManager {
       // A file moved or removed before it could be read leaves the hash unset,
       // which is honest: there is nothing to report.
     }
+  }
+
+  /** Where the person said to save it, once they have said; nothing changes until then. */
+  private chosenPath(item: DownloadItem, entry: DownloadState): Partial<DownloadState> {
+    const chosen = item.getSavePath();
+    return chosen && chosen !== entry.savePath ? { savePath: chosen, filename: path.basename(chosen) } : {};
+  }
+
+  /**
+   * Starts a failed or cancelled download again, in the session it came from.
+   *
+   * The new attempt is a new entry and the old one goes, so the list shows one
+   * download rather than a failure beside its own retry. After a restart the
+   * session it came from is not known, and ordinary browsing's is used.
+   */
+  retry(id: string): void {
+    const entry = this.find(id);
+    if (!entry || (entry.status !== 'interrupted' && entry.status !== 'cancelled')) {
+      return;
+    }
+    const session = this.sessionOf.get(id) ?? this.defaultSession;
+    if (!session) {
+      return;
+    }
+    this.remove(id);
+    this.sessionOf.delete(id);
+    session.downloadURL(entry.url);
   }
 
   pause(id: string): void {

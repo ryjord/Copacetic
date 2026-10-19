@@ -1,6 +1,7 @@
 'use client';
 
 // Components
+import { Button } from '@/components/ui/Button/Button';
 import { DefaultBrowserRow } from '@/components/views/settings/general/DefaultBrowserRow';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
@@ -10,6 +11,7 @@ import { Switch } from '@/components/ui/Switch/Switch';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
+import { send } from '@/lib/bridge';
 import { updateSettings } from '@/components/views/settings/shared/options';
 
 // Types
@@ -59,6 +61,36 @@ export function GeneralPane() {
               label="Check spelling"
               checked={settings.spellcheck}
               onChange={(spellcheck) => updateSettings({ spellcheck })}
+            />
+          }
+        />
+      </SettingGroup>
+
+      <SettingGroup title="Downloads">
+        <SettingRow
+          label="Save files to"
+          help={settings.downloadDirectory ?? 'Your Downloads folder'}
+          control={
+            <>
+              {settings.downloadDirectory && (
+                <Button size="sm" variant="ghost" onClick={() => updateSettings({ downloadDirectory: null })}>
+                  Use Downloads folder
+                </Button>
+              )}
+              <Button size="sm" onClick={() => send((api) => api.downloads.chooseFolder())}>
+                Change…
+              </Button>
+            </>
+          }
+        />
+        <SettingRow
+          label="Ask where to save each file"
+          help="Each download asks for a place first, rather than going straight to the folder above."
+          control={
+            <Switch
+              label="Ask where to save each file"
+              checked={settings.askWhereToSave}
+              onChange={(askWhereToSave) => updateSettings({ askWhereToSave })}
             />
           }
         />

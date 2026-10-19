@@ -152,6 +152,10 @@ export interface CopaceticApi {
     revealFile(id: DownloadId): Promise<void>;
     remove(id: DownloadId): Promise<void>;
     clearCompleted(): Promise<void>;
+    /** Starts a failed or cancelled download again, from where it came from, in place of the old entry. */
+    retry(id: DownloadId): Promise<void>;
+    /** A folder picked in a dialog, which becomes where files go; null if none was picked. */
+    chooseFolder(): Promise<string | null>;
   };
   find: {
     open(): Promise<void>;

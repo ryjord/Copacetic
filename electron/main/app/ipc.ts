@@ -193,6 +193,8 @@ export function registerIpcHandlers(profile: Profile): void {
   handle('downloads.openFile', (browser, _event, id) => browser.downloads.openFile(asString(id)));
   handle('downloads.revealFile', (browser, _event, id) => browser.downloads.revealFile(asString(id)));
   handle('downloads.remove', (browser, _event, id) => browser.downloads.remove(asString(id)));
+  handle('downloads.retry', (browser, _event, id) => browser.downloads.retry(asString(id)));
+  handle('downloads.chooseFolder', (browser) => browser.chooseDownloadFolder());
   handle('downloads.clearCompleted', (browser) => browser.downloads.clearCompleted());
 
   // ------------------------------------------------------------------- find
@@ -427,6 +429,14 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.blockThirdPartyCookies === 'boolean') {
     patch.blockThirdPartyCookies = value.blockThirdPartyCookies;
   }
+  if (typeof value.askWhereToSave === 'boolean') {
+    patch.askWhereToSave = value.askWhereToSave;
+  }
+  // Only ever put back to the system folder from here: a folder is chosen in the main process's own dialog, and a
+  // path from the renderer could send every download somewhere that runs what lands in it.
+  if (value.downloadDirectory === null) {
+    patch.downloadDirectory = null;
+  }
   if (typeof value.webRtcPolicy === 'string' && isWebRtcPolicy(value.webRtcPolicy)) {
     patch.webRtcPolicy = value.webRtcPolicy;
   }
@@ -514,7 +524,7 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
 }
 
 /** Refused on purpose, so the coverage test has something to check against. */
-export const SETTINGS_NOT_PATCHABLE: readonly string[] = ['hasWallpaper'];
+export const SETTINGS_NOT_PATCHABLE: readonly string[] = ['hasWallpaper', 'downloadDirectory'];
 
 /** At most a few hundred addresses, each a string: a list on screen, not a dump of history. */
 function pickUrls(value: unknown): string[] {

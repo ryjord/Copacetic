@@ -12,7 +12,7 @@ import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
 
 // Icons
-import { ChevronDown, Download, File, FolderOpen, Pause, Play, X } from 'lucide-react';
+import { ChevronDown, Download, File, FolderOpen, Pause, Play, RotateCw, X } from 'lucide-react';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -134,6 +134,11 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
           {isActive && (
             <IconButton label="Cancel download" onClick={() => send((api) => api.downloads.cancel(download.id))}>
               <X size={16} />
+            </IconButton>
+          )}
+          {(download.status === 'interrupted' || download.status === 'cancelled') && (
+            <IconButton label="Try again" onClick={() => send((api) => api.downloads.retry(download.id))}>
+              <RotateCw size={16} />
             </IconButton>
           )}
           {isOpenable && (

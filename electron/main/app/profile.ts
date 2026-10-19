@@ -8,6 +8,7 @@ import {
   shell,
   systemPreferences,
 } from 'electron';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } from '../../shared/types';
 import { hostResolverFor } from '../../shared/dns';
@@ -89,7 +90,13 @@ export class Profile {
     if (!this.blocker.loadShippedLists(path.join(app.getPath('userData'), 'filters'))) {
       this.blocker.loadShippedLists(filtersRoot());
     }
-    this.downloads = new DownloadManager(() => this.scheduleStatePush(), this.store.downloadsTable);
+    this.downloads = new DownloadManager(
+      () => this.scheduleStatePush(),
+      this.store.downloadsTable,
+      Date.now,
+      existsSync,
+      () => this.store.getSettings(),
+    );
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 
     const delegateDeps = {

@@ -227,3 +227,97 @@ describe('the downloads list on disk', () => {
     expect(readFileSync(path.join(dir, 'downloads.json.imported'), 'utf8')).toContain('report.pdf');
   });
 });
+
+/** A session that hands over a download the way Electron does, and an item that can be finished from the test. */
+function fakeDownloadSession() {
+  let willDownload: ((event: unknown, item: unknown) => void) | null = null;
+  const started: string[] = [];
+  const session = {
+    on: (_name: string, listener: (event: unknown, item: unknown) => void) => {
+      willDownload = listener;
+    },
+    downloadURL: (url: string) => started.push(url),
+  };
+  const offer = (filename = 'report.pdf') => {
+    const handlers: Record<string, (event: unknown, state: string) => void> = {};
+    let savePath = '';
+    const item = {
+      getFilename: () => filename,
+      getURL: () => `https://files.example/${filename}`,
+      getURLChain: () => [`https://files.example/${filename}`],
+      getTotalBytes: () => 10,
+      getReceivedBytes: () => 10,
+      isPaused: () => false,
+      getSavePath: () => savePath,
+      setSavePath: vi.fn((chosen: string) => (savePath = chosen)),
+      setSaveDialogOptions: vi.fn(),
+      on: (name: string, handler: (event: unknown, state: string) => void) => (handlers[name] = handler),
+      once: (name: string, handler: (event: unknown, state: string) => void) => (handlers[name] = handler),
+    };
+    willDownload?.({}, item);
+    return {
+      item,
+      // What the save dialog would have done, for a download that asked.
+      choose: (chosen: string) => (savePath = chosen),
+      finish: (state: 'completed' | 'interrupted' | 'cancelled') => handlers.done?.({}, state),
+    };
+  };
+  return { session, started, offer };
+}
+
+const managerFor = (preferences: { downloadDirectory: string | null; askWhereToSave: boolean }) => {
+  const fake = fakeDownloadSession();
+  const manager = new DownloadManager(
+    () => {},
+    openTable(),
+    Date.now,
+    existsSync,
+    () => preferences,
+  );
+  manager.attach(fake.session as never);
+  return { manager, ...fake };
+};
+
+describe('where a download is saved', () => {
+  it('goes to the folder chosen in Settings', () => {
+    const { offer } = managerFor({ downloadDirectory: dir, askWhereToSave: false });
+    const { item } = offer();
+    expect(item.setSavePath).toHaveBeenCalledWith(path.join(dir, 'report.pdf'));
+  });
+
+  // A folder deleted or on a disk since unplugged must not fail every download after it.
+  it('falls back to the Downloads folder when the chosen one has gone', () => {
+    const { offer } = managerFor({ downloadDirectory: path.join(dir, 'not-there'), askWhereToSave: false });
+    const { item } = offer();
+    expect(item.setSavePath).toHaveBeenCalledWith(path.join('/tmp', 'report.pdf'));
+  });
+
+  it('asks where, and keeps the answer, when asking is turned on', () => {
+    const { manager, offer } = managerFor({ downloadDirectory: null, askWhereToSave: true });
+    const download = offer();
+    expect(download.item.setSavePath).not.toHaveBeenCalled();
+    expect(download.item.setSaveDialogOptions).toHaveBeenCalledWith({ defaultPath: path.join('/tmp', 'report.pdf') });
+    download.choose(path.join(dir, 'renamed.pdf'));
+    download.finish('completed');
+    expect(manager.list()[0]).toMatchObject({ savePath: path.join(dir, 'renamed.pdf'), filename: 'renamed.pdf' });
+  });
+});
+
+describe('trying a download again', () => {
+  it('starts it again from where it came from, in place of the one that failed', () => {
+    const { manager, offer, started } = managerFor({ downloadDirectory: null, askWhereToSave: false });
+    offer().finish('interrupted');
+    const [failed] = manager.list();
+    manager.retry(failed!.id);
+    expect(started).toEqual(['https://files.example/report.pdf']);
+    expect(manager.list().some((entry) => entry.id === failed!.id)).toBe(false);
+  });
+
+  // A finished download has nothing to try again, and starting it twice would be a second copy nobody asked for.
+  it('leaves a completed download alone', () => {
+    const { manager, offer, started } = managerFor({ downloadDirectory: null, askWhereToSave: false });
+    offer().finish('completed');
+    manager.retry(manager.list()[0]!.id);
+    expect(started).toEqual([]);
+  });
+});

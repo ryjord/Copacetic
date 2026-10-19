@@ -416,6 +416,10 @@ export interface Settings {
   webRtcPolicy: WebRtcPolicy;
   /** Cookies sent to or set by a site other than the page's; a site's tracker exception lets them through. */
   blockThirdPartyCookies: boolean;
+  /** Where files go; null for the system's own Downloads folder. Chosen in a dialog, never typed. */
+  downloadDirectory: string | null;
+  /** Each download asks where to save it rather than going to the folder above. */
+  askWhereToSave: boolean;
   /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
   showBookmarksBar: boolean;
 }

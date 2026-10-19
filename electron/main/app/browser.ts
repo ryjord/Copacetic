@@ -1,4 +1,4 @@
-import type { BrowserWindow, WebContents, WebFrameMain } from 'electron';
+import { type BrowserWindow, type WebContents, type WebFrameMain, dialog } from 'electron';
 import { PUSH, type ChromeSurface } from '../../shared/channels';
 import type {
   AppInfo,
@@ -268,6 +268,20 @@ export class Browser {
 
   revealDiagnostics(): void {
     this.profile.revealDiagnostics();
+  }
+
+  /** Asks for a folder with the system's own dialog; only a folder picked there ever becomes where files go. */
+  async chooseDownloadFolder(): Promise<string | null> {
+    const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
+      title: 'Save downloads to',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    const [folder] = filePaths;
+    if (canceled || !folder) {
+      return null;
+    }
+    this.profile.updateSettings({ downloadDirectory: folder });
+    return folder;
   }
 
   openNewWindow(): void {
