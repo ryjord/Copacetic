@@ -358,6 +358,10 @@ export class Browser {
   }
 
   focusOmnibox(): void {
+    // Focusing the field inside the chrome does not take the keyboard from a page view; this does.
+    if (!this.window.isDestroyed()) {
+      this.window.webContents.focus();
+    }
     this.pushToChrome(PUSH.focusOmnibox);
   }
 

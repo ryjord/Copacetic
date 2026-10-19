@@ -804,7 +804,11 @@ export class TabManager {
 
   focusActive(): void {
     const tab = this.activeTab();
+    // A start page or an error is drawn by the chrome, so the keyboard belongs there rather than in a hidden view.
     if (!tab || tab.isStartPage || tab.error) {
+      if (!this.window.isDestroyed()) {
+        this.window.webContents.focus();
+      }
       return;
     }
     const contents = tab.view.webContents;
