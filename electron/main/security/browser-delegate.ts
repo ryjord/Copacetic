@@ -36,7 +36,52 @@ export function mayBeHandedToOs(url: string): boolean {
   if (!scheme) {
     return false;
   }
-  return !NEVER_HANDED_TO_OS.has(`${scheme}:`);
+  return !NEVER_HANDED_TO_OS.has(`${scheme}:`) && !isAbusedHandler(scheme);
+}
+
+/**
+ * Windows handlers pages have used to run code or fetch files with one click,
+ * refused whatever the person answers. A denylist rather than an allowlist,
+ * which would quietly break every app link nobody thought to list.
+ */
+export function isAbusedHandler(scheme: string): boolean {
+  const lower = scheme.toLowerCase();
+  return (
+    lower.startsWith('ms-') ||
+    ['search', 'search-ms', 'hcp', 'its', 'mk', 'res', 'shell', 'ldap', 'jar'].includes(lower)
+  );
+}
+
+/** How long a tab is not asked again after someone said no, so a page cannot stack dialog after dialog. */
+export const REFUSED_COOLDOWN_MS = 10_000;
+
+/** One question at a time, and a pause for a tab that has just been told no. */
+export class ExternalOpenGate {
+  private isAsking = false;
+  private readonly refusedAt = new Map<number, number>();
+
+  constructor(private readonly now: () => number = Date.now) {}
+
+  mayAsk(openerWebContentsId: number): boolean {
+    const refused = this.refusedAt.get(openerWebContentsId);
+    return !this.isAsking && (refused === undefined || this.now() - refused >= REFUSED_COOLDOWN_MS);
+  }
+
+  async ask(openerWebContentsId: number, question: () => Promise<boolean>): Promise<boolean> {
+    if (!this.mayAsk(openerWebContentsId)) {
+      return false;
+    }
+    this.isAsking = true;
+    try {
+      const isAllowed = await question();
+      if (!isAllowed) {
+        this.refusedAt.set(openerWebContentsId, this.now());
+      }
+      return isAllowed;
+    } finally {
+      this.isAsking = false;
+    }
+  }
 }
 
 interface BrowserDelegateDeps {
@@ -56,6 +101,7 @@ function showQuestion(parent: BrowserWindow | undefined, options: Electron.Messa
 
 /** What every web session asks of the browser: the person's answers, and where pages may go. */
 export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDelegate {
+  const externalOpens = new ExternalOpenGate();
   return {
     requestPermission: (input) =>
       new Promise<PermissionAnswer>((resolve) => {
@@ -83,22 +129,25 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
       deps.tabs().create(url, { activate: options.activate, openerWebContentsId: options.openerWebContentsId });
     },
 
-    confirmExternalOpen: async (url) => {
+    confirmExternalOpen: async (url, openerWebContentsId) => {
       const scheme = safeScheme(url);
       if (!scheme || !mayBeHandedToOs(url)) {
         return false;
       }
-      const { response } = await showQuestion(deps.window(), {
-        type: 'question',
-        buttons: [t('main.dialogs.common.open'), t('main.dialogs.common.cancel')],
-        defaultId: 1,
-        cancelId: 1,
-        title: t('main.dialogs.externalOpen.title'),
-        message: t('main.dialogs.externalOpen.message'),
-        detail: t('main.dialogs.externalOpen.detail', { scheme, url: sanitiseChromeText(url, 240) }),
-        noLink: true,
+      const isAllowed = await externalOpens.ask(openerWebContentsId, async () => {
+        const { response } = await showQuestion(deps.window(), {
+          type: 'question',
+          buttons: [t('main.dialogs.common.open'), t('main.dialogs.common.cancel')],
+          defaultId: 1,
+          cancelId: 1,
+          title: t('main.dialogs.externalOpen.title'),
+          message: t('main.dialogs.externalOpen.message'),
+          detail: t('main.dialogs.externalOpen.detail', { scheme, url: sanitiseChromeText(url, 240) }),
+          noLink: true,
+        });
+        return response === 0;
       });
-      if (response !== 0) {
+      if (!isAllowed) {
         return false;
       }
       await shell.openExternal(url);

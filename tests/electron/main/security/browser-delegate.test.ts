@@ -7,7 +7,8 @@ vi.mock('electron', () => ({
   shell: {},
 }));
 
-const { mayBeHandedToOs } = await import('../../../../electron/main/security/browser-delegate');
+const { ExternalOpenGate, REFUSED_COOLDOWN_MS, mayBeHandedToOs } =
+  await import('../../../../electron/main/security/browser-delegate');
 
 /**
  * A link Copacetic refuses to navigate to reaches this path next. Handing it to
@@ -50,5 +51,44 @@ describe('what may be handed to another application', () => {
     ['a torrent', 'magnet:?xt=urn:btih:abcdef'],
   ])('lets %s through to the confirmation', (_name, url) => {
     expect(mayBeHandedToOs(url)).toBe(true);
+  });
+});
+
+describe('handing a link to another app', () => {
+  // Each has been used to run code or fetch files from a page with one click.
+  it.each(['ms-msdt:/id', 'search-ms:query=x', 'MS-OFFICECMD:x', 'hcp://system', 'shell:startup'])(
+    'never hands %s to the system',
+    (url) => {
+      expect(mayBeHandedToOs(url)).toBe(false);
+    },
+  );
+
+  it.each(['mailto:a@b.test', 'zoommtg://join', 'vscode://file/x', 'slack://open'])(
+    'can hand %s on, if asked',
+    (url) => {
+      expect(mayBeHandedToOs(url)).toBe(true);
+    },
+  );
+});
+
+describe('asking about one app link at a time', () => {
+  it('asks nothing while a question is already open', async () => {
+    const gate = new ExternalOpenGate();
+    let answer: (value: boolean) => void = () => {};
+    const first = gate.ask(1, () => new Promise((resolve) => (answer = resolve)));
+    expect(await gate.ask(1, async () => true)).toBe(false);
+    answer(true);
+    expect(await first).toBe(true);
+  });
+
+  // A page that loops app links after a no would otherwise raise dialog after dialog.
+  it('does not ask a tab again for a while after it was told no', async () => {
+    let now = 0;
+    const gate = new ExternalOpenGate(() => now);
+    await gate.ask(1, async () => false);
+    expect(await gate.ask(1, async () => true)).toBe(false);
+    expect(await gate.ask(2, async () => true)).toBe(true);
+    now = REFUSED_COOLDOWN_MS;
+    expect(await gate.ask(1, async () => true)).toBe(true);
   });
 });
