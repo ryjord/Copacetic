@@ -50,6 +50,7 @@ export const CHANNELS = {
   'tabs.acceptCertificate': 'tab:accept-certificate',
   'tabs.reopenClosed': 'tab:reopen-closed',
   'tabs.print': 'tab:print',
+  'tabs.toggleDevTools': 'tab:toggle-devtools',
   'tabs.setZoom': 'tab:set-zoom',
   'tabs.openContextMenu': 'tab:open-context-menu',
   'tabs.openNewTabMenu': 'tab:open-new-tab-menu',

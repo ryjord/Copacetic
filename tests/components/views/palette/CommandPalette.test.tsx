@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const setSurface = vi.fn();
+const openSettings = vi.fn();
 const state = {
   setSurface,
+  openSettings,
   toggleSurface: vi.fn(),
   requestOmniboxFocus: vi.fn(),
   orderedTabs: [
@@ -30,10 +32,14 @@ const state = {
     title: 'Example',
     isStartPage: false,
     isBookmarked: false,
+    isPinned: false,
+    isAudible: false,
+    isMuted: false,
+    groupId: null,
     zoomFactor: 1,
   },
   hasClosedTabs: false,
-  settings: { appearance: 'system' },
+  settings: { appearance: 'system', defaultZoomFactor: 1 },
 };
 
 vi.mock('@/store/useBrowserStore', () => ({
@@ -48,7 +54,10 @@ vi.mock('@/lib/bridge', () => ({
 
 const { CommandPalette } = await import('@/components/views/palette/CommandPalette');
 
-beforeEach(() => setSurface.mockClear());
+beforeEach(() => {
+  setSurface.mockClear();
+  openSettings.mockClear();
+});
 afterEach(cleanup);
 
 const input = () => screen.getByRole('combobox', { name: 'Search commands and open tabs' });
@@ -93,5 +102,21 @@ describe('the command palette', () => {
     render(<CommandPalette />);
     fireEvent.change(input(), { target: { value: 'qqqqzz' } });
     expect(screen.getByText('No command or tab matches.')).toBeTruthy();
+  });
+
+  // The audit found the palette could not reach pinning, sleeping, groups, DevTools, import or clearing.
+  it('reaches every tab command, not only the ones with a shortcut', () => {
+    render(<CommandPalette />);
+    ['Pin tab', 'Add tab to a new group', 'Put other tabs to sleep', 'Developer tools'].forEach((label) => {
+      fireEvent.change(input(), { target: { value: label } });
+      expect(screen.getByRole('option', { name: new RegExp(label) })).toBeTruthy();
+    });
+  });
+
+  it('opens Your data for clearing and importing', () => {
+    render(<CommandPalette />);
+    fireEvent.change(input(), { target: { value: 'firefox' } });
+    fireEvent.click(screen.getByRole('option', { name: /Import bookmarks and history/ }));
+    expect(openSettings).toHaveBeenCalledWith('data');
   });
 });

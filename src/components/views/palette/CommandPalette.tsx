@@ -20,6 +20,7 @@ import { rankByMatch } from '@/lib/fuzzy';
 import { cn } from '@/lib/utils';
 
 // Types
+import { GROUP_COLOURS } from '@shared/tab-groups';
 import { clampZoom } from '@shared/types';
 import { nextZoomStep } from '@shared/zoom';
 
@@ -28,18 +29,19 @@ interface Command {
   label: string;
   /** The shortcut that does the same thing, so the palette teaches it. */
   accelerator?: string;
-  group: 'Tabs' | 'Page' | 'Go to' | 'Appearance' | 'Open tabs';
+  group: 'Tabs' | 'Page' | 'Go to' | 'Your data' | 'Appearance' | 'Open tabs';
   /** Also matched, but not shown: a tab's address, for instance. */
   keywords?: string;
   run: () => void;
 }
 
-const GROUP_ORDER: readonly Command['group'][] = ['Tabs', 'Page', 'Go to', 'Appearance', 'Open tabs'];
+const GROUP_ORDER: readonly Command['group'][] = ['Tabs', 'Page', 'Go to', 'Your data', 'Appearance', 'Open tabs'];
 
 /** One keystroke to reach anything, and a place to learn the shortcut for it. */
 export function CommandPalette() {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);
+  const openSettings = useBrowserStore((state) => state.openSettings);
   const requestOmniboxFocus = useBrowserStore((state) => state.requestOmniboxFocus);
   const tabs = useBrowserStore((state) => state.orderedTabs);
   const activeTab = useBrowserStore((state) => state.activeTab);
@@ -118,6 +120,37 @@ export function CommandPalette() {
         group: 'Tabs',
         run: then(() => send((api) => api.tabs.duplicate(tabId))),
       });
+      list.push({
+        id: 'pin',
+        label: activeTab.isPinned ? 'Unpin tab' : 'Pin tab',
+        group: 'Tabs',
+        run: then(() => send((api) => api.tabs.setPinned(tabId, !activeTab.isPinned))),
+      });
+      if (activeTab.isAudible || activeTab.isMuted) {
+        list.push({
+          id: 'mute',
+          label: activeTab.isMuted ? 'Unmute tab' : 'Mute tab',
+          group: 'Tabs',
+          keywords: 'sound audio',
+          run: then(() => send((api) => api.tabs.setMuted(tabId, !activeTab.isMuted))),
+        });
+      }
+      list.push(
+        activeTab.groupId === null
+          ? {
+              id: 'group-new',
+              label: 'Add tab to a new group',
+              group: 'Tabs',
+              run: then(() => send((api) => api.groups.create(tabId, 'Group', GROUP_COLOURS[0].id, false))),
+            }
+          : {
+              id: 'group-remove',
+              label: 'Remove tab from its group',
+              group: 'Tabs',
+              keywords: 'ungroup',
+              run: then(() => send((api) => api.groups.setForTab(tabId, null))),
+            },
+      );
 
       if (!activeTab.isStartPage) {
         const zoomTo = (factor: number) => then(() => send((api) => api.tabs.setZoom(tabId, clampZoom(factor))));
@@ -172,6 +205,13 @@ export function CommandPalette() {
             keywords: 'reset zoom',
             run: zoomTo(defaultZoomFactor),
           },
+          {
+            id: 'devtools',
+            label: 'Developer tools',
+            group: 'Page',
+            keywords: 'inspect console devtools',
+            run: then(() => send((api) => api.tabs.toggleDevTools(tabId))),
+          },
         );
       }
     }
@@ -222,6 +262,41 @@ export function CommandPalette() {
       },
     );
 
+    const sleepable = tabs.filter((tab) => tab.id !== activeTab?.id && !tab.isAsleep && !tab.isStartPage);
+    if (sleepable.length > 0) {
+      list.push({
+        id: 'sleep-others',
+        label: 'Put other tabs to sleep',
+        group: 'Tabs',
+        keywords: 'memory discard',
+        run: then(() => sleepable.forEach((tab) => send((api) => api.tabs.sleep(tab.id)))),
+      });
+    }
+
+    list.push(
+      {
+        id: 'clear-data',
+        label: 'Clear browsing data',
+        group: 'Your data',
+        keywords: 'history cookies cache delete',
+        run: () => openSettings('data'),
+      },
+      {
+        id: 'import',
+        label: 'Import bookmarks and history',
+        group: 'Your data',
+        keywords: 'chrome firefox safari edge brave file',
+        run: () => openSettings('data'),
+      },
+      {
+        id: 'export',
+        label: 'Export bookmarks or history',
+        group: 'Your data',
+        keywords: 'backup file',
+        run: () => openSettings('data'),
+      },
+    );
+
     for (const tab of tabs) {
       if (tab.id === activeTab?.id) {
         continue;
@@ -236,7 +311,17 @@ export function CommandPalette() {
     }
 
     return list;
-  }, [activeTab, appearance, defaultZoomFactor, hasClosedTabs, requestOmniboxFocus, setSurface, tabs, toggleSurface]);
+  }, [
+    activeTab,
+    appearance,
+    defaultZoomFactor,
+    hasClosedTabs,
+    openSettings,
+    requestOmniboxFocus,
+    setSurface,
+    tabs,
+    toggleSurface,
+  ]);
 
   // Ranked by how well each matches, then laid out in group order, so headings never repeat.
   const ranked = rankByMatch(commands, query, (command) => `${command.label} ${command.keywords ?? ''}`);

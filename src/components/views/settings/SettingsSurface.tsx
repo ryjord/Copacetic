@@ -9,6 +9,9 @@ import { SearchField } from '@/components/ui/TextField/TextField';
 import { SETTINGS_PANES, type PaneId, searchSettings } from '@/components/views/settings/shared/panes';
 import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
 
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
 // Utils
 import { ask } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
@@ -18,7 +21,11 @@ import type { AppInfo } from '@shared/types';
 
 export function SettingsSurface() {
   const [info, setInfo] = useState<AppInfo | null>(null);
-  const [activePaneId, setActivePaneId] = useState<PaneId>('general');
+  const requestedPane = useBrowserStore((state) => state.settingsPane);
+  // Read once: the surface mounts each time it opens, and after that the nav is in charge.
+  const [activePaneId, setActivePaneId] = useState<PaneId>(
+    () => SETTINGS_PANES.find((pane) => pane.id === requestedPane)?.id ?? 'general',
+  );
   const [query, setQuery] = useState('');
 
   useEffect(() => {

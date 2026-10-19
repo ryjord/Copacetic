@@ -66,6 +66,8 @@ export interface CopaceticApi {
     reopenClosed(): Promise<void>;
     /** The system print dialog for this tab's page. */
     print(id: TabId): Promise<void>;
+    /** The page's own developer tools, in a window of their own. */
+    toggleDevTools(id: TabId): Promise<void>;
     setZoom(id: TabId, zoomFactor: number): Promise<void>;
     openContextMenu(id: TabId): Promise<void>;
     /** The menu behind the caret beside the new-tab button. */

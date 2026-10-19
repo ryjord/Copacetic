@@ -79,6 +79,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('tabs.acceptCertificate', (browser, _event, id) => browser.tabs.acceptCertificate(asString(id)));
   handle('tabs.reopenClosed', (browser) => browser.commands.reopenClosedTab());
   handle('tabs.print', (browser, _event, id) => browser.commands.print(asString(id)));
+  handle('tabs.toggleDevTools', (browser, _event, id) => browser.tabs.toggleDevTools(asString(id)));
   handle('tabs.setZoom', (browser, _event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
   handle('tabs.openContextMenu', (browser, _event, id) => showTabContextMenu(browser, asString(id)));
   handle('tabs.openNewTabMenu', (browser) => showNewTabMenu(browser));
