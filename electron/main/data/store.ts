@@ -26,6 +26,7 @@ import { app } from 'electron';
 import path from 'node:path';
 import { openDatabase } from './database';
 import { DownloadsTable } from './downloads-table';
+import { SiteSettingsStore } from './site-settings-store';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
 
 export { HISTORY_PAGE_SIZE };
@@ -40,8 +41,8 @@ import { SessionStore, type SessionSnapshot } from './session-store';
 export type { SessionSnapshot };
 
 export class BrowserStore {
-  private readonly settings = new SettingsStore();
   private readonly database = openDatabase(path.join(app.getPath('userData'), 'copacetic.db'));
+  private readonly settings = new SettingsStore(new SiteSettingsStore(this.database));
   private readonly history = new HistoryStore(this.database, app.getPath('userData'));
   private readonly bookmarks = new BookmarksStore(this.database, app.getPath('userData'));
   private readonly bookmarkFolders = new BookmarkFoldersStore(this.database, app.getPath('userData'));

@@ -3,6 +3,7 @@ import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shar
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
+import type { SiteSettingsStore } from './site-settings-store';
 
 export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'brave',
@@ -26,7 +27,16 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultZoomFactor: 1,
 };
 
-/** Everything the user chose, bounded on the way in and on the way out. */
+/** The per-site keys, which live in the database and are only ever empty in the JSON file. */
+const SITE_KEYS = { permissionDecisions: {}, zoomLevels: {}, blockerAllowlist: [] } satisfies Partial<Settings>;
+
+/**
+ * Everything the user chose, bounded on the way in and on the way out.
+ *
+ * Kept in settings.json, which is read before anything else, except what is
+ * about particular sites: that is in the database, so the file names no site.
+ * Callers see one Settings object either way.
+ */
 export class SettingsStore {
   private readonly file = new PersistedFile<Settings>(
     'settings.json',
@@ -34,23 +44,44 @@ export class SettingsStore {
     reviveSettings,
   );
 
+  constructor(private readonly site: SiteSettingsStore) {
+    this.moveSiteSettingsOutOfFile();
+  }
+
   getSettings(): Settings {
-    return this.file.get();
+    return {
+      ...this.file.get(),
+      permissionDecisions: this.site.permissionDecisions(),
+      zoomLevels: this.site.zoomLevels(),
+      blockerAllowlist: this.site.trackerExceptions(),
+    };
   }
 
   updateSettings(patch: Partial<Settings>): Settings {
-    return this.file.update((current) => normaliseSettings({ ...current, ...patch }));
+    const { permissionDecisions, zoomLevels, blockerAllowlist, ...rest } = patch;
+    if (permissionDecisions) {
+      this.site.replacePermissionDecisions(permissionDecisions);
+    }
+    if (zoomLevels) {
+      this.site.replaceZoomLevels(zoomLevels);
+    }
+    if (blockerAllowlist) {
+      this.site.replaceTrackerExceptions(blockerAllowlist);
+    }
+    this.file.update((current) => normaliseSettings({ ...current, ...rest, ...SITE_KEYS }));
+    return this.getSettings();
   }
 
   setPermissionDecision(origin: string, kind: string, decision: PermissionDecision): void {
-    this.file.update((current) => ({
-      ...current,
-      permissionDecisions: { ...current.permissionDecisions, [`${origin}|${kind}`]: decision },
-    }));
+    this.site.setPermissionDecision(origin, kind, decision);
+  }
+
+  getPermissionDecision(origin: string, kind: string): PermissionDecision | null {
+    return this.site.permissionDecision(origin, kind);
   }
 
   getZoomForOrigin(origin: string): number | null {
-    return this.file.get().zoomLevels[origin] ?? null;
+    return this.site.zoomFor(origin);
   }
 
   // A level equal to the default is forgotten rather than stored: the list in Settings should be the sites you actually changed, not every site visited.
@@ -58,30 +89,47 @@ export class SettingsStore {
     if (!origin) {
       return;
     }
-    this.file.update((current) => {
-      const levels = { ...current.zoomLevels };
-      if (Math.abs(zoomFactor - current.defaultZoomFactor) < 0.001) {
-        delete levels[origin];
-      } else {
-        levels[origin] = zoomFactor;
-      }
-      return { ...current, zoomLevels: levels };
-    });
+    if (Math.abs(zoomFactor - this.file.get().defaultZoomFactor) < 0.001) {
+      this.site.forgetZoom(origin);
+    } else {
+      this.site.setZoom(origin, zoomFactor);
+    }
   }
 
   forgetZoomForOrigin(origin: string): void {
-    this.file.update((current) => {
-      const levels = { ...current.zoomLevels };
-      delete levels[origin];
-      return { ...current, zoomLevels: levels };
-    });
-  }
-
-  getPermissionDecision(origin: string, kind: string): PermissionDecision | null {
-    return this.file.get().permissionDecisions[`${origin}|${kind}`] ?? null;
+    this.site.forgetZoom(origin);
   }
 
   flush(): void {
+    this.file.flush();
+  }
+
+  /**
+   * Moves what an earlier version kept about particular sites into the database.
+   *
+   * Written to the tables first and cleared from the file after, so a crash in
+   * between leaves both holding the same values, and the next start moves them
+   * again without harm.
+   */
+  private moveSiteSettingsOutOfFile(): void {
+    const stored = this.file.get();
+    const hasSites =
+      Object.keys(stored.permissionDecisions).length > 0 ||
+      Object.keys(stored.zoomLevels).length > 0 ||
+      stored.blockerAllowlist.length > 0;
+    if (!hasSites) {
+      return;
+    }
+    Object.entries(stored.permissionDecisions).forEach(([key, decision]) => {
+      const separator = key.lastIndexOf('|');
+      if (separator > 0) {
+        this.site.setPermissionDecision(key.slice(0, separator), key.slice(separator + 1), decision);
+      }
+    });
+    Object.entries(stored.zoomLevels).forEach(([origin, zoomFactor]) => this.site.setZoom(origin, zoomFactor));
+    const exceptions = [...new Set([...this.site.trackerExceptions(), ...stored.blockerAllowlist])];
+    this.site.replaceTrackerExceptions(exceptions);
+    this.file.update((current) => ({ ...current, ...SITE_KEYS }));
     this.file.flush();
   }
 }

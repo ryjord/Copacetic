@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
 
@@ -12,11 +10,6 @@ beforeAll(async () => {
   await new Promise((resolve) => setTimeout(resolve, 4500));
 });
 afterAll(async () => copacetic?.close());
-
-const onDisk = <T>(file: string): T | null => {
-  const full = path.join(copacetic.profile, file);
-  return existsSync(full) ? (JSON.parse(readFileSync(full, 'utf8')) as T) : null;
-};
 
 /**
  * Counted as it happens, not when the visit is recorded.
@@ -117,10 +110,10 @@ describe('forgetting one site', () => {
     // Gone from the bytes too, not just from the table: a deleted row lingers in free pages and the log otherwise.
     expect(copacetic.databaseBytes()).not.toContain('example.com');
 
-    const settings = onDisk<{ zoomLevels: Record<string, number>; blockerAllowlist: string[] }>('settings.json');
-    expect(Object.keys(settings?.zoomLevels ?? {})).toEqual([]);
+    // Kept in the database now, so that is where forgetting is checked, not in settings.json.
+    expect(copacetic.tableOnDisk('site_zoom')).toEqual([]);
     // The counterweight: forgetting one site must not forget the others.
-    expect(settings?.blockerAllowlist).toEqual(['keep-me.example']);
+    expect(copacetic.tableOnDisk('tracker_exceptions').map((row) => row.site)).toEqual(['keep-me.example']);
   }, 90_000);
 });
 

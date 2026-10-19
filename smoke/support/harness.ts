@@ -353,14 +353,18 @@ export class SmokeApp {
   }
 
   /** Any table in the database file, read from outside the app, for what a test needs to see was written down. */
-  tableOnDisk(table: 'bookmarks' | 'bookmark_folders'): Record<string, unknown>[] {
+  tableOnDisk(
+    table: 'bookmarks' | 'bookmark_folders' | 'site_permissions' | 'site_zoom' | 'tracker_exceptions',
+  ): Record<string, unknown>[] {
     const file = path.join(this.profile, 'copacetic.db');
     if (!existsSync(file)) {
       return [];
     }
     const database = new DatabaseSync(file, { readOnly: true });
     try {
-      return database.prepare(`SELECT * FROM ${table} ORDER BY position`).all();
+      // In the order the app shows them, where the table keeps one.
+      const rows = database.prepare(`SELECT * FROM ${table}`).all();
+      return rows.sort((aRow, bRow) => Number(aRow.position ?? 0) - Number(bRow.position ?? 0));
     } finally {
       database.close();
     }

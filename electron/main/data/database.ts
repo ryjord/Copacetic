@@ -92,6 +92,26 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 5,
+    sql: `
+      -- What was decided about particular sites, kept out of settings.json so that file names no site at all.
+      CREATE TABLE site_permissions (
+        origin TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        decision TEXT NOT NULL CHECK (decision IN ('allow', 'deny')),
+        PRIMARY KEY (origin, kind)
+      );
+      CREATE TABLE site_zoom (
+        origin TEXT PRIMARY KEY,
+        zoom_factor REAL NOT NULL
+      );
+      CREATE TABLE tracker_exceptions (
+        site TEXT PRIMARY KEY,
+        position INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];
