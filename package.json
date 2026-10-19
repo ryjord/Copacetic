@@ -107,6 +107,7 @@
     ],
     "asar": true,
     "electronFuses": {
+      "resetAdHocDarwinSignature": true,
       "runAsNode": false,
       "enableNodeOptionsEnvironmentVariable": false,
       "enableNodeCliInspectArguments": false,

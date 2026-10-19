@@ -18,6 +18,7 @@
 import fuses from '@electron/fuses';
 import { _electron as electron } from 'playwright';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -184,6 +185,18 @@ const MAC_USAGE_STRINGS = [
 ];
 
 if (process.platform === 'darwin') {
+  // Setting the fuses rewrites Electron Framework after it was signed. A runner's
+  // macOS can still start such an app while a newer one kills it at launch, as
+  // 2.0.0-beta.2 was, so the signature is checked rather than the launch.
+  const signature = spawnSync('codesign', ['--verify', '--deep', '--strict', shippedTree], { encoding: 'utf8' });
+  if (signature.status !== 0) {
+    console.error(
+      `\nThe packaged app's signature does not hold, so macOS will refuse to run it:\n${signature.stderr}`,
+    );
+    process.exit(1);
+  }
+  console.log('The packaged app is signed as a whole, after its fuses were set.');
+
   const plist = readFileSync(path.join(shippedTree, 'Contents', 'Info.plist'), 'utf8');
   const missing = MAC_USAGE_STRINGS.filter((key) => !plist.includes(`<key>${key}</key>`));
   if (missing.length > 0) {
