@@ -80,6 +80,24 @@ export function clampLength(length: number): number {
   return Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, Math.round(length)));
 }
 
+/** A recipe from the renderer: a clamped length and four booleans, each defaulting to the standard recipe. */
+export function readRecipe(value: unknown): PasswordRecipe {
+  if (typeof value !== 'object' || value === null) {
+    return DEFAULT_RECIPE;
+  }
+  const flag = (key: keyof Omit<PasswordRecipe, 'length'>) => {
+    const given = Reflect.get(value, key);
+    return typeof given === 'boolean' ? given : DEFAULT_RECIPE[key];
+  };
+  return {
+    length: clampLength(Number(Reflect.get(value, 'length'))),
+    useLower: flag('useLower'),
+    useUpper: flag('useUpper'),
+    useDigits: flag('useDigits'),
+    useSymbols: flag('useSymbols'),
+  };
+}
+
 // One of each chosen kind, the rest mixed, then shuffled - not generate-and-retry, which biases towards whatever the check accepts first.
 export function generatePassword(recipe: PasswordRecipe, randomBytes: RandomBytes): string {
   const alphabets = alphabetsFor(recipe);

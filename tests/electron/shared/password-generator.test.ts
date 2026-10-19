@@ -10,6 +10,7 @@ import {
   generatePassword,
   type PasswordRecipe,
   type RandomBytes,
+  readRecipe,
 } from '../../../electron/shared/password-generator';
 
 const real: RandomBytes = (count) => new Uint8Array(nodeRandomBytes(count));
@@ -166,5 +167,25 @@ describe('what it can honestly say about strength', () => {
 
   it('claims nothing when there is no alphabet', () => {
     expect(entropyBits(recipe({ useLower: false, useUpper: false, useDigits: false, useSymbols: false }))).toBe(0);
+  });
+});
+
+// The renderer now sends the whole recipe, so it is read like any other payload: known fields, sane values.
+describe('a recipe from the renderer', () => {
+  it('keeps the choices it was given and clamps the length', () => {
+    expect(readRecipe({ length: 4000, useLower: true, useUpper: false, useDigits: true, useSymbols: false })).toEqual(
+      {
+        length: 128,
+        useLower: true,
+        useUpper: false,
+        useDigits: true,
+        useSymbols: false,
+      },
+    );
+  });
+
+  it('falls back to the standard recipe for anything missing or malformed', () => {
+    expect(readRecipe(null)).toEqual(DEFAULT_RECIPE);
+    expect(readRecipe({ length: 'long', useSymbols: 'no' })).toEqual(DEFAULT_RECIPE);
   });
 });

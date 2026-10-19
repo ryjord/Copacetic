@@ -8,6 +8,7 @@ import type { GroupColourId } from './tab-groups';
 import type { ProfileSummary } from './profiles';
 import type { SpellcheckChoices } from './spellcheck';
 import type { ClearChoice } from './clearing';
+import type { PasswordRecipe } from './password-generator';
 import type {
   AppInfo,
   DefaultBrowserStatus,
@@ -224,7 +225,7 @@ export interface CopaceticApi {
     /** Reads a CSV another manager wrote. Resolves with a summary of what came of it. */
     importFile(): Promise<string>;
     /** A generated password. Made in the main process, where the random source is. */
-    generate(length: number): Promise<string>;
+    generate(recipe: PasswordRecipe): Promise<string>;
     /** Whether the vault is open, and what this machine can ask to open it. */
     lockState(): Promise<VaultLock>;
     /** Resolves empty when unlocked, or with what to tell the user. */

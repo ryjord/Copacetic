@@ -3,7 +3,7 @@ import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
 import { resolverFor } from '../../shared/dns';
-import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
+import { generatePassword, readRecipe } from '../../shared/password-generator';
 import {
   clampZoom,
   isAppearanceId,
@@ -294,11 +294,8 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('vault.unlock', (browser) => browser.vaultSession.unlock());
   handle('vault.lock', (browser) => browser.vaultSession.lock());
   handle('vault.facts', (browser) => browser.vaultSession.facts());
-  handle('vault.generate', (browser, _event, length) =>
-    generatePassword(
-      { ...DEFAULT_RECIPE, length: Number(length) || DEFAULT_RECIPE.length },
-      (count) => new Uint8Array(randomBytes(count)),
-    ),
+  handle('vault.generate', (_browser, _event, recipe) =>
+    generatePassword(readRecipe(recipe), (count) => new Uint8Array(randomBytes(count))),
   );
 
   // -------------------------------------------------------------- wallpaper

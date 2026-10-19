@@ -9,12 +9,14 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { TextField } from '@/components/ui/TextField/TextField';
+import { GeneratorOptions } from '@/components/views/settings/passwords/GeneratorOptions';
 
 // Utils
 import { ask } from '@/lib/bridge';
 
 // Types
 import type { VaultEntry, VaultLock, VaultState } from '@shared/types';
+import { DEFAULT_RECIPE, type PasswordRecipe, alphabetsFor } from '@shared/password-generator';
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
 
 const NOTHING_SAVED: VaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };
@@ -235,6 +237,8 @@ function AddPasswordForm({ onDone, onCancel }: { onDone: (message: string) => vo
   const [password, setPassword] = useState('');
   const [isShowingPassword, setIsShowingPassword] = useState(false);
   const [error, setError] = useState('');
+  const [recipe, setRecipe] = useState<PasswordRecipe>(DEFAULT_RECIPE);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   const save = () => {
     void ask((api) => api.vault.add({ origin, username, password }), { error: 'Nothing was saved.' }).then(
@@ -249,11 +253,15 @@ function AddPasswordForm({ onDone, onCancel }: { onDone: (message: string) => vo
   };
 
   // Generated in the main process, where the random source is, and shown so it can be checked.
-  const generate = () => {
-    void ask((api) => api.vault.generate(20), '').then((generated) => {
+  const generate = (from: PasswordRecipe) => {
+    if (alphabetsFor(from).length === 0) {
+      return;
+    }
+    void ask((api) => api.vault.generate(from), '').then((generated) => {
       if (generated) {
         setPassword(generated);
         setIsShowingPassword(true);
+        setHasGenerated(true);
       }
     });
   };
@@ -288,10 +296,19 @@ function AddPasswordForm({ onDone, onCancel }: { onDone: (message: string) => vo
           onChange={(event) => setPassword(event.target.value)}
           className={isShowingPassword ? 'font-mono' : undefined}
         />
-        <Button variant="ghost" onClick={generate}>
+        <Button variant="ghost" onClick={() => generate(recipe)}>
           Generate
         </Button>
       </div>
+      {hasGenerated && (
+        <GeneratorOptions
+          value={recipe}
+          onChange={(next) => {
+            setRecipe(next);
+            generate(next);
+          }}
+        />
+      )}
       {error && <p className="text-body-sm text-alert">{error}</p>}
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={onCancel}>
