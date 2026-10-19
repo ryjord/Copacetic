@@ -1,14 +1,26 @@
 'use client';
 
-import { AlertCircle, Check, EyeOff } from 'lucide-react';
+// Libs
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { Bookmark, TopSite } from '@shared/types';
-import { SEARCH_ENGINES } from '@shared/url';
+
+// Components
+import { Button } from '@/components/ui/Button/Button';
 import { Favicon } from '@/components/ui/Favicon/Favicon';
-import { ask, send } from '@/lib/bridge';
-import { formatClockTime } from '@/lib/format';
-import { updateSettings } from '@/components/views/settings/shared/options';
+
+// Icons
+import { EyeOff, Search } from 'lucide-react';
+
+// Store
 import { useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
+import { updateSettings } from '@/components/views/settings/shared/options';
+import { ask, send } from '@/lib/bridge';
+import { iconFor, useFavicons } from '@/lib/favicons';
+import { formatClockTime } from '@/lib/format';
+
+// Types
+import type { Bookmark, TopSite } from '@shared/types';
 
 /** What a new tab actually offers is a way to get somewhere. */
 export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: boolean }) {
@@ -19,59 +31,48 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   const minute = useMinuteTick();
 
   useEffect(() => {
-    if (!settings.startPageWidgets.includes('topSites')) {
+    if (!settings.startPageWidgets.includes('topSites') || isHush) {
       return;
     }
-    let cancelled = false;
+    let isCurrent = true;
     void ask((api) => api.history.topSites(8), []).then((sites) => {
-      if (!cancelled) {
+      if (isCurrent) {
         setTopSites(sites);
       }
     });
     return () => {
-      cancelled = true;
+      isCurrent = false;
     };
-  }, [settings.startPageWidgets]);
+  }, [settings.startPageWidgets, isHush]);
 
-  // Fetched rather than pushed: the image is measured in megabytes and has no
-  // business travelling with every state update.
+  // Fetched rather than pushed: the image is measured in megabytes and has no business in every state update.
   useEffect(() => {
     if (!settings.hasWallpaper) {
       return;
     }
-    let cancelled = false;
+    let isCurrent = true;
     void ask((api) => api.wallpaper.get(), null).then((image) => {
-      if (!cancelled) {
+      if (isCurrent) {
         setFetched(image);
       }
     });
     return () => {
-      cancelled = true;
+      isCurrent = false;
     };
   }, [settings.hasWallpaper]);
 
-  // Derived rather than cleared in the effect: removing the wallpaper takes it
-  // off screen immediately, with no second render pass to arrange it.
   const wallpaper = settings.hasWallpaper ? fetched : null;
 
-  const engineName = SEARCH_ENGINES[settings.searchEngine]?.name ?? 'the web';
-
-  /*
-   * A Hush tab withholds the widgets that report what you have done — the sites
-   * you visit most, your bookmarks — and keeps the ones that are simply a way to
-   * get somewhere. Until the notice has been read it shows nothing else at all.
-   */
-  const noticeShowing = isHush && !settings.hushNoticeDismissed;
-  const visibleWidgets = noticeShowing
-    ? []
-    : settings.startPageWidgets.filter((widget) => !isHush || widget === 'clock' || widget === 'search');
+  // Hush withholds what reports where you have been, and always keeps the search field.
+  const isShowingNotice = isHush && !settings.hushNoticeDismissed;
+  const widgets = settings.startPageWidgets.filter((widget) => !isHush || widget === 'clock' || widget === 'search');
+  const shownWidgets = isHush && !widgets.includes('search') ? [...widgets, 'search' as const] : widgets;
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!query.trim()) {
-      return;
+    if (query.trim()) {
+      send((api) => api.tabs.navigate(tabId, query));
     }
-    send((api) => api.tabs.navigate(tabId, query));
   };
 
   return (
@@ -81,79 +82,46 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
     >
       {wallpaper && !isHush && (
         <>
-          {/*
-            next/image exists to optimise and lazily fetch images over a
-            network. This is a data URL already in memory, in a statically
-            exported page with no image loader, so the rule has nothing to
-            offer here.
-          */}
+          {/* A data URL already in memory, in a static export with no image loader: next/image has nothing to offer. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={wallpaper} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
-          {/*
-            A scrim, because the clock and the search field have to stay
-            legible over a photograph nobody vetted. Dark rather than blurred:
-            it costs nothing to composite and does not fight the image.
-          */}
-          <div className="absolute inset-0 bg-base/70" aria-hidden />
+          {/* So the clock and the search field stay legible over a photograph nobody vetted. */}
+          <div className="absolute inset-0 bg-base/65" aria-hidden />
         </>
       )}
 
       <div className="relative flex w-full max-w-xl flex-col items-center gap-8">
-        {noticeShowing && <HushNotice />}
+        {isShowingNotice && <HushNotice />}
 
-        {visibleWidgets.map((widget) => (
-          <div key={widget} className="w-full">
+        {shownWidgets.map((widget) => (
+          <div key={widget} className="flex w-full justify-center">
             {widget === 'clock' && (
-              <div className="flex flex-col items-center">
-                {/* Blank until mounted: a statically exported page cannot know what
-                time it will be opened, and guessing would make the first paint
-                disagree with the second. */}
-                <span className="font-mono text-[56px] font-light leading-none tracking-tight text-ink tabular-nums">
-                  {minute === null ? ' ' : formatClockTime(new Date())}
-                </span>
-                <span className="label mt-3 tracking-[0.42em] text-ink-faint">Copacetic</span>
-              </div>
+              // Blank until mounted: a static page cannot know what time it will be opened.
+              <time className="text-display font-light tracking-tight text-ink tabular-nums">
+                {minute === null ? ' ' : formatClockTime(new Date())}
+              </time>
             )}
 
             {widget === 'search' && (
-              <form onSubmit={submit} className="w-full">
+              <form onSubmit={submit} className="relative w-full">
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint"
+                  aria-hidden
+                />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder={`Search ${engineName}, or type an address`}
+                  placeholder="Search or enter address"
                   aria-label="Search or enter address"
                   spellCheck={false}
                   autoComplete="off"
-                  className="h-11 w-full rounded-full border border-line bg-raised/70 px-5 text-center font-mono text-[13px] text-ink outline-none backdrop-blur-xl transition-colors placeholder:font-sans placeholder:text-ink-faint focus:border-line-strong focus:bg-raised"
+                  className="h-12 w-full rounded-full border border-line-strong bg-raised/80 pl-11 pr-5 text-title text-ink shadow-popover outline-none backdrop-blur-xl placeholder:text-ink-faint focus:border-ink-faint"
                 />
               </form>
             )}
 
-            {widget === 'topSites' && (
-              <div className="w-full">
-                {topSites.length > 0 ? (
-                  <ul className="grid grid-cols-4 gap-2">
-                    {topSites.map((site) => (
-                      <li key={site.host}>
-                        <button
-                          type="button"
-                          onClick={() => send((api) => api.tabs.navigate(tabId, site.url))}
-                          className="flex w-full flex-col items-center gap-2 rounded-panel border border-transparent px-2 py-3 transition-colors hover:border-line hover:bg-raised/60"
-                        >
-                          <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={22} />
-                          <span className="w-full truncate text-center text-[11.5px] text-ink-dim">{site.host}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-center text-[12px] text-ink-faint">
-                    Your most-visited sites will collect here. Where do you want to go?
-                  </p>
-                )}
-              </div>
-            )}
-
+            {widget === 'topSites' && <TopSites sites={topSites} tabId={tabId} />}
             {widget === 'bookmarks' && <BookmarkStrip tabId={tabId} />}
           </div>
         ))}
@@ -162,7 +130,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   );
 }
 
-// The wall clock is external state, so React should subscribe to it rather than hold a copy.
+// The wall clock is external state, so React subscribes to it rather than holding a copy.
 function useMinuteTick(): number | null {
   return useSyncExternalStore(
     (onChange) => {
@@ -174,28 +142,52 @@ function useMinuteTick(): number | null {
   );
 }
 
+function TopSites({ sites, tabId }: { sites: TopSite[]; tabId: string }) {
+  if (sites.length === 0) {
+    return <p className="text-body text-ink-dim">Sites you visit often appear here.</p>;
+  }
+  return (
+    <ul className="grid w-full grid-cols-4 gap-2">
+      {sites.map((site) => (
+        <li key={site.host}>
+          <button
+            type="button"
+            onClick={() => send((api) => api.tabs.navigate(tabId, site.url))}
+            title={site.url}
+            className="flex w-full flex-col items-center gap-2 rounded-md px-2 py-3 transition-colors hover:bg-raised/70"
+          >
+            <span className="grid size-11 place-items-center rounded-md bg-raised/80 shadow-sm">
+              <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={22} />
+            </span>
+            <span className="w-full truncate text-center text-body-sm text-ink-dim">
+              {site.host.replace(/^www\./, '')}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The most recent things you saved, as somewhere to start from. */
 function BookmarkStrip({ tabId }: { tabId: string }) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const icons = useFavicons(bookmarks.map((bookmark) => bookmark.url));
 
   useEffect(() => {
-    let cancelled = false;
+    let isCurrent = true;
     void ask((api) => api.bookmarks.list(), []).then((all) => {
-      if (!cancelled) {
+      if (isCurrent) {
         setBookmarks(all.slice(0, 8));
       }
     });
     return () => {
-      cancelled = true;
+      isCurrent = false;
     };
   }, []);
 
   if (bookmarks.length === 0) {
-    return (
-      <p className="text-center text-[12px] text-ink-faint">
-        Anything you bookmark with Cmd/Ctrl+D will wait for you here.
-      </p>
-    );
+    return <p className="text-body text-ink-dim">Your latest bookmarks appear here.</p>;
   }
 
   return (
@@ -206,9 +198,9 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
             type="button"
             onClick={() => send((api) => api.tabs.navigate(tabId, bookmark.url))}
             title={bookmark.url}
-            className="flex max-w-[180px] items-center gap-2 rounded-full border border-line bg-raised/60 px-3 py-1.5 text-[11.5px] text-ink-dim transition-colors hover:border-line-strong hover:text-ink"
+            className="flex max-w-44 items-center gap-2 rounded-full bg-raised/70 px-3 py-1.5 text-body-sm text-ink-dim transition-colors hover:bg-raised hover:text-ink"
           >
-            <Favicon dataUrl={null} seed={bookmark.url} size={13} />
+            <Favicon dataUrl={iconFor(icons, bookmark.url)} seed={bookmark.url} size={14} />
             <span className="truncate">{bookmark.title || bookmark.url}</span>
           </button>
         </li>
@@ -217,49 +209,32 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
   );
 }
 
-// What a Hush tab actually is, said in full.
-/**
- * A Hush tab shows this and nothing else until it has been read. Once it has,
- * the page keeps only the widgets that are a way to get somewhere — never the
- * ones that report where you have been.
- */
+/** What a Hush tab is, both halves of it, until it has been read once. */
 function HushNotice() {
   return (
-    <section className="flex w-full flex-col items-center gap-7">
-      <div className="flex flex-col items-center gap-3.5">
-        <EyeOff size={34} strokeWidth={1.4} className="text-hush" aria-hidden />
-        <h2 className="text-[26px] font-medium tracking-tight text-ink">This is a Hush tab</h2>
+    <section
+      aria-labelledby="hush-notice-title"
+      className="flex w-full flex-col gap-3 rounded-lg border border-line bg-raised/85 p-5 shadow-popover backdrop-blur-xl"
+    >
+      <div className="flex items-center gap-2.5">
+        <EyeOff size={18} className="shrink-0 text-hush" aria-hidden />
+        <h2 id="hush-notice-title" className="text-title font-semibold text-ink">
+          This is a Hush tab
+        </h2>
       </div>
-
-      <div className="w-full overflow-hidden rounded-panel border border-line bg-raised/70 backdrop-blur-xl">
-        <div className="flex gap-3 px-[18px] py-4">
-          <Check size={15} className="mt-0.5 shrink-0 text-clear" aria-hidden />
-          <p className="text-[12.5px] leading-relaxed text-ink-dim">
-            Nothing here reaches the disk. No history, no cookies kept, no cache, no favicons — not even the list of
-            tabs to reopen. Close it and there is nothing to delete, because nothing was written.
-          </p>
-        </div>
-        <div className="h-px bg-line" />
-        <div className="flex gap-3 px-[18px] py-4">
-          <AlertCircle size={15} className="mt-0.5 shrink-0 text-caution" aria-hidden />
-          <p className="text-[12.5px] leading-relaxed text-ink-dim">
-            It does not hide you. The sites you open, your network, your employer and your internet provider all see
-            this tab exactly as they see any other. Hush is about what Copacetic keeps, not about who is watching.
-          </p>
-        </div>
+      <p className="text-body text-ink-dim">
+        Nothing here reaches the disk: no history, cookies, cache, icons or list of tabs to reopen.
+      </p>
+      {/* Only ever saying the first half would be a boast. */}
+      <p className="text-body text-ink-dim">
+        It does not hide you. Sites, your network and your internet provider see this tab like any other.
+      </p>
+      <div className="flex justify-end">
+        {/* A setting rather than something this tab remembers: a Hush tab keeps nothing, not even having been read. */}
+        <Button size="sm" onClick={() => updateSettings({ hushNoticeDismissed: true })}>
+          Got it
+        </Button>
       </div>
-
-      {/*
-        Dismissing it is a setting rather than something this tab remembers: a
-        Hush tab keeps nothing, so it could not remember having been read.
-      */}
-      <button
-        type="button"
-        onClick={() => updateSettings({ hushNoticeDismissed: true })}
-        className="h-[30px] rounded-field border border-line-strong px-3.5 text-[12px] text-ink-dim transition-colors hover:bg-raised hover:text-ink"
-      >
-        Don&apos;t show this again
-      </button>
     </section>
   );
 }
