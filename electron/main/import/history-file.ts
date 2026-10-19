@@ -1,6 +1,6 @@
 // Utils
-import { MAX_IMPORTED_TITLE, isImportable } from '../../shared/bookmark-import';
-import { sanitiseChromeText } from '../../shared/chrome-text';
+import { MAX_IMPORTED_TITLE, isImportable } from '../../shared/data/bookmark-import';
+import { sanitiseChromeText } from '../../shared/chrome/chrome-text';
 import { isRecord } from '../data/persistence';
 
 // Types

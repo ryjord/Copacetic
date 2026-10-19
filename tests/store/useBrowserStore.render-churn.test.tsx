@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import { act } from 'react';
 import type { BrowserState, DownloadState, TabState } from '../../electron/shared/types';
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: () => {},
   ask: async (_a: unknown, fallback: unknown) => fallback,
   getBridge: () => null,

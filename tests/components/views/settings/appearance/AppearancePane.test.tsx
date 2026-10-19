@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 import { AppearancePane } from '@/components/views/settings/appearance/AppearancePane';
 
 let settings = { ...DEFAULT_SETTINGS_SHAPE };
@@ -14,7 +14,7 @@ vi.mock('@/components/views/settings/shared/options', async (importOriginal) => 
   return { ...actual, updateSettings: (patch: unknown) => updateSettings(patch) };
 });
 
-vi.mock('@/lib/bridge', async () => (await import('../bridge-mock')).fallbackBridge);
+vi.mock('@/lib/bridge/bridge', async () => (await import('../bridge-mock')).fallbackBridge);
 
 beforeEach(() => {
   settings = { ...DEFAULT_SETTINGS_SHAPE };

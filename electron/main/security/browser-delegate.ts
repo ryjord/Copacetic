@@ -3,9 +3,9 @@ import { type BrowserWindow, app, dialog, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 
 // Utils
-import { sanitiseChromeText } from '../../shared/chrome-text';
+import { sanitiseChromeText } from '../../shared/chrome/chrome-text';
 import { isAskablePermission } from '../../shared/types';
-import { hostOf, isPageNavigableUrl } from '../../shared/url';
+import { hostOf, isPageNavigableUrl } from '../../shared/browsing/url';
 import { t } from '../../shared/i18n/translate';
 
 // Types

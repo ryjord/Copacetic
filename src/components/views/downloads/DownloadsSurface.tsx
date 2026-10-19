@@ -18,14 +18,14 @@ import { ChevronDown, Download, File, FolderOpen, Pause, Play, RotateCw, X } fro
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
-import { formatBytes, formatDateHeading, formatEta, formatRate, formatTimeOfDay } from '@/lib/format';
+import { ask, send } from '@/lib/bridge/bridge';
+import { formatBytes, formatDateHeading, formatEta, formatRate, formatTimeOfDay } from '@/lib/text/format';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
 import type { DownloadState } from '@shared/types';
-import { crossedSites, describeChain } from '@shared/download-provenance';
+import { crossedSites, describeChain } from '@shared/downloads/download-provenance';
 
 export function DownloadsSurface() {
   const downloads = useBrowserStore((state) => state.downloads);

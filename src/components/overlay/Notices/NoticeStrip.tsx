@@ -11,12 +11,12 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { Check, CircleAlert, Info, X } from 'lucide-react';
 
 // Utils
-import { ask, getBridge, send } from '@/lib/bridge';
+import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { type Notice, admit, dismiss, dismissAfterMs } from '@shared/notices';
+import { type Notice, admit, dismiss, dismissAfterMs } from '@shared/chrome/notices';
 
 const LOOK: Record<Notice['tone'], { icon: typeof Info; className: string }> = {
   info: { icon: Info, className: 'text-ink-dim' },

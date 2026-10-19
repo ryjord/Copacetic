@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { TabState } from '@shared/types';
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: () => {},
   ask: async (_action: unknown, fallback: unknown) => fallback,
   getBridge: () => null,

@@ -9,7 +9,7 @@ import { ErrorPage } from '@/components/views/error/ErrorPage';
 import type { PageError } from '@shared/types';
 
 const send = vi.fn();
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: (call: unknown) => send(call),
 }));
 

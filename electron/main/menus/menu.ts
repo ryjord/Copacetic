@@ -2,7 +2,7 @@
 import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
 
 // Utils
-import { acceleratorFor, readShortcutOverrides } from '../../shared/shortcuts';
+import { acceleratorFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
 
 // Types

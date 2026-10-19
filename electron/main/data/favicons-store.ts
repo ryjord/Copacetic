@@ -1,5 +1,5 @@
 // Utils
-import { originOf } from '../../shared/url';
+import { originOf } from '../../shared/browsing/url';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord } from './persistence';
 

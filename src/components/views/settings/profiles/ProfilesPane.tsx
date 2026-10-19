@@ -15,13 +15,13 @@ import { TextField } from '@/components/ui/TextField/TextField';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { FIRST_PROFILE_ID } from '@shared/partitions';
-import { MAX_PROFILE_NAME, type ProfileSummary } from '@shared/profiles';
-import { GROUP_COLOURS, type GroupColourId } from '@shared/tab-groups';
+import { FIRST_PROFILE_ID } from '@shared/data/partitions';
+import { MAX_PROFILE_NAME, type ProfileSummary } from '@shared/data/profiles';
+import { GROUP_COLOURS, type GroupColourId } from '@shared/tabs/tab-groups';
 
 const COLOUR_OPTIONS = GROUP_COLOURS.map((colour) => ({
   id: colour.id,

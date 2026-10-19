@@ -13,7 +13,7 @@ const openWindow = vi.fn(async () => undefined);
 const remove = vi.fn(async () => true);
 const update = vi.fn(async () => undefined);
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: (action: (api: unknown) => unknown) => action({ profiles: { create, openWindow, remove, update } }),
   ask: async () => null,
   getBridge: () => null,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Notice } from '../../../../electron/shared/notices';
+import type { Notice } from '../../../../electron/shared/chrome/notices';
 import { TabCommands } from '../../../../electron/main/workflows/tab-commands';
 
 type TabCommandsDeps = ConstructorParameters<typeof TabCommands>[0];

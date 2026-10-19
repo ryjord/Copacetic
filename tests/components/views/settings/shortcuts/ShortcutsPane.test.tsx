@@ -8,7 +8,7 @@ let overrides: Record<string, string> = {};
 vi.mock('@/components/views/settings/shared/options', () => ({
   updateSettings: (patch: unknown) => updateSettings(patch),
 }));
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: (call: (api: unknown) => void) =>
     call({ shortcuts: { setRecording: (isRecording: boolean) => recording.push(isRecording) } }),
 }));

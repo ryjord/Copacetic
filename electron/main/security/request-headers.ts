@@ -1,5 +1,5 @@
 import type { Session } from 'electron';
-import { isThirdParty, pageSiteOf, withoutHeader } from '../../shared/third-party';
+import { isThirdParty, pageSiteOf, withoutHeader } from '../../shared/browsing/third-party';
 
 interface RequestHeaderRules {
   /** What this browser says about itself, sent to secure origins only, as Chrome does. */

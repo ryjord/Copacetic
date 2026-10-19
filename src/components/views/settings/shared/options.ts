@@ -1,5 +1,5 @@
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 
 // Types
 import type { Settings } from '@shared/types';

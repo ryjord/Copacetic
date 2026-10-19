@@ -4,7 +4,7 @@ import type { TabState } from '../../electron/shared/types';
 import { Omnibox } from '@/components/shell/Omnibox/Omnibox';
 import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: () => {},
   ask: async (_a: unknown, fallback: unknown) => fallback,
   getBridge: () => null,

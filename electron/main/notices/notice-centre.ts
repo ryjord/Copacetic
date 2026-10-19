@@ -1,5 +1,5 @@
-import { PUSH } from '../../shared/channels';
-import { type Notice, admit, dismiss as dismissNotice } from '../../shared/notices';
+import { PUSH } from '../../shared/ipc/channels';
+import { type Notice, admit, dismiss as dismissNotice } from '../../shared/chrome/notices';
 import type { OverlayLayer } from '../window/overlay';
 
 /** What the browser tells the person, and the questions it waits on. */

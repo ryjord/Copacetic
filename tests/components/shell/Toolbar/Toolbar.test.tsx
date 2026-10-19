@@ -10,7 +10,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 const openMenu = vi.fn();
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: (action: (api: unknown) => unknown) =>
     action({ profiles: { openMenu }, omnibox: { showSuggestions: vi.fn() } }),
   ask: async () => null,

@@ -10,7 +10,7 @@ vi.mock('electron', () => ({
 }));
 
 const { FIRST_PROFILE_ID, partitionsFor, remembersDownloads } =
-  await import('../../../../electron/shared/partitions');
+  await import('../../../../electron/shared/data/partitions');
 
 const PROFILES = [partitionsFor(FIRST_PROFILE_ID), partitionsFor('work')];
 

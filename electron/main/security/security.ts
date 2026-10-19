@@ -2,8 +2,8 @@
 import { type Session, type WebContents, app, desktopCapturer, shell } from 'electron';
 
 // Utils
-import { type DisplaySource, displayChoices } from '../../shared/display-sources';
-import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/url';
+import { type DisplaySource, displayChoices } from '../../shared/chrome/display-sources';
+import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/browsing/url';
 import { observeCertificates } from './certificates';
 import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';

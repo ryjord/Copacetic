@@ -3,7 +3,7 @@ import { t } from '@shared/i18n/translate';
 
 // Types
 import { PERMISSION_LABELS, type PermissionDecision, type PermissionKind, type Settings } from '@shared/types';
-import { hostOf, registrableDomainOf } from '@shared/url';
+import { hostOf, registrableDomainOf } from '@shared/browsing/url';
 
 export interface SitePermission {
   origin: string;

@@ -10,13 +10,13 @@ import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
-import { CLEAR_RANGES } from '@/lib/clearing';
+import { ask, send } from '@/lib/bridge/bridge';
+import { CLEAR_RANGES } from '@/lib/text/clearing';
 import { t } from '@shared/i18n/translate';
 
 // Types
 import type { ClearRange, ExportKind, ImportSource } from '@shared/types';
-import { KEPT_KINDS, type KeptAboutSites, describeKept } from '@shared/forgetting';
+import { KEPT_KINDS, type KeptAboutSites, describeKept } from '@shared/data/forgetting';
 
 export function DataPane() {
   const [kept, setKept] = useState<KeptAboutSites | null>(null);

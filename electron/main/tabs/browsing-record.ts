@@ -1,4 +1,4 @@
-import type { RememberedCertificate } from '../../shared/certificate-changes';
+import type { RememberedCertificate } from '../../shared/browsing/certificate-changes';
 import type { BrowserStore } from '../data/store';
 import type { ClosedTab, ClosedTabs } from './closed-tabs';
 

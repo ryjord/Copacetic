@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { DownloadState } from '@shared/types';
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: () => {},
   ask: async (_action: unknown, fallback: unknown) => fallback,
   getBridge: () => null,

@@ -2,14 +2,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 // Utils
-import { PUSH, type ChromeSurface, type PushChannel } from '../shared/channels';
-import { type ApiMethod, CHANNELS } from '../shared/ipc-contract';
+import { PUSH, type ChromeSurface, type PushChannel } from '../shared/ipc/channels';
+import { type ApiMethod, CHANNELS } from '../shared/ipc/ipc-contract';
 
 // Types
-import type { CopaceticApi } from '../shared/api';
-import type { Notice } from '../shared/notices';
-import type { BrowserStatePatch } from '../shared/state-slices';
-import type { SuggestionView } from '../shared/suggestion-view';
+import type { CopaceticApi } from '../shared/ipc/api';
+import type { Notice } from '../shared/chrome/notices';
+import type { BrowserStatePatch } from '../shared/ipc/state-slices';
+import type { SuggestionView } from '../shared/browsing/suggestion-view';
 
 /** One function per entry in the contract, grouped the way the API is. */
 function invokers(): Record<string, Record<string, (...args: unknown[]) => Promise<unknown>>> {

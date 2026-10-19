@@ -8,7 +8,7 @@ const { migrate } = await import('../../../../electron/main/data/schema');
 const { reviveBookmarks } = await import('../../../../electron/main/data/bookmarks-store');
 const { reviveFolders } = await import('../../../../electron/main/data/bookmark-folders-store');
 const { reviveGroups } = await import('../../../../electron/main/data/groups-store');
-const { GROUP_COLOURS } = await import('../../../../electron/shared/tab-groups');
+const { GROUP_COLOURS } = await import('../../../../electron/shared/tabs/tab-groups');
 
 /**
  * These files are read off disk at startup and can be edited, corrupted, or

@@ -1,11 +1,11 @@
 // Utils
-import { descendantsOf } from '../../shared/bookmark-folders';
-import { PUSH } from '../../shared/channels';
-import { OPEN_WITHOUT_ASKING, openFolderMessage, savedGroupMessage } from '../../shared/notices';
+import { descendantsOf } from '../../shared/data/bookmark-folders';
+import { PUSH } from '../../shared/ipc/channels';
+import { OPEN_WITHOUT_ASKING, openFolderMessage, savedGroupMessage } from '../../shared/chrome/notices';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { GroupColourId } from '../../shared/tab-groups';
+import type { GroupColourId } from '../../shared/tabs/tab-groups';
 import type { TabId } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { BrowserStore } from '../data/store';

@@ -12,12 +12,12 @@ import { TextField } from '@/components/ui/TextField/TextField';
 import { GeneratorOptions } from '@/components/views/settings/passwords/GeneratorOptions';
 
 // Utils
-import { ask } from '@/lib/bridge';
+import { ask } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types
 import type { VaultEntry, VaultLock, VaultState } from '@shared/types';
-import { DEFAULT_RECIPE, type PasswordRecipe, alphabetsFor } from '@shared/password-generator';
+import { DEFAULT_RECIPE, type PasswordRecipe, alphabetsFor } from '@shared/passwords/password-generator';
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
 
 const NOTHING_SAVED: VaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };

@@ -9,7 +9,7 @@ import { writeFileSync } from 'node:fs';
 import { domainToASCII } from 'node:url';
 
 const SOURCE = 'https://publicsuffix.org/list/public_suffix_list.dat';
-const OUT = new URL('../electron/shared/public-suffix-list.ts', import.meta.url);
+const OUT = new URL('../electron/shared/browsing/public-suffix-list.ts', import.meta.url);
 
 const response = await fetch(SOURCE);
 if (!response.ok) throw new Error(`${SOURCE} answered ${response.status}`);

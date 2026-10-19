@@ -13,7 +13,7 @@ import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow'
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 import { isMacPlatform } from '@/lib/platform';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { t } from '@shared/i18n/translate';
@@ -27,7 +27,7 @@ import {
   conflictFor,
   isValidAccelerator,
   readableAccelerator,
-} from '@shared/shortcuts';
+} from '@shared/chrome/shortcuts';
 
 export function ShortcutsPane() {
   const overrides = useBrowserStore((state) => state.settings.shortcutOverrides);

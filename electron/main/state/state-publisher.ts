@@ -1,5 +1,5 @@
 import type { BrowserState } from '../../shared/types';
-import { type BrowserStatePatch, changedSlices } from '../../shared/state-slices';
+import { type BrowserStatePatch, changedSlices } from '../../shared/ipc/state-slices';
 
 interface StatePublisherDeps {
   snapshot: () => BrowserState;

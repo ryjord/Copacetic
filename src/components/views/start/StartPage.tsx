@@ -15,9 +15,9 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
-import { ask, send } from '@/lib/bridge';
+import { ask, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
-import { formatClockTime, formatLongDate, timeOfDay } from '@/lib/format';
+import { formatClockTime, formatLongDate, timeOfDay } from '@/lib/text/format';
 import { t } from '@shared/i18n/translate';
 
 // Types

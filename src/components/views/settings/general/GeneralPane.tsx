@@ -12,12 +12,12 @@ import { Switch } from '@/components/ui/Switch/Switch';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 import { updateSettings } from '@/components/views/settings/shared/options';
 
 // Types
-import { SEARCH_ENGINE_OPTIONS } from '@shared/url';
+import { SEARCH_ENGINE_OPTIONS } from '@shared/browsing/url';
 import { isSleepAfterMinutes } from '@shared/types';
 
 const SLEEP_OPTIONS = [

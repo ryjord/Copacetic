@@ -2,9 +2,9 @@
 import { randomBytes } from 'node:crypto';
 
 // Utils
-import { FIRST_PROFILE_ID } from '../../shared/partitions';
-import { MAX_PROFILE_NAME, type ProfileSummary } from '../../shared/profiles';
-import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
+import { FIRST_PROFILE_ID } from '../../shared/data/partitions';
+import { MAX_PROFILE_NAME, type ProfileSummary } from '../../shared/data/profiles';
+import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { PersistedFile, isRecord } from './persistence';
 import { t } from '../../shared/i18n/translate';
 

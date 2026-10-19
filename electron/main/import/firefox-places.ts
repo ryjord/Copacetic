@@ -8,8 +8,8 @@ import {
   MAX_IMPORTED_FOLDER_NAME,
   MAX_IMPORTED_TITLE,
   isImportable,
-} from '../../shared/bookmark-import';
-import { sanitiseChromeText } from '../../shared/chrome-text';
+} from '../../shared/data/bookmark-import';
+import { sanitiseChromeText } from '../../shared/chrome/chrome-text';
 import { t } from '../../shared/i18n/translate';
 import { withCopyOf } from './copy-aside';
 

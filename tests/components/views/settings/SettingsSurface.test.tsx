@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
 import { SETTINGS_PANES, searchSettings } from '@/components/views/settings/shared/panes';
 
-vi.mock('@/lib/bridge', async () => (await import('./bridge-mock')).fallbackBridge);
+vi.mock('@/lib/bridge/bridge', async () => (await import('./bridge-mock')).fallbackBridge);
 
 afterEach(cleanup);
 

@@ -14,8 +14,8 @@ import { X } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { useDismissLayer } from '@/lib/dismissLayer';
-import { useFocusTrap } from '@/lib/focusTrap';
+import { useDismissLayer } from '@/lib/layers/dismissLayer';
+import { useFocusTrap } from '@/lib/layers/focusTrap';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 

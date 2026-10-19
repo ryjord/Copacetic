@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 
 const { EMPTY_VAULT_FILE, Vault, reviveVaultFile } = await import('../../../../electron/main/vault/vault');
-const { credentialsFromCsv, credentialsToCsv } = await import('../../../../electron/shared/credential-csv');
+const { credentialsFromCsv, credentialsToCsv } = await import('../../../../electron/shared/passwords/credential-csv');
 type VaultFile = import('../../../../electron/main/vault/vault').VaultFile;
 type SecretStore = import('../../../../electron/main/vault/vault').SecretStore;
 

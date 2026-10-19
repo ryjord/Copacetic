@@ -20,13 +20,13 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { labelledOptions, updateSettings } from '@/components/views/settings/shared/options';
-import { ask } from '@/lib/bridge';
+import { ask } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
-import { ambientHexFor, ambientStopsFor, hueForAmbientHex } from '@shared/ambient';
+import { ambientHexFor, ambientStopsFor, hueForAmbientHex } from '@shared/chrome/ambient';
 import {
   START_PAGE_WIDGETS,
   THEME_IDS,

@@ -2,8 +2,8 @@
 import { homedir } from 'node:os';
 
 // Utils
-import { bookmarksFromHtml } from '../../shared/bookmark-import';
-import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
+import { bookmarksFromHtml } from '../../shared/data/bookmark-import';
+import { credentialsFromCsv, credentialsToCsv } from '../../shared/passwords/credential-csv';
 import { fileStamp, readChosenFile, writeChosenFile } from '../system/file-dialogs';
 import { bookmarksToHtml, historyToJson } from '../data/export';
 import { MAX_HISTORY_AGE_MS, MAX_HISTORY_ENTRIES } from '../data/history-store';

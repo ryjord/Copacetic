@@ -1,4 +1,4 @@
-import type { BookmarkFolder } from '../../shared/bookmark-folders';
+import type { BookmarkFolder } from '../../shared/data/bookmark-folders';
 import type { Bookmark, HistoryEntry } from '../../shared/types';
 
 // Getting your own data back out.

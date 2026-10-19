@@ -8,11 +8,11 @@ import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 
 // Utils
-import { CLEAR_RANGES, clearTitle } from '@/lib/clearing';
+import { CLEAR_RANGES, clearTitle } from '@/lib/text/clearing';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { type ClearChoice, choosesNothing, defaultClearChoice } from '@shared/clearing';
+import { type ClearChoice, choosesNothing, defaultClearChoice } from '@shared/data/clearing';
 import type { ClearRange } from '@shared/types';
 
 interface ClearBrowsingDialogProps {

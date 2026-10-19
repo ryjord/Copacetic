@@ -1,9 +1,9 @@
 // Utils
-import { PUSH } from '../../shared/channels';
+import { PUSH } from '../../shared/ipc/channels';
 
 // Types
-import type { BookmarkFolder } from '../../shared/bookmark-folders';
-import type { GroupColourId } from '../../shared/tab-groups';
+import type { BookmarkFolder } from '../../shared/data/bookmark-folders';
+import type { GroupColourId } from '../../shared/tabs/tab-groups';
 import type { BrowserStore } from '../data/store';
 
 interface BookmarkCommandsDeps {

@@ -2,7 +2,7 @@
 import path from 'node:path';
 
 // Utils
-import { type KeychainDescription, describeKeychain } from '../../shared/vault-keychain';
+import { type KeychainDescription, describeKeychain } from '../../shared/passwords/vault-keychain';
 import {
   LOCKED,
   type LockState,
@@ -12,7 +12,7 @@ import {
   touch,
   unlock,
   unlockMethodFor,
-} from '../../shared/vault-lock';
+} from '../../shared/passwords/vault-lock';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
 import { t } from '../../shared/i18n/translate';

@@ -12,7 +12,7 @@ import { readFirefoxBookmarks, readFirefoxHistory } from './firefox-places';
 import { findFirefoxProfiles } from './firefox-profiles';
 
 // Types
-import type { ImportedBookmarks } from '../../shared/bookmark-import';
+import type { ImportedBookmarks } from '../../shared/data/bookmark-import';
 import type { ImportSource } from '../../shared/types';
 
 /** Another browser's profile, and how to read what it keeps; something it does not keep reads as null. */

@@ -1,4 +1,4 @@
-import { isPrivateHost } from '../../shared/url';
+import { isPrivateHost } from '../../shared/browsing/url';
 
 /** The parts of a request this needs, so it can be tested without Electron. */
 export interface UpgradeCandidate {

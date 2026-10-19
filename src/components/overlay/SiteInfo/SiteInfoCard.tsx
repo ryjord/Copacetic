@@ -14,9 +14,9 @@ import { Ban, BadgeCheck, CalendarClock, FileText, HelpCircle, Lock, ShieldOff, 
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
-import { useDismissLayer } from '@/lib/dismissLayer';
-import { formatDuration } from '@/lib/format';
+import { ask, send } from '@/lib/bridge/bridge';
+import { useDismissLayer } from '@/lib/layers/dismissLayer';
+import { formatDuration } from '@/lib/text/format';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
@@ -29,7 +29,7 @@ import {
   type SecurityLevel,
   type TabState,
 } from '@shared/types';
-import { hostOf, originOf, registrableDomainOf } from '@shared/url';
+import { hostOf, originOf, registrableDomainOf } from '@shared/browsing/url';
 
 const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string; word: string }> = {
   secure: { icon: Lock, className: 'text-clear', word: t('shell.securityLevel.secure') },

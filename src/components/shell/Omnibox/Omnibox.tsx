@@ -14,14 +14,14 @@ import { Star } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, getBridge, send } from '@/lib/bridge';
+import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
 import type { Suggestion, TabId, TabState } from '@shared/types';
-import { splitUrlForDisplay } from '@shared/url';
-import { formatZoom, isZoomedFrom } from '@shared/zoom';
+import { splitUrlForDisplay } from '@shared/browsing/url';
+import { formatZoom, isZoomedFrom } from '@shared/tabs/zoom';
 
 const PLACEHOLDER = t('shell.omnibox.placeholder');
 // One empty list, so not editing is the same value on every render and the overlay is told once.

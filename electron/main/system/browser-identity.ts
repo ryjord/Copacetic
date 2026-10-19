@@ -5,12 +5,12 @@ import {
   clientHintHeaders,
   clientHintsFor,
   stripElectronFromUserAgent,
-} from '../../shared/browser-identity';
+} from '../../shared/browsing/browser-identity';
 import { describeError, log } from './diagnostics';
 
 // Types
 import type { Session, WebContents } from 'electron';
-import type { ClientHints } from '../../shared/browser-identity';
+import type { ClientHints } from '../../shared/browsing/browser-identity';
 
 /**
  * Applies what `electron/shared/browser-identity.ts` decides.

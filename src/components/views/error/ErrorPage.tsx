@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { ChevronDown, CloudOff, RotateCw, ShieldAlert, TriangleAlert } from 'lucide-react';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 

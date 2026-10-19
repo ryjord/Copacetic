@@ -1,5 +1,5 @@
 // Utils
-import { isPageNavigableUrl } from '../../shared/url';
+import { isPageNavigableUrl } from '../../shared/browsing/url';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';

@@ -4,7 +4,7 @@ import type { VaultState } from '../../../../../electron/shared/types';
 
 let vaultState: VaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: () => {},
   ask: async (action: (api: unknown) => unknown, fallback: unknown) => {
     const api = {

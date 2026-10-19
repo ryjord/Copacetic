@@ -8,7 +8,7 @@ import { TextField } from '@/components/ui/TextField/TextField';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { MAX_LENGTH, MIN_LENGTH, type PasswordRecipe, entropyBits } from '@shared/password-generator';
+import { MAX_LENGTH, MIN_LENGTH, type PasswordRecipe, entropyBits } from '@shared/passwords/password-generator';
 
 const KINDS: readonly { key: keyof Omit<PasswordRecipe, 'length'>; label: string }[] = [
   { key: 'useLower', label: t('settings.passwords.generator.lowercase') },

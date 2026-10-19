@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ask } from '@/lib/bridge';
+import { ask } from '@/lib/bridge/bridge';
 
 function originOf(url: string): string {
   try {

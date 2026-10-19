@@ -1,5 +1,5 @@
 // Utils
-import { type ClearChoice, defaultClearChoice } from '../../shared/clearing';
+import { type ClearChoice, defaultClearChoice } from '../../shared/data/clearing';
 import {
   type KeptAboutSites,
   type KeptKind,
@@ -7,7 +7,7 @@ import {
   describeTraces,
   sameSite,
   siteOf,
-} from '../../shared/forgetting';
+} from '../../shared/data/forgetting';
 import { forgetCertificateExceptions } from '../security/certificate-exceptions';
 import { forgetCertificates } from '../security/certificates';
 import { t } from '../../shared/i18n/translate';

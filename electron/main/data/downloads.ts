@@ -10,7 +10,7 @@ import type { DownloadState, DownloadStatus } from '../../shared/types';
 const EXISTS_REMEMBERED_MS = 5_000;
 
 import type { DownloadsTable } from './downloads-table';
-import { isRunnableFile } from '../../shared/download-safety';
+import { isRunnableFile } from '../../shared/downloads/download-safety';
 
 /** What the person chose about where files go. */
 export interface DownloadPreferences {

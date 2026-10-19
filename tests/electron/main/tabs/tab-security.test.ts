@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { describeSecurity } from '../../../../electron/main/tabs/tab-security';
-import { INTERNAL_SCHEME } from '../../../../electron/shared/url';
+import { INTERNAL_SCHEME } from '../../../../electron/shared/browsing/url';
 
 const CERTIFICATE = {
   issuer: "Let's Encrypt",

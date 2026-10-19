@@ -1,5 +1,5 @@
 // Utils
-import { hostOf, originOf } from '../../shared/url';
+import { hostOf, originOf } from '../../shared/browsing/url';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';

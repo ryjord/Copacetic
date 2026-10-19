@@ -19,7 +19,7 @@ import {
   isNavigableUrl,
   originOf,
   resolveOmniboxInput,
-} from '../../shared/url';
+} from '../../shared/browsing/url';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
 import { fetchFaviconDataUrl } from './tab-favicon';
 import {
@@ -31,7 +31,7 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
-import { inheritFromOpener } from '../../shared/opening';
+import { inheritFromOpener } from '../../shared/tabs/opening';
 import {
   type SessionCandidate,
   sessionFrom,
@@ -41,7 +41,7 @@ import {
   tabsToSleep,
 } from './tab-choices';
 import { clampZoom } from '../../shared/types';
-import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
+import { partitionFor, tabAfterCollapsing } from '../../shared/tabs/tab-groups';
 import {
   acceptRefused,
   exceptionFor,
@@ -56,7 +56,7 @@ import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
 import { type TabRecord, pageOf } from './tab-record';
 import { certificateFor } from '../security/certificates';
-import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
+import { compareCertificate, rememberCertificate } from '../../shared/browsing/certificate-changes';
 import { type SecurityDelegate, guardTabWebContents } from '../security/security';
 import { t } from '../../shared/i18n/translate';
 
@@ -65,7 +65,7 @@ import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/type
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { SessionSnapshot } from '../data/session-store';
-import type { ProfilePartitions } from '../../shared/partitions';
+import type { ProfilePartitions } from '../../shared/data/partitions';
 import type { BrowserStore } from '../data/store';
 
 export class TabManager {

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { SettingRow } from '@/components/ui/SettingRow/SettingRow';
 
 // Utils
-import { getBridge } from '@/lib/bridge';
+import { getBridge } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types

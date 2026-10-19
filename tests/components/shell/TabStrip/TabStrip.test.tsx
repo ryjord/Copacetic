@@ -16,7 +16,7 @@ const openNewTabMenu = vi.fn();
 
 // The bridge is absent outside Electron, so stub it to record what the strip
 // asks the main process to do.
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: (action: (api: unknown) => void) =>
     action({ tabs: { activate, close, create: vi.fn(), move, openNewTabMenu }, groups: { setForTab } }),
   ask: async () => [],

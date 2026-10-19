@@ -11,11 +11,11 @@ import { ArrowLeft, ArrowRight, Download, Menu, RotateCw, X } from 'lucide-react
 import { selectActiveDownloadCount, selectDownloadProgress, useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { colourOf } from '@shared/tab-groups';
+import { colourOf } from '@shared/tabs/tab-groups';
 import type { TabState } from '@shared/types';
 
 const ICON = { size: 16, strokeWidth: 1.75 } as const;

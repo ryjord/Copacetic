@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 import type { Settings } from '@shared/types';
 
 const updateSettings = vi.fn();
@@ -8,7 +8,7 @@ vi.mock('@/components/views/settings/shared/options', () => ({
   updateSettings: (patch: unknown) => updateSettings(patch),
 }));
 const sent = vi.fn();
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: (call: (api: unknown) => void) =>
     call({ permissions: { forget: (origin: string, kind: string) => sent(origin, kind) } }),
 }));

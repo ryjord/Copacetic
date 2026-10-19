@@ -8,13 +8,13 @@ import { ChevronDown, Inbox, List, Plus } from 'lucide-react';
 
 // Utils
 import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
-import { getBridge, send } from '@/lib/bridge';
+import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { type BookmarkFolder, countIn, visibleTree, wouldCycle } from '@shared/bookmark-folders';
-import { colourOf } from '@shared/tab-groups';
+import { type BookmarkFolder, countIn, visibleTree, wouldCycle } from '@shared/data/bookmark-folders';
+import { colourOf } from '@shared/tabs/tab-groups';
 import type { Bookmark } from '@shared/types';
 
 /** What the sidebar can be pointed at. Two of them are not folders. */

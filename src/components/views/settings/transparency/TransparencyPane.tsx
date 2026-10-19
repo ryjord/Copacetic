@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button/Button';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
+import { ask, send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types

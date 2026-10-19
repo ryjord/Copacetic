@@ -13,18 +13,18 @@ import { Search } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge';
-import { useDismissLayer } from '@/lib/dismissLayer';
-import { useFocusTrap } from '@/lib/focusTrap';
-import { rankByMatch } from '@/lib/fuzzy';
+import { send } from '@/lib/bridge/bridge';
+import { useDismissLayer } from '@/lib/layers/dismissLayer';
+import { useFocusTrap } from '@/lib/layers/focusTrap';
+import { rankByMatch } from '@/lib/text/fuzzy';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { GROUP_COLOURS } from '@shared/tab-groups';
+import { GROUP_COLOURS } from '@shared/tabs/tab-groups';
 import { clampZoom } from '@shared/types';
-import { nextZoomStep } from '@shared/zoom';
-import { acceleratorFor, isRebindable } from '@shared/shortcuts';
+import { nextZoomStep } from '@shared/tabs/zoom';
+import { acceleratorFor, isRebindable } from '@shared/chrome/shortcuts';
 
 interface Command {
   id: string;

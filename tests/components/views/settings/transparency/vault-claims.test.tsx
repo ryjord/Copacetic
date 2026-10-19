@@ -13,7 +13,7 @@ let facts: VaultFacts = {
   entryCount: 2,
 };
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: () => {},
   ask: async (action: (api: unknown) => unknown, fallback: unknown) => {
     try {

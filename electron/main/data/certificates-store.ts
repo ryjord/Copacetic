@@ -1,5 +1,5 @@
-import { sameSite } from '../../shared/forgetting';
-import type { RememberedCertificate } from '../../shared/certificate-changes';
+import { sameSite } from '../../shared/data/forgetting';
+import type { RememberedCertificate } from '../../shared/browsing/certificate-changes';
 import { PersistedFile, isRecord } from './persistence';
 
 /**

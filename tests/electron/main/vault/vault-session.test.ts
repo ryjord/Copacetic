@@ -8,7 +8,7 @@ let dataDir = '';
 vi.mock('electron', () => ({ app: { getPath: () => dataDir } }));
 
 const { VaultSession } = await import('../../../../electron/main/vault/vault-session');
-const { DEFAULT_TIMEOUT_MS } = await import('../../../../electron/shared/vault-lock');
+const { DEFAULT_TIMEOUT_MS } = await import('../../../../electron/shared/passwords/vault-lock');
 
 /** Reversible rather than encrypted: these tests are about the lock, not the cipher. */
 function fakeHost(overrides: Partial<VaultHost> = {}): VaultHost {

@@ -6,12 +6,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { StartPage } from '@/components/views/start/StartPage';
 
 // Utils
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 
 // Types
 import type { Settings } from '@shared/types';
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: vi.fn(),
   ask: async () => [{ url: 'https://github.com/', host: 'github.com', title: 'GitHub', faviconDataUrl: null }],
   getBridge: () => null,

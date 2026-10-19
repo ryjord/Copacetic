@@ -13,7 +13,7 @@ import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask } from '@/lib/bridge';
+import { ask } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 

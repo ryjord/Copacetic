@@ -2,13 +2,13 @@
 import { type Session, app, session as electronSession } from 'electron';
 
 // Utils
-import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/partitions';
+import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/data/partitions';
 import { type SecurityDelegate, hardenWebSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
-import { type SpellcheckChoices, spellcheckLanguagesFor } from '../../shared/spellcheck';
+import { type SpellcheckChoices, spellcheckLanguagesFor } from '../../shared/chrome/spellcheck';
 
 // Types
-import type { TabGroup } from '../../shared/tab-groups';
+import type { TabGroup } from '../../shared/tabs/tab-groups';
 import type { DownloadManager } from '../data/downloads';
 import type { ContentBlocker } from '../security/blocker';
 import type { BlockingPolicy } from '../security/blocking-policy';

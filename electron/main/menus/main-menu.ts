@@ -3,7 +3,7 @@ import { Menu, type MenuItemConstructorOptions, shell } from 'electron';
 
 // Utils
 import { profileMenuItems } from './profile-menu';
-import { acceleratorFor, readShortcutOverrides } from '../../shared/shortcuts';
+import { acceleratorFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
 
 // Types

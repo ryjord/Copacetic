@@ -3,7 +3,7 @@ import { existsSync, renameSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 // Utils
-import { sameSite } from '../../shared/forgetting';
+import { sameSite } from '../../shared/data/forgetting';
 import { describeError, log } from '../system/diagnostics';
 
 /** One step in the database's shape, applied once, in order, and recorded in `PRAGMA user_version`. */

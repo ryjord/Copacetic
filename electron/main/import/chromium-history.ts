@@ -2,8 +2,8 @@
 import { DatabaseSync } from 'node:sqlite';
 
 // Utils
-import { MAX_IMPORTED_TITLE, isImportable } from '../../shared/bookmark-import';
-import { sanitiseChromeText } from '../../shared/chrome-text';
+import { MAX_IMPORTED_TITLE, isImportable } from '../../shared/data/bookmark-import';
+import { sanitiseChromeText } from '../../shared/chrome/chrome-text';
 import { WINDOWS_EPOCH_OFFSET_MS } from './chromium-time';
 import { withCopyOf } from './copy-aside';
 

@@ -11,7 +11,7 @@ import { TextField } from '@/components/ui/TextField/TextField';
 import { KeyRound } from 'lucide-react';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types

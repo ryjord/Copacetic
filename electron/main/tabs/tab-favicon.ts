@@ -1,4 +1,4 @@
-import { isFetchableFavicon } from '../../shared/url';
+import { isFetchableFavicon } from '../../shared/browsing/url';
 
 export const MAX_FAVICON_BYTES = 200 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;

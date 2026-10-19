@@ -15,11 +15,11 @@ import { SuggestionList } from '@/components/overlay/Suggestions/SuggestionList'
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { getBridge, send } from '@/lib/bridge';
+import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
-import { type OverlayRegion, isOverlayRegion } from '@shared/overlay-regions';
+import { type OverlayRegion, isOverlayRegion } from '@shared/chrome/overlay-regions';
 
 /**
  * One overlay layer's page: what is drawn over one top corner of the page.

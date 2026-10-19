@@ -15,7 +15,7 @@ import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge';
+import { send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import {

@@ -20,11 +20,11 @@ import { Toolbar } from '@/components/shell/Toolbar/Toolbar';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { getBridge, isRunningInShell, send } from '@/lib/bridge';
+import { getBridge, isRunningInShell, send } from '@/lib/bridge/bridge';
 import { isMacPlatform } from '@/lib/platform';
-import { ambientLightStopsFor, ambientStopsFor } from '@shared/ambient';
+import { ambientLightStopsFor, ambientStopsFor } from '@shared/chrome/ambient';
 import { t } from '@shared/i18n/translate';
-import { reachedForAnotherTab } from '@shared/surfaces';
+import { reachedForAnotherTab } from '@shared/tabs/surfaces';
 
 /** The browser shell. */
 export function Chrome() {

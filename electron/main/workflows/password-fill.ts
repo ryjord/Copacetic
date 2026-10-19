@@ -1,5 +1,5 @@
 // Utils
-import { offerFor } from '../../shared/credential-matching';
+import { offerFor } from '../../shared/passwords/credential-matching';
 import { fillScriptFor } from '../system/fill-script';
 import { t } from '../../shared/i18n/translate';
 

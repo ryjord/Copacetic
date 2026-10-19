@@ -3,7 +3,7 @@ import { readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
-import { FIRST_PROFILE_ID, removedProfilePartitions } from '../../shared/partitions';
+import { FIRST_PROFILE_ID, removedProfilePartitions } from '../../shared/data/partitions';
 import { describeError, log } from '../system/diagnostics';
 
 const PROFILES_FOLDER = 'profiles';

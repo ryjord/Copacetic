@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { BookmarkFolder } from '../../../../electron/shared/bookmark-folders';
+import type { BookmarkFolder } from '../../../../electron/shared/data/bookmark-folders';
 import type { Bookmark } from '../../../../electron/shared/types';
 import { DRAG_BOOKMARK, DRAG_FOLDER, FolderTree } from '@/components/views/bookmarks/FolderTree';
 
@@ -10,7 +10,7 @@ const update = vi.fn();
 const openContextMenu = vi.fn();
 const create = vi.fn(async () => ({ id: 'new', name: 'Folder', colour: 'violet', parentId: null, collapsed: false }));
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: (action: (api: unknown) => void) =>
     action({
       bookmarks: { file },

@@ -45,7 +45,7 @@ const state = {
 vi.mock('@/store/useBrowserStore', () => ({
   useBrowserStore: (select: (value: typeof state) => unknown) => select(state),
 }));
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   send: vi.fn(),
   ask: async () => undefined,
   getBridge: () => null,

@@ -1,4 +1,4 @@
-import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tab-groups';
+import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tabs/tab-groups';
 import { PersistedFile, asString, isRecord, newId } from './persistence';
 import { t } from '../../shared/i18n/translate';
 

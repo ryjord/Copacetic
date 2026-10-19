@@ -1,6 +1,6 @@
 'use client';
 
-import { acceleratorKeys } from '@shared/shortcuts';
+import { acceleratorKeys } from '@shared/chrome/shortcuts';
 import { isMacPlatform } from '@/lib/platform';
 
 /** A shortcut, printed the way this platform prints it: ⇧⌘T on a Mac, Ctrl Shift T elsewhere. */

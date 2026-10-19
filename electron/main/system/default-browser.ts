@@ -2,7 +2,7 @@
 import { app, shell } from 'electron';
 
 // Utils
-import { isPageNavigableUrl } from '../../shared/url';
+import { isPageNavigableUrl } from '../../shared/browsing/url';
 import { t } from '../../shared/i18n/translate';
 
 // Types

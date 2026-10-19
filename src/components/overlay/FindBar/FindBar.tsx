@@ -10,7 +10,7 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { CaseSensitive, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 // Utils
-import { getBridge, send } from '@/lib/bridge';
+import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 

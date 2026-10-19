@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 // Utils
 import { BlockingPolicy } from '../security/blocking-policy';
 import { HttpsFirst } from '../security/https-first';
-import { type ProfilePartitions, partitionsFor } from '../../shared/partitions';
+import { type ProfilePartitions, partitionsFor } from '../../shared/data/partitions';
 import { PendingPrompts } from '../security/pending-prompts';
 import { type TabDirectory, createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
 import { SessionRegistry } from '../sessions/session-registry';
@@ -27,7 +27,7 @@ import type { SecurityDelegate } from '../security/security';
 import type { Vault } from '../vault/vault';
 import type { SessionSnapshot } from '../data/session-store';
 import type { UpdateManager } from '../system/updates';
-import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
+import type { AppWideSetting, ProfileSummary } from '../../shared/data/profiles';
 
 /** What a profile is given by the app that holds it: the parts there is only one of. */
 export interface ProfileHost {

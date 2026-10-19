@@ -1,6 +1,6 @@
 // Utils
 import { clampZoom } from '../../shared/types';
-import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/url';
+import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/browsing/url';
 import { canAcceptRefused } from '../security/certificate-exceptions';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';

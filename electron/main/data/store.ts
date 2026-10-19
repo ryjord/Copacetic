@@ -11,13 +11,13 @@ import {
   type SiteTraces,
   sameSite,
   siteOf,
-} from '../../shared/forgetting';
-import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../../shared/url';
+} from '../../shared/data/forgetting';
+import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../../shared/browsing/url';
 import { BookmarksStore } from './bookmarks-store';
 import { BookmarkFoldersStore } from './bookmark-folders-store';
-import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folders';
+import { afterDeleting, type BookmarkFolder } from '../../shared/data/bookmark-folders';
 import { GroupsStore } from './groups-store';
-import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tab-groups';
+import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tabs/tab-groups';
 import { openDatabase } from './database';
 import { backUpBeforeMigrating, forgetLegacyCopies } from './legacy-import';
 import { describeError, log } from '../system/diagnostics';
@@ -36,8 +36,8 @@ import type {
   Suggestion,
   TopSite,
 } from '../../shared/types';
-import type { RememberedCertificate } from '../../shared/certificate-changes';
-import type { ImportedBookmark } from '../../shared/bookmark-import';
+import type { RememberedCertificate } from '../../shared/browsing/certificate-changes';
+import type { ImportedBookmark } from '../../shared/data/bookmark-import';
 import type { DatabaseSync } from 'node:sqlite';
 
 export { HISTORY_PAGE_SIZE };

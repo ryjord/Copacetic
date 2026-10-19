@@ -1,5 +1,5 @@
 import { type Session, app } from 'electron';
-import { isLoopbackHost, originOf } from '../../shared/url';
+import { isLoopbackHost, originOf } from '../../shared/browsing/url';
 import { log } from '../system/diagnostics';
 
 /**

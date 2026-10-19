@@ -12,7 +12,7 @@ import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenam
 import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
 
 // Utils
-import { getBridge, send } from '@/lib/bridge';
+import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
@@ -26,7 +26,7 @@ import {
   groupForDrop,
   segmentByGroup,
   type TabGroup,
-} from '@shared/tab-groups';
+} from '@shared/tabs/tab-groups';
 
 interface TabStripProps {
   tabs: TabState[];

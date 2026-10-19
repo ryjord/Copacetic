@@ -4,7 +4,7 @@ import { cleanup, render } from '@testing-library/react';
 import { TransparencyPane } from '@/components/views/settings/transparency/TransparencyPane';
 import { t } from '@shared/i18n/translate';
 
-vi.mock('@/lib/bridge', async () => (await import('../bridge-mock')).fallbackBridge);
+vi.mock('@/lib/bridge/bridge', async () => (await import('../bridge-mock')).fallbackBridge);
 
 afterEach(cleanup);
 

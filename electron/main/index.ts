@@ -14,7 +14,7 @@ import { applyLaunchMode } from './system/launch-mode';
 import { markQuit, markRunning } from './system/exit-marker';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
-import { isPageNavigableUrl } from '../shared/url';
+import { isPageNavigableUrl } from '../shared/browsing/url';
 import { t } from '../shared/i18n/translate';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and

@@ -10,11 +10,11 @@ import { Favicon } from '@/components/ui/Favicon/Favicon';
 import { ArrowRight, Bookmark, Clock, Search } from 'lucide-react';
 
 // Utils
-import { getBridge, send } from '@/lib/bridge';
+import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
-import type { SuggestionView } from '@shared/suggestion-view';
+import type { SuggestionView } from '@shared/browsing/suggestion-view';
 
 const KIND_ICONS = {
   url: ArrowRight,

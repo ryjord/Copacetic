@@ -6,10 +6,10 @@ import {
   isWebRtcPolicy,
   readPermissionDefaults,
 } from '../../shared/types';
-import { readSpellcheckLanguages } from '../../shared/spellcheck';
-import { readShortcutOverrides } from '../../shared/shortcuts';
-import { SEARCH_ENGINES } from '../../shared/url';
-import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
+import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
+import { readShortcutOverrides } from '../../shared/chrome/shortcuts';
+import { SEARCH_ENGINES } from '../../shared/browsing/url';
+import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/browsing/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
 
 // Types

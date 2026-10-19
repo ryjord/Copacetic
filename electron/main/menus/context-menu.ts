@@ -3,11 +3,11 @@ import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboar
 
 // Utils
 import { t } from '../../shared/i18n/translate';
-import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-text';
-import { isPageNavigableUrl } from '../../shared/url';
-import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tab-groups';
-import { countIn, pathOf } from '../../shared/bookmark-folders';
-import { countTraces, describeTraces, siteOf } from '../../shared/forgetting';
+import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome/chrome-text';
+import { isPageNavigableUrl } from '../../shared/browsing/url';
+import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tabs/tab-groups';
+import { countIn, pathOf } from '../../shared/data/bookmark-folders';
+import { countTraces, describeTraces, siteOf } from '../../shared/data/forgetting';
 
 // Types
 import type { TabId } from '../../shared/types';

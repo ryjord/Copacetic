@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Notice } from '../../../../electron/shared/notices';
+import type { Notice } from '../../../../electron/shared/chrome/notices';
 import { PasswordFill } from '../../../../electron/main/workflows/password-fill';
 
 type PasswordFillDeps = ConstructorParameters<typeof PasswordFill>[0];

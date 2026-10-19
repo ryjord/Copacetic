@@ -3,7 +3,7 @@ import { readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
-import { type ProfilePartitions, orphanedGroupPartitions } from '../../shared/partitions';
+import { type ProfilePartitions, orphanedGroupPartitions } from '../../shared/data/partitions';
 import { describeError, log } from '../system/diagnostics';
 
 /**

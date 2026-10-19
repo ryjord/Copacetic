@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import type { SpellcheckChoices } from '@shared/spellcheck';
+import type { SpellcheckChoices } from '@shared/chrome/spellcheck';
 
 let choices: SpellcheckChoices = { canChoose: true, available: [], inUse: [] };
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   ask: async () => choices,
 }));
 vi.mock('@/components/views/settings/shared/options', () => ({ updateSettings: vi.fn() }));

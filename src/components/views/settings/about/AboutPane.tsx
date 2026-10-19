@@ -9,7 +9,7 @@ import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow'
 import { LicencesList } from '@/components/views/settings/about/LicencesList';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
+import { ask, send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types

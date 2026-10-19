@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrowserState, TabState } from '../../../../electron/shared/types';
-import { changedSlices } from '../../../../electron/shared/state-slices';
+import { changedSlices } from '../../../../electron/shared/ipc/state-slices';
 import { MIN_PUSH_INTERVAL_MS, StatePublisher } from '../../../../electron/main/state/state-publisher';
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 
 const tab = (id: string, over: Partial<TabState> = {}): TabState => ({
   id,

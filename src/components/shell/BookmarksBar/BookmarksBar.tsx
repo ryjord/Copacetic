@@ -10,11 +10,11 @@ import { ChevronDown } from 'lucide-react';
 import { Favicon } from '@/components/ui/Favicon/Favicon';
 
 // Utils
-import { ask, getBridge, send } from '@/lib/bridge';
+import { ask, getBridge, send } from '@/lib/bridge/bridge';
 
 // Types
-import type { BookmarkFolder } from '@shared/bookmark-folders';
-import { colourOf } from '@shared/tab-groups';
+import type { BookmarkFolder } from '@shared/data/bookmark-folders';
+import { colourOf } from '@shared/tabs/tab-groups';
 import type { Bookmark } from '@shared/types';
 
 /**

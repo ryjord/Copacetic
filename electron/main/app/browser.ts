@@ -2,9 +2,9 @@
 import { type BrowserWindow, type WebContents, type WebFrameMain, dialog } from 'electron';
 
 // Utils
-import { PUSH, type ChromeSurface } from '../../shared/channels';
-import { START_PAGE_URL } from '../../shared/url';
-import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
+import { PUSH, type ChromeSurface } from '../../shared/ipc/channels';
+import { START_PAGE_URL } from '../../shared/browsing/url';
+import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/tabs/surfaces';
 import { focusContents, showWindow } from '../system/launch-mode';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
@@ -34,8 +34,8 @@ import type {
   SiteInfoState,
   TabId,
 } from '../../shared/types';
-import type { OverlayRegion } from '../../shared/overlay-regions';
-import type { SuggestionView } from '../../shared/suggestion-view';
+import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
+import type { SuggestionView } from '../../shared/browsing/suggestion-view';
 import type { ContentBlocker } from '../security/blocker';
 import type { DownloadManager } from '../data/downloads';
 import type { BrowserStore } from '../data/store';

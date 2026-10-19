@@ -1,11 +1,11 @@
 'use client';
 
 import { create } from 'zustand';
-import type { ChromeSurface } from '@shared/channels';
-import type { BrowserStatePatch } from '@shared/state-slices';
+import type { ChromeSurface } from '@shared/ipc/channels';
+import type { BrowserStatePatch } from '@shared/ipc/state-slices';
 import type { BrowserState, Settings, TabState } from '@shared/types';
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
-import { keepIfSame, stabiliseState } from '@/lib/stableState';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
+import { keepIfSame, stabiliseState } from '@/lib/state/stableState';
 
 interface BrowserStoreState extends BrowserState {
   /** False until the first snapshot arrives, so nothing renders half-built. */

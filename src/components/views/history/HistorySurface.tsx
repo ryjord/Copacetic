@@ -21,10 +21,10 @@ import { History, X } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, send } from '@/lib/bridge';
-import { CLEAR_RANGES } from '@/lib/clearing';
+import { ask, send } from '@/lib/bridge/bridge';
+import { CLEAR_RANGES } from '@/lib/text/clearing';
 import { iconFor, useFavicons } from '@/lib/favicons';
-import { formatDateHeading, formatTimeOfDay } from '@/lib/format';
+import { formatDateHeading, formatTimeOfDay } from '@/lib/text/format';
 import { t } from '@shared/i18n/translate';
 
 // Types

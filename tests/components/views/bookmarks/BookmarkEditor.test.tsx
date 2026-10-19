@@ -6,7 +6,7 @@ import { BookmarkEditor } from '@/components/views/bookmarks/BookmarkEditor';
 let answer: BookmarkEditResult = 'saved';
 const update = vi.fn(async () => answer);
 
-vi.mock('@/lib/bridge', () => ({
+vi.mock('@/lib/bridge/bridge', () => ({
   ask: (action: (api: unknown) => Promise<unknown>) => action({ bookmarks: { update } }),
 }));
 

@@ -20,13 +20,13 @@ import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, getBridge, send } from '@/lib/bridge';
+import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { type BookmarkFolder, countIn, pathOf } from '@shared/bookmark-folders';
-import { colourOf } from '@shared/tab-groups';
+import { type BookmarkFolder, countIn, pathOf } from '@shared/data/bookmark-folders';
+import { colourOf } from '@shared/tabs/tab-groups';
 import type { Bookmark } from '@shared/types';
 
 /** Rows drawn at once. More than a screenful, far short of a freeze. */

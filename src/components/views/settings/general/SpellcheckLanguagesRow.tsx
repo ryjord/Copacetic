@@ -8,12 +8,12 @@ import { Select } from '@/components/ui/Select/Select';
 import { SettingRow } from '@/components/ui/SettingRow/SettingRow';
 
 // Utils
-import { ask } from '@/lib/bridge';
+import { ask } from '@/lib/bridge/bridge';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import type { SpellcheckChoices } from '@shared/spellcheck';
+import type { SpellcheckChoices } from '@shared/chrome/spellcheck';
 
 const SYSTEM = 'system';
 const NONE = 'none';

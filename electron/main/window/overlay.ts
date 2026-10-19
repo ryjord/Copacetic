@@ -8,7 +8,7 @@ import { chromeEntryUrl, preloadPath } from '../app/env';
 
 // Types
 import type { ContentBounds } from '../tabs/tab-layout';
-import type { OverlayRegion } from '../../shared/overlay-regions';
+import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
 
 /**
  * The one layer in this window that can be drawn on top of a page.

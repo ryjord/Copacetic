@@ -1,6 +1,6 @@
 // Utils
-import { type BookmarkFolder, wouldCycle } from '../../shared/bookmark-folders';
-import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
+import { type BookmarkFolder, wouldCycle } from '../../shared/data/bookmark-folders';
+import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asString, isRecord, newId } from './persistence';

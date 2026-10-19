@@ -4,8 +4,8 @@ import { rmSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
-import { hostResolverFor } from '../../shared/dns';
-import { FIRST_PROFILE_ID } from '../../shared/partitions';
+import { hostResolverFor } from '../../shared/browsing/dns';
+import { FIRST_PROFILE_ID } from '../../shared/data/partitions';
 import { profileDirectory, sweepRemovedProfiles } from '../data/profile-folders';
 import { ProfilesStore } from '../data/profiles-store';
 import { ContentBlocker } from '../security/blocker';
@@ -17,9 +17,9 @@ import { filtersRoot } from './env';
 import { Profile, type ProfileHost } from './profile';
 
 // Types
-import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
-import type { ShortcutOverrides } from '../../shared/shortcuts';
-import type { GroupColourId } from '../../shared/tab-groups';
+import type { AppWideSetting, ProfileSummary } from '../../shared/data/profiles';
+import type { ShortcutOverrides } from '../../shared/chrome/shortcuts';
+import type { GroupColourId } from '../../shared/tabs/tab-groups';
 import type { Settings } from '../../shared/types';
 import type { Browser } from './browser';
 

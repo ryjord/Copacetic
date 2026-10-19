@@ -1,4 +1,4 @@
-import { START_PAGE_URL, hostOf, isLoopbackHost } from '../../shared/url';
+import { START_PAGE_URL, hostOf, isLoopbackHost } from '../../shared/browsing/url';
 import type { CertificateSummary, SecurityState } from '../../shared/types';
 import { t } from '../../shared/i18n/translate';
 

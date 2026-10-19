@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { TextField } from '@/components/ui/TextField/TextField';
 
 // Utils
-import { ask } from '@/lib/bridge';
+import { ask } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types

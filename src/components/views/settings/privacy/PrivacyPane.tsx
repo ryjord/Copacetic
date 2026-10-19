@@ -14,11 +14,11 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
-import { ask } from '@/lib/bridge';
+import { ask } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { DNS_RESOLVERS, describeDns, resolverFor } from '@shared/dns';
+import { DNS_RESOLVERS, describeDns, resolverFor } from '@shared/browsing/dns';
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
 import type { WebRtcPolicy } from '@shared/types';
 

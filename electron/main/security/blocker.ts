@@ -4,7 +4,7 @@ import path from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
 
 // Utils
-import { registrableDomainOf } from '../../shared/url';
+import { registrableDomainOf } from '../../shared/browsing/url';
 import { t } from '../../shared/i18n/translate';
 import { describeError, log } from '../system/diagnostics';
 

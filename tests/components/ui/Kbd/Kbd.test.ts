@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acceleratorKeys } from '../../../../electron/shared/shortcuts';
+import { acceleratorKeys } from '../../../../electron/shared/chrome/shortcuts';
 
 // The palette printed "Cmd T" on Windows, where the key is Ctrl.
 describe('how a shortcut is printed', () => {

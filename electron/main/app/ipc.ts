@@ -3,9 +3,9 @@ import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { randomBytes } from 'node:crypto';
 
 // Utils
-import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
-import { resolverFor } from '../../shared/dns';
-import { generatePassword, readRecipe } from '../../shared/password-generator';
+import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc/ipc-contract';
+import { resolverFor } from '../../shared/browsing/dns';
+import { generatePassword, readRecipe } from '../../shared/passwords/password-generator';
 import {
   clampZoom,
   isAppearanceId,
@@ -15,13 +15,13 @@ import {
   isWebRtcPolicy,
   readPermissionDefaults,
 } from '../../shared/types';
-import { readSpellcheckLanguages } from '../../shared/spellcheck';
-import { readClearChoice } from '../../shared/clearing';
+import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
+import { readClearChoice } from '../../shared/data/clearing';
 import { openChromiumLicences } from '../system/chromium-licences';
-import { conflictFor, readShortcutOverrides } from '../../shared/shortcuts';
-import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
+import { conflictFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
+import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/browsing/url';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
-import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
+import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import {
   showBookmarkContextMenu,
   showSiteContextMenu,
@@ -33,11 +33,11 @@ import {
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
 import { showProfileMenu } from '../menus/profile-menu';
-import { toSuggestionView } from '../../shared/suggestion-view';
+import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 // Types
-import type { KeptKind } from '../../shared/forgetting';
+import type { KeptKind } from '../../shared/data/forgetting';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import type { Browser } from './browser';
 import type { Profiles } from './profiles';

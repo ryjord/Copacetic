@@ -1,7 +1,7 @@
 // Utils
-import { PUSH } from '../../shared/channels';
-import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, viewSourceUrlFor } from '../../shared/url';
-import { nextZoomStep } from '../../shared/zoom';
+import { PUSH } from '../../shared/ipc/channels';
+import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, viewSourceUrlFor } from '../../shared/browsing/url';
+import { nextZoomStep } from '../../shared/tabs/zoom';
 import { t } from '../../shared/i18n/translate';
 
 // Types
