@@ -122,6 +122,8 @@ export interface DownloadState {
    * is open and gone when it closes.
    */
   isHush?: boolean;
+  /** A file that runs code when opened, paused until the person says to keep it. Never written down: after a restart it is simply interrupted. */
+  isHeld?: boolean;
 }
 
 export interface HistoryEntry {

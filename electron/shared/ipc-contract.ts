@@ -106,6 +106,8 @@ export const CHANNELS = {
   'downloads.remove': 'downloads:remove',
   'downloads.clearCompleted': 'downloads:clear-completed',
   'downloads.retry': 'downloads:retry',
+  'downloads.keep': 'downloads:keep',
+  'downloads.discard': 'downloads:discard',
   'downloads.chooseFolder': 'downloads:choose-folder',
 
   'find.open': 'find:open',

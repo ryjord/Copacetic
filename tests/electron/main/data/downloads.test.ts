@@ -251,6 +251,10 @@ function fakeDownloadSession() {
       getSavePath: () => savePath,
       setSavePath: vi.fn((chosen: string) => (savePath = chosen)),
       setSaveDialogOptions: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      cancel: vi.fn(),
+      canResume: () => true,
       on: (name: string, handler: (event: unknown, state: string) => void) => (handlers[name] = handler),
       once: (name: string, handler: (event: unknown, state: string) => void) => (handlers[name] = handler),
     };
@@ -267,15 +271,17 @@ function fakeDownloadSession() {
 
 const managerFor = (preferences: { downloadDirectory: string | null; askWhereToSave: boolean }) => {
   const fake = fakeDownloadSession();
+  const asked: string[] = [];
   const manager = new DownloadManager(
     () => {},
     openTable(),
     Date.now,
     existsSync,
     () => preferences,
+    (download) => asked.push(download.filename),
   );
   manager.attach(fake.session as never);
-  return { manager, ...fake };
+  return { manager, asked, ...fake };
 };
 
 describe('where a download is saved', () => {
@@ -319,5 +325,49 @@ describe('trying a download again', () => {
     offer().finish('completed');
     manager.retry(manager.list()[0]!.id);
     expect(started).toEqual([]);
+  });
+});
+
+/** Most drive-by downloads are a program nobody meant to fetch, opened from the downloads list. */
+describe('a file that runs when opened', () => {
+  const ordinary = { downloadDirectory: null, askWhereToSave: false };
+
+  it('is paused the moment it starts, and the person is asked', () => {
+    const { manager, offer, asked } = managerFor(ordinary);
+    const { item } = offer('setup.exe');
+    expect(item.pause).toHaveBeenCalled();
+    expect(asked).toEqual(['setup.exe']);
+    expect(manager.list()[0]?.isHeld).toBe(true);
+  });
+
+  // Resuming past the question would make the question decoration.
+  it('cannot be resumed past the question', () => {
+    const { manager, offer } = managerFor(ordinary);
+    const { item } = offer('setup.exe');
+    manager.resume(manager.list()[0]!.id);
+    expect(item.resume).not.toHaveBeenCalled();
+  });
+
+  it('carries on downloading once kept', () => {
+    const { manager, offer } = managerFor(ordinary);
+    const { item } = offer('setup.exe');
+    manager.keep(manager.list()[0]!.id);
+    expect(item.resume).toHaveBeenCalled();
+    expect(manager.list()[0]?.isHeld).toBe(false);
+  });
+
+  it('is thrown away when discarded', () => {
+    const { manager, offer } = managerFor(ordinary);
+    const { item } = offer('setup.exe');
+    manager.discard(manager.list()[0]!.id);
+    expect(item.cancel).toHaveBeenCalled();
+  });
+
+  it('is not what an ordinary file is', () => {
+    const { manager, offer, asked } = managerFor(ordinary);
+    const { item } = offer('report.pdf');
+    expect(item.pause).not.toHaveBeenCalled();
+    expect(asked).toEqual([]);
+    expect(manager.list()[0]?.isHeld).toBe(false);
   });
 });

@@ -126,12 +126,22 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
               <Pause size={16} />
             </IconButton>
           )}
-          {download.status === 'paused' && (
+          {download.isHeld && (
+            <>
+              <Button size="sm" variant="ghost" onClick={() => send((api) => api.downloads.discard(download.id))}>
+                Discard
+              </Button>
+              <Button size="sm" onClick={() => send((api) => api.downloads.keep(download.id))}>
+                Keep
+              </Button>
+            </>
+          )}
+          {download.status === 'paused' && !download.isHeld && (
             <IconButton label="Resume download" onClick={() => send((api) => api.downloads.resume(download.id))}>
               <Play size={16} />
             </IconButton>
           )}
-          {isActive && (
+          {isActive && !download.isHeld && (
             <IconButton label="Cancel download" onClick={() => send((api) => api.downloads.cancel(download.id))}>
               <X size={16} />
             </IconButton>
@@ -203,6 +213,10 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
 
 /** Only states worth noticing get a word; a finished download is the ordinary case and says nothing. */
 function DownloadPill({ download }: { download: DownloadState }) {
+  // Said before anything else: this one is waiting on the person, not on the network.
+  if (download.isHeld) {
+    return <StatusPill status="warning">Runs when opened</StatusPill>;
+  }
   if (download.status === 'paused') {
     return <StatusPill status="warning">Paused</StatusPill>;
   }

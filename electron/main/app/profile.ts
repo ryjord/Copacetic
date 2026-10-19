@@ -96,6 +96,17 @@ export class Profile {
       Date.now,
       existsSync,
       () => this.store.getSettings(),
+      (download) =>
+        this.focused()?.notices.notify(
+          {
+            id: `keep-${download.id}`,
+            key: `keep-${download.id}`,
+            tone: 'ask',
+            message: `${download.filename} is a program or installer, and runs when opened. Keep it only if you meant to download it.`,
+            confirm: 'Keep',
+          },
+          () => this.downloads.keep(download.id),
+        ),
     );
     this.updates = new UpdateManager(() => this.scheduleStatePush());
 

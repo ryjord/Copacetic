@@ -7,6 +7,7 @@ import type { DownloadState, DownloadStatus } from '../../shared/types';
 const EXISTS_REMEMBERED_MS = 5_000;
 
 import type { DownloadsTable } from './downloads-table';
+import { isRunnableFile } from '../../shared/download-safety';
 
 /** What the person chose about where files go. */
 export interface DownloadPreferences {
@@ -64,6 +65,8 @@ export class DownloadManager {
       downloadDirectory: null,
       askWhereToSave: false,
     }),
+    /** Asks whether to keep a file that runs code; the answer comes back through keep or discard. */
+    private readonly askToKeep: (download: DownloadState) => void = () => {},
   ) {
     // Anything still in flight when the app last quit cannot be resumed: the
     // DownloadItem it belonged to is gone. Report that honestly rather than
@@ -150,6 +153,7 @@ export class DownloadManager {
       this.upsert({
         id,
         isHush: !remember,
+        isHeld: isRunnableFile(suggested),
         filename: path.basename(suggested),
         savePath,
         url: item.getURL(),
@@ -163,6 +167,13 @@ export class DownloadManager {
         urlChain: item.getURLChain(),
         sha256: null,
       });
+
+      // Paused before it can finish, so a program nobody meant to download never lands ready to open.
+      const entry = this.find(id);
+      if (entry?.isHeld) {
+        item.pause();
+        this.askToKeep(entry);
+      }
 
       item.on('updated', (_updatedEvent, state) => {
         const live = this.live.get(id);
@@ -252,6 +263,24 @@ export class DownloadManager {
     }
   }
 
+  /** Keeps a held file: it carries on downloading from where it was paused. */
+  keep(id: string): void {
+    const entry = this.find(id);
+    if (!entry?.isHeld) {
+      return;
+    }
+    this.patch(id, (current) => ({ ...current, isHeld: false }));
+    this.live.get(id)?.item.resume();
+  }
+
+  /** Throws a held file away before any of it can be opened. */
+  discard(id: string): void {
+    if (!this.find(id)?.isHeld) {
+      return;
+    }
+    this.live.get(id)?.item.cancel();
+  }
+
   /** Where the person said to save it, once they have said; nothing changes until then. */
   private chosenPath(item: DownloadItem, entry: DownloadState): Partial<DownloadState> {
     const chosen = item.getSavePath();
@@ -285,6 +314,10 @@ export class DownloadManager {
 
   resume(id: string): void {
     const live = this.live.get(id);
+    // A held file is released by keeping it, never by resuming past the question.
+    if (this.find(id)?.isHeld) {
+      return;
+    }
     if (live?.item.canResume()) {
       live.item.resume();
     }

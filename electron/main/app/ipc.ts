@@ -194,6 +194,8 @@ export function registerIpcHandlers(profile: Profile): void {
   handle('downloads.revealFile', (browser, _event, id) => browser.downloads.revealFile(asString(id)));
   handle('downloads.remove', (browser, _event, id) => browser.downloads.remove(asString(id)));
   handle('downloads.retry', (browser, _event, id) => browser.downloads.retry(asString(id)));
+  handle('downloads.keep', (browser, _event, id) => browser.downloads.keep(asString(id)));
+  handle('downloads.discard', (browser, _event, id) => browser.downloads.discard(asString(id)));
   handle('downloads.chooseFolder', (browser) => browser.chooseDownloadFolder());
   handle('downloads.clearCompleted', (browser) => browser.downloads.clearCompleted());
 
