@@ -57,6 +57,8 @@ export interface CopaceticApi {
     /** Continues to a site whose certificate was refused, for this certificate and this session only. */
     acceptCertificate(id: TabId): Promise<void>;
     reopenClosed(): Promise<void>;
+    /** The system print dialog for this tab's page. */
+    print(id: TabId): Promise<void>;
     setZoom(id: TabId, zoomFactor: number): Promise<void>;
     openContextMenu(id: TabId): Promise<void>;
     /** The menu behind the caret beside the new-tab button. */

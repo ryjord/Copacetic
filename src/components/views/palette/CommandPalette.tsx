@@ -1,20 +1,42 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { send } from '@/lib/bridge';
-import { cn } from '@/lib/utils';
+// Libs
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+
+// Components
+import { Kbd } from '@/components/ui/Kbd/Kbd';
+
+// Icons
+import { Search } from 'lucide-react';
+
+// Store
 import { useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
+import { send } from '@/lib/bridge';
+import { useDismissLayer } from '@/lib/dismissLayer';
+import { useFocusTrap } from '@/lib/focusTrap';
+import { rankByMatch } from '@/lib/fuzzy';
+import { cn } from '@/lib/utils';
+
+// Types
+import { clampZoom } from '@shared/types';
 
 interface Command {
   id: string;
   label: string;
   /** The shortcut that does the same thing, so the palette teaches it. */
-  hint?: string;
-  group: string;
+  accelerator?: string;
+  group: 'Tabs' | 'Page' | 'Go to' | 'Appearance' | 'Open tabs';
+  /** Also matched, but not shown: a tab's address, for instance. */
+  keywords?: string;
   run: () => void;
 }
 
-/** One keystroke to reach anything, and a place to discover the shortcut for it. */
+const GROUP_ORDER: readonly Command['group'][] = ['Tabs', 'Page', 'Go to', 'Appearance', 'Open tabs'];
+const ZOOM_STEP = 0.1;
+
+/** One keystroke to reach anything, and a place to learn the shortcut for it. */
 export function CommandPalette() {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);
@@ -22,129 +44,173 @@ export function CommandPalette() {
   const tabs = useBrowserStore((state) => state.orderedTabs);
   const activeTab = useBrowserStore((state) => state.activeTab);
   const hasClosedTabs = useBrowserStore((state) => state.hasClosedTabs);
+  const appearance = useBrowserStore((state) => state.settings.appearance);
 
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useDismissLayer(true, () => setSurface('none'));
+  useFocusTrap(panelRef, true);
 
   const commands = useMemo<Command[]>(() => {
     const close = () => setSurface('none');
+    const then = (action: () => void) => () => {
+      close();
+      action();
+    };
     const list: Command[] = [
       {
         id: 'new-tab',
         label: 'New tab',
-        hint: 'Cmd T',
+        accelerator: 'CmdOrCtrl+T',
         group: 'Tabs',
-        run: () => {
-          close();
-          send((api) => api.tabs.create());
-        },
+        run: then(() => send((api) => api.tabs.create())),
+      },
+      {
+        id: 'new-hush-tab',
+        label: 'New Hush tab',
+        accelerator: 'CmdOrCtrl+Shift+N',
+        group: 'Tabs',
+        keywords: 'private incognito',
+        run: then(() => send((api) => api.tabs.createHush())),
       },
       {
         id: 'address',
-        label: 'Go to address',
-        hint: 'Cmd L',
+        label: 'Go to an address',
+        accelerator: 'CmdOrCtrl+L',
         group: 'Tabs',
-        run: () => {
-          close();
-          requestOmniboxFocus();
-        },
+        run: then(requestOmniboxFocus),
       },
     ];
-
-    if (activeTab) {
-      list.push(
-        {
-          id: 'reload',
-          label: 'Reload page',
-          hint: 'Cmd R',
-          group: 'Page',
-          run: () => {
-            close();
-            send((api) => api.tabs.reload(activeTab.id));
-          },
-        },
-        {
-          id: 'find',
-          label: 'Find on page',
-          hint: 'Cmd F',
-          group: 'Page',
-          run: () => {
-            close();
-            send((api) => api.find.start(''));
-          },
-        },
-        {
-          id: 'close-tab',
-          label: 'Close this tab',
-          hint: 'Cmd W',
-          group: 'Tabs',
-          run: () => {
-            close();
-            send((api) => api.tabs.close(activeTab.id));
-          },
-        },
-      );
-
-      if (!activeTab.isStartPage) {
-        list.push({
-          id: 'bookmark',
-          label: activeTab.isBookmarked ? 'Remove bookmark' : 'Bookmark this page',
-          hint: 'Cmd D',
-          group: 'Page',
-          run: () => {
-            close();
-            send((api) => api.bookmarks.toggle(activeTab.url, activeTab.title));
-          },
-        });
-      }
-    }
 
     if (hasClosedTabs) {
       list.push({
         id: 'reopen',
-        label: 'Reopen last closed tab',
-        hint: 'Cmd Shift T',
+        label: 'Reopen closed tab',
+        accelerator: 'CmdOrCtrl+Shift+T',
         group: 'Tabs',
-        run: () => {
-          close();
-          send((api) => api.tabs.reopenClosed());
-        },
+        run: then(() => send((api) => api.tabs.reopenClosed())),
       });
+    }
+
+    if (activeTab) {
+      const tabId = activeTab.id;
+      list.push({
+        id: 'close-tab',
+        label: 'Close tab',
+        accelerator: 'CmdOrCtrl+W',
+        group: 'Tabs',
+        run: then(() => send((api) => api.tabs.close(tabId))),
+      });
+      list.push({
+        id: 'duplicate',
+        label: 'Duplicate tab',
+        group: 'Tabs',
+        run: then(() => send((api) => api.tabs.duplicate(tabId))),
+      });
+
+      if (!activeTab.isStartPage) {
+        const zoomTo = (factor: number) => then(() => send((api) => api.tabs.setZoom(tabId, clampZoom(factor))));
+        list.push(
+          {
+            id: 'reload',
+            label: 'Reload page',
+            accelerator: 'CmdOrCtrl+R',
+            group: 'Page',
+            run: then(() => send((api) => api.tabs.reload(tabId))),
+          },
+          {
+            id: 'find',
+            label: 'Find on page',
+            accelerator: 'CmdOrCtrl+F',
+            group: 'Page',
+            run: then(() => send((api) => api.find.start(''))),
+          },
+          {
+            id: 'bookmark',
+            label: activeTab.isBookmarked ? 'Remove bookmark' : 'Bookmark this page',
+            accelerator: 'CmdOrCtrl+D',
+            group: 'Page',
+            run: then(() => send((api) => api.bookmarks.toggle(activeTab.url, activeTab.title))),
+          },
+          {
+            id: 'print',
+            label: 'Print',
+            accelerator: 'CmdOrCtrl+P',
+            group: 'Page',
+            run: then(() => send((api) => api.tabs.print(tabId))),
+          },
+          {
+            id: 'zoom-in',
+            label: 'Zoom in',
+            accelerator: 'CmdOrCtrl+Plus',
+            group: 'Page',
+            run: zoomTo(activeTab.zoomFactor + ZOOM_STEP),
+          },
+          {
+            id: 'zoom-out',
+            label: 'Zoom out',
+            accelerator: 'CmdOrCtrl+-',
+            group: 'Page',
+            run: zoomTo(activeTab.zoomFactor - ZOOM_STEP),
+          },
+          {
+            id: 'zoom-reset',
+            label: 'Actual size',
+            accelerator: 'CmdOrCtrl+0',
+            group: 'Page',
+            keywords: 'reset zoom',
+            run: zoomTo(1),
+          },
+        );
+      }
     }
 
     list.push(
       {
         id: 'history',
-        label: 'Open history',
-        hint: 'Cmd Y',
-        group: 'Browser',
+        label: 'History',
+        accelerator: 'CmdOrCtrl+Y',
+        group: 'Go to',
         run: () => toggleSurface('history'),
       },
       {
         id: 'bookmarks',
-        label: 'Open bookmarks',
-        hint: 'Cmd Shift B',
-        group: 'Browser',
+        label: 'Bookmarks',
+        accelerator: 'CmdOrCtrl+Shift+B',
+        group: 'Go to',
         run: () => toggleSurface('bookmarks'),
       },
       {
         id: 'downloads',
-        label: 'Open downloads',
-        hint: 'Cmd Shift J',
-        group: 'Browser',
+        label: 'Downloads',
+        accelerator: 'CmdOrCtrl+Shift+J',
+        group: 'Go to',
         run: () => toggleSurface('downloads'),
       },
       {
         id: 'settings',
-        label: 'Open settings',
-        hint: 'Cmd ,',
-        group: 'Browser',
+        label: 'Settings',
+        accelerator: 'CmdOrCtrl+,',
+        group: 'Go to',
+        keywords: 'preferences options',
         run: () => toggleSurface('settings'),
+      },
+      {
+        id: 'appearance',
+        label: appearance === 'dark' ? 'Use light appearance' : 'Use dark appearance',
+        group: 'Appearance',
+        keywords: 'theme mode',
+        run: then(() => send((api) => api.settings.update({ appearance: appearance === 'dark' ? 'light' : 'dark' }))),
+      },
+      {
+        id: 'appearance-system',
+        label: 'Match the system appearance',
+        group: 'Appearance',
+        keywords: 'theme mode auto',
+        run: then(() => send((api) => api.settings.update({ appearance: 'system' }))),
       },
     );
 
@@ -154,40 +220,34 @@ export function CommandPalette() {
       }
       list.push({
         id: `switch:${tab.id}`,
-        label: `Switch to ${tab.isStartPage ? 'New tab' : tab.title}`,
+        label: tab.isStartPage ? 'New tab' : tab.title || tab.url,
         group: 'Open tabs',
-        run: () => {
-          close();
-          send((api) => api.tabs.activate(tab.id));
-        },
+        keywords: tab.url,
+        run: then(() => send((api) => api.tabs.activate(tab.id))),
       });
     }
 
     return list;
-  }, [activeTab, hasClosedTabs, requestOmniboxFocus, setSurface, tabs, toggleSurface]);
+  }, [activeTab, appearance, hasClosedTabs, requestOmniboxFocus, setSurface, tabs, toggleSurface]);
 
-  const matches = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return commands;
-    }
-    return commands.filter((command) => command.label.toLowerCase().includes(needle));
-  }, [commands, query]);
+  // Ranked by how well each matches, then laid out in group order, so headings never repeat.
+  const ranked = rankByMatch(commands, query, (command) => `${command.label} ${command.keywords ?? ''}`);
+  const matches = query.trim()
+    ? ranked
+    : GROUP_ORDER.flatMap((group) => ranked.filter((command) => command.group === group));
 
-  // Adjusting during render rather than in an effect: the list and its
-  // highlight change together, so there is no frame where they disagree.
+  // Adjusted during render rather than in an effect: the list and its highlight change together.
   const [seenQuery, setSeenQuery] = useState(query);
   if (seenQuery !== query) {
     setSeenQuery(query);
     setHighlighted(0);
   }
 
+  useEffect(() => {
+    document.getElementById(`${listId}-${highlighted}`)?.scrollIntoView?.({ block: 'nearest' });
+  }, [highlighted, listId]);
+
   const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      setSurface('none');
-      return;
-    }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       if (matches.length === 0) {
         return;
@@ -204,48 +264,86 @@ export function CommandPalette() {
   };
 
   return (
-    <div className="animate-fade absolute inset-0 z-50 flex justify-center bg-void/70 pt-[12vh] backdrop-blur-sm">
+    <div
+      className="animate-fade absolute inset-0 flex justify-center bg-void/60 pt-[12vh]"
+      onMouseDown={(event) => {
+        // A click on the backdrop, not on the panel, closes it.
+        if (event.target === event.currentTarget) {
+          setSurface('none');
+        }
+      }}
+    >
       <div
-        className="animate-rise h-fit max-h-[60vh] w-full max-w-lg overflow-hidden rounded-panel border border-line bg-raised shadow-[0_28px_70px_-16px_rgb(0_0_0/0.85)]"
+        ref={panelRef}
         role="dialog"
+        aria-modal="true"
         aria-label="Command palette"
+        className="animate-pop flex h-fit max-h-[64vh] w-full max-w-xl flex-col overflow-hidden rounded-lg bg-raised shadow-dialog"
       >
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Type a command"
-          aria-label="Type a command"
-          className="h-11 w-full border-b border-line bg-transparent px-4 text-[13.5px] text-ink outline-none placeholder:text-ink-faint"
-        />
+        <div className="flex h-12 flex-none items-center gap-2.5 border-b border-line px-4">
+          <Search size={16} className="shrink-0 text-ink-faint" aria-hidden />
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Search commands and open tabs"
+            aria-label="Search commands and open tabs"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={listId}
+            aria-activedescendant={matches.length > 0 ? `${listId}-${highlighted}` : undefined}
+            className="h-full min-w-0 flex-1 bg-transparent text-title text-ink outline-none placeholder:text-ink-faint"
+          />
+        </div>
 
         {matches.length === 0 ? (
-          <p className="px-4 py-6 text-center text-[12.5px] text-ink-faint">No command matches that.</p>
+          <p className="px-4 py-8 text-center text-body text-ink-dim">No command or tab matches.</p>
         ) : (
-          <ul className="scroll-thin max-h-[46vh] overflow-y-auto py-1" role="listbox">
-            {matches.map((command, index) => (
-              <li key={command.id} role="option" aria-selected={index === highlighted}>
-                <button
-                  type="button"
-                  onMouseEnter={() => setHighlighted(index)}
-                  onClick={command.run}
-                  className={cn(
-                    'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors',
-                    index === highlighted ? 'bg-hover' : 'hover:bg-hover/60',
-                  )}
-                >
-                  <span className="label w-20 shrink-0">{command.group}</span>
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">{command.label}</span>
-                  {command.hint && (
-                    <span className="shrink-0 font-mono text-[11px] text-ink-faint">{command.hint}</span>
-                  )}
-                </button>
-              </li>
-            ))}
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label="Commands"
+            className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5"
+          >
+            {matches.map((command, index) => {
+              const isNewGroup = !query.trim() && command.group !== matches[index - 1]?.group;
+              return (
+                <li key={command.id} role="presentation">
+                  {isNewGroup && <div className="label px-2.5 pb-1 pt-2.5">{command.group}</div>}
+                  <div
+                    id={`${listId}-${index}`}
+                    role="option"
+                    aria-selected={index === highlighted}
+                    onMouseMove={() => setHighlighted(index)}
+                    onClick={command.run}
+                    className={cn(
+                      'flex h-9 items-center gap-3 rounded-sm px-2.5',
+                      index === highlighted ? 'bg-hover text-ink' : 'text-ink',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-body">{command.label}</span>
+                    {command.group === 'Open tabs' && command.keywords && (
+                      <span className="max-w-[40%] shrink-0 truncate text-body-sm text-ink-faint">
+                        {hostFor(command.keywords)}
+                      </span>
+                    )}
+                    {command.accelerator && <Kbd accelerator={command.accelerator} />}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
     </div>
   );
+}
+
+function hostFor(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
 }

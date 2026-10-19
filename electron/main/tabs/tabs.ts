@@ -39,6 +39,7 @@ import {
   forgetTab as forgetRefusedCertificate,
 } from '../security/certificate-exceptions';
 import { describeTab } from '../system/browser-identity';
+import { log } from '../system/diagnostics';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
@@ -409,7 +410,12 @@ export class TabManager {
   }
 
   print(id: TabId): void {
-    this.contentsFor(id)?.print({}, () => {});
+    this.contentsFor(id)?.print({}, (isPrinted, failureReason) => {
+      // Cancelling the dialog is an answer, not a failure.
+      if (!isPrinted && failureReason && !/cancel/i.test(failureReason)) {
+        log.warn('a page did not print', { reason: failureReason });
+      }
+    });
   }
 
   inspectAt(id: TabId, x: number, y: number): void {

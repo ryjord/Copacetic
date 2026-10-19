@@ -75,6 +75,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('tabs.continueOverHttp', (_event, id) => browser.tabs.continueOverHttp(asString(id)));
   handle('tabs.acceptCertificate', (_event, id) => browser.tabs.acceptCertificate(asString(id)));
   handle('tabs.reopenClosed', () => browser.commands.reopenClosedTab());
+  handle('tabs.print', (_event, id) => browser.tabs.print(asString(id)));
   handle('tabs.setZoom', (_event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
   handle('tabs.openContextMenu', (_event, id) => showTabContextMenu(browser, asString(id)));
   handle('tabs.openNewTabMenu', () => showNewTabMenu(browser));

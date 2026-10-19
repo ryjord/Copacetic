@@ -47,6 +47,7 @@ export const CHANNELS = {
   'tabs.continueOverHttp': 'tab:continue-over-http',
   'tabs.acceptCertificate': 'tab:accept-certificate',
   'tabs.reopenClosed': 'tab:reopen-closed',
+  'tabs.print': 'tab:print',
   'tabs.setZoom': 'tab:set-zoom',
   'tabs.openContextMenu': 'tab:open-context-menu',
   'tabs.openNewTabMenu': 'tab:open-new-tab-menu',
