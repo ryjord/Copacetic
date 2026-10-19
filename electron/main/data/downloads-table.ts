@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import type { DownloadState, DownloadStatus } from '../../shared/types';
+import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';
 
@@ -41,14 +42,7 @@ export class DownloadsTable {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
-    this.database.exec('BEGIN');
-    try {
-      this.write(this.entries);
-      this.database.exec('COMMIT');
-    } catch (error) {
-      this.database.exec('ROLLBACK');
-      throw error;
-    }
+    inTransaction(this.database, () => this.write(this.entries));
   }
 
   private schedule(): void {

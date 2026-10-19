@@ -352,6 +352,20 @@ export class SmokeApp {
     }
   }
 
+  /** Any table in the database file, read from outside the app, for what a test needs to see was written down. */
+  tableOnDisk(table: 'bookmarks' | 'bookmark_folders'): Record<string, unknown>[] {
+    const file = path.join(this.profile, 'copacetic.db');
+    if (!existsSync(file)) {
+      return [];
+    }
+    const database = new DatabaseSync(file, { readOnly: true });
+    try {
+      return database.prepare(`SELECT * FROM ${table} ORDER BY position`).all();
+    } finally {
+      database.close();
+    }
+  }
+
   /** The database and its write-ahead log as raw bytes, which is where a deleted address would linger. */
   databaseBytes(): string {
     return ['copacetic.db', 'copacetic.db-wal']

@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BOOKMARKS_PLAN } from '../../../../electron/main/data/bookmarks-store';
 import { SESSION_PLAN } from '../../../../electron/main/data/session-store';
 import type { SchemaPlan } from '../../../../electron/main/data/schema';
 
@@ -16,7 +15,8 @@ import type { SchemaPlan } from '../../../../electron/main/data/schema';
  *
  * That was destructive rather than wasteful. Measured on the shipped 1.4.0
  * code: the session step re-run on its own output returned a session with no
- * tabs at all, and the bookmarks step un-filed every bookmark from every folder.
+ * tabs at all, and the bookmarks step, before bookmarks moved to the database,
+ * un-filed every bookmark from every folder.
  * Neither raised anything - the file was rewritten, cleanly, empty.
  *
  * So idempotence is the contract, and this is where it is enforced.
@@ -24,7 +24,6 @@ import type { SchemaPlan } from '../../../../electron/main/data/schema';
 
 const PLANS: Record<string, SchemaPlan> = {
   'session.json': SESSION_PLAN,
-  'bookmarks.json': BOOKMARKS_PLAN,
 };
 
 /** Shapes a step might meet: what it migrates from, and what it produces. */
@@ -34,12 +33,6 @@ const SAMPLES: Record<string, unknown[]> = {
     { tabs: [{ url: 'https://a.example/', groupId: null }], activeIndex: 0 },
     { tabs: [], activeIndex: 0 },
     {},
-  ],
-  'bookmarks.json': [
-    [{ id: '1', url: 'https://a.example/', title: 'A' }],
-    [{ id: '1', url: 'https://a.example/', title: 'A', folderId: 'work' }],
-    [{ id: '1', url: 'https://a.example/', title: 'A', folderId: null }],
-    [],
   ],
 };
 
@@ -68,12 +61,6 @@ describe('every migration step is idempotent', () => {
     expect(step?.up(migrated)).toEqual(migrated);
   });
 
-  it('does not un-file bookmarks that are already filed', () => {
-    const migrated = [{ id: '1', url: 'https://a.example/', title: 'A', folderId: 'work' }];
-    const step = BOOKMARKS_PLAN.steps.find((candidate) => candidate.to === 2);
-    expect(step?.up(migrated)).toEqual(migrated);
-  });
-
   /*
    * A plan added later and never listed above would make all of this pass while
    * testing nothing, so the count is checked against the source. If this fails,
@@ -95,7 +82,7 @@ describe('every migration step is idempotent', () => {
       // UNVERSIONED is the empty plan every unmigrated file uses; it has no steps.
       .filter((name) => name !== 'UNVERSIONED');
 
-    expect([...new Set(declared)].sort()).toEqual(['BOOKMARKS_PLAN', 'SESSION_PLAN']);
+    expect([...new Set(declared)].sort()).toEqual(['SESSION_PLAN']);
   });
 
   /*

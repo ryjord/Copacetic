@@ -5,13 +5,14 @@ import { SmokeApp } from './support/harness';
 
 let copacetic: SmokeApp;
 
+// Groups are still a JSON file; bookmarks and folders are read from the database.
+const onDisk = <T>(file: string): T => JSON.parse(readFileSync(path.join(copacetic.profile, file), 'utf8')) as T;
+
 beforeAll(async () => {
   copacetic = await SmokeApp.launch();
   await copacetic.waitForVisible();
 });
 afterAll(async () => copacetic?.close());
-
-const onDisk = <T>(file: string): T => JSON.parse(readFileSync(path.join(copacetic.profile, file), 'utf8')) as T;
 
 /**
  * A folder is the resting form of a tab group, so the two convert. This is the
@@ -61,7 +62,7 @@ describe('a bookmark folder opens as a tab group', () => {
  */
 describe('deleting a folder', () => {
   it('keeps its bookmarks and promotes what was nested inside', async () => {
-    const before = onDisk<{ folderId: string | null }[]>('bookmarks.json').length;
+    const before = copacetic.tableOnDisk('bookmarks').length;
 
     const moved = await copacetic.chrome.evaluate(async () => {
       const folders = await window.copacetic.bookmarkFolders.list();
@@ -72,13 +73,13 @@ describe('deleting a folder', () => {
     expect(moved).toEqual({ folders: 1, bookmarks: 2 });
 
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    const bookmarks = onDisk<{ folderId: string | null }[]>('bookmarks.json');
+    const bookmarks = copacetic.tableOnDisk('bookmarks');
     expect(bookmarks).toHaveLength(before);
 
     // The child folder is now at the top level rather than pointing at a
     // folder that has gone, which would hide it from every view there is.
-    const folders = onDisk<{ name: string; parentId: string | null }[]>('bookmark-folders.json');
-    expect(folders.find((folder) => folder.name === 'Long form')?.parentId).toBeNull();
+    const folders = copacetic.tableOnDisk('bookmark_folders');
+    expect(folders.find((folder) => folder.name === 'Long form')?.parent_id).toBeNull();
   }, 120_000);
 });
 

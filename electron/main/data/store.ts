@@ -43,8 +43,8 @@ export class BrowserStore {
   private readonly settings = new SettingsStore();
   private readonly database = openDatabase(path.join(app.getPath('userData'), 'copacetic.db'));
   private readonly history = new HistoryStore(this.database, app.getPath('userData'));
-  private readonly bookmarks = new BookmarksStore();
-  private readonly bookmarkFolders = new BookmarkFoldersStore();
+  private readonly bookmarks = new BookmarksStore(this.database, app.getPath('userData'));
+  private readonly bookmarkFolders = new BookmarkFoldersStore(this.database, app.getPath('userData'));
   private readonly groups = new GroupsStore();
   private readonly favicons = new FaviconsStore(this.database, app.getPath('userData'));
   /** Held here so it shares the database; the download manager owns what goes in it. */

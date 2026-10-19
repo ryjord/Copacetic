@@ -5,7 +5,7 @@ vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 const { reviveFavicons } = await import('../../../../electron/main/data/favicons-store');
 const { SESSION_PLAN, reviveSession } = await import('../../../../electron/main/data/session-store');
 const { migrate } = await import('../../../../electron/main/data/schema');
-const { BOOKMARKS_PLAN, reviveBookmarks } = await import('../../../../electron/main/data/bookmarks-store');
+const { reviveBookmarks } = await import('../../../../electron/main/data/bookmarks-store');
 const { reviveFolders } = await import('../../../../electron/main/data/bookmark-folders-store');
 const { reviveGroups } = await import('../../../../electron/main/data/groups-store');
 const { GROUP_COLOURS } = await import('../../../../electron/shared/tab-groups');
@@ -182,43 +182,28 @@ describe('bookmark folders, read back off disk', () => {
 
 /**
  * Every bookmark saved before folders existed is filed in none of them, which
- * is what the interface calls Unfiled - not a state anyone has to be told about.
+ * is what the interface calls Unfiled. The import into the database relies on
+ * the reviver for that now, rather than on a schema step.
  */
 describe('bookmarks written by an older version', () => {
-  const migrated = (raw: unknown) => migrate(raw, 1, BOOKMARKS_PLAN);
-
-  it('files every old bookmark nowhere', () => {
-    const outcome = migrated([
-      { id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5, folderId: null },
-    ]);
-    expect(outcome.status).toBe('migrated');
-    expect(outcome.status === 'migrated' && outcome.data).toEqual([
-      { id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5, folderId: null },
-    ]);
+  it('files a bookmark from before folders nowhere', () => {
+    const [bookmark] =
+      reviveBookmarks([{ id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5 }]) ?? [];
+    expect(bookmark).toEqual({
+      id: 'b1',
+      url: 'https://example.com/',
+      title: 'Example',
+      createdAt: 5,
+      folderId: null,
+    });
   });
 
-  it('keeps what the old file already said', () => {
-    const outcome = migrated([
-      { id: 'b1', url: 'https://example.com/', title: 'Kept', createdAt: 5, folderId: null },
-    ]);
-    const [first] = outcome.status === 'migrated' ? (outcome.data as { title: string }[]) : [];
-    expect(first?.title).toBe('Kept');
+  it('refuses a file that is not a list at all, so the import brings in nothing', () => {
+    expect(reviveBookmarks({ bookmarks: 'nope' })).toBeNull();
   });
 
-  it('survives a file that is not a list at all', () => {
-    expect(() => migrated({ bookmarks: 'nope' })).not.toThrow();
-  });
-
-  it('leaves entries it cannot read for the reviver to drop', () => {
-    const outcome = migrated(['not-a-bookmark', { id: 'b1', url: 'https://example.com/' }]);
-    const data = outcome.status === 'migrated' ? outcome.data : [];
-    expect(Array.isArray(data) && data).toHaveLength(2);
-    expect(reviveBookmarks(data)).toHaveLength(1);
-  });
-
-  it('does nothing to a file already at this version', () => {
-    const current = [{ id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5, folderId: 'f1' }];
-    expect(migrate(current, 2, BOOKMARKS_PLAN)).toEqual({ status: 'current', data: current });
+  it('drops entries it cannot read and keeps the rest', () => {
+    expect(reviveBookmarks(['not-a-bookmark', { id: 'b1', url: 'https://example.com/' }])).toHaveLength(1);
   });
 });
 

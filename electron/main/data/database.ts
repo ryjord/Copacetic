@@ -69,9 +69,44 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 4,
+    sql: `
+      -- Position keeps the order the interface shows: newest bookmark first, folders in the order they were made.
+      CREATE TABLE bookmarks (
+        id TEXT PRIMARY KEY,
+        position INTEGER NOT NULL,
+        url TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        folder_id TEXT
+      );
+      CREATE INDEX bookmarks_in_order ON bookmarks (position);
+      CREATE TABLE bookmark_folders (
+        id TEXT PRIMARY KEY,
+        position INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        colour TEXT NOT NULL,
+        parent_id TEXT,
+        collapsed INTEGER NOT NULL DEFAULT 0
+      );
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];
+
+/** Runs `work` as one transaction: all of it lands, or none of it does. */
+export function inTransaction(database: DatabaseSync, work: () => void): void {
+  database.exec('BEGIN');
+  try {
+    work();
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+}
 
 function userVersion(database: DatabaseSync): number {
   const row = database.prepare('PRAGMA user_version').get();
@@ -117,15 +152,10 @@ export function openDatabase(filePath: string, migrations: readonly Migration[] 
     .filter((migration) => migration.version > current)
     .forEach((migration) => {
       // One transaction per step, so a failure leaves the database at the last step that finished.
-      database.exec('BEGIN');
-      try {
+      inTransaction(database, () => {
         database.exec(migration.sql);
         database.exec(`PRAGMA user_version = ${migration.version}`);
-        database.exec('COMMIT');
-      } catch (error) {
-        database.exec('ROLLBACK');
-        throw error;
-      }
+      });
     });
 
   return database;
