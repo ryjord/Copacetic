@@ -49,15 +49,22 @@ const until = async (condition: () => Promise<boolean>, timeoutMs = 20_000) => {
 describe('a PDF', () => {
   it('opens in the tab, in the built-in viewer, rather than downloading', async () => {
     await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), pdfUrl);
-    const isViewerOpen = await until(() =>
+    // The viewer is an extension page, either a frame inside the tab or a contents of its own.
+    const viewerPages = () =>
       copacetic.main(({ webContents }) =>
-        webContents.getAllWebContents().some((contents) => contents.getURL().startsWith('chrome-extension://')),
-      ),
-    );
-    expect(isViewerOpen).toBe(true);
+        webContents
+          .getAllWebContents()
+          .flatMap((contents) => [
+            contents.getURL(),
+            ...(contents.mainFrame?.framesInSubtree.map((frame) => frame.url) ?? []),
+          ])
+          .filter((url) => url.startsWith('chrome-extension://') || url.startsWith('chrome://')),
+      );
+    const isViewerOpen = await until(async () => (await viewerPages()).length > 0);
 
     const state = await copacetic.chrome.evaluate(() => window.copacetic.chrome.getState());
-    expect(state.downloads).toEqual([]);
+    expect(state.downloads.map((download) => download.filename)).toEqual([]);
     expect(state.tabs.some((tab) => tab.url === pdfUrl)).toBe(true);
+    expect(isViewerOpen, JSON.stringify(await viewerPages())).toBe(true);
   }, 60_000);
 });

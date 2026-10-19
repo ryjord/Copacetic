@@ -16,6 +16,9 @@ import path from 'node:path';
 /** Set for the checks that need the app in front - who holds the keyboard, fullscreen - so they never take the screen by default. */
 export const IS_FOREGROUND_RUN = process.env.COPACETIC_SMOKE_FOREGROUND === '1';
 
+/** A chrome is served from the app's own origin. Tabs never are, and each window's start-page tab is a page too. */
+const isChromeUrl = (url: string) => url.startsWith('copacetic-app://chrome/') && !url.includes('/overlay');
+
 const launchEnvironment = (extra: Record<string, string> = {}): Record<string, string> => {
   const environment: Record<string, string> = { ...process.env, NODE_ENV: 'production', ...extra } as Record<
     string,
@@ -110,7 +113,7 @@ export class SmokeApp {
       throw new Error(`the app never opened its ${what}`);
     };
 
-    const chrome = await windowWhere((url) => !url.includes('/overlay'), 'chrome window');
+    const chrome = await windowWhere(isChromeUrl, 'chrome window');
     await chrome.waitForLoadState('domcontentloaded');
 
     // Previously `overlay ?? chrome`, which made an overlay that had not been
@@ -256,9 +259,7 @@ export class SmokeApp {
 
   /** Every window's chrome, in the order Playwright met them; the overlays are pages too and are left out. */
   chromePages(): Page[] {
-    return this.app
-      .windows()
-      .filter((page) => !page.url().includes('/overlay') && !page.url().startsWith('devtools'));
+    return this.app.windows().filter((page) => isChromeUrl(page.url()));
   }
 
   /** Polls until `condition` holds, for the things the app does on its own schedule. */

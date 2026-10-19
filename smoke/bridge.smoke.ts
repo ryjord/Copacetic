@@ -40,6 +40,7 @@ describe('the bridge between the chrome and the main process', () => {
         'omnibox',
         'on',
         'permissions',
+        'profiles',
         'settings',
         'tabs',
         'updates',

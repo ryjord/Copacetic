@@ -103,9 +103,10 @@ describe('the tabs that are open', () => {
 
         const file = path.join(victim.profile, 'session.json');
         const saved = existsSync(file)
-          ? (JSON.parse(readFileSync(file, 'utf8')) as { tabs?: { url: string }[] })
+          ? (JSON.parse(readFileSync(file, 'utf8')) as { windows?: { tabs: { url: string }[] }[] })
           : {};
-        expect((saved.tabs ?? []).some((tab) => tab.url.includes('killed'))).toBe(true);
+        const urls = (saved.windows ?? []).flatMap((window) => window.tabs).map((tab) => tab.url);
+        expect(urls.some((url) => url.includes('killed'))).toBe(true);
       } finally {
         await victim.close().catch(() => {});
       }
