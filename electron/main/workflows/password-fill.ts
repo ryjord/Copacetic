@@ -1,5 +1,6 @@
 import { offerFor } from '../../shared/credential-matching';
 import type { TabId } from '../../shared/types';
+import type { NoticeCentre } from '../notices/notice-centre';
 import type { VaultSession } from '../vault/vault-session';
 import { fillScriptFor } from '../system/fill-script';
 import type { TabManager } from '../tabs/tabs';
@@ -7,6 +8,7 @@ import type { TabManager } from '../tabs/tabs';
 interface PasswordFillDeps {
   tabs: TabManager;
   vaultSession: VaultSession;
+  notices: NoticeCentre;
 }
 
 /** Putting a saved password into the page in front of you, when you ask. */
@@ -27,6 +29,20 @@ export class PasswordFill {
    * into wherever it went now would be handing a password to whoever asked.
    */
   async fill(tabId: TabId, entryId: string): Promise<string> {
+    const problem = await this.attemptFill(tabId, entryId);
+    // Started from a menu, which has gone by the time this is known, so the reason has to be said.
+    if (problem) {
+      this.deps.notices.notify({
+        id: `fill-password-${tabId}`,
+        tone: 'info',
+        key: 'fill-password',
+        message: problem,
+      });
+    }
+    return problem;
+  }
+
+  private async attemptFill(tabId: TabId, entryId: string): Promise<string> {
     const url = this.deps.tabs.urlFor(tabId) ?? '';
     const offer = offerFor(url, this.deps.vaultSession.vault.state().entries);
     const entry = offer.entries.find((candidate) => candidate.id === entryId);

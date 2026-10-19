@@ -158,7 +158,7 @@ export class Browser {
       bookmarks: this.bookmarks,
       changed,
     });
-    this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession });
+    this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
     this.commands = new TabCommands({ store: this.store, tabs: this.tabs, notices: this.notices, changed, push });
 
     this.window.on('closed', () => this.dispose());
