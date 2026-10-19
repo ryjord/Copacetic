@@ -3,6 +3,7 @@
 // is a file from somewhere else and none of it is trusted.
 
 import { sanitiseChromeText } from './chrome-text';
+import { t } from './i18n/translate';
 
 export interface ImportedBookmark {
   url: string;
@@ -91,7 +92,7 @@ export function bookmarksFromHtml(html: string): ImportedBookmarks {
     const token = match[0];
     const lower = token.slice(0, 4).toLowerCase();
     if (lower.startsWith('<h3')) {
-      heading = textOf(match[1] ?? '', MAX_IMPORTED_FOLDER_NAME) || 'Folder';
+      heading = textOf(match[1] ?? '', MAX_IMPORTED_FOLDER_NAME) || t('main.import.bookmarks.unnamedFolder');
       continue;
     }
     if (lower.startsWith('<dl')) {

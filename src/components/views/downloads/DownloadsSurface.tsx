@@ -21,6 +21,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 import { ask, send } from '@/lib/bridge';
 import { formatBytes, formatDateHeading, formatEta, formatRate, formatTimeOfDay } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { DownloadState } from '@shared/types';
@@ -37,15 +38,15 @@ export function DownloadsSurface() {
 
   return (
     <SurfaceShell
-      title="Downloads"
+      title={t('views.downloads.title')}
       actions={
         <>
           {downloads.length > 0 && (
-            <SearchField value={query} onChange={setQuery} label="Search downloads" className="w-56" />
+            <SearchField value={query} onChange={setQuery} label={t('views.downloads.search')} className="w-56" />
           )}
           {downloads.some(isFinished) && (
             <Button size="sm" onClick={() => send((api) => api.downloads.clearCompleted())}>
-              Clear finished
+              {t('views.downloads.clearFinished')}
             </Button>
           )}
         </>
@@ -58,9 +59,9 @@ export function DownloadsSurface() {
           </p>
         )}
         {downloads.length === 0 ? (
-          <EmptyState icon={Download} title="No downloads yet" hint="Files you download appear here." />
+          <EmptyState icon={Download} title={t('views.downloads.empty')} hint={t('views.downloads.emptyHint')} />
         ) : shown.length === 0 ? (
-          <EmptyState title="Nothing matches" hint="Try another part of the file name." />
+          <EmptyState title={t('views.downloads.noMatches')} hint={t('views.downloads.noMatchesHint')} />
         ) : (
           groupByDay(shown).map(([heading, items]) => (
             <section key={heading}>
@@ -122,43 +123,58 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
 
         <div className="flex shrink-0 items-center gap-0.5">
           {download.status === 'progressing' && (
-            <IconButton label="Pause download" onClick={() => send((api) => api.downloads.pause(download.id))}>
+            <IconButton
+              label={t('views.downloads.pause')}
+              onClick={() => send((api) => api.downloads.pause(download.id))}
+            >
               <Pause size={16} />
             </IconButton>
           )}
           {download.isHeld && (
             <>
               <Button size="sm" variant="ghost" onClick={() => send((api) => api.downloads.discard(download.id))}>
-                Discard
+                {t('views.downloads.discard')}
               </Button>
               <Button size="sm" onClick={() => send((api) => api.downloads.keep(download.id))}>
-                Keep
+                {t('views.downloads.keep')}
               </Button>
             </>
           )}
           {download.status === 'paused' && !download.isHeld && (
-            <IconButton label="Resume download" onClick={() => send((api) => api.downloads.resume(download.id))}>
+            <IconButton
+              label={t('views.downloads.resume')}
+              onClick={() => send((api) => api.downloads.resume(download.id))}
+            >
               <Play size={16} />
             </IconButton>
           )}
           {isActive && !download.isHeld && (
-            <IconButton label="Cancel download" onClick={() => send((api) => api.downloads.cancel(download.id))}>
+            <IconButton
+              label={t('views.downloads.cancel')}
+              onClick={() => send((api) => api.downloads.cancel(download.id))}
+            >
               <X size={16} />
             </IconButton>
           )}
           {(download.status === 'interrupted' || download.status === 'cancelled') && (
-            <IconButton label="Try again" onClick={() => send((api) => api.downloads.retry(download.id))}>
+            <IconButton
+              label={t('views.downloads.retry')}
+              onClick={() => send((api) => api.downloads.retry(download.id))}
+            >
               <RotateCw size={16} />
             </IconButton>
           )}
           {isOpenable && (
-            <IconButton label="Show in folder" onClick={() => send((api) => api.downloads.revealFile(download.id))}>
+            <IconButton
+              label={t('views.downloads.showInFolder')}
+              onClick={() => send((api) => api.downloads.revealFile(download.id))}
+            >
               <FolderOpen size={16} />
             </IconButton>
           )}
           {hasDetails && (
             <IconButton
-              label={isShowingDetails ? 'Hide details' : 'Show details'}
+              label={isShowingDetails ? t('views.downloads.hideDetails') : t('views.downloads.showDetails')}
               aria-expanded={isShowingDetails}
               onClick={() => setIsShowingDetails((shown) => !shown)}
             >
@@ -167,7 +183,7 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
           )}
           {!isActive && (
             <IconButton
-              label="Remove from list"
+              label={t('views.downloads.remove')}
               className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
               onClick={() => send((api) => api.downloads.remove(download.id))}
             >
@@ -195,7 +211,7 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
         <dl className="ml-8 mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-sm">
           {route && !isElsewhere && (
             <>
-              <dt className="text-ink-faint">From</dt>
+              <dt className="text-ink-faint">{t('views.downloads.from')}</dt>
               <dd className="min-w-0 break-all text-ink-dim select-text">{route}</dd>
             </>
           )}
@@ -215,19 +231,19 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
 function DownloadPill({ download }: { download: DownloadState }) {
   // Said before anything else: this one is waiting on the person, not on the network.
   if (download.isHeld) {
-    return <StatusPill status="warning">Runs when opened</StatusPill>;
+    return <StatusPill status="warning">{t('views.downloads.pill.held')}</StatusPill>;
   }
   if (download.status === 'paused') {
-    return <StatusPill status="warning">Paused</StatusPill>;
+    return <StatusPill status="warning">{t('views.downloads.pill.paused')}</StatusPill>;
   }
   if (download.status === 'interrupted') {
-    return <StatusPill status="danger">Failed</StatusPill>;
+    return <StatusPill status="danger">{t('views.downloads.pill.failed')}</StatusPill>;
   }
   if (download.status === 'cancelled') {
-    return <StatusPill status="neutral">Cancelled</StatusPill>;
+    return <StatusPill status="neutral">{t('views.downloads.pill.cancelled')}</StatusPill>;
   }
   if (download.status === 'completed' && !download.fileExists) {
-    return <StatusPill status="neutral">Missing</StatusPill>;
+    return <StatusPill status="neutral">{t('views.downloads.pill.missing')}</StatusPill>;
   }
   // The file is saved, but where it came from is not written down; the row goes when Copacetic closes.
   if (download.isHush) {
@@ -241,7 +257,10 @@ function detailLine(download: DownloadState): string {
   if (download.status === 'progressing' || download.status === 'paused') {
     parts.push(
       download.totalBytes > 0
-        ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}`
+        ? t('views.downloads.progress', {
+            received: formatBytes(download.receivedBytes),
+            total: formatBytes(download.totalBytes),
+          })
         : formatBytes(download.receivedBytes),
     );
     if (download.status === 'progressing') {

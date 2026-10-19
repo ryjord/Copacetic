@@ -22,6 +22,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { type BookmarkFolder, countIn, pathOf } from '@shared/bookmark-folders';
@@ -92,9 +93,9 @@ export function BookmarksSurface() {
 
   return (
     <SurfaceShell
-      title="Bookmarks"
+      title={t('views.bookmarks.title')}
       scrolls={false}
-      actions={<SearchField value={query} onChange={setQuery} label="Search bookmarks" className="w-64" />}
+      actions={<SearchField value={query} onChange={setQuery} label={t('views.bookmarks.search')} className="w-64" />}
     >
       <div className="flex min-h-0 flex-1">
         <FolderTree
@@ -120,8 +121,8 @@ export function BookmarksSurface() {
               {/* A tree makes every count ambiguous, so both numbers are said. */}
               <span className="shrink-0 text-body-sm text-ink-faint tabular-nums">
                 {counted.here === counted.withDescendants
-                  ? `${counted.here} saved`
-                  : `${counted.here} here, ${counted.withDescendants} including folders inside`}
+                  ? t('views.bookmarks.savedCount', { count: counted.here })
+                  : t('views.bookmarks.hereAndInside', { here: counted.here, total: counted.withDescendants })}
               </span>
               <div className="flex-1" />
               {counted.withDescendants > 0 && (
@@ -134,7 +135,7 @@ export function BookmarksSurface() {
                   }}
                 >
                   <FolderOpen size={14} />
-                  Open {counted.withDescendants} as a tab group
+                  {t('views.bookmarks.openAsGroup', { count: counted.withDescendants })}
                 </Button>
               )}
             </div>
@@ -144,13 +145,13 @@ export function BookmarksSurface() {
             {visible.length === 0 ? (
               <EmptyState
                 icon={BookmarkIcon}
-                title={searching ? 'Nothing matches' : 'No bookmarks here'}
+                title={searching ? t('views.bookmarks.noMatches') : t('views.bookmarks.empty')}
                 hint={
                   searching
-                    ? 'Search covers every folder. Try another word.'
+                    ? t('views.bookmarks.noMatchesHint')
                     : selection.kind === 'folder'
-                      ? 'Drag a bookmark onto this folder to file it here.'
-                      : 'Press the star in the address bar to save a page.'
+                      ? t('views.bookmarks.emptyFolderHint')
+                      : t('views.bookmarks.emptyHint')
                 }
               />
             ) : (
@@ -212,7 +213,7 @@ export function BookmarksSurface() {
                               className="size-1.5 rounded-full"
                               style={{ background: folder ? colourOf(folder.colour) : 'var(--color-line-strong)' }}
                             />
-                            {folder?.name ?? 'Unfiled'}
+                            {folder?.name ?? t('views.bookmarks.unfiled')}
                           </span>
                         )}
 
@@ -220,7 +221,9 @@ export function BookmarksSurface() {
                           {hostFor(bookmark.url)}
                         </span>
                         <IconButton
-                          label={`Edit ${bookmark.title || 'bookmark'}`}
+                          label={t('views.bookmarks.edit', {
+                            name: bookmark.title || t('views.bookmarks.fallbackName'),
+                          })}
                           size="sm"
                           className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                           onClick={() => setEditingId(bookmark.id)}
@@ -228,7 +231,9 @@ export function BookmarksSurface() {
                           <Pencil size={14} />
                         </IconButton>
                         <IconButton
-                          label={`Remove ${bookmark.title || 'bookmark'}`}
+                          label={t('views.bookmarks.remove', {
+                            name: bookmark.title || t('views.bookmarks.fallbackName'),
+                          })}
                           size="sm"
                           className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                           onClick={() => {
@@ -246,12 +251,12 @@ export function BookmarksSurface() {
                 <div className="flex flex-col items-center gap-3 px-6 pb-6 pt-2">
                   <p className="text-body-sm text-ink-faint tabular-nums">
                     {visible.length === matching.length
-                      ? `${matching.length} ${matching.length === 1 ? 'bookmark' : 'bookmarks'}`
-                      : `Showing ${visible.length} of ${matching.length}`}
+                      ? t('views.bookmarks.total', { count: matching.length })
+                      : t('views.bookmarks.showing', { shown: visible.length, total: matching.length })}
                   </p>
                   {visible.length < matching.length && (
                     <Button size="sm" onClick={() => setShown((current) => current + PAGE)}>
-                      Show more
+                      {t('views.bookmarks.showMore')}
                     </Button>
                   )}
                 </div>

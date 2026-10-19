@@ -1,6 +1,9 @@
 'use client';
 
+// Libs
 import { useEffect, useLayoutEffect, useRef } from 'react';
+
+// Components
 import { BookmarksSurface } from '@/components/views/bookmarks/BookmarksSurface';
 import { CommandPalette } from '@/components/views/palette/CommandPalette';
 import { DownloadsSurface } from '@/components/views/downloads/DownloadsSurface';
@@ -8,16 +11,21 @@ import { HistorySurface } from '@/components/views/history/HistorySurface';
 import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
 import { ErrorPage } from '@/components/views/error/ErrorPage';
 import { StartPage } from '@/components/views/start/StartPage';
-import { getBridge, isRunningInShell, send } from '@/lib/bridge';
-import { isMacPlatform } from '@/lib/platform';
-import { ambientLightStopsFor, ambientStopsFor } from '@shared/ambient';
-import { useBrowserStore } from '@/store/useBrowserStore';
-import { reachedForAnotherTab } from '@shared/surfaces';
 import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
 import { Toolbar } from '@/components/shell/Toolbar/Toolbar';
 import { WindowControls } from '@/components/shell/WindowControls/WindowControls';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
+import { getBridge, isRunningInShell, send } from '@/lib/bridge';
+import { isMacPlatform } from '@/lib/platform';
+import { ambientLightStopsFor, ambientStopsFor } from '@shared/ambient';
+import { t } from '@shared/i18n/translate';
+import { reachedForAnotherTab } from '@shared/surfaces';
 
 /** The browser shell. */
 export function Chrome() {
@@ -218,10 +226,10 @@ function LoadingLine({ isLoading }: { isLoading: boolean }) {
 function OutsideShellNotice() {
   return (
     <div className="ambient-field flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
-      <p className="text-[13px] text-ink">This is Copacetic&apos;s interface, running without its browser engine.</p>
+      <p className="text-[13px] text-ink">{t('shell.chrome.outsideShell.heading')}</p>
       <p className="max-w-md text-[12px] leading-relaxed text-ink-faint">
-        Tabs, navigation and downloads live in the Electron main process. Run{' '}
-        <code className="font-mono">npm run dev</code> to start the full browser.
+        {t('shell.chrome.outsideShell.runBefore')} <code className="font-mono">npm run dev</code>{' '}
+        {t('shell.chrome.outsideShell.runAfter')}
       </p>
     </div>
   );

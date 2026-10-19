@@ -6,6 +6,7 @@ import { observeCertificates } from './certificates';
 import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
+import { t } from '../../shared/i18n/translate';
 
 export interface SecurityDelegate {
   /** Ask the user, via the chrome UI, and resolve with their answer. */
@@ -39,13 +40,13 @@ const AUTO_ALLOWED = new Set(['fullscreen', 'pointerLock', 'clipboard-sanitized-
 
 /** Permissions worth interrupting the user for, with the wording they will read. */
 const PROMPTED: Partial<Record<string, { kind: PermissionKind; description: string }>> = {
-  geolocation: { kind: 'geolocation', description: 'know your location' },
-  notifications: { kind: 'notifications', description: 'send you notifications' },
-  media: { kind: 'media', description: 'use your camera and microphone' },
-  midi: { kind: 'midi', description: 'use your MIDI devices' },
-  midiSysex: { kind: 'midi', description: 'send system messages to your MIDI devices' },
-  'clipboard-read': { kind: 'clipboard-read', description: 'read your clipboard' },
-  openExternal: { kind: 'openExternal', description: 'open another application' },
+  geolocation: { kind: 'geolocation', description: t('main.permissions.prompts.geolocation') },
+  notifications: { kind: 'notifications', description: t('main.permissions.prompts.notifications') },
+  media: { kind: 'media', description: t('main.permissions.prompts.media') },
+  midi: { kind: 'midi', description: t('main.permissions.prompts.midi') },
+  midiSysex: { kind: 'midi', description: t('main.permissions.prompts.midiSysex') },
+  'clipboard-read': { kind: 'clipboard-read', description: t('main.permissions.prompts.clipboardRead') },
+  openExternal: { kind: 'openExternal', description: t('main.permissions.prompts.openExternal') },
 };
 
 /** Everything not listed above is denied without asking. */

@@ -16,6 +16,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { FIRST_PROFILE_ID } from '@shared/partitions';
@@ -38,14 +39,14 @@ export function ProfilesPane() {
 
   return (
     <>
-      <SettingGroup title="Profiles">
+      <SettingGroup title={t('settings.profiles.list.title')}>
         {profiles.map((profile) => {
           const isThisWindow = profile.id === current.id;
           return (
             <SettingRow
               key={profile.id}
               label={profile.name}
-              help={isThisWindow ? 'This window' : undefined}
+              help={isThisWindow ? t('settings.profiles.list.thisWindow') : undefined}
               control={
                 <>
                   {renamingId === profile.id ? (
@@ -59,24 +60,24 @@ export function ProfilesPane() {
                     />
                   ) : (
                     <Button size="sm" variant="ghost" onClick={() => setRenamingId(profile.id)}>
-                      Rename
+                      {t('settings.profiles.list.rename')}
                     </Button>
                   )}
                   <Select
-                    label={`Colour of ${profile.name}`}
+                    label={t('settings.profiles.list.colourOf', { name: profile.name })}
                     options={COLOUR_OPTIONS}
                     value={profile.colour}
                     onChange={(colour) => send((api) => api.profiles.update(profile.id, { colour }))}
                   />
                   {!isThisWindow && (
                     <Button size="sm" onClick={() => send((api) => api.profiles.openWindow(profile.id))}>
-                      Open window
+                      {t('settings.profiles.list.openWindow')}
                     </Button>
                   )}
                   {/* The first holds everything from before profiles; the one in use would close this window. */}
                   {profile.id !== FIRST_PROFILE_ID && !isThisWindow && (
                     <Button size="sm" variant="danger" onClick={() => setRemoving(profile)}>
-                      Remove…
+                      {t('settings.profiles.list.remove')}
                     </Button>
                   )}
                 </>
@@ -86,10 +87,10 @@ export function ProfilesPane() {
         })}
       </SettingGroup>
 
-      <SettingGroup title="Add a profile">
+      <SettingGroup title={t('settings.profiles.add.title')}>
         <SettingRow
-          label="New profile"
-          help="Starts empty and opens in a window of its own."
+          label={t('settings.profiles.add.label')}
+          help={t('settings.profiles.add.help')}
           control={
             <form
               className="flex items-center gap-2"
@@ -105,14 +106,19 @@ export function ProfilesPane() {
               <TextField
                 value={newName}
                 onChange={(event) => setNewName(event.target.value)}
-                placeholder="Name"
-                aria-label="New profile name"
+                placeholder={t('settings.profiles.add.namePlaceholder')}
+                aria-label={t('settings.profiles.add.nameLabel')}
                 maxLength={MAX_PROFILE_NAME}
                 className="h-7 w-40"
               />
-              <Select label="New profile colour" options={COLOUR_OPTIONS} value={newColour} onChange={setNewColour} />
+              <Select
+                label={t('settings.profiles.add.colourLabel')}
+                options={COLOUR_OPTIONS}
+                value={newColour}
+                onChange={setNewColour}
+              />
               <Button size="sm" type="submit" disabled={newName.trim() === ''}>
-                Add
+                {t('settings.profiles.add.action')}
               </Button>
             </form>
           }
@@ -126,8 +132,10 @@ export function ProfilesPane() {
             setRemoving(null);
           }
         }}
-        title={`Remove ${removing?.name ?? 'this profile'}?`}
-        confirmLabel="Remove"
+        title={t('settings.profiles.remove.title', {
+          name: removing?.name ?? t('settings.profiles.remove.fallbackName'),
+        })}
+        confirmLabel={t('settings.profiles.remove.confirm')}
         isDestructive
         onConfirm={() => {
           if (removing) {
@@ -135,8 +143,7 @@ export function ProfilesPane() {
           }
         }}
       >
-        Its history, bookmarks, passwords, cookies and settings are deleted from this computer, and its windows close.
-        This cannot be undone.
+        {t('settings.profiles.remove.body')}
       </ConfirmDialog>
     </>
   );

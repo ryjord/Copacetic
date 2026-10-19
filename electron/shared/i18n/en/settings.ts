@@ -1,2 +1,723 @@
-/** Filled as the strings move out of the code. */
-export const settings = {} as const;
+/** Settings: the surface, its navigation and search terms, and every pane except About. Product names on their own stay in the code. */
+export const settings = {
+  surface: {
+    title: 'Settings',
+    sections: 'Settings sections',
+    search: 'Search settings',
+    results: 'Search results',
+    noMatch: 'No setting matches “{query}”.',
+  },
+  nav: {
+    general: 'General',
+    appearance: 'Appearance',
+    privacy: 'Privacy and security',
+    sites: 'Site settings',
+    profiles: 'Profiles',
+    passwords: 'Passwords',
+    data: 'Your data',
+    shortcuts: 'Shortcuts',
+    updates: 'Updates',
+    about: 'About',
+    transparency: 'What Copacetic sends and keeps',
+  },
+  terms: {
+    general: {
+      reopenTabs: 'Reopen tabs',
+      startup: 'Startup',
+      searchEngine: 'Search engine',
+      spelling: 'Spelling',
+      spellcheck: 'Spellcheck',
+      spellingLanguage: 'Spelling language',
+      dictionary: 'Dictionary',
+      downloads: 'Downloads',
+      downloadFolder: 'Download folder',
+      askWhereToSave: 'Ask where to save',
+      sleepingTabs: 'Sleeping tabs',
+      memory: 'Memory',
+      bookmarksBar: 'Bookmarks bar',
+      defaultBrowser: 'Default browser',
+    },
+    appearance: {
+      light: 'Light',
+      dark: 'Dark',
+      theme: 'Theme',
+      density: 'Density',
+      zoom: 'Zoom',
+      defaultZoom: 'Default zoom',
+      startPage: 'Start page',
+      wallpaper: 'Wallpaper',
+      colour: 'Colour',
+      clock: 'Clock',
+    },
+    privacy: {
+      https: 'HTTPS',
+      secureConnections: 'Secure connections',
+      trackers: 'Trackers',
+      ads: 'Ads',
+      block: 'Block',
+      filterLists: 'Filter lists',
+      dns: 'DNS',
+      secureDns: 'Secure DNS',
+      cookies: 'Cookies',
+      thirdPartyCookies: 'Third-party cookies',
+      webRtc: 'WebRTC',
+      ipAddress: 'IP address',
+      calls: 'Calls',
+    },
+    sites: {
+      siteSettings: 'Site settings',
+      permissions: 'Permissions',
+      whenASiteAsks: 'When a site asks',
+      blockByDefault: 'Block by default',
+      camera: 'Camera',
+      microphone: 'Microphone',
+      location: 'Location',
+      notifications: 'Notifications',
+      siteZoom: 'Site zoom',
+      trackersAllowed: 'Trackers allowed',
+      exceptions: 'Exceptions',
+    },
+    profiles: {
+      profiles: 'Profiles',
+      people: 'People',
+      addProfile: 'Add profile',
+      anotherPerson: 'Another person',
+      workProfile: 'Work profile',
+      removeProfile: 'Remove profile',
+    },
+    passwords: {
+      passwords: 'Passwords',
+      vault: 'Vault',
+      lock: 'Lock',
+      fillPassword: 'Fill password',
+      exportPasswords: 'Export passwords',
+      importPasswords: 'Import passwords',
+      generate: 'Generate',
+    },
+    data: {
+      clearBrowsingData: 'Clear browsing data',
+      history: 'History',
+      cookies: 'Cookies',
+      cache: 'Cache',
+      export: 'Export',
+      importBookmarks: 'Import bookmarks',
+      importFromChrome: 'Import from Chrome',
+      importHistory: 'Import history',
+    },
+    shortcuts: {
+      keyboard: 'Keyboard',
+      shortcuts: 'Shortcuts',
+      keys: 'Keys',
+    },
+    updates: {
+      update: 'Update',
+      version: 'Version',
+      checkForUpdates: 'Check for updates',
+    },
+    about: {
+      version: 'Version',
+      licence: 'Licence',
+      licences: 'Licences',
+      openSource: 'Open source',
+      chromiumLicences: 'Chromium licences',
+      diagnostics: 'Diagnostics',
+      log: 'Log',
+    },
+    transparency: {
+      telemetry: 'Telemetry',
+      tracking: 'Tracking',
+      privacyPolicy: 'Privacy policy',
+      data: 'Data',
+      hush: 'Hush',
+      audit: 'Audit',
+      signed: 'Signed',
+      extensions: 'Extensions',
+      netflix: 'Netflix',
+    },
+  },
+  general: {
+    startup: {
+      title: 'Startup',
+      reopenTabs: 'Reopen the tabs from last time',
+    },
+    search: {
+      title: 'Search',
+      engine: {
+        label: 'Search engine',
+        help: 'Used when what you type is not an address. Suggestions come from your own history.',
+      },
+    },
+    memory: {
+      title: 'Memory',
+      sleep: {
+        label: 'Put tabs to sleep',
+        help: 'A tab left alone this long gives back its memory and comes back where it was when you return to it. Never one playing sound.',
+        never: 'Never',
+        after15: 'After 15 minutes',
+        after30: 'After 30 minutes',
+        after60: 'After an hour',
+        after120: 'After two hours',
+      },
+    },
+    typing: {
+      title: 'Typing',
+      spelling: {
+        label: 'Check spelling',
+        help: 'Underlines misspelt words in what you type into pages. Checked on this machine.',
+      },
+      languages: {
+        label: 'Languages',
+        macOs: 'macOS checks spelling in the languages set in System Settings.',
+        macOsWithCurrent: 'macOS checks spelling in the languages set in System Settings, now {languages}.',
+        checkingIn: 'Checking in {languages}.',
+        download: 'A dictionary is downloaded from Google the first time a language is used.',
+        first: 'Spelling language',
+        second: 'Second spelling language',
+        system: "Your system's language",
+        noSecond: 'No second language',
+      },
+    },
+    downloads: {
+      title: 'Downloads',
+      saveTo: {
+        label: 'Save files to',
+        fallback: 'Your Downloads folder',
+        useDefault: 'Use Downloads folder',
+        change: 'Change…',
+      },
+      ask: {
+        label: 'Ask where to save each file',
+        help: 'Each download asks for a place first, rather than going straight to the folder above.',
+      },
+    },
+    bookmarks: {
+      title: 'Bookmarks',
+      showBar: {
+        label: 'Show the bookmarks bar',
+        help: 'Top-level bookmarks and folders, under the address bar.',
+      },
+    },
+    defaultBrowser: {
+      title: 'Default browser',
+      checking: 'Checking the default browser',
+      isDefault: 'Copacetic is your default browser',
+      canAsk: 'Copacetic is not your default browser',
+      makeDefault: 'Make default',
+      settingsOnly: 'Choose your default browser in Windows settings',
+      openWindowsSettings: 'Open Windows settings',
+      unavailable: 'A development build cannot be the default browser',
+    },
+  },
+  appearance: {
+    interface: {
+      title: 'Interface',
+      appearance: 'Appearance',
+      system: 'System',
+      light: 'Light',
+      dark: 'Dark',
+      density: {
+        label: 'Density',
+        help: 'How much room the tab strip and toolbar take.',
+        comfortable: 'Comfortable',
+        compact: 'Compact',
+      },
+    },
+    zoom: {
+      title: 'Zoom',
+      default: {
+        label: 'Default zoom',
+        help: 'Sites you zoom yourself remember their own level.',
+      },
+      zoomedSites: {
+        one: 'One site has its own zoom',
+        other: '{count} sites have their own zoom',
+      },
+      siteSettings: 'Site settings',
+    },
+    startPage: {
+      title: 'Start page',
+      colour: {
+        label: 'Colour',
+        help: 'Applies to the start page only.',
+        group: 'Start page colour',
+        deep: 'Deep',
+        slate: 'Slate',
+        ember: 'Ember',
+        moss: 'Moss',
+      },
+      shade: {
+        label: 'Shade',
+        slider: 'Start page shade',
+        hex: 'Start page colour as hex',
+      },
+      wallpaper: {
+        label: 'Wallpaper',
+        help: 'A copy is kept in your profile.',
+        change: 'Change',
+        choose: 'Choose',
+        remove: 'Remove',
+      },
+      widgets: {
+        moveUp: 'Move {widget} up',
+        moveDown: 'Move {widget} down',
+        remove: 'Remove {widget}',
+      },
+      preview: {
+        label: 'Start page preview',
+        empty: 'Nothing but the page',
+      },
+    },
+  },
+  privacy: {
+    browsing: {
+      title: 'Browsing',
+      httpsFirst: {
+        label: 'Always use secure connections',
+        help: 'Tries HTTPS first, and asks before falling back to HTTP. Your own network is left alone.',
+      },
+      blockTrackers: {
+        label: 'Block trackers and ads',
+        helpWithLists: '{rules} rules from EasyList and EasyPrivacy, plus {domains} domains Copacetic blocks itself.',
+        helpOwnOnly: 'Blocks {domains} domains that exist to follow you between sites.',
+        helpUnknown: 'Blocks domains that exist to follow you between sites.',
+      },
+    },
+    filterLists: {
+      title: 'Filter lists',
+      rules: '{rules} rules',
+      rulesModified: '{rules} rules · {modified}',
+      check: {
+        label: 'Check for newer lists',
+        help: 'Contacts {hosts} once. Lists never update on their own.',
+        checking: 'Checking…',
+        action: 'Check now',
+      },
+    },
+    dns: {
+      title: 'Secure DNS',
+      lookUp: 'Look up sites',
+      group: 'DNS',
+      system: 'System',
+      encrypted: 'Encrypted',
+      provider: 'Provider',
+      providerGroup: 'DNS provider',
+    },
+    cookies: {
+      title: 'Cookies',
+      thirdParty: {
+        label: 'Block third-party cookies',
+        help: 'A site other than the one you are on cannot send or set a cookie with what it loads into the page, which is how most tracking across sites works. A site you let show trackers is let through too. Cookies a third-party frame sets with script are not covered.',
+      },
+    },
+    calls: {
+      title: 'Calls and video',
+      label: 'Addresses WebRTC may reveal',
+      publicOnly: 'Public only',
+      all: 'All',
+      proxiedOnly: 'Proxied only',
+      publicOnlyHelp:
+        'Calls and video work, and a page can learn your public address but not the one on your home or office network.',
+      allHelp:
+        'A page can learn your local network address as well. Only for a call that will not connect otherwise.',
+      proxiedOnlyHelp:
+        'Calls go through your proxy or not at all, so nothing is revealed that the proxy does not already show.',
+    },
+    sites: {
+      title: 'Sites',
+      label: 'Site settings',
+      help: 'Permissions, zoom levels and tracker exceptions, for each site.',
+      action: 'Open',
+    },
+  },
+  sites: {
+    addRule: {
+      title: 'Add a site',
+      label: 'Decide for a site before it asks',
+      problem: 'That is not a web address. Try something like example.com.',
+      address: 'Site address',
+      placeholder: 'example.com',
+      kind: 'What to decide',
+      decision: 'Decision',
+      trackers: 'Trackers',
+      allow: 'Allow',
+      block: 'Block',
+      add: 'Add',
+    },
+    permissions: {
+      geolocation: 'Location',
+      notifications: 'Notifications',
+      media: 'Camera and microphone',
+      clipboardRead: 'Clipboard',
+      displayCapture: 'Screen recording',
+      midi: 'MIDI devices',
+      pointerLock: 'Pointer lock',
+      fullscreen: 'Fullscreen',
+      openExternal: 'Opening other apps',
+    },
+    siteCount: {
+      one: '{count} site',
+      other: '{count} sites',
+    },
+    summary: {
+      refused: 'Refused without asking',
+      allowedOn: 'allowed on {sites}',
+      blockedOn: 'blocked on {sites}',
+      permissionAllowed: '{permission} allowed',
+      permissionBlocked: '{permission} blocked',
+      zoom: 'Zoom {percent}%',
+    },
+    trackersAllowed: 'Trackers allowed',
+    defaults: {
+      title: 'When a site asks',
+      ask: 'Ask',
+      block: 'Block',
+      showSites: 'Show sites',
+      byDefault: '{permission} by default',
+    },
+    list: {
+      empty: {
+        title: 'Sites',
+        label: 'Nothing is kept about any site yet',
+        help: 'Permissions you answer with Remember, zoom levels you change and sites you let show trackers appear here.',
+      },
+      search: 'Search sites',
+      filtered: 'Sites with an answer for {permission}',
+      showEvery: 'Show every site',
+      title: 'Sites ({count})',
+      noMatch: 'No site matches',
+    },
+    site: {
+      done: 'Done',
+      change: 'Change',
+      reset: 'Reset',
+      allowed: 'Allowed',
+      blocked: 'Blocked',
+      askAgain: 'Ask again',
+      useDefault: 'Use default',
+      zoom: 'Zoom {percent}%',
+      trackersHelp: 'Turned off for this site, from its connection details.',
+      blockAgain: 'Block again',
+    },
+  },
+  profiles: {
+    list: {
+      title: 'Profiles',
+      thisWindow: 'This window',
+      rename: 'Rename',
+      colourOf: 'Colour of {name}',
+      openWindow: 'Open window',
+      remove: 'Remove…',
+    },
+    add: {
+      title: 'Add a profile',
+      label: 'New profile',
+      help: 'Starts empty and opens in a window of its own.',
+      namePlaceholder: 'Name',
+      nameLabel: 'New profile name',
+      colourLabel: 'New profile colour',
+      action: 'Add',
+    },
+    remove: {
+      title: 'Remove {name}?',
+      fallbackName: 'this profile',
+      confirm: 'Remove',
+      body: 'Its history, bookmarks, passwords, cookies and settings are deleted from this computer, and its windows close. This cannot be undone.',
+    },
+  },
+  shortcuts: {
+    search: 'Search shortcuts',
+    noMatch: 'No shortcut matches.',
+    holdMac: 'Hold Cmd, Ctrl or Option with the key, or use a function key.',
+    holdOther: 'Hold Ctrl or Alt with the key, or use a function key.',
+    conflict: '{shortcut} is already used for {conflict}.',
+    recordingHelp: 'Press the new keys, or Esc to keep the old ones.',
+    recording: 'Recording…',
+    none: 'None',
+    change: 'Change',
+    reset: 'Reset',
+  },
+  updates: {
+    status: {
+      checking: 'Checking for updates…',
+      current: 'Copacetic is up to date',
+      available: 'Version {version} is available',
+      downloading: 'Downloading the update… {percent}%',
+      ready: 'Version {version} is ready to install',
+      error: 'Could not check: {message}',
+      unknown: 'Not checked yet',
+    },
+    badge: {
+      update: 'Update',
+      failed: 'Failed',
+    },
+    lastChecked: {
+      justNow: 'Checked just now',
+      minutes: {
+        one: 'Checked {count} minute ago',
+        other: 'Checked {count} minutes ago',
+      },
+      hours: {
+        one: 'Checked {count} hour ago',
+        other: 'Checked {count} hours ago',
+      },
+      days: {
+        one: 'Checked {count} day ago',
+        other: 'Checked {count} days ago',
+      },
+    },
+    restart: 'Restart to update',
+    download: 'Download {version}',
+    checkNow: 'Check now',
+    howItUpdates: 'How this build updates',
+    automatic: {
+      label: 'Check for updates automatically',
+      help: 'Asks {host} for the latest version number. Nothing about you is sent.',
+    },
+  },
+  data: {
+    browsing: {
+      title: 'Browsing data',
+      label: 'Clear browsing data',
+      help: 'History older than 90 days is removed automatically.',
+      range: 'Time range',
+      action: 'Clear…',
+    },
+    kept: {
+      title: 'Kept when you clear',
+      empty: 'Nothing is kept about particular sites',
+      clear: 'Clear',
+    },
+    export: {
+      title: 'Export',
+      bookmarks: {
+        label: 'Bookmarks',
+        help: 'An HTML file every browser can import.',
+      },
+      history: {
+        label: 'History',
+        help: 'A JSON file you can read in any text editor.',
+      },
+      action: 'Export',
+    },
+    import: {
+      title: 'Import',
+      bookmarks: {
+        label: 'Bookmarks',
+        help: 'From the file any browser exports, folders and all. In Safari, choose File, then Export Bookmarks.',
+      },
+      history: {
+        label: 'History',
+        help: 'From a file Copacetic exported, on this computer or another.',
+      },
+      browser: {
+        label: 'From another browser',
+        help: 'Bookmarks, and the last 90 days of history. Passwords are left where they are.',
+        none: 'No Chrome, Brave, Edge, Vivaldi, Arc or Firefox profile was found on this computer.',
+        choose: 'Browser to import from',
+      },
+      action: 'Import',
+    },
+  },
+  passwords: {
+    intro: {
+      label: 'Passwords are kept on this machine, encrypted',
+      help: 'Right-click a password box and choose Fill password. Copacetic never offers to save what you type.',
+      protection: 'How they are protected',
+    },
+    availability: {
+      unavailableLabel: 'Passwords cannot be saved here',
+      unreadableLabel: 'Some passwords cannot be read',
+      unavailable: 'Unavailable',
+      unreadable: 'Unreadable',
+    },
+    lock: {
+      unlocked: 'Unlocked',
+      locked: 'Locked',
+      lockNow: 'Lock now',
+      unlock: 'Unlock',
+    },
+    saved: {
+      title: 'Saved passwords',
+      titleWithCount: 'Saved passwords ({count})',
+      empty: 'No passwords saved yet',
+      unreadableEntry: 'A password this machine cannot open',
+      emptyValue: '(empty)',
+      noUsername: 'No username',
+      show: 'Show',
+      hide: 'Hide',
+      remove: 'Remove',
+      add: 'Add password',
+    },
+    transfer: {
+      title: 'Import and export',
+      export: {
+        label: 'Export passwords',
+        help: 'A CSV file that Chrome, Firefox and 1Password can read. Every password is readable in it.',
+        action: 'Export',
+      },
+      import: {
+        label: 'Import passwords',
+        help: 'From a CSV file exported by another browser or password manager.',
+        action: 'Import',
+      },
+    },
+    removeDialog: {
+      title: 'Remove this password?',
+      confirm: 'Remove',
+      body: 'The password for {account} on {site} is deleted from this machine. This cannot be undone.',
+      fallbackAccount: 'this account',
+    },
+    exportDialog: {
+      title: 'Export passwords as plain text?',
+      confirm: 'Export',
+      body: 'Anyone who can open the file can read every password in it. Save it somewhere you would keep a password, and delete it once you have imported it elsewhere.',
+    },
+    form: {
+      nothingSaved: 'Nothing was saved.',
+      site: 'Site',
+      sitePlaceholder: 'https://example.com',
+      username: 'Username',
+      usernamePlaceholder: 'Username or email',
+      password: 'Password',
+      generate: 'Generate',
+      cancel: 'Cancel',
+      save: 'Save',
+    },
+    generator: {
+      length: 'Length',
+      lengthLabel: 'Password length',
+      lowercase: 'Lowercase',
+      uppercase: 'Uppercase',
+      digits: 'Digits',
+      symbols: 'Symbols',
+      strength: 'About {bits} bits',
+      chooseOne: 'Choose at least one kind',
+    },
+  },
+  transparency: {
+    leaves: {
+      title: 'What leaves this machine',
+      track: {
+        question: 'Does Copacetic track me?',
+        answer:
+          'No. There is no analytics, no telemetry, no crash reporting and no account. Nothing about how you use the browser is recorded anywhere but here.',
+      },
+      contact: {
+        question: 'What does it contact on its own?',
+        answer:
+          "Only the update check, which asks GitHub for the latest version number and sends nothing about you. You can turn it off in Updates. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker.",
+      },
+      addressBar: {
+        question: 'Does the address bar send what I type?',
+        answer:
+          'No. Suggestions come from your own history and bookmarks, worked out on this machine. Only pressing Enter on something that is not an address sends it, to your search engine.',
+      },
+    },
+    kept: {
+      title: 'What is kept on this machine',
+      where: {
+        question: 'Where is my data?',
+        answer:
+          "In Copacetic's folder in your user profile: a SQLite database for history, bookmarks, downloads and what you decided about each site, and a settings file you can read in any text editor. History is removed after 90 days. You can export or clear it in Your data.",
+      },
+      log: {
+        question: 'What is the diagnostics log?',
+        answer:
+          'A file that records what Copacetic did: that it started, that a setting would not save, that something failed. Addresses are reduced to their scheme before they are written, so it never names a page you visited. Nothing sends it anywhere.',
+        action: 'Show the log',
+      },
+      hush: {
+        question: 'What does a Hush tab keep?',
+        answer:
+          'Nothing on disk: no history, cookies, cache, icons or reopen list. It does not hide you. The sites you open, your network and your internet provider see a Hush tab like any other.',
+      },
+    },
+    passwords: {
+      title: 'Passwords',
+      where: {
+        question: 'Where are they?',
+        before: 'Encrypted one at a time in',
+        fallbackPath: 'your profile',
+        after: '. The sites and usernames in it are readable; the passwords are not.',
+      },
+      protect: {
+        question: 'What protects them?',
+        withKeychain:
+          'A key kept by {keychain}. It stops someone reading the file, but not software running as you, which can ask for the same key.',
+        withoutKeychain: 'This machine has no keychain Copacetic can use, so passwords cannot be saved here.',
+      },
+      locking: {
+        question: 'Does locking help?',
+        canAsk: 'It stops someone at your screen, once macOS has confirmed it is you. It does not protect the file.',
+        cannotAsk:
+          'This machine cannot check who you are, so unlocking is one click. It stops someone glancing at your screen.',
+      },
+      update: {
+        question: 'Could an update lose them?',
+        answer:
+          'On macOS, possibly. These builds are not code-signed, so macOS can treat an updated Copacetic as a different app and refuse it the keychain key. Nothing is deleted, but the passwords would be unreadable until you import a copy. Keep an export somewhere safe.',
+      },
+      fill: {
+        question: 'Does it fill passwords in?',
+        answer:
+          'When you ask. Right-click a password box and choose Fill password: one short script runs in that page, once, and leaves nothing behind. It only appears on sites you have a password saved for.',
+      },
+      offer: {
+        question: 'Does it offer to save passwords?',
+        answer:
+          'No. Copacetic never offers to save what you type, because noticing it would mean code running in every page all the time. You add passwords in Settings yourself.',
+      },
+    },
+    scripts: {
+      title: 'Scripts in pages',
+      run: {
+        question: 'Does Copacetic run code in the pages I visit?',
+        before: 'Two small things. Every page gets a placeholder for the',
+        after:
+          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. The other is Fill password, which runs once when you choose it.",
+      },
+    },
+    blocking: {
+      title: 'Tracker blocking',
+      what: {
+        question: 'What is blocked?',
+        answer:
+          'Copacetic blocks {domains} that exist only to follow people between sites, plus the EasyList and EasyPrivacy rules. The count in the address bar is the real number blocked on that page.',
+        domains: '{count} domains',
+        domainsFallback: 'a list of domains',
+      },
+      cannot: {
+        question: 'What can it not block?',
+        answer:
+          "Ads served from a site's own domain, ads the server writes into the page, and sponsored posts in a feed. The space a blocked ad leaves inside a frame is not collapsed, because that would mean running a script in the frame.",
+      },
+      lists: {
+        question: 'Whose are the lists?',
+        answer:
+          "The EasyList project's, shipped whole and unmodified under the GPLv3 or CC BY-SA 3.0. The NOTICE file says so in the terms those licences ask for.",
+      },
+    },
+    limits: {
+      title: 'Known limitations',
+      audit: {
+        question: 'Has it been audited?',
+        answer:
+          'It has not been security audited. It is a personal project built to a high standard, which is not the same as one that has been reviewed.',
+      },
+      signed: {
+        question: 'Is it signed?',
+        answer:
+          'The builds are not code-signed. Your system may warn the first time you open Copacetic, and on macOS updates are installed by hand.',
+      },
+      unsupported: {
+        question: 'What does it not support?',
+        answer:
+          'Extensions, by design: they need access to pages that the sandbox does not allow. Protected video such as Netflix, because the Widevine component is not included.',
+      },
+      report: {
+        question: 'Where do I report a problem?',
+        answer: "On the project's issue tracker. Copacetic comes with no warranty.",
+      },
+    },
+  },
+} as const;

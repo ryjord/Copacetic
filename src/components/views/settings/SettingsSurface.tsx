@@ -15,6 +15,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { ask } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { AppInfo } from '@shared/types';
@@ -45,10 +46,13 @@ export function SettingsSurface() {
   };
 
   return (
-    <SurfaceShell title="Settings" scrolls={false}>
+    <SurfaceShell title={t('settings.surface.title')} scrolls={false}>
       <div className="flex min-h-0 flex-1">
-        <nav aria-label="Settings sections" className="flex w-60 flex-none flex-col gap-3 border-r border-line p-3">
-          <SearchField value={query} onChange={setQuery} label="Search settings" />
+        <nav
+          aria-label={t('settings.surface.sections')}
+          className="flex w-60 flex-none flex-col gap-3 border-r border-line p-3"
+        >
+          <SearchField value={query} onChange={setQuery} label={t('settings.surface.search')} />
           <ul className="flex flex-col gap-0.5">
             {SETTINGS_PANES.map((pane) => {
               const Icon = pane.icon;
@@ -101,9 +105,9 @@ function SearchResults({
 }) {
   return (
     <>
-      <PageHeader title="Search results" />
+      <PageHeader title={t('settings.surface.results')} />
       {matches.length === 0 ? (
-        <p className="text-body text-ink-dim">No setting matches &ldquo;{query}&rdquo;.</p>
+        <p className="text-body text-ink-dim">{t('settings.surface.noMatch', { query })}</p>
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-raised">
           {matches.map((match) => (

@@ -18,6 +18,7 @@ import { ask, send } from '@/lib/bridge';
 import { useDismissLayer } from '@/lib/dismissLayer';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import {
@@ -31,10 +32,10 @@ import {
 import { hostOf, originOf, registrableDomainOf } from '@shared/url';
 
 const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string; word: string }> = {
-  secure: { icon: Lock, className: 'text-clear', word: 'Encrypted' },
-  insecure: { icon: ShieldOff, className: 'text-caution', word: 'Not secure' },
-  internal: { icon: FileText, className: 'text-ink-dim', word: 'Local' },
-  unknown: { icon: HelpCircle, className: 'text-ink-faint', word: 'Unknown' },
+  secure: { icon: Lock, className: 'text-clear', word: t('shell.securityLevel.secure') },
+  insecure: { icon: ShieldOff, className: 'text-caution', word: t('shell.securityLevel.insecure') },
+  internal: { icon: FileText, className: 'text-ink-dim', word: t('shell.securityLevel.internal') },
+  unknown: { icon: HelpCircle, className: 'text-ink-faint', word: t('shell.securityLevel.unknown') },
 };
 
 const close = () => send((api) => api.chrome.closeSiteInfo());
@@ -50,7 +51,7 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
 
   return (
     <section
-      aria-label="Connection details"
+      aria-label={t('shell.overlay.siteInfo.label')}
       className="animate-pop flex max-h-140 w-100 flex-col overflow-y-auto rounded-lg border border-line bg-raised shadow-popover"
     >
       <div className="flex items-start gap-3 p-4 pb-3">
@@ -59,18 +60,26 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
           <p className={cn('text-body font-medium', style.className)}>{style.word}</p>
           <p className="mt-0.5 text-body-sm text-ink-dim">{tab.security.detail}</p>
         </div>
-        <IconButton label="Close connection details" size="sm" onClick={close}>
+        <IconButton label={t('shell.overlay.siteInfo.close')} size="sm" onClick={close}>
           <X size={14} strokeWidth={1.75} />
         </IconButton>
       </div>
 
       <dl className="flex flex-col gap-1.5 border-t border-line px-4 py-3">
-        <Row label="Host" value={tab.security.host || 'None'} isMono />
+        <Row
+          label={t('shell.overlay.siteInfo.host')}
+          value={tab.security.host || t('shell.overlay.siteInfo.none')}
+          isMono
+        />
         {tab.loadMs !== null && (
-          <Row label="Load time" value={formatDuration(tab.loadMs)} icon={<Timer size={12} aria-hidden />} />
+          <Row
+            label={t('shell.overlay.siteInfo.loadTime')}
+            value={formatDuration(tab.loadMs)}
+            icon={<Timer size={12} aria-hidden />}
+          />
         )}
         <Row
-          label="Trackers blocked"
+          label={t('shell.overlay.siteInfo.trackersBlocked')}
           value={String(tab.blockedCount)}
           icon={<Ban size={12} aria-hidden />}
           isEmphasised={tab.blockedCount > 0}
@@ -109,18 +118,24 @@ function TrackerException({ url, blockedCount }: { url: string; blockedCount: nu
       <p className="min-w-0 flex-1 text-body-sm text-ink-dim">
         {isAllowed ? (
           <>
-            Trackers are <span className="text-caution">allowed</span> on{' '}
-            <span className="font-medium text-ink">{site}</span>.
+            {t('shell.overlay.siteInfo.allowedLead')}{' '}
+            <span className="text-caution">{t('shell.overlay.siteInfo.allowedWord')}</span>{' '}
+            {t('shell.overlay.siteInfo.allowedJoin')} <span className="font-medium text-ink">{site}</span>.
           </>
         ) : (
           <>
-            Trackers are blocked on <span className="font-medium text-ink">{site}</span>
-            {blockedCount > 0 && <span className="text-ink-faint">, {blockedCount} stopped on this page</span>}.
+            {t('shell.overlay.siteInfo.blockedLead')} <span className="font-medium text-ink">{site}</span>
+            {blockedCount > 0 && (
+              <span className="text-ink-faint">
+                {t('shell.overlay.siteInfo.stoppedOnPage', { count: blockedCount })}
+              </span>
+            )}
+            .
           </>
         )}
       </p>
       <Button size="sm" onClick={toggle}>
-        {isAllowed ? 'Block again' : 'Allow on this site'}
+        {isAllowed ? t('shell.overlay.siteInfo.blockAgain') : t('shell.overlay.siteInfo.allowOnSite')}
       </Button>
     </div>
   );
@@ -144,14 +159,14 @@ function SitePermissions({ url }: { url: string }) {
   if (granted.length === 0) {
     return (
       <p className="border-t border-line px-4 py-3 text-body-sm text-ink-faint">
-        This site has not asked for anything that needed your permission.
+        {t('shell.overlay.siteInfo.noPermissions')}
       </p>
     );
   }
 
   return (
     <div className="border-t border-line px-4 py-3">
-      <h2 className="label mb-2">This site can</h2>
+      <h2 className="label mb-2">{t('shell.overlay.siteInfo.siteCan')}</h2>
       <ul className="flex flex-col">
         {granted.map((entry) => (
           <li key={entry.kind} className="flex h-8 items-center gap-3">
@@ -161,14 +176,14 @@ function SitePermissions({ url }: { url: string }) {
             <span
               className={cn('shrink-0 text-body-sm', entry.decision === 'allow' ? 'text-clear' : 'text-ink-faint')}
             >
-              {entry.decision === 'allow' ? 'Allowed' : 'Blocked'}
+              {entry.decision === 'allow' ? t('shell.overlay.siteInfo.allowed') : t('shell.overlay.siteInfo.blocked')}
             </span>
             <Button
               size="sm"
               variant="ghost"
               onClick={() => send((api) => api.permissions.forget(origin, entry.kind))}
             >
-              Reset
+              {t('shell.overlay.siteInfo.reset')}
             </Button>
           </li>
         ))}
@@ -201,7 +216,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
   if (entries.length === 0) {
     return (
       <p className="border-t border-line px-4 py-3 text-body-sm text-ink-faint">
-        No requests recorded for this page yet.
+        {t('shell.overlay.siteInfo.noRequests')}
       </p>
     );
   }
@@ -212,10 +227,12 @@ function ConnectionLog({ tabId }: { tabId: string }) {
   return (
     <div className="border-t border-line px-4 py-3">
       <div className="mb-2 flex items-baseline justify-between gap-4">
-        <h2 className="label">Hosts contacted</h2>
+        <h2 className="label">{t('shell.overlay.siteInfo.hostsContacted')}</h2>
         <p className="text-caption text-ink-faint">
-          {entries.length} host{entries.length === 1 ? '' : 's'}
-          {blockedHosts > 0 && <span className="text-caution"> · {blockedHosts} blocked</span>}
+          {t('shell.overlay.siteInfo.hostCount', { count: entries.length })}
+          {blockedHosts > 0 && (
+            <span className="text-caution"> {t('shell.overlay.siteInfo.blockedHosts', { count: blockedHosts })}</span>
+          )}
         </p>
       </div>
       <ul className="flex flex-col gap-1">
@@ -226,9 +243,13 @@ function ConnectionLog({ tabId }: { tabId: string }) {
                 {entry.host}
               </span>
               {entry.blocked > 0 ? (
-                <span className="shrink-0 text-caption text-caution">Blocked {entry.blocked}</span>
+                <span className="shrink-0 text-caption text-caution">
+                  {t('shell.overlay.siteInfo.blockedRequests', { count: entry.blocked })}
+                </span>
               ) : (
-                entry.isTracker && <span className="shrink-0 text-caption text-ink-faint">Allowed</span>
+                entry.isTracker && (
+                  <span className="shrink-0 text-caption text-ink-faint">{t('shell.overlay.siteInfo.allowed')}</span>
+                )
               )}
               <span className="w-6 shrink-0 text-right text-caption text-ink-faint tabular-nums">
                 {entry.requests}
@@ -237,7 +258,9 @@ function ConnectionLog({ tabId }: { tabId: string }) {
             {/* Which of the two stopped it: a rule can be wrong about one URL, a hostname about a whole company. */}
             {entry.blocked > 0 && (
               <span className="truncate font-mono text-caption text-ink-faint" title={entry.rule ?? undefined}>
-                {entry.rule ? `by rule ${entry.rule}` : 'by hostname'}
+                {entry.rule
+                  ? t('shell.overlay.siteInfo.byRule', { rule: entry.rule })
+                  : t('shell.overlay.siteInfo.byHostname')}
               </span>
             )}
           </li>
@@ -245,7 +268,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
       </ul>
       {entries.length > visible.length && (
         <Button size="sm" variant="ghost" className="mt-2 -ml-2.5" onClick={() => setIsExpanded(true)}>
-          Show all {entries.length}
+          {t('shell.overlay.siteInfo.showAll', { count: entries.length })}
         </Button>
       )}
     </div>
@@ -256,7 +279,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
 function CertificateChangeNotice({ detail }: { detail: string }) {
   return (
     <div className="mx-4 mb-3 rounded-md border border-caution/40 px-3 py-2" role="status">
-      <h3 className="mb-1 text-body-sm font-medium text-caution">This certificate has changed</h3>
+      <h3 className="mb-1 text-body-sm font-medium text-caution">{t('shell.overlay.siteInfo.certificateChanged')}</h3>
       <p className="text-body-sm text-ink-dim">{detail}</p>
     </div>
   );
@@ -269,20 +292,17 @@ function CertificateRows({ certificate, now }: { certificate: CertificateSummary
   return (
     <>
       <Row
-        label="Issued by"
+        label={t('shell.overlay.siteInfo.issuedBy')}
         value={certificate.issuer}
         icon={<BadgeCheck size={12} aria-hidden />}
         isWarning={!certificate.isIssuedByKnownRoot}
       />
       {!certificate.isIssuedByKnownRoot && (
-        <p className="text-body-sm text-caution">
-          This certificate chains to a root installed on this machine, not one your system shipped with. Something
-          local, such as a company proxy, antivirus or a debugging tool, is reading this connection.
-        </p>
+        <p className="text-body-sm text-caution">{t('shell.overlay.siteInfo.unknownRoot')}</p>
       )}
-      {certificate.subject && <Row label="Issued to" value={certificate.subject} isMono />}
+      {certificate.subject && <Row label={t('shell.overlay.siteInfo.issuedTo')} value={certificate.subject} isMono />}
       <Row
-        label="Expires"
+        label={t('shell.overlay.siteInfo.expires')}
         value={formatExpiry(certificate.validTo, daysLeft)}
         icon={<CalendarClock size={12} aria-hidden />}
         isWarning={isExpiringSoon}
@@ -293,20 +313,20 @@ function CertificateRows({ certificate, now }: { certificate: CertificateSummary
 
 export function formatExpiry(validTo: number, daysLeft: number | null): string {
   if (!validTo) {
-    return 'Unknown';
+    return t('shell.overlay.siteInfo.unknown');
   }
   const date = new Date(validTo).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
   if (daysLeft === null) {
     return date;
   }
   if (daysLeft < 0) {
-    return `${date}, expired`;
+    return t('shell.overlay.siteInfo.expired', { date });
   }
   if (daysLeft === 0) {
-    return `${date}, today`;
+    return t('shell.overlay.siteInfo.expiresToday', { date });
   }
   if (daysLeft <= 90) {
-    return `${date}, in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+    return t('shell.overlay.siteInfo.expiresIn', { date, count: daysLeft });
   }
   return date;
 }

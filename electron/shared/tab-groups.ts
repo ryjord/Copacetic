@@ -1,4 +1,5 @@
 import { type ProfilePartitions, groupPartition } from './partitions';
+import { t } from './i18n/translate';
 
 /**
  * A group is a name, a colour, and how far the separation goes.
@@ -80,11 +81,11 @@ export function claimOf(group: TabGroup, holdsHush: boolean): GroupClaim {
 export function describeClaim(claim: GroupClaim): string {
   switch (claim) {
     case 'separate':
-      return 'Its own cookies and logins. Signing in here signs you in nowhere else.';
+      return t('main.groups.claim.separate');
     case 'shared':
-      return 'Shares cookies and logins with your other tabs.';
+      return t('main.groups.claim.shared');
     case 'mixed':
-      return 'Mixed: one of these tabs keeps nothing, and the rest are kept. This group cannot say one thing about all of them.';
+      return t('main.groups.claim.mixed');
   }
 }
 

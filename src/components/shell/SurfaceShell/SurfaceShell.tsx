@@ -17,6 +17,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 import { useDismissLayer } from '@/lib/dismissLayer';
 import { useFocusTrap } from '@/lib/focusTrap';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 interface SurfaceShellProps {
   title: string;
@@ -53,7 +54,10 @@ export function SurfaceShell({ title, actions, scrolls = true, children }: Surfa
       <header className="flex h-12 flex-none items-center gap-3 border-b border-line px-4">
         <h1 className="min-w-0 flex-1 truncate text-title font-semibold text-ink">{title}</h1>
         {actions}
-        <IconButton label={`Close ${title.toLowerCase()}`} onClick={() => setSurface('none')}>
+        <IconButton
+          label={t('shell.surfaceShell.close', { title: title.toLowerCase() })}
+          onClick={() => setSurface('none')}
+        >
           <X size={16} />
         </IconButton>
       </header>

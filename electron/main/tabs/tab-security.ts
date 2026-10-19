@@ -1,5 +1,6 @@
 import { START_PAGE_URL, hostOf, isLoopbackHost } from '../../shared/url';
 import type { CertificateSummary, SecurityState } from '../../shared/types';
+import { t } from '../../shared/i18n/translate';
 
 export function describeSecurity(
   url: string,
@@ -22,7 +23,7 @@ export function describeSecurity(
       level: 'internal',
       scheme: 'copacetic',
       host: 'start',
-      detail: 'A Copacetic page. Nothing here touches the network.',
+      detail: t('main.security.internalPage'),
       certificate: null,
       certificateChange: '',
     };
@@ -38,7 +39,7 @@ export function describeSecurity(
       level: 'unknown',
       scheme,
       host,
-      detail: 'This page did not load, so there is nothing to say about the connection.',
+      detail: t('main.security.failed'),
       certificate: null,
       certificateChange: '',
     };
@@ -49,7 +50,7 @@ export function describeSecurity(
       level: 'internal',
       scheme,
       host,
-      detail: 'A Copacetic page. Nothing here touches the network.',
+      detail: t('main.security.internalPage'),
       certificate: null,
       certificateChange: '',
     };
@@ -59,8 +60,8 @@ export function describeSecurity(
     return {
       level: 'internal',
       scheme,
-      host: hostOf(url) || 'local file',
-      detail: 'A file on this machine. It was never sent over a network.',
+      host: hostOf(url) || t('main.security.localFile.host'),
+      detail: t('main.security.localFile.detail'),
       certificate: null,
       certificateChange: '',
     };
@@ -72,8 +73,7 @@ export function describeSecurity(
       level: 'insecure',
       scheme,
       host,
-      detail:
-        'You chose to continue although this site’s certificate could not be verified. The connection is encrypted, but Copacetic cannot confirm who is on the other end.',
+      detail: t('main.security.acceptedException'),
       certificate: null,
       certificateChange: '',
     };
@@ -85,8 +85,7 @@ export function describeSecurity(
       scheme,
       host,
       // Not the usual claim, because the usual check did not happen.
-      detail:
-        'Encrypted to a server on this machine. Its certificate was not checked against any authority. Copacetic accepts those from loopback so local development works, and this traffic never leaves your machine.',
+      detail: t('main.security.localException'),
       certificate: null,
       certificateChange: '',
     };
@@ -97,7 +96,7 @@ export function describeSecurity(
       level: 'secure',
       scheme,
       host,
-      detail: 'Encrypted. Chromium checked this site’s certificate against your system’s trusted authorities.',
+      detail: t('main.security.secure'),
       certificate,
       certificateChange,
     };
@@ -108,7 +107,7 @@ export function describeSecurity(
       level: 'secure',
       scheme,
       host,
-      detail: 'Loopback connection. This traffic never leaves your machine.',
+      detail: t('main.security.loopback'),
       certificate: null,
       certificateChange: '',
     };
@@ -119,7 +118,7 @@ export function describeSecurity(
       level: 'insecure',
       scheme,
       host,
-      detail: 'Not encrypted. Anyone on this network can read this page and change it before you see it.',
+      detail: t('main.security.insecure'),
       certificate: null,
       certificateChange: '',
     };
@@ -129,7 +128,7 @@ export function describeSecurity(
     level: 'unknown',
     scheme,
     host,
-    detail: 'Copacetic cannot describe this connection.',
+    detail: t('main.security.unknown'),
     certificate: null,
     certificateChange: '',
   };

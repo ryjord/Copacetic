@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button/Button';
 
 // Utils
 import { ask, send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { VaultFacts } from '@shared/types';
@@ -36,126 +37,103 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
     void ask((api) => api.vault.facts(), NO_FACTS).then(setFacts);
   }, []);
 
-  const domains = info ? `${info.blockerRuleCount} domains` : 'a list of domains';
+  const domains = info
+    ? t('settings.transparency.blocking.what.domains', { count: info.blockerRuleCount })
+    : t('settings.transparency.blocking.what.domainsFallback');
 
   return (
     <div className="flex max-w-[62ch] flex-col gap-8">
-      <Topic title="What leaves this machine">
-        <Answer question="Does Copacetic track me?">
-          No. There is no analytics, no telemetry, no crash reporting and no account. Nothing about how you use the
-          browser is recorded anywhere but here.
+      <Topic title={t('settings.transparency.leaves.title')}>
+        <Answer question={t('settings.transparency.leaves.track.question')}>
+          {t('settings.transparency.leaves.track.answer')}
         </Answer>
-        <Answer question="What does it contact on its own?">
-          Only the update check, which asks GitHub for the latest version number and sends nothing about you. You can
-          turn it off in Updates. The filter lists are fetched only when you press Check now. A page&apos;s icon is
-          fetched in that page&apos;s own session, because the page asked for it. On Windows and Linux, checking
-          spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its
-          own spelling checker.
+        <Answer question={t('settings.transparency.leaves.contact.question')}>
+          {t('settings.transparency.leaves.contact.answer')}
         </Answer>
-        <Answer question="Does the address bar send what I type?">
-          No. Suggestions come from your own history and bookmarks, worked out on this machine. Only pressing Enter on
-          something that is not an address sends it, to your search engine.
+        <Answer question={t('settings.transparency.leaves.addressBar.question')}>
+          {t('settings.transparency.leaves.addressBar.answer')}
         </Answer>
       </Topic>
 
-      <Topic title="What is kept on this machine">
-        <Answer question="Where is my data?">
-          In Copacetic&apos;s folder in your user profile: a SQLite database for history, bookmarks, downloads and
-          what you decided about each site, and a settings file you can read in any text editor. History is removed
-          after 90 days. You can export or clear it in Your data.
+      <Topic title={t('settings.transparency.kept.title')}>
+        <Answer question={t('settings.transparency.kept.where.question')}>
+          {t('settings.transparency.kept.where.answer')}
         </Answer>
-        <Answer question="What is the diagnostics log?">
-          A file that records what Copacetic did: that it started, that a setting would not save, that something
-          failed. Addresses are reduced to their scheme before they are written, so it never names a page you visited.
-          Nothing sends it anywhere.
+        <Answer question={t('settings.transparency.kept.log.question')}>
+          {t('settings.transparency.kept.log.answer')}
           <div className="mt-2">
             <Button size="sm" onClick={() => send((api) => api.app.revealDiagnostics())}>
-              Show the log
+              {t('settings.transparency.kept.log.action')}
             </Button>
           </div>
         </Answer>
-        <Answer question="What does a Hush tab keep?">
-          Nothing on disk: no history, cookies, cache, icons or reopen list. It does not hide you. The sites you open,
-          your network and your internet provider see a Hush tab like any other.
+        <Answer question={t('settings.transparency.kept.hush.question')}>
+          {t('settings.transparency.kept.hush.answer')}
         </Answer>
       </Topic>
 
-      <Topic title="Passwords">
-        <Answer question="Where are they?">
-          Encrypted one at a time in{' '}
+      <Topic title={t('settings.transparency.passwords.title')}>
+        <Answer question={t('settings.transparency.passwords.where.question')}>
+          {t('settings.transparency.passwords.where.before')}{' '}
           <span className="break-all font-mono text-body-sm text-ink select-text">
-            {facts.filePath || 'your profile'}
+            {facts.filePath || t('settings.transparency.passwords.where.fallbackPath')}
           </span>
-          . The sites and usernames in it are readable; the passwords are not.
+          {t('settings.transparency.passwords.where.after')}
         </Answer>
-        <Answer question="What protects them?">
+        <Answer question={t('settings.transparency.passwords.protect.question')}>
           {facts.hasKeychain
-            ? `A key kept by ${facts.keychainName}. It stops someone reading the file, but not software running as you, which can ask for the same key.`
-            : facts.keychainProblem ||
-              'This machine has no keychain Copacetic can use, so passwords cannot be saved here.'}
+            ? t('settings.transparency.passwords.protect.withKeychain', { keychain: facts.keychainName })
+            : facts.keychainProblem || t('settings.transparency.passwords.protect.withoutKeychain')}
         </Answer>
-        <Answer question="Does locking help?">
+        <Answer question={t('settings.transparency.passwords.locking.question')}>
           {facts.canAskWhoYouAre
-            ? 'It stops someone at your screen, once macOS has confirmed it is you. It does not protect the file.'
-            : 'This machine cannot check who you are, so unlocking is one click. It stops someone glancing at your screen.'}
+            ? t('settings.transparency.passwords.locking.canAsk')
+            : t('settings.transparency.passwords.locking.cannotAsk')}
         </Answer>
         {!facts.isSigned && (
-          <Answer question="Could an update lose them?">
-            On macOS, possibly. These builds are not code-signed, so macOS can treat an updated Copacetic as a
-            different app and refuse it the keychain key. Nothing is deleted, but the passwords would be unreadable
-            until you import a copy. Keep an export somewhere safe.
+          <Answer question={t('settings.transparency.passwords.update.question')}>
+            {t('settings.transparency.passwords.update.answer')}
           </Answer>
         )}
-        <Answer question="Does it fill passwords in?">
-          When you ask. Right-click a password box and choose Fill password: one short script runs in that page, once,
-          and leaves nothing behind. It only appears on sites you have a password saved for.
+        <Answer question={t('settings.transparency.passwords.fill.question')}>
+          {t('settings.transparency.passwords.fill.answer')}
         </Answer>
-        <Answer question="Does it offer to save passwords?">
-          No. Copacetic never offers to save what you type, because noticing it would mean code running in every page
-          all the time. You add passwords in Settings yourself.
+        <Answer question={t('settings.transparency.passwords.offer.question')}>
+          {t('settings.transparency.passwords.offer.answer')}
         </Answer>
       </Topic>
 
-      <Topic title="Scripts in pages">
-        <Answer question="Does Copacetic run code in the pages I visit?">
-          Two small things. Every page gets a placeholder for the <code className="font-mono">window.chrome</code>{' '}
-          object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without
-          it. It holds three empty members and nothing of the browser&apos;s. The other is Fill password, which runs
-          once when you choose it.
+      <Topic title={t('settings.transparency.scripts.title')}>
+        <Answer question={t('settings.transparency.scripts.run.question')}>
+          {t('settings.transparency.scripts.run.before')} <code className="font-mono">window.chrome</code>{' '}
+          {t('settings.transparency.scripts.run.after')}
         </Answer>
       </Topic>
 
-      <Topic title="Tracker blocking">
-        <Answer question="What is blocked?">
-          Copacetic blocks {domains} that exist only to follow people between sites, plus the EasyList and EasyPrivacy
-          rules. The count in the address bar is the real number blocked on that page.
+      <Topic title={t('settings.transparency.blocking.title')}>
+        <Answer question={t('settings.transparency.blocking.what.question')}>
+          {t('settings.transparency.blocking.what.answer', { domains })}
         </Answer>
-        <Answer question="What can it not block?">
-          Ads served from a site&apos;s own domain, ads the server writes into the page, and sponsored posts in a
-          feed. The space a blocked ad leaves inside a frame is not collapsed, because that would mean running a
-          script in the frame.
+        <Answer question={t('settings.transparency.blocking.cannot.question')}>
+          {t('settings.transparency.blocking.cannot.answer')}
         </Answer>
-        <Answer question="Whose are the lists?">
-          The EasyList project&apos;s, shipped whole and unmodified under the GPLv3 or CC BY-SA 3.0. The NOTICE file
-          says so in the terms those licences ask for.
+        <Answer question={t('settings.transparency.blocking.lists.question')}>
+          {t('settings.transparency.blocking.lists.answer')}
         </Answer>
       </Topic>
 
-      <Topic title="Known limitations">
-        <Answer question="Has it been audited?">
-          It has not been security audited. It is a personal project built to a high standard, which is not the same
-          as one that has been reviewed.
+      <Topic title={t('settings.transparency.limits.title')}>
+        <Answer question={t('settings.transparency.limits.audit.question')}>
+          {t('settings.transparency.limits.audit.answer')}
         </Answer>
-        <Answer question="Is it signed?">
-          The builds are not code-signed. Your system may warn the first time you open Copacetic, and on macOS updates
-          are installed by hand.
+        <Answer question={t('settings.transparency.limits.signed.question')}>
+          {t('settings.transparency.limits.signed.answer')}
         </Answer>
-        <Answer question="What does it not support?">
-          Extensions, by design: they need access to pages that the sandbox does not allow. Protected video such as
-          Netflix, because the Widevine component is not included.
+        <Answer question={t('settings.transparency.limits.unsupported.question')}>
+          {t('settings.transparency.limits.unsupported.answer')}
         </Answer>
-        <Answer question="Where do I report a problem?">
-          On the project&apos;s issue tracker. Copacetic comes with no warranty.
+        <Answer question={t('settings.transparency.limits.report.question')}>
+          {t('settings.transparency.limits.report.answer')}
         </Answer>
       </Topic>
     </div>

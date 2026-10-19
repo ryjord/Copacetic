@@ -1,5 +1,6 @@
 import { PUBLIC_SUFFIX_EXCEPTIONS, PUBLIC_SUFFIX_RULES, PUBLIC_SUFFIX_WILDCARDS } from './public-suffix-list';
 import type { SearchEngine, SearchEngineId } from './types';
+import { t } from './i18n/translate';
 
 export const INTERNAL_SCHEME = 'copacetic';
 export const START_PAGE_URL = `${INTERNAL_SCHEME}://start`;
@@ -414,7 +415,7 @@ export function originOf(value: string): string {
 /** A short, human label for a URL - used for tab titles before one arrives. */
 export function fallbackTitleFor(value: string): string {
   if (value === START_PAGE_URL) {
-    return 'New tab';
+    return t('main.tabs.newTabTitle');
   }
   const host = hostOf(value);
   if (host) {

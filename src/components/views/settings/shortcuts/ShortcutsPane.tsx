@@ -16,6 +16,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 import { send } from '@/lib/bridge';
 import { isMacPlatform } from '@/lib/platform';
 import { updateSettings } from '@/components/views/settings/shared/options';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import {
@@ -67,12 +68,12 @@ export function ShortcutsPane() {
       return;
     }
     if (!isValidAccelerator(accelerator)) {
-      setProblem(`Hold ${isMac ? 'Cmd, Ctrl or Option' : 'Ctrl or Alt'} with the key, or use a function key.`);
+      setProblem(t(isMac ? 'settings.shortcuts.holdMac' : 'settings.shortcuts.holdOther'));
       return;
     }
     const conflict = conflictFor(id, accelerator, overrides);
     if (conflict) {
-      setProblem(`${readableAccelerator(accelerator, isMac)} is already used for ${conflict}.`);
+      setProblem(t('settings.shortcuts.conflict', { shortcut: readableAccelerator(accelerator, isMac), conflict }));
       return;
     }
     updateSettings({ shortcutOverrides: { ...overrides, [id]: accelerator } });
@@ -90,8 +91,8 @@ export function ShortcutsPane() {
 
   return (
     <>
-      <SearchField value={query} onChange={setQuery} label="Search shortcuts" />
-      {groups.length === 0 && <p className="px-0.5 text-body-sm text-ink-dim">No shortcut matches.</p>}
+      <SearchField value={query} onChange={setQuery} label={t('settings.shortcuts.search')} />
+      {groups.length === 0 && <p className="px-0.5 text-body-sm text-ink-dim">{t('settings.shortcuts.noMatch')}</p>}
       {groups.map((group) => (
         <SettingGroup key={group.title} title={group.title}>
           {group.shortcuts.map((shortcut) => {
@@ -102,7 +103,7 @@ export function ShortcutsPane() {
               <SettingRow
                 key={shortcut.id}
                 label={shortcut.description}
-                help={isRecording ? problem || 'Press the new keys, or Esc to keep the old ones.' : undefined}
+                help={isRecording ? problem || t('settings.shortcuts.recordingHelp') : undefined}
                 control={
                   <>
                     {isRecording ? (
@@ -113,12 +114,12 @@ export function ShortcutsPane() {
                         onBlur={() => setRecordingId(null)}
                         className="h-8 rounded-sm border border-accent px-2.5 text-body-sm text-ink"
                       >
-                        Recording…
+                        {t('settings.shortcuts.recording')}
                       </button>
                     ) : current ? (
                       <Kbd accelerator={current} />
                     ) : (
-                      <span className="text-body-sm text-ink-faint">None</span>
+                      <span className="text-body-sm text-ink-faint">{t('settings.shortcuts.none')}</span>
                     )}
                     {group.isRebindable && !isRecording && (
                       <Button
@@ -129,12 +130,12 @@ export function ShortcutsPane() {
                           setRecordingId(shortcut.id);
                         }}
                       >
-                        Change
+                        {t('settings.shortcuts.change')}
                       </Button>
                     )}
                     {isChanged && !isRecording && (
                       <Button size="sm" variant="ghost" onClick={() => reset(shortcut.id)}>
-                        Reset
+                        {t('settings.shortcuts.reset')}
                       </Button>
                     )}
                   </>

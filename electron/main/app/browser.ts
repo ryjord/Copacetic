@@ -39,6 +39,7 @@ import { surfaceColour } from '../window/appearance';
 import { showPageContextMenu } from '../menus/context-menu';
 import { chromeEntryUrl, isDevelopment } from './env';
 import type { Profile } from './profile';
+import { t } from '../../shared/i18n/translate';
 
 /**
  * One browser window: its tabs, the layers drawn over its pages, and the verbs
@@ -284,7 +285,7 @@ export class Browser {
   /** Asks for a folder with the system's own dialog; only a folder picked there ever becomes where files go. */
   async chooseDownloadFolder(): Promise<string | null> {
     const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
-      title: 'Save downloads to',
+      title: t('main.dialogs.downloadFolder.title'),
       properties: ['openDirectory', 'createDirectory'],
     });
     const [folder] = filePaths;

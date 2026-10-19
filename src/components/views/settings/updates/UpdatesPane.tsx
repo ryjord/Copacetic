@@ -15,6 +15,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { ask, send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { UpdateStatus } from '@shared/types';
@@ -47,29 +48,29 @@ export function UpdatesPane() {
               {/* Two genuinely different paths: an Update button that silently failed would be worse than none. */}
               {status.state === 'ready' && delivery === 'automatic' && (
                 <Button size="sm" variant="primary" onClick={() => send((api) => api.updates.install())}>
-                  Restart to update
+                  {t('settings.updates.restart')}
                 </Button>
               )}
               {status.state === 'available' && delivery === 'manual' && (
                 <Button size="sm" variant="primary" onClick={() => send((api) => api.updates.openReleases())}>
-                  Download {status.version}
+                  {t('settings.updates.download', { version: status.version })}
                 </Button>
               )}
               {delivery !== 'unsupported' && (
                 <Button size="sm" disabled={isChecking || status.state === 'checking'} onClick={check}>
-                  Check now
+                  {t('settings.updates.checkNow')}
                 </Button>
               )}
             </>
           }
         />
-        {manualReason && <SettingRow label="How this build updates" help={manualReason} />}
+        {manualReason && <SettingRow label={t('settings.updates.howItUpdates')} help={manualReason} />}
         <SettingRow
-          label="Check for updates automatically"
-          help={`Asks ${new URL(releasesUrl).host} for the latest version number. Nothing about you is sent.`}
+          label={t('settings.updates.automatic.label')}
+          help={t('settings.updates.automatic.help', { host: new URL(releasesUrl).host })}
           control={
             <Switch
-              label="Check for updates automatically"
+              label={t('settings.updates.automatic.label')}
               checked={settings.checkForUpdates}
               onChange={(checkForUpdates) => updateSettings({ checkForUpdates })}
             />
@@ -83,29 +84,29 @@ export function UpdatesPane() {
 function describeStatus(status: UpdateStatus): string {
   switch (status.state) {
     case 'checking':
-      return 'Checking for updates…';
+      return t('settings.updates.status.checking');
     case 'current':
-      return 'Copacetic is up to date';
+      return t('settings.updates.status.current');
     case 'available':
-      return `Version ${status.version} is available`;
+      return t('settings.updates.status.available', { version: status.version });
     case 'downloading':
-      return `Downloading the update… ${status.percent}%`;
+      return t('settings.updates.status.downloading', { percent: status.percent });
     case 'ready':
-      return `Version ${status.version} is ready to install`;
+      return t('settings.updates.status.ready', { version: status.version });
     case 'error':
-      return `Could not check: ${status.message}`;
+      return t('settings.updates.status.error', { message: status.message });
     default:
-      return 'Not checked yet';
+      return t('settings.updates.status.unknown');
   }
 }
 
 // Colour only where it carries state: something to act on, or something wrong.
 function StatusBadge({ status }: { status: UpdateStatus }) {
   if (status.state === 'available' || status.state === 'ready') {
-    return <StatusPill status="warning">Update</StatusPill>;
+    return <StatusPill status="warning">{t('settings.updates.badge.update')}</StatusPill>;
   }
   if (status.state === 'error') {
-    return <StatusPill status="danger">Failed</StatusPill>;
+    return <StatusPill status="danger">{t('settings.updates.badge.failed')}</StatusPill>;
   }
   return null;
 }
@@ -116,14 +117,14 @@ function describeLastCheck(at: number | null): string | undefined {
   }
   const minutes = Math.floor((Date.now() - at) / MINUTE_IN_MS);
   if (minutes < 1) {
-    return 'Checked just now';
+    return t('settings.updates.lastChecked.justNow');
   }
   if (minutes < MINUTES_PER_HOUR) {
-    return `Checked ${minutes} minutes ago`;
+    return t('settings.updates.lastChecked.minutes', { count: minutes });
   }
   const hours = Math.floor(minutes / MINUTES_PER_HOUR);
   if (hours < HOURS_PER_DAY) {
-    return `Checked ${hours} hours ago`;
+    return t('settings.updates.lastChecked.hours', { count: hours });
   }
-  return `Checked ${Math.floor(hours / HOURS_PER_DAY)} days ago`;
+  return t('settings.updates.lastChecked.days', { count: Math.floor(hours / HOURS_PER_DAY) });
 }

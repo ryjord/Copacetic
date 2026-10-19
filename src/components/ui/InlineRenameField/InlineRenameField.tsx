@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 /**
  * Renaming something where it is shown.
@@ -44,7 +45,7 @@ export function InlineRenameField({
       defaultValue={value}
       autoFocus
       maxLength={maxLength}
-      aria-label={`Rename ${label}`}
+      aria-label={t('shell.ui.renameField.label', { label })}
       onFocus={(event) => event.currentTarget.select()}
       onBlur={(event) => {
         const next = event.currentTarget.value.trim();

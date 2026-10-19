@@ -1,5 +1,6 @@
 import { type BrowserWindow, type FileFilter, dialog } from 'electron';
 import { chmod, readFile, writeFile } from 'node:fs/promises';
+import { t } from '../../shared/i18n/translate';
 
 /**
  * What came of putting a file dialog in front of someone. Cancelling is not a
@@ -34,7 +35,7 @@ export async function readChosenFile(
   try {
     return { value: await readFile(source, 'utf8'), message: '' };
   } catch (error) {
-    return { value: null, message: reasonFor(error, 'The file could not be read.') };
+    return { value: null, message: reasonFor(error, t('main.files.readFailed')) };
   }
 }
 
@@ -57,7 +58,7 @@ export async function writeChosenFile(
     }
     return { value: true, message: '' };
   } catch (error) {
-    return { value: null, message: reasonFor(error, 'The file could not be written.') };
+    return { value: null, message: reasonFor(error, t('main.files.writeFailed')) };
   }
 }
 

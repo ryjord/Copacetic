@@ -1,3 +1,6 @@
+// Utils
+import { t } from '@shared/i18n/translate';
+
 // Types
 import { PERMISSION_LABELS, type PermissionDecision, type PermissionKind, type Settings } from '@shared/types';
 import { hostOf, registrableDomainOf } from '@shared/url';
@@ -20,15 +23,15 @@ type SiteKeys = Pick<Settings, 'permissionDecisions' | 'zoomLevels' | 'blockerAl
 
 /** What each permission is called in a list of them, where the full sentence would not fit. */
 export const PERMISSION_NAMES: Record<PermissionKind, string> = {
-  geolocation: 'Location',
-  notifications: 'Notifications',
-  media: 'Camera and microphone',
-  'clipboard-read': 'Clipboard',
-  'display-capture': 'Screen recording',
-  midi: 'MIDI devices',
-  pointerLock: 'Pointer lock',
-  fullscreen: 'Fullscreen',
-  openExternal: 'Opening other apps',
+  geolocation: t('settings.sites.permissions.geolocation'),
+  notifications: t('settings.sites.permissions.notifications'),
+  media: t('settings.sites.permissions.media'),
+  'clipboard-read': t('settings.sites.permissions.clipboardRead'),
+  'display-capture': t('settings.sites.permissions.displayCapture'),
+  midi: t('settings.sites.permissions.midi'),
+  pointerLock: t('settings.sites.permissions.pointerLock'),
+  fullscreen: t('settings.sites.permissions.fullscreen'),
+  openExternal: t('settings.sites.permissions.openExternal'),
 };
 
 /** What someone typed as a site, as the origin decisions are kept under; null when it is not a web address. */
@@ -102,11 +105,14 @@ export function describeDefault(
   answers: { allowed: number; blocked: number },
   isBlocking: boolean,
 ): string | undefined {
-  const sitesNoun = (count: number) => (count === 1 ? '1 site' : `${count} sites`);
   const parts = [
-    ...(isBlocking ? ['Refused without asking'] : []),
-    ...(answers.allowed > 0 ? [`allowed on ${sitesNoun(answers.allowed)}`] : []),
-    ...(answers.blocked > 0 ? [`blocked on ${sitesNoun(answers.blocked)}`] : []),
+    ...(isBlocking ? [t('settings.sites.summary.refused')] : []),
+    ...(answers.allowed > 0
+      ? [t('settings.sites.summary.allowedOn', { sites: t('settings.sites.siteCount', { count: answers.allowed }) })]
+      : []),
+    ...(answers.blocked > 0
+      ? [t('settings.sites.summary.blockedOn', { sites: t('settings.sites.siteCount', { count: answers.blocked }) })]
+      : []),
   ];
   if (parts.length === 0) {
     return undefined;
@@ -131,12 +137,18 @@ export function withoutSite(settings: SiteKeys, site: string): SiteKeys {
 /** One line saying what is kept, for a row that has room for one. */
 export function summaryOf(site: SiteSettings): string {
   const parts = [
-    ...site.permissions.map(
-      (permission) =>
-        `${PERMISSION_NAMES[permission.kind]} ${permission.decision === 'allow' ? 'allowed' : 'blocked'}`,
+    ...site.permissions.map((permission) =>
+      t(
+        permission.decision === 'allow'
+          ? 'settings.sites.summary.permissionAllowed'
+          : 'settings.sites.summary.permissionBlocked',
+        { permission: PERMISSION_NAMES[permission.kind] },
+      ),
     ),
-    ...site.zoomLevels.map((zoom) => `Zoom ${Math.round(zoom.zoomFactor * 100)}%`),
-    ...(site.allowsTrackers ? ['Trackers allowed'] : []),
+    ...site.zoomLevels.map((zoom) =>
+      t('settings.sites.summary.zoom', { percent: Math.round(zoom.zoomFactor * 100) }),
+    ),
+    ...(site.allowsTrackers ? [t('settings.sites.trackersAllowed')] : []),
   ];
   return parts.join(' · ');
 }

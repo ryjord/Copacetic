@@ -1,6 +1,7 @@
 import { asNumber, asString, isRecord, newId } from '../data/persistence';
 import type { CsvCredential } from '../../shared/credential-csv';
 import type { VaultEntry, VaultState } from '../../shared/types';
+import { t } from '../../shared/i18n/translate';
 
 /** The OS keychain, behind an interface so the rules above it can be tested without one. */
 export interface SecretStore {
@@ -56,8 +57,7 @@ export interface VaultStorage {
 
 export const EMPTY_VAULT_FILE: VaultFile = { version: CURRENT_VERSION, entries: [] };
 
-const NO_KEYCHAIN =
-  'This machine has no keychain Copacetic can use, so there is nowhere safe to keep a password. Nothing has been saved.';
+const NO_KEYCHAIN = t('main.vault.keychain.none');
 
 // A vault with nothing in it and one that cannot be decrypted are different states.
 export class Vault {
@@ -93,7 +93,7 @@ export class Vault {
     if (unreadableCount > 0) {
       return {
         availability: 'unreadable',
-        detail: `${unreadableCount} of your saved passwords cannot be decrypted on this machine. They have not been deleted. This usually means the keychain no longer recognises this build of Copacetic.`,
+        detail: t('main.vault.unreadable', { count: unreadableCount }),
         entries,
         unreadableCount,
       };
@@ -111,10 +111,10 @@ export class Vault {
     const origin = input.origin.trim();
     const password = input.password;
     if (!origin) {
-      return { error: 'A password needs a site to belong to.' };
+      return { error: t('main.vault.errors.needsSite') };
     }
     if (!password) {
-      return { error: 'There is no password here to save.' };
+      return { error: t('main.vault.errors.nothingToSave') };
     }
 
     const encrypted = this.encryptOrError(password);
@@ -144,12 +144,12 @@ export class Vault {
   // lock too. Adding a new one is not: nothing is lost by it.
   update(id: string, changes: { origin?: string; username?: string; password?: string }): { error: string } | null {
     if (!this.isUnlocked()) {
-      return { error: 'Unlock the vault before changing a password.' };
+      return { error: t('main.vault.errors.unlockToChange') };
     }
     const file = this.storage.get();
     const existing = file.entries.find((entry) => entry.id === id);
     if (!existing) {
-      return { error: 'That password is no longer here.' };
+      return { error: t('main.vault.errors.gone') };
     }
 
     let secret = existing.secret;
@@ -158,7 +158,7 @@ export class Vault {
         return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
       }
       if (!changes.password) {
-        return { error: 'There is no password here to save.' };
+        return { error: t('main.vault.errors.nothingToSave') };
       }
       const encrypted = this.encryptOrError(changes.password);
       if ('error' in encrypted) {
@@ -169,11 +169,11 @@ export class Vault {
 
     const current = this.identityOf(existing);
     if (!current) {
-      return { error: 'This password cannot be read on this machine, so it cannot be changed here.' };
+      return { error: t('main.vault.errors.unreadableToChange') };
     }
     const origin = changes.origin === undefined ? current.origin : changes.origin.trim();
     if (!origin) {
-      return { error: 'A password needs a site to belong to.' };
+      return { error: t('main.vault.errors.needsSite') };
     }
     const identity = this.sealIdentity({
       origin,
@@ -209,7 +209,7 @@ export class Vault {
    */
   remove(id: string): { error: string } | null {
     if (!this.isUnlocked()) {
-      return { error: 'Unlock the vault before removing a password.' };
+      return { error: t('main.vault.errors.unlockToRemove') };
     }
     const file = this.storage.get();
     this.storage.set({ ...file, entries: file.entries.filter((entry) => entry.id !== id) });

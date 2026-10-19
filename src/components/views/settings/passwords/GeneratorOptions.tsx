@@ -4,14 +4,17 @@
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import { TextField } from '@/components/ui/TextField/TextField';
 
+// Utils
+import { t } from '@shared/i18n/translate';
+
 // Types
 import { MAX_LENGTH, MIN_LENGTH, type PasswordRecipe, entropyBits } from '@shared/password-generator';
 
 const KINDS: readonly { key: keyof Omit<PasswordRecipe, 'length'>; label: string }[] = [
-  { key: 'useLower', label: 'Lowercase' },
-  { key: 'useUpper', label: 'Uppercase' },
-  { key: 'useDigits', label: 'Digits' },
-  { key: 'useSymbols', label: 'Symbols' },
+  { key: 'useLower', label: t('settings.passwords.generator.lowercase') },
+  { key: 'useUpper', label: t('settings.passwords.generator.uppercase') },
+  { key: 'useDigits', label: t('settings.passwords.generator.digits') },
+  { key: 'useSymbols', label: t('settings.passwords.generator.symbols') },
 ];
 
 /** What the next generated password is made of; a site that refuses symbols is the usual reason to change it. */
@@ -26,9 +29,9 @@ export function GeneratorOptions({
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <label className="flex items-center gap-2 text-body-sm text-ink-dim">
-        Length
+        {t('settings.passwords.generator.length')}
         <TextField
-          aria-label="Password length"
+          aria-label={t('settings.passwords.generator.lengthLabel')}
           type="number"
           min={MIN_LENGTH}
           max={MAX_LENGTH}
@@ -46,7 +49,9 @@ export function GeneratorOptions({
         />
       ))}
       <span className="text-body-sm text-ink-faint">
-        {bits > 0 ? `About ${bits} bits` : 'Choose at least one kind'}
+        {bits > 0
+          ? t('settings.passwords.generator.strength', { bits })
+          : t('settings.passwords.generator.chooseOne')}
       </span>
     </div>
   );

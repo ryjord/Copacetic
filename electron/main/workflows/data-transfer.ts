@@ -13,6 +13,7 @@ import type { Machine } from '../import/chromium-profiles';
 import { describeError, log } from '../system/diagnostics';
 import type { BrowserStore } from '../data/store';
 import type { BookmarkCommands } from './bookmarks';
+import { t } from '../../shared/i18n/translate';
 
 interface DataTransferDeps {
   window: BrowserWindow;
@@ -30,22 +31,22 @@ export class DataTransfer {
 
   async exportPasswords(): Promise<string> {
     if (!this.deps.vaultSession.isOpen()) {
-      return 'Your vault is locked. Unlock it, then try exporting again.';
+      return t('main.import.passwords.exportLocked');
     }
 
     const { credentials, unreadable } = this.deps.vaultSession.vault.exportAll();
     if (credentials.length === 0) {
       return unreadable > 0
-        ? `None of your ${unreadable} saved passwords could be decrypted on this machine, so there was nothing to write.`
-        : 'There are no saved passwords to export.';
+        ? t('main.import.passwords.noneReadable', { count: unreadable })
+        : t('main.import.passwords.nothingToExport');
     }
 
     const written = await writeChosenFile(
       this.deps.window,
       {
-        title: 'Export passwords',
+        title: t('main.import.passwords.exportTitle'),
         defaultPath: `copacetic-passwords-${fileStamp(Date.now())}.csv`,
-        filters: [{ name: 'Passwords', extensions: ['csv'] }],
+        filters: [{ name: t('main.import.fileTypes.passwords'), extensions: ['csv'] }],
       },
       () => credentialsToCsv(credentials),
     );
@@ -55,15 +56,15 @@ export class DataTransfer {
 
     // A short count has to be explained, or it reads as everything.
     return unreadable > 0
-      ? `Wrote ${credentials.length}. ${unreadable} could not be decrypted on this machine and were left out.`
+      ? t('main.import.passwords.exportedShort', { written: credentials.length, unreadable })
       : '';
   }
 
   /** Reads the bookmark file every browser exports, for the ones whose profiles are not read directly. */
   async importBookmarks(): Promise<string> {
     const chosen = await readChosenFile(this.deps.window, {
-      title: 'Import bookmarks',
-      filters: [{ name: 'Bookmarks', extensions: ['html', 'htm'] }],
+      title: t('main.import.bookmarks.title'),
+      filters: [{ name: t('main.import.fileTypes.bookmarks'), extensions: ['html', 'htm'] }],
     });
     if (chosen.value === null) {
       return chosen.message;
@@ -73,38 +74,38 @@ export class DataTransfer {
     const { bookmarks, skipped } = bookmarksFromHtml(html);
     if (bookmarks.length === 0) {
       return skipped > 0
-        ? `Nothing in that file could be imported. ${skipped} entries were not ordinary web addresses.`
-        : 'No bookmarks were found in that file.';
+        ? t('main.import.bookmarks.nothingImportable', { count: skipped })
+        : t('main.import.bookmarks.none');
     }
 
-    const { added, alreadyHad } = this.deps.store.importBookmarks(bookmarks, 'Imported bookmarks');
+    const { added, alreadyHad } = this.deps.store.importBookmarks(bookmarks, t('main.import.bookmarks.folderName'));
     // An import adds bookmarks without touching a tab, so nothing else would
     // tell a surface that is already open that its list is now wrong.
     this.deps.bookmarks.changed();
     this.deps.changed();
 
-    const parts = [`added ${added}`];
+    const parts = [t('main.import.bookmarks.added', { count: added })];
     if (alreadyHad > 0) {
-      parts.push(`${alreadyHad} you already had`);
+      parts.push(t('main.import.bookmarks.alreadyHad', { count: alreadyHad }));
     }
     if (skipped > 0) {
-      parts.push(`${skipped} refused for not being web addresses`);
+      parts.push(t('main.import.bookmarks.refused', { count: skipped }));
     }
-    return `Imported: ${parts.join(', ')}.`;
+    return t('main.import.summary', { parts: parts.join(', ') });
   }
 
   /** Reads the history file Copacetic exports, from this machine or another. */
   async importHistory(): Promise<string> {
     const chosen = await readChosenFile(this.deps.window, {
-      title: 'Import history',
-      filters: [{ name: 'History', extensions: ['json'] }],
+      title: t('main.import.history.title'),
+      filters: [{ name: t('main.import.fileTypes.history'), extensions: ['json'] }],
     });
     if (chosen.value === null) {
       return chosen.message;
     }
     const read = visitsFromHistoryFile(chosen.value);
     if (!read) {
-      return 'That is not a history file Copacetic exported.';
+      return t('main.import.history.notOurs');
     }
     // Only what history would still be keeping, newest first, the same bounds as any other import.
     const since = Date.now() - MAX_HISTORY_AGE_MS;
@@ -115,14 +116,14 @@ export class DataTransfer {
     const { added } = this.deps.store.importHistory(recent);
     this.deps.changed();
     const older = read.visits.length - recent.length;
-    const parts = [`added ${added} ${added === 1 ? 'page' : 'pages'}`];
+    const parts = [t('main.import.history.added', { count: added })];
     if (older > 0) {
-      parts.push(`${older} older than history keeps`);
+      parts.push(t('main.import.history.older', { count: older }));
     }
     if (read.skipped > 0) {
-      parts.push(`${read.skipped} that were not web addresses`);
+      parts.push(t('main.import.history.notAddresses', { count: read.skipped }));
     }
-    return `Imported: ${parts.join(', ')}.`;
+    return t('main.import.summary', { parts: parts.join(', ') });
   }
 
   /** The renderer is told names and ids only; where each profile lives stays here. */
@@ -134,7 +135,7 @@ export class DataTransfer {
   importFromBrowser(sourceId: string): string {
     const source = findReadableProfiles(THIS_MACHINE()).find((profile) => profile.id === sourceId);
     if (!source) {
-      return 'That browser is no longer on this computer.';
+      return t('main.import.browser.gone');
     }
 
     const parts: string[] = [];
@@ -143,38 +144,40 @@ export class DataTransfer {
       if (read) {
         const { added, alreadyHad } = this.deps.store.importBookmarks(
           read.bookmarks,
-          `Imported from ${source.label}`,
+          t('main.import.browser.folderName', { source: source.label }),
         );
-        const counted = `${added} ${added === 1 ? 'bookmark' : 'bookmarks'}`;
-        parts.push(alreadyHad > 0 ? `${counted} (${alreadyHad} you already had)` : counted);
+        const counted = t('main.notices.bookmarks', { count: added });
+        parts.push(
+          alreadyHad > 0 ? t('main.import.browser.countedWithExisting', { counted, count: alreadyHad }) : counted,
+        );
       }
     } catch (error) {
       log.warn('could not read bookmarks to import', describeError(error));
-      parts.push('no bookmarks, as its bookmarks could not be read');
+      parts.push(t('main.import.browser.bookmarksUnreadable'));
     }
 
     try {
       const visits = source.readHistory({ since: Date.now() - MAX_HISTORY_AGE_MS, limit: MAX_HISTORY_ENTRIES });
       if (visits) {
         const { added } = this.deps.store.importHistory(visits);
-        parts.push(`${added} ${added === 1 ? 'page' : 'pages'} of history`);
+        parts.push(t('main.import.browser.historyPages', { count: added }));
       }
     } catch (error) {
       log.warn('could not read history to import', describeError(error));
-      parts.push('no history, as its history could not be read');
+      parts.push(t('main.import.browser.historyUnreadable'));
     }
 
     this.deps.bookmarks.changed();
     this.deps.changed();
     return parts.length > 0
-      ? `From ${source.label}: ${parts.join(', and ')}.`
-      : `${source.label} had nothing to import.`;
+      ? t('main.import.browser.summary', { source: source.label, parts: parts.join(', and ') })
+      : t('main.import.browser.nothing', { source: source.label });
   }
 
   async importPasswords(): Promise<string> {
     const chosen = await readChosenFile(this.deps.window, {
-      title: 'Import passwords',
-      filters: [{ name: 'Passwords', extensions: ['csv'] }],
+      title: t('main.import.passwords.importTitle'),
+      filters: [{ name: t('main.import.fileTypes.passwords'), extensions: ['csv'] }],
     });
     if (chosen.value === null) {
       return chosen.message;
@@ -183,22 +186,24 @@ export class DataTransfer {
 
     const { credentials, skipped: unusable } = credentialsFromCsv(text);
     if (credentials.length === 0) {
-      return 'No passwords were found in that file. It needs a header row naming a url and a password column.';
+      return t('main.import.passwords.none');
     }
 
     const { added, updated, skipped } = this.deps.vaultSession.vault.importMany(credentials);
     const parts = [];
     if (added > 0) {
-      parts.push(`added ${added}`);
+      parts.push(t('main.import.passwords.added', { count: added }));
     }
     if (updated > 0) {
-      parts.push(`updated ${updated}`);
+      parts.push(t('main.import.passwords.updated', { count: updated }));
     }
     const ignored = skipped + unusable;
     if (ignored > 0) {
-      parts.push(`ignored ${ignored} that had no site or no password`);
+      parts.push(t('main.import.passwords.ignored', { count: ignored }));
     }
-    return parts.length > 0 ? `Imported: ${parts.join(', ')}.` : 'Nothing in that file could be imported.';
+    return parts.length > 0
+      ? t('main.import.summary', { parts: parts.join(', ') })
+      : t('main.import.passwords.nothingImportable');
   }
 
   async exportData(kind: ExportKind): Promise<string> {
@@ -209,11 +214,11 @@ export class DataTransfer {
     const written = await writeChosenFile(
       this.deps.window,
       {
-        title: isBookmarks ? 'Export bookmarks' : 'Export history',
+        title: isBookmarks ? t('main.import.bookmarks.exportTitle') : t('main.import.history.exportTitle'),
         defaultPath: isBookmarks ? `copacetic-bookmarks-${stamp}.html` : `copacetic-history-${stamp}.json`,
         filters: isBookmarks
-          ? [{ name: 'Bookmarks', extensions: ['html'] }]
-          : [{ name: 'History', extensions: ['json'] }],
+          ? [{ name: t('main.import.fileTypes.bookmarks'), extensions: ['html'] }]
+          : [{ name: t('main.import.fileTypes.history'), extensions: ['json'] }],
       },
       () =>
         isBookmarks

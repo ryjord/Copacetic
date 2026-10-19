@@ -2,6 +2,7 @@ import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
 import type { Browser } from '../app/browser';
 import type { Profiles } from '../app/profiles';
 import { acceleratorFor, readShortcutOverrides } from '../../shared/shortcuts';
+import { t } from '../../shared/i18n/translate';
 
 const isMac = process.platform === 'darwin';
 
@@ -21,7 +22,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         { role: 'about' },
         { type: 'separator' },
         {
-          label: 'Settings…',
+          label: t('main.menu.app.settings'),
           accelerator: key('settings'),
           click: () => inWindow((browser) => browser.openSurface('settings')),
         },
@@ -38,53 +39,56 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   }
 
   template.push({
-    label: 'File',
+    label: t('main.menu.file.title'),
     submenu: [
       // In the profile of the window in front, as a new tab is.
       {
-        label: 'New window',
+        label: t('main.menu.file.newWindow'),
         accelerator: key('new-window'),
         click: () => void (profiles.focused()?.profile ?? profiles.first).openWindow(),
       },
       {
-        label: 'New window in profile',
+        label: t('main.menu.file.newWindowInProfile'),
         submenu: [
           ...profiles.summaries().map((summary): MenuItemConstructorOptions => ({
             label: summary.name,
             click: () => void profiles.openWindow(summary.id),
           })),
           { type: 'separator' },
-          { label: 'Manage profiles…', click: () => inWindow((browser) => browser.openSurface('settings')) },
+          {
+            label: t('main.menu.profiles.manage'),
+            click: () => inWindow((browser) => browser.openSurface('settings')),
+          },
         ],
       },
       {
-        label: 'New tab',
+        label: t('main.menu.file.newTab'),
         accelerator: key('new-tab'),
         click: () => inWindow((browser) => browser.commands.newTab()),
       },
       {
-        label: 'New Hush tab',
+        label: t('main.menu.file.newHushTab'),
         accelerator: key('new-hush-tab'),
         click: () => inWindow((browser) => browser.commands.newHushTab()),
       },
       {
-        label: 'Reopen closed tab',
+        label: t('main.menu.file.reopenClosedTab'),
         accelerator: key('reopen'),
         click: () => inWindow((browser) => browser.commands.reopenClosedTab()),
       },
       { type: 'separator' },
       {
-        label: 'Close tab',
+        label: t('main.menu.file.closeTab'),
         accelerator: key('close-tab'),
         click: () => inWindow((browser) => browser.commands.closeActiveTab()),
       },
       {
-        label: 'Save page as…',
+        label: t('main.menu.file.savePageAs'),
         accelerator: key('save-page'),
         click: () => inWindow((browser) => browser.commands.saveActiveTab()),
       },
       {
-        label: 'Print…',
+        label: t('main.menu.file.print'),
         accelerator: key('print'),
         click: () => inWindow((browser) => browser.commands.printActiveTab()),
       },
@@ -93,7 +97,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   });
 
   template.push({
-    label: 'Edit',
+    label: t('main.menu.edit.title'),
     submenu: [
       { role: 'undo' },
       { role: 'redo' },
@@ -112,25 +116,29 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         ? []
         : ([
             {
-              label: 'Settings…',
+              label: t('main.menu.app.settings'),
               accelerator: key('settings'),
               click: () => inWindow((browser) => browser.openSurface('settings')),
             },
             { type: 'separator' },
           ] as MenuItemConstructorOptions[])),
       {
-        label: 'Open address bar',
+        label: t('main.menu.edit.openAddressBar'),
         accelerator: key('address'),
         click: () => inWindow((browser) => browser.focusOmnibox()),
       },
-      { label: 'Find on page…', accelerator: key('find'), click: () => inWindow((browser) => browser.openFind()) },
       {
-        label: 'Find next',
+        label: t('main.menu.edit.findOnPage'),
+        accelerator: key('find'),
+        click: () => inWindow((browser) => browser.openFind()),
+      },
+      {
+        label: t('main.menu.edit.findNext'),
         accelerator: key('find-next'),
         click: () => inWindow((browser) => browser.tabs.findNext(true)),
       },
       {
-        label: 'Find previous',
+        label: t('main.menu.edit.findPrevious'),
         accelerator: key('find-previous'),
         click: () => inWindow((browser) => browser.tabs.findNext(false)),
       },
@@ -138,36 +146,36 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   });
 
   template.push({
-    label: 'View',
+    label: t('main.menu.view.title'),
     submenu: [
       {
-        label: 'Reload',
+        label: t('main.menu.view.reload'),
         accelerator: key('reload'),
         click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.reload(id))),
       },
       {
-        label: 'Reload, ignoring cache',
+        label: t('main.menu.view.reloadIgnoringCache'),
         accelerator: key('reload-hard'),
         click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.reload(id, true))),
       },
       {
-        label: 'Stop',
+        label: t('main.menu.view.stop'),
         accelerator: key('stop'),
         click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.stop(id))),
       },
       { type: 'separator' },
       {
-        label: 'Zoom in',
+        label: t('main.menu.view.zoomIn'),
         accelerator: key('zoom-in'),
         click: () => inWindow((browser) => browser.commands.adjustZoom('in')),
       },
       {
-        label: 'Zoom out',
+        label: t('main.menu.view.zoomOut'),
         accelerator: key('zoom-out'),
         click: () => inWindow((browser) => browser.commands.adjustZoom('out')),
       },
       {
-        label: 'Actual size',
+        label: t('main.menu.view.actualSize'),
         accelerator: key('zoom-reset'),
         click: () => inWindow((browser) => browser.commands.adjustZoom('reset')),
       },
@@ -175,17 +183,17 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       { role: 'togglefullscreen' },
       { type: 'separator' },
       {
-        label: 'Command palette',
+        label: t('main.menu.view.commandPalette'),
         accelerator: key('palette'),
         click: () => inWindow((browser) => browser.openSurface('palette')),
       },
       {
-        label: 'View page source',
+        label: t('main.menu.view.viewPageSource'),
         accelerator: key('view-source'),
         click: () => inWindow((browser) => browser.commands.viewSourceOfActiveTab()),
       },
       {
-        label: 'Developer tools',
+        label: t('main.menu.view.developerTools'),
         accelerator: isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
         click: () => inWindow((browser) => browser.commands.toggleTabDevTools()),
       },
@@ -193,43 +201,46 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   });
 
   template.push({
-    label: 'History',
+    label: t('main.menu.history.title'),
     submenu: [
       {
-        label: 'Back',
+        label: t('main.menu.history.back'),
         accelerator: key('back'),
         click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.goBack(id))),
       },
       {
-        label: 'Forward',
+        label: t('main.menu.history.forward'),
         accelerator: key('forward'),
         click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.goForward(id))),
       },
       {
-        label: 'Home',
+        label: t('main.menu.history.home'),
         accelerator: key('home'),
         click: () => inWindow((browser) => browser.commands.goHome()),
       },
       { type: 'separator' },
       {
-        label: 'Show all history',
+        label: t('main.menu.history.showAll'),
         accelerator: key('history'),
         click: () => inWindow((browser) => browser.openSurface('history')),
       },
-      { label: 'Clear browsing data…', click: () => inWindow((browser) => browser.openSurface('settings')) },
+      {
+        label: t('main.menu.history.clearBrowsingData'),
+        click: () => inWindow((browser) => browser.openSurface('settings')),
+      },
     ],
   });
 
   template.push({
-    label: 'Bookmarks',
+    label: t('main.menu.bookmarks.title'),
     submenu: [
       {
-        label: 'Bookmark this page',
+        label: t('main.menu.bookmarks.bookmarkThisPage'),
         accelerator: key('bookmark'),
         click: () => inWindow((browser) => browser.commands.toggleBookmarkForActiveTab()),
       },
       {
-        label: 'Show all bookmarks',
+        label: t('main.menu.bookmarks.showAll'),
         accelerator: key('bookmarks'),
         click: () => inWindow((browser) => browser.openSurface('bookmarks')),
       },
@@ -237,20 +248,20 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   });
 
   template.push({
-    label: 'Tabs',
+    label: t('main.menu.tabs.title'),
     submenu: [
       {
-        label: 'Next tab',
+        label: t('main.menu.tabs.next'),
         accelerator: key('next-tab'),
         click: () => inWindow((browser) => browser.commands.cycleTab(1)),
       },
       {
-        label: 'Previous tab',
+        label: t('main.menu.tabs.previous'),
         accelerator: key('previous-tab'),
         click: () => inWindow((browser) => browser.commands.cycleTab(-1)),
       },
       {
-        label: 'Search open tabs',
+        label: t('main.menu.tabs.searchOpen'),
         accelerator: key('tab-search'),
         click: () => inWindow((browser) => browser.openSurface('tab-search')),
       },
@@ -258,7 +269,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       ...tabSelectionItems(inWindow, key),
       { type: 'separator' },
       {
-        label: 'Downloads',
+        label: t('main.menu.tabs.downloads'),
         accelerator: key('downloads'),
         click: () => inWindow((browser) => browser.openSurface('downloads')),
       },
@@ -277,10 +288,13 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
     role: 'help',
     submenu: [
       {
-        label: 'Copacetic on GitHub',
+        label: t('main.menu.help.github'),
         click: () => void shell.openExternal('https://github.com/ryjord/Copacetic'),
       },
-      { label: 'Open downloads folder', click: () => inWindow((browser) => browser.openDownloadsFolder()) },
+      {
+        label: t('main.menu.help.openDownloadsFolder'),
+        click: () => inWindow((browser) => browser.openDownloadsFolder()),
+      },
       ...(isMac ? [] : ([{ type: 'separator' }, { role: 'about' }] as MenuItemConstructorOptions[])),
     ],
   });
@@ -310,13 +324,13 @@ function tabSelectionItems(
   const items: MenuItemConstructorOptions[] = [];
   for (let position = 1; position <= 8; position += 1) {
     items.push({
-      label: `Tab ${position}`,
+      label: t('main.menu.tabs.numbered', { position }),
       accelerator: `CmdOrCtrl+${position}`,
       click: () => inWindow((browser) => browser.commands.selectTabAt(position - 1)),
     });
   }
   items.push({
-    label: 'Last tab',
+    label: t('main.menu.tabs.last'),
     accelerator: key('last-tab'),
     click: () => inWindow((browser) => browser.commands.selectTabAt(-1)),
   });

@@ -9,6 +9,7 @@ import { SettingRow } from '@/components/ui/SettingRow/SettingRow';
 
 // Utils
 import { getBridge } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { DefaultBrowserStatus } from '@shared/types';
@@ -19,10 +20,16 @@ import type { DefaultBrowserStatus } from '@shared/types';
  * the screen where a person does it rather than claiming to have done it.
  */
 const WORDING: Record<DefaultBrowserStatus, { label: string; action: string | null }> = {
-  default: { label: 'Copacetic is your default browser', action: null },
-  'can-ask': { label: 'Copacetic is not your default browser', action: 'Make default' },
-  'settings-only': { label: 'Choose your default browser in Windows settings', action: 'Open Windows settings' },
-  unavailable: { label: 'A development build cannot be the default browser', action: null },
+  default: { label: t('settings.general.defaultBrowser.isDefault'), action: null },
+  'can-ask': {
+    label: t('settings.general.defaultBrowser.canAsk'),
+    action: t('settings.general.defaultBrowser.makeDefault'),
+  },
+  'settings-only': {
+    label: t('settings.general.defaultBrowser.settingsOnly'),
+    action: t('settings.general.defaultBrowser.openWindowsSettings'),
+  },
+  unavailable: { label: t('settings.general.defaultBrowser.unavailable'), action: null },
 };
 
 export function DefaultBrowserRow() {
@@ -52,7 +59,7 @@ export function DefaultBrowserRow() {
   }, []);
 
   if (!status) {
-    return <SettingRow label="Checking the default browser" />;
+    return <SettingRow label={t('settings.general.defaultBrowser.checking')} />;
   }
 
   const { label, action } = WORDING[status];

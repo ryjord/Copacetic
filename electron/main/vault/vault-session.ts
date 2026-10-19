@@ -13,6 +13,7 @@ import {
 } from '../../shared/vault-lock';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
+import { t } from '../../shared/i18n/translate';
 
 /**
  * The parts of the machine the vault has to ask about: the keychain that holds
@@ -107,11 +108,11 @@ export class VaultSession {
   async unlock(): Promise<string> {
     if (this.method() === 'touch-id') {
       try {
-        await this.host.promptTouchID('unlock your saved passwords');
+        await this.host.promptTouchID(t('main.vault.touchIdReason'));
       } catch {
         // A refused or failed prompt leaves it locked. Saying "cancelled" would
         // be a guess; either way nothing was unlocked.
-        return 'Not unlocked.';
+        return t('main.vault.notUnlocked');
       }
     }
     this.lockState = unlock(this.lockState, this.now());

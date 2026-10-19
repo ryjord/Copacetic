@@ -8,6 +8,7 @@ import type { BrowserStore } from '../data/store';
 import type { SessionRegistry } from '../sessions/session-registry';
 import type { TabManager } from '../tabs/tabs';
 import type { BookmarkCommands } from './bookmarks';
+import { t } from '../../shared/i18n/translate';
 
 interface GroupCommandsDeps {
   store: BrowserStore;
@@ -69,7 +70,7 @@ export class GroupCommands {
           tone: 'ask',
           key: `open-folder-${id}`,
           message: openFolderMessage(urls.length, folder.name),
-          confirm: `Open ${urls.length} tabs`,
+          confirm: t('main.notices.openTabs', { count: urls.length }),
         },
         () => this.openTabs(urls, folder.name, folder.colour),
       );

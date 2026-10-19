@@ -14,6 +14,7 @@ import { AlertCircle, ChevronDown, EyeOff, Lock, Plus, Volume2, VolumeX, X } fro
 // Utils
 import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { TabState } from '@shared/types';
@@ -59,7 +60,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
       <div
         ref={stripRef}
         role="tablist"
-        aria-label="Open tabs"
+        aria-label={t('shell.tabStrip.openTabs')}
         // Roving tabindex: one stop for the whole strip, then arrows to move
         // within it. Every tab being individually tabbable would mean thirty
         // stops between the strip and the address bar.
@@ -136,7 +137,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
       </div>
       {/* Outside the scroller, so it stays in reach however many tabs are open. */}
       <IconButton
-        label="New tab"
+        label={t('shell.tabStrip.newTab')}
         size="sm"
         onClick={() => send((api) => api.tabs.create())}
         onContextMenu={(event) => {
@@ -162,7 +163,7 @@ interface TabProps {
 }
 
 function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd, onDragOver, onDrop }: TabProps) {
-  const title = tab.isStartPage ? 'New tab' : tab.title;
+  const title = tab.isStartPage ? t('shell.tabStrip.newTab') : tab.title;
   const ref = useRef<HTMLDivElement>(null);
 
   // With a roving tabindex the previously selected tab stops being a tab stop
@@ -226,9 +227,9 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       role="tab"
       aria-label={[
         title,
-        tab.isPinned ? 'pinned' : null,
-        tab.isAsleep ? 'asleep' : null,
-        tab.isHush ? 'Hush tab' : null,
+        tab.isPinned ? t('shell.tabStrip.pinned') : null,
+        tab.isAsleep ? t('shell.tabStrip.asleep') : null,
+        tab.isHush ? t('shell.tabStrip.hushTab') : null,
       ]
         .filter(Boolean)
         .join(', ')}
@@ -246,7 +247,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       <div className="flex h-full items-center gap-2 px-2.5 @max-[72px]:justify-center @max-[72px]:px-0">
         {tab.isLoading ? (
           <span
-            aria-label="Loading"
+            aria-label={t('shell.tabStrip.loading')}
             className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-active"
           />
         ) : (
@@ -265,7 +266,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
         {tab.isAudible || tab.isMuted ? (
           <button
             type="button"
-            aria-label={tab.isMuted ? 'Unmute tab' : 'Mute tab'}
+            aria-label={tab.isMuted ? t('shell.tabStrip.unmute') : t('shell.tabStrip.mute')}
             className="shrink-0 text-ink-dim hover:text-ink @max-[72px]:hidden"
             onClick={(event) => {
               event.stopPropagation();
@@ -278,7 +279,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
 
         <button
           type="button"
-          aria-label={`Close ${title}`}
+          aria-label={t('shell.tabStrip.close', { title })}
           className={cn(
             'grid size-4 shrink-0 place-items-center rounded transition-opacity hover:bg-line-strong @max-[72px]:hidden',
             isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',
@@ -340,8 +341,8 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
             // Named for what it does, not just what it says. The tooltip is a
             // mouse-only hint; without this the accessible name is the group's
             // name alone, which does not suggest that pressing it renames.
-            aria-label={`Rename ${group.name}`}
-            title={`${describeClaim(claim)}\n\nClick to rename, right-click for more`}
+            aria-label={t('shell.tabStrip.renameGroup', { name: group.name })}
+            title={t('shell.tabStrip.groupHint', { claim: describeClaim(claim) })}
             // Click names it; the chevron collapses it. A click that hid the tabs
             // would make renaming the thing you cannot see.
             onClick={() => setIsRenaming(true)}
@@ -349,15 +350,21 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
             style={{ color: colour, background: `${colour}26` }}
           >
             <span className="max-w-[14ch] truncate">{group.name}</span>
-            {claim === 'separate' && <Lock size={11} aria-label="Keeps its own browsing" />}
+            {claim === 'separate' && <Lock size={11} aria-label={t('shell.tabStrip.keepsOwnBrowsing')} />}
             {/* A group holding a Hush tab cannot claim to be separate, because that
               would be true of only part of what it names. */}
-            {claim === 'mixed' && <AlertCircle size={11} className="text-caution" aria-label="Mixed" />}
+            {claim === 'mixed' && (
+              <AlertCircle size={11} className="text-caution" aria-label={t('shell.tabStrip.mixed')} />
+            )}
           </button>
         )}
         <button
           type="button"
-          aria-label={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+          aria-label={
+            group.collapsed
+              ? t('shell.tabStrip.expandGroup', { name: group.name })
+              : t('shell.tabStrip.collapseGroup', { name: group.name })
+          }
           onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
           className="shrink-0 rounded px-0.5 text-ink-faint transition-colors hover:text-ink"
         >

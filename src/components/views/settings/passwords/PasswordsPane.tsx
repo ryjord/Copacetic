@@ -13,6 +13,7 @@ import { GeneratorOptions } from '@/components/views/settings/passwords/Generato
 
 // Utils
 import { ask } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { VaultEntry, VaultLock, VaultState } from '@shared/types';
@@ -75,12 +76,12 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
     <>
       <SettingGroup>
         <SettingRow
-          label="Passwords are kept on this machine, encrypted"
-          help="Right-click a password box and choose Fill password. Copacetic never offers to save what you type."
+          label={t('settings.passwords.intro.label')}
+          help={t('settings.passwords.intro.help')}
           control={
             openPane && (
               <Button size="sm" variant="ghost" onClick={() => openPane('transparency')}>
-                How they are protected
+                {t('settings.passwords.intro.protection')}
               </Button>
             )
           }
@@ -89,29 +90,31 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
           <SettingRow
             label={
               vault.availability === 'unavailable'
-                ? 'Passwords cannot be saved here'
-                : 'Some passwords cannot be read'
+                ? t('settings.passwords.availability.unavailableLabel')
+                : t('settings.passwords.availability.unreadableLabel')
             }
             help={<span role="status">{vault.detail}</span>}
             control={
               <StatusPill status={vault.availability === 'unavailable' ? 'danger' : 'warning'}>
-                {vault.availability === 'unavailable' ? 'Unavailable' : 'Unreadable'}
+                {vault.availability === 'unavailable'
+                  ? t('settings.passwords.availability.unavailable')
+                  : t('settings.passwords.availability.unreadable')}
               </StatusPill>
             }
           />
         )}
         <SettingRow
-          label={lock.isUnlocked ? 'Unlocked' : 'Locked'}
+          label={lock.isUnlocked ? t('settings.passwords.lock.unlocked') : t('settings.passwords.lock.locked')}
           help={lock.detail}
           control={
             lock.isUnlocked ? (
               <Button size="sm" onClick={() => void ask((api) => api.vault.lock(), undefined).then(refresh)}>
-                Lock now
+                {t('settings.passwords.lock.lockNow')}
               </Button>
             ) : (
               // Never "Unlock with Touch ID": macOS may ask for the login password instead.
               <Button size="sm" onClick={() => run(ask((api) => api.vault.unlock(), ''))}>
-                Unlock
+                {t('settings.passwords.lock.unlock')}
               </Button>
             )
           }
@@ -124,31 +127,45 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
         </p>
       )}
 
-      <SettingGroup title={`Saved passwords${vault.entries.length ? ` (${vault.entries.length})` : ''}`}>
-        {vault.entries.length === 0 && !isAdding && <SettingRow label="No passwords saved yet" />}
+      <SettingGroup
+        title={
+          vault.entries.length
+            ? t('settings.passwords.saved.titleWithCount', { count: vault.entries.length })
+            : t('settings.passwords.saved.title')
+        }
+      >
+        {vault.entries.length === 0 && !isAdding && <SettingRow label={t('settings.passwords.saved.empty')} />}
         {vault.entries.map((entry) => (
           <SettingRow
             key={entry.id}
             // Which site it was for is sealed with it, so a row this machine cannot open has no site to show.
-            label={entry.origin ? entry.origin.replace(/^https?:\/\//, '') : 'A password this machine cannot open'}
+            label={
+              entry.origin ? entry.origin.replace(/^https?:\/\//, '') : t('settings.passwords.saved.unreadableEntry')
+            }
             help={
               revealed[entry.id] !== undefined ? (
-                <span className="font-mono text-ink select-text">{revealed[entry.id] || '(empty)'}</span>
+                <span className="font-mono text-ink select-text">
+                  {revealed[entry.id] || t('settings.passwords.saved.emptyValue')}
+                </span>
               ) : (
-                entry.username || 'No username'
+                entry.username || t('settings.passwords.saved.noUsername')
               )
             }
             control={
               <>
-                {!entry.isReadable && <StatusPill status="warning">Unreadable</StatusPill>}
+                {!entry.isReadable && (
+                  <StatusPill status="warning">{t('settings.passwords.availability.unreadable')}</StatusPill>
+                )}
                 {entry.isReadable && lock.isUnlocked && (
                   <Button size="sm" variant="ghost" onClick={() => toggleReveal(entry.id)}>
-                    {revealed[entry.id] === undefined ? 'Show' : 'Hide'}
+                    {revealed[entry.id] === undefined
+                      ? t('settings.passwords.saved.show')
+                      : t('settings.passwords.saved.hide')}
                   </Button>
                 )}
                 {lock.isUnlocked && (
                   <Button size="sm" variant="ghost" onClick={() => setRemoving(entry)}>
-                    Remove
+                    {t('settings.passwords.saved.remove')}
                   </Button>
                 )}
               </>
@@ -168,28 +185,28 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
           ) : (
             <div className="px-3.5 py-2.5">
               <Button size="sm" onClick={() => setIsAdding(true)}>
-                Add password
+                {t('settings.passwords.saved.add')}
               </Button>
             </div>
           ))}
       </SettingGroup>
 
-      <SettingGroup title="Import and export">
+      <SettingGroup title={t('settings.passwords.transfer.title')}>
         <SettingRow
-          label="Export passwords"
-          help="A CSV file that Chrome, Firefox and 1Password can read. Every password is readable in it."
+          label={t('settings.passwords.transfer.export.label')}
+          help={t('settings.passwords.transfer.export.help')}
           control={
             <Button size="sm" onClick={() => setIsConfirmingExport(true)}>
-              Export
+              {t('settings.passwords.transfer.export.action')}
             </Button>
           }
         />
         <SettingRow
-          label="Import passwords"
-          help="From a CSV file exported by another browser or password manager."
+          label={t('settings.passwords.transfer.import.label')}
+          help={t('settings.passwords.transfer.import.help')}
           control={
             <Button size="sm" onClick={() => run(ask((api) => api.vault.importFile(), ''))}>
-              Import
+              {t('settings.passwords.transfer.import.action')}
             </Button>
           }
         />
@@ -198,8 +215,8 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
-        title="Remove this password?"
-        confirmLabel="Remove"
+        title={t('settings.passwords.removeDialog.title')}
+        confirmLabel={t('settings.passwords.removeDialog.confirm')}
         isDestructive
         onConfirm={() => {
           const entry = removing;
@@ -213,19 +230,20 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
           }
         }}
       >
-        The password for {removing?.username || 'this account'} on {removing?.origin.replace(/^https?:\/\//, '')} is
-        deleted from this machine. This cannot be undone.
+        {t('settings.passwords.removeDialog.body', {
+          account: removing?.username || t('settings.passwords.removeDialog.fallbackAccount'),
+          site: removing?.origin.replace(/^https?:\/\//, '') ?? '',
+        })}
       </ConfirmDialog>
 
       <ConfirmDialog
         open={isConfirmingExport}
         onOpenChange={setIsConfirmingExport}
-        title="Export passwords as plain text?"
-        confirmLabel="Export"
+        title={t('settings.passwords.exportDialog.title')}
+        confirmLabel={t('settings.passwords.exportDialog.confirm')}
         onConfirm={() => run(ask((api) => api.vault.exportAll(), ''))}
       >
-        Anyone who can open the file can read every password in it. Save it somewhere you would keep a password, and
-        delete it once you have imported it elsewhere.
+        {t('settings.passwords.exportDialog.body')}
       </ConfirmDialog>
     </>
   );
@@ -241,15 +259,15 @@ function AddPasswordForm({ onDone, onCancel }: { onDone: (message: string) => vo
   const [hasGenerated, setHasGenerated] = useState(false);
 
   const save = () => {
-    void ask((api) => api.vault.add({ origin, username, password }), { error: 'Nothing was saved.' }).then(
-      (result) => {
-        if ('error' in result) {
-          setError(result.error);
-          return;
-        }
-        onDone('');
-      },
-    );
+    void ask((api) => api.vault.add({ origin, username, password }), {
+      error: t('settings.passwords.form.nothingSaved'),
+    }).then((result) => {
+      if ('error' in result) {
+        setError(result.error);
+        return;
+      }
+      onDone('');
+    });
   };
 
   // Generated in the main process, where the random source is, and shown so it can be checked.
@@ -275,29 +293,29 @@ function AddPasswordForm({ onDone, onCancel }: { onDone: (message: string) => vo
       }}
     >
       <TextField
-        aria-label="Site"
-        placeholder="https://example.com"
+        aria-label={t('settings.passwords.form.site')}
+        placeholder={t('settings.passwords.form.sitePlaceholder')}
         value={origin}
         onChange={(event) => setOrigin(event.target.value)}
         autoFocus
       />
       <TextField
-        aria-label="Username"
-        placeholder="Username or email"
+        aria-label={t('settings.passwords.form.username')}
+        placeholder={t('settings.passwords.form.usernamePlaceholder')}
         value={username}
         onChange={(event) => setUsername(event.target.value)}
       />
       <div className="flex gap-2">
         <TextField
-          aria-label="Password"
-          placeholder="Password"
+          aria-label={t('settings.passwords.form.password')}
+          placeholder={t('settings.passwords.form.password')}
           type={isShowingPassword ? 'text' : 'password'}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className={isShowingPassword ? 'font-mono' : undefined}
         />
         <Button variant="ghost" onClick={() => generate(recipe)}>
-          Generate
+          {t('settings.passwords.form.generate')}
         </Button>
       </div>
       {hasGenerated && (
@@ -312,10 +330,10 @@ function AddPasswordForm({ onDone, onCancel }: { onDone: (message: string) => vo
       {error && <p className="text-body-sm text-alert">{error}</p>}
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t('settings.passwords.form.cancel')}
         </Button>
         <Button type="submit" variant="primary" disabled={!origin.trim() || !password}>
-          Save
+          {t('settings.passwords.form.save')}
         </Button>
       </div>
     </form>

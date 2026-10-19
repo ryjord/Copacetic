@@ -12,6 +12,7 @@ import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow'
 // Utils
 import { ask, send } from '@/lib/bridge';
 import { CLEAR_RANGES } from '@/lib/clearing';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { ClearRange, ExportKind, ImportSource } from '@shared/types';
@@ -46,24 +47,29 @@ export function DataPane() {
 
   return (
     <>
-      <SettingGroup title="Browsing data">
+      <SettingGroup title={t('settings.data.browsing.title')}>
         <SettingRow
-          label="Clear browsing data"
-          help="History older than 90 days is removed automatically."
+          label={t('settings.data.browsing.label')}
+          help={t('settings.data.browsing.help')}
           control={
             <>
-              <Select label="Time range" options={CLEAR_RANGES} value={range} onChange={setRange} />
+              <Select
+                label={t('settings.data.browsing.range')}
+                options={CLEAR_RANGES}
+                value={range}
+                onChange={setRange}
+              />
               <Button size="sm" variant="danger" onClick={() => setIsConfirming(true)}>
-                Clear…
+                {t('settings.data.browsing.action')}
               </Button>
             </>
           }
         />
       </SettingGroup>
 
-      <SettingGroup title="Kept when you clear">
+      <SettingGroup title={t('settings.data.kept.title')}>
         {keptKinds.length === 0 ? (
-          <SettingRow label="Nothing is kept about particular sites" />
+          <SettingRow label={t('settings.data.kept.empty')} />
         ) : (
           keptKinds.map((entry) => (
             <SettingRow
@@ -78,7 +84,7 @@ export function DataPane() {
                     reload();
                   }}
                 >
-                  Clear
+                  {t('settings.data.kept.clear')}
                 </Button>
               }
             />
@@ -86,31 +92,31 @@ export function DataPane() {
         )}
       </SettingGroup>
 
-      <SettingGroup title="Export">
+      <SettingGroup title={t('settings.data.export.title')}>
         <SettingRow
-          label="Bookmarks"
-          help="An HTML file every browser can import."
+          label={t('settings.data.export.bookmarks.label')}
+          help={t('settings.data.export.bookmarks.help')}
           control={
             <Button size="sm" onClick={() => exportData('bookmarks')}>
-              Export
+              {t('settings.data.export.action')}
             </Button>
           }
         />
         <SettingRow
-          label="History"
-          help="A JSON file you can read in any text editor."
+          label={t('settings.data.export.history.label')}
+          help={t('settings.data.export.history.help')}
           control={
             <Button size="sm" onClick={() => exportData('history')}>
-              Export
+              {t('settings.data.export.action')}
             </Button>
           }
         />
       </SettingGroup>
 
-      <SettingGroup title="Import">
+      <SettingGroup title={t('settings.data.import.title')}>
         <SettingRow
-          label="Bookmarks"
-          help="From the file any browser exports, folders and all. In Safari, choose File, then Export Bookmarks."
+          label={t('settings.data.import.bookmarks.label')}
+          help={t('settings.data.import.bookmarks.help')}
           control={
             <Button
               size="sm"
@@ -119,13 +125,13 @@ export function DataPane() {
                 void ask((api) => api.data.importBookmarks(), '').then(setMessage);
               }}
             >
-              Import
+              {t('settings.data.import.action')}
             </Button>
           }
         />
         <SettingRow
-          label="History"
-          help="From a file Copacetic exported, on this computer or another."
+          label={t('settings.data.import.history.label')}
+          help={t('settings.data.import.history.help')}
           control={
             <Button
               size="sm"
@@ -134,22 +140,18 @@ export function DataPane() {
                 void ask((api) => api.data.importHistory(), '').then(setMessage);
               }}
             >
-              Import
+              {t('settings.data.import.action')}
             </Button>
           }
         />
         <SettingRow
-          label="From another browser"
-          help={
-            chosenSource
-              ? 'Bookmarks, and the last 90 days of history. Passwords are left where they are.'
-              : 'No Chrome, Brave, Edge, Vivaldi, Arc or Firefox profile was found on this computer.'
-          }
+          label={t('settings.data.import.browser.label')}
+          help={chosenSource ? t('settings.data.import.browser.help') : t('settings.data.import.browser.none')}
           control={
             chosenSource && (
               <>
                 <Select
-                  label="Browser to import from"
+                  label={t('settings.data.import.browser.choose')}
                   options={sources}
                   value={chosenSource.id}
                   onChange={setChosenSourceId}
@@ -161,7 +163,7 @@ export function DataPane() {
                     void ask((api) => api.data.importFromBrowser(chosenSource.id), '').then(setMessage);
                   }}
                 >
-                  Import
+                  {t('settings.data.import.action')}
                 </Button>
               </>
             )

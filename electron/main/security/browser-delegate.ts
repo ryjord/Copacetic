@@ -6,6 +6,7 @@ import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/typ
 import { hostOf, isPageNavigableUrl } from '../../shared/url';
 import type { PendingPrompts } from './pending-prompts';
 import type { BrowserStore } from '../data/store';
+import { t } from '../../shared/i18n/translate';
 
 /** What a page's request needs of the tabs, answered by whichever window holds the page. */
 export interface TabDirectory {
@@ -84,12 +85,12 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
       }
       const { response } = await showQuestion(deps.window(), {
         type: 'question',
-        buttons: ['Open', 'Cancel'],
+        buttons: [t('main.dialogs.common.open'), t('main.dialogs.common.cancel')],
         defaultId: 1,
         cancelId: 1,
-        title: 'Leave Copacetic?',
-        message: `Open this link in another application?`,
-        detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${sanitiseChromeText(url, 240)}`,
+        title: t('main.dialogs.externalOpen.title'),
+        message: t('main.dialogs.externalOpen.message'),
+        detail: t('main.dialogs.externalOpen.detail', { scheme, url: sanitiseChromeText(url, 240) }),
         noLink: true,
       });
       if (response !== 0) {
@@ -113,12 +114,12 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
       const host = sanitiseChromeText(hostOf(origin) || origin, 120);
       const { response } = await showQuestion(deps.window(), {
         type: 'question',
-        buttons: [...choices.map((choice) => sanitiseChromeText(choice.name, 60)), 'Cancel'],
+        buttons: [...choices.map((choice) => sanitiseChromeText(choice.name, 60)), t('main.dialogs.common.cancel')],
         defaultId: choices.length,
         cancelId: choices.length,
-        title: 'Share your screen',
-        message: `${host} wants to share your screen`,
-        detail: 'Choose what to share. Nothing is shared until you pick something, and the choice is not remembered.',
+        title: t('main.dialogs.screenShare.title'),
+        message: t('main.dialogs.screenShare.message', { host }),
+        detail: t('main.dialogs.screenShare.detail'),
         noLink: true,
       });
       return choices[response]?.id ?? null;

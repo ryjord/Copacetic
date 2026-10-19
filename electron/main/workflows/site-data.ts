@@ -16,6 +16,7 @@ import type { BlockingPolicy } from '../security/blocking-policy';
 import { forgetCertificateExceptions } from '../security/certificate-exceptions';
 import { forgetCertificates } from '../security/certificates';
 import type { SessionRegistry } from '../sessions/session-registry';
+import { t } from '../../shared/i18n/translate';
 
 interface SiteDataDeps {
   store: BrowserStore;
@@ -62,7 +63,10 @@ export class SiteData {
       id: `forget-${siteOf(address)}`,
       tone: 'done',
       key: 'forget-site',
-      message: `Forgot ${siteOf(address)}: ${describeTraces(complete).toLowerCase()}`,
+      message: t('main.notices.forgotSite', {
+        site: siteOf(address),
+        traces: describeTraces(complete).toLowerCase(),
+      }),
     });
     this.deps.changed();
     return complete;

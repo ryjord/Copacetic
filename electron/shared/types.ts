@@ -2,6 +2,7 @@ import type { ShortcutOverrides } from './shortcuts';
 import type { ProfileSummary } from './profiles';
 import type { DnsMode } from './dns';
 import type { TabGroup } from './tab-groups';
+import { t } from './i18n/translate';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -274,15 +275,15 @@ export interface PermissionAnswer {
 
 /** What each permission means, in the words a person would use. */
 export const PERMISSION_LABELS: Record<PermissionKind, string> = {
-  geolocation: 'Know your location',
-  notifications: 'Send you notifications',
-  media: 'Use your camera and microphone',
-  'clipboard-read': 'Read your clipboard',
-  'display-capture': 'Record your screen',
-  midi: 'Use your MIDI devices',
-  pointerLock: 'Lock your pointer',
-  fullscreen: 'Go fullscreen',
-  openExternal: 'Open another application',
+  geolocation: t('main.permissions.labels.geolocation'),
+  notifications: t('main.permissions.labels.notifications'),
+  media: t('main.permissions.labels.media'),
+  'clipboard-read': t('main.permissions.labels.clipboardRead'),
+  'display-capture': t('main.permissions.labels.displayCapture'),
+  midi: t('main.permissions.labels.midi'),
+  pointerLock: t('main.permissions.labels.pointerLock'),
+  fullscreen: t('main.permissions.labels.fullscreen'),
+  openExternal: t('main.permissions.labels.openExternal'),
 };
 
 export interface PermissionPrompt {
@@ -396,10 +397,26 @@ export type DensityId = 'comfortable' | 'compact';
 export type StartPageWidgetId = 'clock' | 'search' | 'topSites' | 'bookmarks';
 
 export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string; description: string }[] = [
-  { id: 'clock', label: 'Clock', description: 'The current time.' },
-  { id: 'search', label: 'Search', description: 'Search or enter an address.' },
-  { id: 'topSites', label: 'Most visited', description: 'The sites you visit most.' },
-  { id: 'bookmarks', label: 'Bookmarks', description: 'Your latest bookmarks.' },
+  {
+    id: 'clock',
+    label: t('main.startPage.widgets.clock.label'),
+    description: t('main.startPage.widgets.clock.description'),
+  },
+  {
+    id: 'search',
+    label: t('main.startPage.widgets.search.label'),
+    description: t('main.startPage.widgets.search.description'),
+  },
+  {
+    id: 'topSites',
+    label: t('main.startPage.widgets.topSites.label'),
+    description: t('main.startPage.widgets.topSites.description'),
+  },
+  {
+    id: 'bookmarks',
+    label: t('main.startPage.widgets.bookmarks.label'),
+    description: t('main.startPage.widgets.bookmarks.description'),
+  },
 ];
 
 export type VaultAvailability = 'ready' | 'unavailable' | 'unreadable';

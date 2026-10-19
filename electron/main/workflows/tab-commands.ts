@@ -5,6 +5,7 @@ import { nextZoomStep } from '../../shared/zoom';
 import type { BrowserStore } from '../data/store';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { TabManager } from '../tabs/tabs';
+import { t } from '../../shared/i18n/translate';
 
 interface TabCommandsDeps {
   store: BrowserStore;
@@ -110,7 +111,7 @@ export class TabCommands {
           id: `save-failed-${tabId}`,
           tone: 'info',
           key: 'save-failed',
-          message: `The page was not saved: ${problem}`,
+          message: t('main.notices.saveFailed', { problem }),
         });
       }
     });
@@ -139,7 +140,7 @@ export class TabCommands {
         id: `print-failed-${tabId}`,
         tone: 'info',
         key: 'print-failed',
-        message: `The page did not print: ${reason}`,
+        message: t('main.notices.printFailed', { reason }),
       }),
     );
   }

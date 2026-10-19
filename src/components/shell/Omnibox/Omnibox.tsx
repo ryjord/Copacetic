@@ -16,13 +16,14 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { Suggestion, TabId, TabState } from '@shared/types';
 import { splitUrlForDisplay } from '@shared/url';
 import { formatZoom, isZoomedFrom } from '@shared/zoom';
 
-const PLACEHOLDER = 'Search or enter address';
+const PLACEHOLDER = t('shell.omnibox.placeholder');
 // One empty list, so not editing is the same value on every render and the overlay is told once.
 const NO_SUGGESTIONS: Suggestion[] = [];
 
@@ -189,7 +190,7 @@ export function Omnibox({ tab }: OmniboxProps) {
             spellCheck={false}
             autoComplete="off"
             autoCorrect="off"
-            aria-label="Address and search"
+            aria-label={t('shell.omnibox.addressAndSearch')}
             // Announced as what it is: a text field with a list attached, and
             // a way to say which item the arrow keys are currently on. Without
             // this the suggestions are invisible to a screen reader, which
@@ -210,7 +211,7 @@ export function Omnibox({ tab }: OmniboxProps) {
             type="button"
             onClick={beginEditing}
             className="h-full w-full truncate text-left"
-            aria-label="Address and search"
+            aria-label={t('shell.omnibox.addressAndSearch')}
           >
             <AddressDisplay url={committedUrl} />
           </button>
@@ -222,7 +223,7 @@ export function Omnibox({ tab }: OmniboxProps) {
 
       {/* The visible list is in another document, which aria-activedescendant cannot reach, so this one is for screen readers. */}
       {visibleSuggestions.length > 0 && (
-        <ul id="omnibox-suggestions" role="listbox" aria-label="Suggestions" className="sr-only">
+        <ul id="omnibox-suggestions" role="listbox" aria-label={t('shell.omnibox.suggestions')} className="sr-only">
           {visibleSuggestions.map((suggestion, index) => (
             <li
               key={suggestion.id}
@@ -230,7 +231,7 @@ export function Omnibox({ tab }: OmniboxProps) {
               role="option"
               aria-selected={index === highlighted}
             >
-              {suggestion.title}, {suggestion.subtitle}
+              {t('shell.omnibox.suggestion', { title: suggestion.title, subtitle: suggestion.subtitle })}
             </li>
           ))}
         </ul>
@@ -267,8 +268,8 @@ function ZoomChip({ tab }: { tab: TabState }) {
   return (
     <button
       type="button"
-      aria-label={`Zoom ${shown}, reset to ${formatZoom(defaultZoomFactor)}`}
-      title="Reset zoom"
+      aria-label={t('shell.omnibox.zoomReset', { zoom: shown, defaultZoom: formatZoom(defaultZoomFactor) })}
+      title={t('shell.omnibox.resetZoom')}
       onClick={() => send((api) => api.tabs.setZoom(tab.id, defaultZoomFactor))}
       className="flex h-6 shrink-0 items-center rounded-sm bg-hover px-2 text-body-sm tabular-nums text-ink-dim hover:text-ink"
     >
@@ -281,7 +282,7 @@ function ZoomChip({ tab }: { tab: TabState }) {
 function BookmarkStar({ tab }: { tab: TabState }) {
   return (
     <IconButton
-      label={tab.isBookmarked ? 'Remove bookmark' : 'Bookmark this page'}
+      label={tab.isBookmarked ? t('shell.omnibox.removeBookmark') : t('shell.omnibox.addBookmark')}
       size="sm"
       tone={tab.isBookmarked ? 'active' : 'default'}
       onClick={() => send((api) => api.bookmarks.toggle(tab.url, tab.title))}

@@ -18,6 +18,7 @@ import { useDismissLayer } from '@/lib/dismissLayer';
 import { useFocusTrap } from '@/lib/focusTrap';
 import { rankByMatch } from '@/lib/fuzzy';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { GROUP_COLOURS } from '@shared/tab-groups';
@@ -30,13 +31,13 @@ interface Command {
   label: string;
   /** The shortcut that does the same thing, so the palette teaches it. */
   accelerator?: string;
-  group: 'Tabs' | 'Page' | 'Go to' | 'Your data' | 'Appearance' | 'Open tabs';
+  group: 'tabs' | 'page' | 'goTo' | 'yourData' | 'appearance' | 'openTabs';
   /** Also matched, but not shown: a tab's address, for instance. */
   keywords?: string;
   run: () => void;
 }
 
-const GROUP_ORDER: readonly Command['group'][] = ['Tabs', 'Page', 'Go to', 'Your data', 'Appearance', 'Open tabs'];
+const GROUP_ORDER: readonly Command['group'][] = ['tabs', 'page', 'goTo', 'yourData', 'appearance', 'openTabs'];
 
 /** One keystroke to reach anything, and a place to learn the shortcut for it. */
 /** Every command and open tab, or, opened as tab search, the open tabs alone. */
@@ -69,31 +70,31 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     const list: Command[] = [
       {
         id: 'new-window',
-        label: 'New window',
+        label: t('views.palette.commands.newWindow'),
         accelerator: 'CmdOrCtrl+N',
-        group: 'Tabs',
+        group: 'tabs',
         run: then(() => send((api) => api.window.openNew())),
       },
       {
         id: 'new-tab',
-        label: 'New tab',
+        label: t('views.palette.commands.newTab'),
         accelerator: 'CmdOrCtrl+T',
-        group: 'Tabs',
+        group: 'tabs',
         run: then(() => send((api) => api.tabs.create())),
       },
       {
         id: 'new-hush-tab',
-        label: 'New Hush tab',
+        label: t('views.palette.commands.newHushTab'),
         accelerator: 'CmdOrCtrl+Shift+N',
-        group: 'Tabs',
-        keywords: 'private incognito',
+        group: 'tabs',
+        keywords: t('views.palette.keywords.newHushTab'),
         run: then(() => send((api) => api.tabs.createHush())),
       },
       {
         id: 'address',
-        label: 'Go to an address',
+        label: t('views.palette.commands.address'),
         accelerator: 'CmdOrCtrl+L',
-        group: 'Tabs',
+        group: 'tabs',
         run: then(requestOmniboxFocus),
       },
     ];
@@ -101,9 +102,9 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     if (hasClosedTabs) {
       list.push({
         id: 'reopen',
-        label: 'Reopen closed tab',
+        label: t('views.palette.commands.reopen'),
         accelerator: 'CmdOrCtrl+Shift+T',
-        group: 'Tabs',
+        group: 'tabs',
         run: then(() => send((api) => api.tabs.reopenClosed())),
       });
     }
@@ -112,29 +113,29 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       const tabId = activeTab.id;
       list.push({
         id: 'close-tab',
-        label: 'Close tab',
+        label: t('views.palette.commands.closeTab'),
         accelerator: 'CmdOrCtrl+W',
-        group: 'Tabs',
+        group: 'tabs',
         run: then(() => send((api) => api.tabs.close(tabId))),
       });
       list.push({
         id: 'duplicate',
-        label: 'Duplicate tab',
-        group: 'Tabs',
+        label: t('views.palette.commands.duplicate'),
+        group: 'tabs',
         run: then(() => send((api) => api.tabs.duplicate(tabId))),
       });
       list.push({
         id: 'pin',
-        label: activeTab.isPinned ? 'Unpin tab' : 'Pin tab',
-        group: 'Tabs',
+        label: activeTab.isPinned ? t('views.palette.commands.unpin') : t('views.palette.commands.pin'),
+        group: 'tabs',
         run: then(() => send((api) => api.tabs.setPinned(tabId, !activeTab.isPinned))),
       });
       if (activeTab.isAudible || activeTab.isMuted) {
         list.push({
           id: 'mute',
-          label: activeTab.isMuted ? 'Unmute tab' : 'Mute tab',
-          group: 'Tabs',
-          keywords: 'sound audio',
+          label: activeTab.isMuted ? t('views.palette.commands.unmute') : t('views.palette.commands.mute'),
+          group: 'tabs',
+          keywords: t('views.palette.keywords.mute'),
           run: then(() => send((api) => api.tabs.setMuted(tabId, !activeTab.isMuted))),
         });
       }
@@ -142,15 +143,17 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         activeTab.groupId === null
           ? {
               id: 'group-new',
-              label: 'Add tab to a new group',
-              group: 'Tabs',
-              run: then(() => send((api) => api.groups.create(tabId, 'Group', GROUP_COLOURS[0].id, false))),
+              label: t('views.palette.commands.groupNew'),
+              group: 'tabs',
+              run: then(() =>
+                send((api) => api.groups.create(tabId, t('views.palette.newGroupName'), GROUP_COLOURS[0].id, false)),
+              ),
             }
           : {
               id: 'group-remove',
-              label: 'Remove tab from its group',
-              group: 'Tabs',
-              keywords: 'ungroup',
+              label: t('views.palette.commands.groupRemove'),
+              group: 'tabs',
+              keywords: t('views.palette.keywords.groupRemove'),
               run: then(() => send((api) => api.groups.setForTab(tabId, null))),
             },
       );
@@ -160,73 +163,75 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         list.push(
           {
             id: 'reload',
-            label: 'Reload page',
+            label: t('views.palette.commands.reload'),
             accelerator: 'CmdOrCtrl+R',
-            group: 'Page',
+            group: 'page',
             run: then(() => send((api) => api.tabs.reload(tabId))),
           },
           {
             id: 'find',
-            label: 'Find on page',
+            label: t('views.palette.commands.find'),
             accelerator: 'CmdOrCtrl+F',
-            group: 'Page',
+            group: 'page',
             run: then(() => send((api) => api.find.open())),
           },
           {
             id: 'bookmark',
-            label: activeTab.isBookmarked ? 'Remove bookmark' : 'Bookmark this page',
+            label: activeTab.isBookmarked
+              ? t('views.palette.commands.removeBookmark')
+              : t('views.palette.commands.bookmark'),
             accelerator: 'CmdOrCtrl+D',
-            group: 'Page',
+            group: 'page',
             run: then(() => send((api) => api.bookmarks.toggle(activeTab.url, activeTab.title))),
           },
           {
             id: 'save-page',
-            label: 'Save page as',
-            group: 'Page',
-            keywords: 'download html',
+            label: t('views.palette.commands.savePage'),
+            group: 'page',
+            keywords: t('views.palette.keywords.savePage'),
             run: then(() => send((api) => api.tabs.savePage(tabId))),
           },
           {
             id: 'view-source',
-            label: 'View page source',
-            group: 'Page',
-            keywords: 'html code',
+            label: t('views.palette.commands.viewSource'),
+            group: 'page',
+            keywords: t('views.palette.keywords.viewSource'),
             run: then(() => send((api) => api.tabs.viewSource(tabId))),
           },
           {
             id: 'print',
-            label: 'Print',
+            label: t('views.palette.commands.print'),
             accelerator: 'CmdOrCtrl+P',
-            group: 'Page',
+            group: 'page',
             run: then(() => send((api) => api.tabs.print(tabId))),
           },
           {
             id: 'zoom-in',
-            label: 'Zoom in',
+            label: t('views.palette.commands.zoomIn'),
             accelerator: 'CmdOrCtrl+Plus',
-            group: 'Page',
+            group: 'page',
             run: zoomTo(nextZoomStep(activeTab.zoomFactor, 'in')),
           },
           {
             id: 'zoom-out',
-            label: 'Zoom out',
+            label: t('views.palette.commands.zoomOut'),
             accelerator: 'CmdOrCtrl+-',
-            group: 'Page',
+            group: 'page',
             run: zoomTo(nextZoomStep(activeTab.zoomFactor, 'out')),
           },
           {
             id: 'zoom-reset',
-            label: 'Actual size',
+            label: t('views.palette.commands.zoomReset'),
             accelerator: 'CmdOrCtrl+0',
-            group: 'Page',
-            keywords: 'reset zoom',
+            group: 'page',
+            keywords: t('views.palette.keywords.zoomReset'),
             run: zoomTo(defaultZoomFactor),
           },
           {
             id: 'devtools',
-            label: 'Developer tools',
-            group: 'Page',
-            keywords: 'inspect console devtools',
+            label: t('views.palette.commands.devtools'),
+            group: 'page',
+            keywords: t('views.palette.keywords.devtools'),
             run: then(() => send((api) => api.tabs.toggleDevTools(tabId))),
           },
         );
@@ -236,45 +241,45 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     list.push(
       {
         id: 'history',
-        label: 'History',
+        label: t('views.palette.commands.history'),
         accelerator: 'CmdOrCtrl+Y',
-        group: 'Go to',
+        group: 'goTo',
         run: () => toggleSurface('history'),
       },
       {
         id: 'bookmarks',
-        label: 'Bookmarks',
+        label: t('views.palette.commands.bookmarks'),
         accelerator: 'CmdOrCtrl+Shift+B',
-        group: 'Go to',
+        group: 'goTo',
         run: () => toggleSurface('bookmarks'),
       },
       {
         id: 'downloads',
-        label: 'Downloads',
+        label: t('views.palette.commands.downloads'),
         accelerator: 'CmdOrCtrl+Shift+J',
-        group: 'Go to',
+        group: 'goTo',
         run: () => toggleSurface('downloads'),
       },
       {
         id: 'settings',
-        label: 'Settings',
+        label: t('views.palette.commands.settings'),
         accelerator: 'CmdOrCtrl+,',
-        group: 'Go to',
-        keywords: 'preferences options',
+        group: 'goTo',
+        keywords: t('views.palette.keywords.settings'),
         run: () => toggleSurface('settings'),
       },
       {
         id: 'appearance',
-        label: appearance === 'dark' ? 'Use light appearance' : 'Use dark appearance',
-        group: 'Appearance',
-        keywords: 'theme mode',
+        label: appearance === 'dark' ? t('views.palette.commands.useLight') : t('views.palette.commands.useDark'),
+        group: 'appearance',
+        keywords: t('views.palette.keywords.appearance'),
         run: then(() => send((api) => api.settings.update({ appearance: appearance === 'dark' ? 'light' : 'dark' }))),
       },
       {
         id: 'appearance-system',
-        label: 'Match the system appearance',
-        group: 'Appearance',
-        keywords: 'theme mode auto',
+        label: t('views.palette.commands.matchSystem'),
+        group: 'appearance',
+        keywords: t('views.palette.keywords.appearanceSystem'),
         run: then(() => send((api) => api.settings.update({ appearance: 'system' }))),
       },
     );
@@ -283,9 +288,9 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     if (sleepable.length > 0) {
       list.push({
         id: 'sleep-others',
-        label: 'Put other tabs to sleep',
-        group: 'Tabs',
-        keywords: 'memory discard',
+        label: t('views.palette.commands.sleepOthers'),
+        group: 'tabs',
+        keywords: t('views.palette.keywords.sleepOthers'),
         run: then(() => sleepable.forEach((tab) => send((api) => api.tabs.sleep(tab.id)))),
       });
     }
@@ -293,23 +298,23 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     list.push(
       {
         id: 'clear-data',
-        label: 'Clear browsing data',
-        group: 'Your data',
-        keywords: 'history cookies cache delete',
+        label: t('views.palette.commands.clearData'),
+        group: 'yourData',
+        keywords: t('views.palette.keywords.clearData'),
         run: () => openSettings('data'),
       },
       {
         id: 'import',
-        label: 'Import bookmarks and history',
-        group: 'Your data',
-        keywords: 'chrome firefox safari edge brave file',
+        label: t('views.palette.commands.import'),
+        group: 'yourData',
+        keywords: t('views.palette.keywords.import'),
         run: () => openSettings('data'),
       },
       {
         id: 'export',
-        label: 'Export bookmarks or history',
-        group: 'Your data',
-        keywords: 'backup file',
+        label: t('views.palette.commands.export'),
+        group: 'yourData',
+        keywords: t('views.palette.keywords.export'),
         run: () => openSettings('data'),
       },
     );
@@ -318,8 +323,8 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       .filter((tab) => scope === 'tabs' || tab.id !== activeTab?.id)
       .map<Command>((tab) => ({
         id: `switch:${tab.id}`,
-        label: tab.isStartPage ? 'New tab' : tab.title || tab.url,
-        group: 'Open tabs',
+        label: tab.isStartPage ? t('views.palette.commands.newTab') : tab.title || tab.url,
+        group: 'openTabs',
         keywords: tab.url,
         run: then(() => send((api) => api.tabs.activate(tab.id))),
       }));
@@ -363,7 +368,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     document.getElementById(`${listId}-${highlighted}`)?.scrollIntoView?.({ block: 'nearest' });
   }, [highlighted, listId]);
 
-  const placeholder = scope === 'tabs' ? 'Search open tabs' : 'Search commands and open tabs';
+  const placeholder = scope === 'tabs' ? t('views.palette.searchTabs') : t('views.palette.searchEverything');
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -395,7 +400,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={scope === 'tabs' ? 'Tab search' : 'Command palette'}
+        aria-label={scope === 'tabs' ? t('views.palette.tabSearch') : t('views.palette.label')}
         className="animate-pop flex h-fit max-h-[64vh] w-full max-w-xl flex-col overflow-hidden rounded-lg bg-raised shadow-dialog"
       >
         <div className="flex h-12 flex-none items-center gap-2.5 border-b border-line px-4">
@@ -417,20 +422,22 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
 
         {matches.length === 0 ? (
           <p className="px-4 py-8 text-center text-body text-ink-dim">
-            {scope === 'tabs' ? 'No open tab matches.' : 'No command or tab matches.'}
+            {scope === 'tabs' ? t('views.palette.noTabMatches') : t('views.palette.noMatches')}
           </p>
         ) : (
           <ul
             id={listId}
             role="listbox"
-            aria-label="Commands"
+            aria-label={t('views.palette.commandsList')}
             className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5"
           >
             {matches.map((command, index) => {
               const isNewGroup = !query.trim() && command.group !== matches[index - 1]?.group;
               return (
                 <li key={command.id} role="presentation">
-                  {isNewGroup && <div className="label px-2.5 pb-1 pt-2.5">{command.group}</div>}
+                  {isNewGroup && (
+                    <div className="label px-2.5 pb-1 pt-2.5">{t(`views.palette.groups.${command.group}`)}</div>
+                  )}
                   <div
                     id={`${listId}-${index}`}
                     role="option"
@@ -443,7 +450,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
                     )}
                   >
                     <span className="min-w-0 flex-1 truncate text-body">{command.label}</span>
-                    {command.group === 'Open tabs' && command.keywords && (
+                    {command.group === 'openTabs' && command.keywords && (
                       <span className="max-w-[40%] shrink-0 truncate text-body-sm text-ink-faint">
                         {hostFor(command.keywords)}
                       </span>

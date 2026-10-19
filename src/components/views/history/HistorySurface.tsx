@@ -25,6 +25,7 @@ import { ask, send } from '@/lib/bridge';
 import { CLEAR_RANGES } from '@/lib/clearing';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { formatDateHeading, formatTimeOfDay } from '@/lib/format';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { ClearRange, HistoryEntry, HistoryPage } from '@shared/types';
@@ -80,14 +81,19 @@ export function HistorySurface() {
     setTotal((count) => Math.max(0, count - 1));
   };
 
+  const summary =
+    entries?.length === total
+      ? t('views.history.pages', { total: total.toLocaleString() })
+      : t('views.history.showing', { shown: entries?.length ?? 0, total });
+
   return (
     <SurfaceShell
-      title="History"
+      title={t('views.history.title')}
       actions={
         <>
-          <SearchField value={query} onChange={setQuery} label="Search history" className="w-64" />
+          <SearchField value={query} onChange={setQuery} label={t('views.history.search')} className="w-64" />
           <Menu
-            trigger={<Button size="sm">Clear browsing data…</Button>}
+            trigger={<Button size="sm">{t('views.history.clearMenu')}</Button>}
             items={CLEAR_RANGES.map((range) => ({
               label: range.label,
               isDestructive: range.id === 'all',
@@ -103,8 +109,8 @@ export function HistorySurface() {
         ) : entries.length === 0 ? (
           <EmptyState
             icon={History}
-            title={query ? 'Nothing matches' : 'No history yet'}
-            hint={query ? 'Try another word, or part of an address.' : 'Pages you visit appear here for 90 days.'}
+            title={query ? t('views.history.noMatches') : t('views.history.empty')}
+            hint={query ? t('views.history.noMatchesHint') : t('views.history.emptyHint')}
           />
         ) : (
           <>
@@ -139,7 +145,7 @@ export function HistorySurface() {
                         {formatTimeOfDay(entry.lastVisitedAt)}
                       </span>
                       <IconButton
-                        label={`Remove ${entry.title || hostFor(entry.url)} from history`}
+                        label={t('views.history.remove', { name: entry.title || hostFor(entry.url) })}
                         size="sm"
                         className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                         onClick={() => remove(entry.id)}
@@ -154,14 +160,13 @@ export function HistorySurface() {
 
             <div className="flex flex-col items-center gap-3 pt-6">
               <p className="text-body-sm text-ink-faint tabular-nums">
-                {entries.length === total
-                  ? `${total.toLocaleString()} pages`
-                  : `Showing ${entries.length} of ${total}`}
-                {totalBlocked > 0 && ` · ${totalBlocked.toLocaleString()} requests blocked`}
+                {totalBlocked > 0
+                  ? t('views.history.withBlocked', { summary, blocked: totalBlocked.toLocaleString() })
+                  : summary}
               </p>
               {entries.length < total && (
                 <Button size="sm" onClick={loadMore} disabled={isLoadingMore}>
-                  {isLoadingMore ? 'Loading…' : 'Show more'}
+                  {isLoadingMore ? t('views.history.loading') : t('views.history.showMore')}
                 </Button>
               )}
             </div>

@@ -15,6 +15,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { ask } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { DNS_RESOLVERS, describeDns, resolverFor } from '@shared/dns';
@@ -22,23 +23,21 @@ import type { SettingsPaneProps } from '@/components/views/settings/shared/types
 import type { WebRtcPolicy } from '@shared/types';
 
 const DNS_MODES = [
-  { id: 'system', label: 'System' },
-  { id: 'encrypted', label: 'Encrypted' },
+  { id: 'system', label: t('settings.privacy.dns.system') },
+  { id: 'encrypted', label: t('settings.privacy.dns.encrypted') },
 ] as const;
 
 const WEB_RTC_OPTIONS = [
-  { id: 'publicOnly', label: 'Public only' },
-  { id: 'default', label: 'All' },
-  { id: 'proxiedOnly', label: 'Proxied only' },
+  { id: 'publicOnly', label: t('settings.privacy.calls.publicOnly') },
+  { id: 'default', label: t('settings.privacy.calls.all') },
+  { id: 'proxiedOnly', label: t('settings.privacy.calls.proxiedOnly') },
 ] as const satisfies readonly { id: WebRtcPolicy; label: string }[];
 
 /** What each choice lets a page learn, said where the choice is made. */
 const WEB_RTC_HELP: Record<WebRtcPolicy, string> = {
-  publicOnly:
-    'Calls and video work, and a page can learn your public address but not the one on your home or office network.',
-  default: 'A page can learn your local network address as well. Only for a call that will not connect otherwise.',
-  proxiedOnly:
-    'Calls go through your proxy or not at all, so nothing is revealed that the proxy does not already show.',
+  publicOnly: t('settings.privacy.calls.publicOnlyHelp'),
+  default: t('settings.privacy.calls.allHelp'),
+  proxiedOnly: t('settings.privacy.calls.proxiedOnlyHelp'),
 };
 
 const PROVIDERS = DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }));
@@ -54,9 +53,12 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
   // Counted from the blocker, never written out: a number in copy goes stale silently.
   const trackerHelp = info
     ? listedRules > 0
-      ? `${listedRules.toLocaleString()} rules from EasyList and EasyPrivacy, plus ${info.blockerRuleCount} domains Copacetic blocks itself.`
-      : `Blocks ${info.blockerRuleCount} domains that exist to follow you between sites.`
-    : 'Blocks domains that exist to follow you between sites.';
+      ? t('settings.privacy.browsing.blockTrackers.helpWithLists', {
+          rules: listedRules.toLocaleString(),
+          domains: info.blockerRuleCount,
+        })
+      : t('settings.privacy.browsing.blockTrackers.helpOwnOnly', { domains: info.blockerRuleCount })
+    : t('settings.privacy.browsing.blockTrackers.helpUnknown');
 
   // The result is announced as a notice, where everything else the browser finishes is said.
   const checkForNewerLists = () => {
@@ -66,24 +68,24 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
 
   return (
     <>
-      <SettingGroup title="Browsing">
+      <SettingGroup title={t('settings.privacy.browsing.title')}>
         <SettingRow
-          label="Always use secure connections"
-          help="Tries HTTPS first, and asks before falling back to HTTP. Your own network is left alone."
+          label={t('settings.privacy.browsing.httpsFirst.label')}
+          help={t('settings.privacy.browsing.httpsFirst.help')}
           control={
             <Switch
-              label="Always use secure connections"
+              label={t('settings.privacy.browsing.httpsFirst.label')}
               checked={settings.httpsFirst}
               onChange={(httpsFirst) => updateSettings({ httpsFirst })}
             />
           }
         />
         <SettingRow
-          label="Block trackers and ads"
+          label={t('settings.privacy.browsing.blockTrackers.label')}
           help={trackerHelp}
           control={
             <Switch
-              label="Block trackers and ads"
+              label={t('settings.privacy.browsing.blockTrackers.label')}
               checked={settings.blockTrackers}
               onChange={(blockTrackers) => updateSettings({ blockTrackers })}
             />
@@ -92,7 +94,7 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
       </SettingGroup>
 
       {lists.length > 0 && (
-        <SettingGroup title="Filter lists">
+        <SettingGroup title={t('settings.privacy.filterLists.title')}>
           {lists.map((list) => (
             <SettingRow
               key={list.name}
@@ -100,30 +102,37 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
               help={list.describe}
               control={
                 <span className="text-body-sm text-ink-dim tabular-nums">
-                  {list.rules.toLocaleString()} rules{list.lastModified ? ` · ${list.lastModified}` : ''}
+                  {list.lastModified
+                    ? t('settings.privacy.filterLists.rulesModified', {
+                        rules: list.rules.toLocaleString(),
+                        modified: list.lastModified,
+                      })
+                    : t('settings.privacy.filterLists.rules', { rules: list.rules.toLocaleString() })}
                 </span>
               }
             />
           ))}
           <SettingRow
-            label="Check for newer lists"
-            help={`Contacts ${listHosts.join(' and ')} once. Lists never update on their own.`}
+            label={t('settings.privacy.filterLists.check.label')}
+            help={t('settings.privacy.filterLists.check.help', { hosts: listHosts.join(' and ') })}
             control={
               <Button size="sm" disabled={isChecking} onClick={checkForNewerLists}>
-                {isChecking ? 'Checking…' : 'Check now'}
+                {isChecking
+                  ? t('settings.privacy.filterLists.check.checking')
+                  : t('settings.privacy.filterLists.check.action')}
               </Button>
             }
           />
         </SettingGroup>
       )}
 
-      <SettingGroup title="Secure DNS">
+      <SettingGroup title={t('settings.privacy.dns.title')}>
         <SettingRow
-          label="Look up sites"
+          label={t('settings.privacy.dns.lookUp')}
           help={describeDns(settings.dnsMode, settings.dnsResolverId)}
           control={
             <SegmentedControl
-              label="DNS"
+              label={t('settings.privacy.dns.group')}
               options={DNS_MODES}
               value={settings.dnsMode}
               onChange={(dnsMode) => updateSettings({ dnsMode })}
@@ -132,11 +141,11 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
         />
         {settings.dnsMode === 'encrypted' && (
           <SettingRow
-            label="Provider"
+            label={t('settings.privacy.dns.provider')}
             help={resolverFor(settings.dnsResolverId)?.detail}
             control={
               <SegmentedControl
-                label="DNS provider"
+                label={t('settings.privacy.dns.providerGroup')}
                 options={PROVIDERS}
                 value={settings.dnsResolverId}
                 onChange={(dnsResolverId) => updateSettings({ dnsResolverId })}
@@ -146,13 +155,13 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
         )}
       </SettingGroup>
 
-      <SettingGroup title="Cookies">
+      <SettingGroup title={t('settings.privacy.cookies.title')}>
         <SettingRow
-          label="Block third-party cookies"
-          help="A site other than the one you are on cannot send or set a cookie with what it loads into the page, which is how most tracking across sites works. A site you let show trackers is let through too. Cookies a third-party frame sets with script are not covered."
+          label={t('settings.privacy.cookies.thirdParty.label')}
+          help={t('settings.privacy.cookies.thirdParty.help')}
           control={
             <Switch
-              label="Block third-party cookies"
+              label={t('settings.privacy.cookies.thirdParty.label')}
               checked={settings.blockThirdPartyCookies}
               onChange={(blockThirdPartyCookies) => updateSettings({ blockThirdPartyCookies })}
             />
@@ -160,13 +169,13 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
         />
       </SettingGroup>
 
-      <SettingGroup title="Calls and video">
+      <SettingGroup title={t('settings.privacy.calls.title')}>
         <SettingRow
-          label="Addresses WebRTC may reveal"
+          label={t('settings.privacy.calls.label')}
           help={WEB_RTC_HELP[settings.webRtcPolicy]}
           control={
             <SegmentedControl
-              label="Addresses WebRTC may reveal"
+              label={t('settings.privacy.calls.label')}
               options={WEB_RTC_OPTIONS}
               value={settings.webRtcPolicy}
               onChange={(webRtcPolicy) => updateSettings({ webRtcPolicy })}
@@ -175,13 +184,13 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
         />
       </SettingGroup>
 
-      <SettingGroup title="Sites">
+      <SettingGroup title={t('settings.privacy.sites.title')}>
         <SettingRow
-          label="Site settings"
-          help="Permissions, zoom levels and tracker exceptions, for each site."
+          label={t('settings.privacy.sites.label')}
+          help={t('settings.privacy.sites.help')}
           control={
             <Button size="sm" onClick={() => openPane('sites')}>
-              Open
+              {t('settings.privacy.sites.action')}
             </Button>
           }
         />

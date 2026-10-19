@@ -1,5 +1,6 @@
 import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
 import type { TabId } from '../../shared/types';
+import { t } from '../../shared/i18n/translate';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome-text';
 import { isPageNavigableUrl } from '../../shared/url';
 import type { Browser } from '../app/browser';
@@ -27,7 +28,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
 
   if (linkUrl) {
     push({
-      label: 'Open link in new tab',
+      label: t('main.menu.context.openLinkInNewTab'),
       click: () =>
         browser.tabs.create(linkUrl, {
           activate: true,
@@ -35,30 +36,33 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
         }),
     });
     push({
-      label: 'Open link in background tab',
+      label: t('main.menu.context.openLinkInBackgroundTab'),
       click: () =>
         browser.tabs.create(linkUrl, {
           activate: false,
           openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
         }),
     });
-    push({ label: 'Copy link address', click: () => clipboard.writeText(linkUrl) });
-    push({ label: 'Download linked file', click: () => browser.commands.downloadUrl(linkUrl) });
+    push({ label: t('main.menu.context.copyLinkAddress'), click: () => clipboard.writeText(linkUrl) });
+    push({ label: t('main.menu.context.downloadLinkedFile'), click: () => browser.commands.downloadUrl(linkUrl) });
     separate();
   }
 
   if (imageUrl) {
     push({
-      label: 'Open image in new tab',
+      label: t('main.menu.context.openImageInNewTab'),
       click: () =>
         browser.tabs.create(imageUrl, {
           activate: true,
           openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
         }),
     });
-    push({ label: 'Copy image', click: () => browser.tabs.copyImageAt(tabId, params.x, params.y) });
-    push({ label: 'Copy image address', click: () => clipboard.writeText(imageUrl) });
-    push({ label: 'Save image', click: () => browser.commands.downloadUrl(imageUrl) });
+    push({
+      label: t('main.menu.context.copyImage'),
+      click: () => browser.tabs.copyImageAt(tabId, params.x, params.y),
+    });
+    push({ label: t('main.menu.context.copyImageAddress'), click: () => clipboard.writeText(imageUrl) });
+    push({ label: t('main.menu.context.saveImage'), click: () => browser.commands.downloadUrl(imageUrl) });
     separate();
   }
 
@@ -67,9 +71,9 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     const offer = browser.passwords.offerFor(tabId);
     if (offer.entries.length > 0) {
       push({
-        label: 'Fill password',
+        label: t('main.menu.context.fillPassword'),
         submenu: offer.entries.map((entry) => ({
-          label: entry.username || 'Saved password',
+          label: entry.username || t('main.menu.context.savedPassword'),
           click: () => {
             void browser.passwords.fill(tabId, entry.id);
           },
@@ -95,7 +99,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     }
     if (params.misspelledWord) {
       if (params.dictionarySuggestions.length === 0) {
-        push({ label: 'No spelling suggestions', enabled: false });
+        push({ label: t('main.menu.context.noSpellingSuggestions'), enabled: false });
       }
       push({
         label: addToDictionaryLabel(params.misspelledWord),
@@ -118,19 +122,36 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
   }
 
   if (!linkUrl && !imageUrl && !hasSelection && !params.isEditable) {
-    push({ label: 'Back', enabled: browser.tabs.canGoBack(tabId), click: () => browser.tabs.goBack(tabId) });
-    push({ label: 'Forward', enabled: browser.tabs.canGoForward(tabId), click: () => browser.tabs.goForward(tabId) });
-    push({ label: 'Reload', click: () => browser.tabs.reload(tabId) });
+    push({
+      label: t('main.menu.history.back'),
+      enabled: browser.tabs.canGoBack(tabId),
+      click: () => browser.tabs.goBack(tabId),
+    });
+    push({
+      label: t('main.menu.history.forward'),
+      enabled: browser.tabs.canGoForward(tabId),
+      click: () => browser.tabs.goForward(tabId),
+    });
+    push({ label: t('main.menu.view.reload'), click: () => browser.tabs.reload(tabId) });
     separate();
-    push({ label: 'Copy page address', click: () => clipboard.writeText(browser.tabs.urlFor(tabId) ?? '') });
-    push({ label: 'Bookmark this page', click: () => browser.commands.toggleBookmarkForActiveTab() });
-    push({ label: 'Save page as…', click: () => browser.commands.savePage(tabId) });
-    push({ label: 'Print…', click: () => browser.commands.print(tabId) });
-    push({ label: 'View page source', click: () => browser.commands.viewSource(tabId) });
+    push({
+      label: t('main.menu.context.copyPageAddress'),
+      click: () => clipboard.writeText(browser.tabs.urlFor(tabId) ?? ''),
+    });
+    push({
+      label: t('main.menu.bookmarks.bookmarkThisPage'),
+      click: () => browser.commands.toggleBookmarkForActiveTab(),
+    });
+    push({ label: t('main.menu.file.savePageAs'), click: () => browser.commands.savePage(tabId) });
+    push({ label: t('main.menu.file.print'), click: () => browser.commands.print(tabId) });
+    push({ label: t('main.menu.view.viewPageSource'), click: () => browser.commands.viewSource(tabId) });
     separate();
   }
 
-  push({ label: 'Inspect element', click: () => browser.tabs.inspectAt(tabId, params.x, params.y) });
+  push({
+    label: t('main.menu.context.inspectElement'),
+    click: () => browser.tabs.inspectAt(tabId, params.x, params.y),
+  });
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
 }
@@ -141,26 +162,37 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
   const isBookmarked = url ? browser.store.isBookmarked(url) : false;
 
   const items: MenuItemConstructorOptions[] = [
-    { label: 'New tab to the right', click: () => browser.tabs.create(undefined, { activate: true }) },
-    { label: 'New Hush tab', click: () => browser.commands.newHushTab() },
     {
-      label: 'Reopen closed tab',
+      label: t('main.menu.context.newTabToTheRight'),
+      click: () => browser.tabs.create(undefined, { activate: true }),
+    },
+    { label: t('main.menu.file.newHushTab'), click: () => browser.commands.newHushTab() },
+    {
+      label: t('main.menu.file.reopenClosedTab'),
       enabled: browser.tabs.hasClosedTabs(),
       click: () => browser.commands.reopenClosedTab(),
     },
-    { label: 'Duplicate tab', enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
-    { label: 'Move to new window', enabled: url !== null, click: () => browser.moveTabToNewWindow(tabId) },
+    { label: t('main.menu.context.duplicateTab'), enabled: url !== null, click: () => browser.tabs.duplicate(tabId) },
     {
-      label: browser.tabs.isPinned(tabId) ? 'Unpin tab' : 'Pin tab',
+      label: t('main.menu.context.moveToNewWindow'),
+      enabled: url !== null,
+      click: () => browser.moveTabToNewWindow(tabId),
+    },
+    {
+      label: browser.tabs.isPinned(tabId) ? t('main.menu.context.unpinTab') : t('main.menu.context.pinTab'),
       click: () => browser.tabs.setPinned(tabId, !browser.tabs.isPinned(tabId)),
     },
-    { label: 'Put tab to sleep', enabled: browser.tabs.canSleep(tabId), click: () => browser.tabs.sleep(tabId) },
-    { label: 'Reload', click: () => browser.tabs.reload(tabId) },
+    {
+      label: t('main.menu.context.putTabToSleep'),
+      enabled: browser.tabs.canSleep(tabId),
+      click: () => browser.tabs.sleep(tabId),
+    },
+    { label: t('main.menu.view.reload'), click: () => browser.tabs.reload(tabId) },
     { type: 'separator' },
     groupSubmenu(browser, tabId),
     { type: 'separator' },
     {
-      label: isBookmarked ? 'Remove bookmark' : 'Bookmark this page',
+      label: isBookmarked ? t('main.menu.context.removeBookmark') : t('main.menu.bookmarks.bookmarkThisPage'),
       enabled: url !== null,
       click: () => {
         if (url) {
@@ -169,9 +201,9 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
         }
       },
     },
-    { label: 'Copy address', enabled: url !== null, click: () => clipboard.writeText(url ?? '') },
+    { label: t('main.menu.context.copyAddress'), enabled: url !== null, click: () => clipboard.writeText(url ?? '') },
     {
-      label: 'Open in default browser',
+      label: t('main.menu.context.openInDefaultBrowser'),
       enabled: url !== null && (url.startsWith('http://') || url.startsWith('https://')),
       click: () => {
         if (url) {
@@ -180,9 +212,9 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
       },
     },
     { type: 'separator' },
-    { label: 'Close tab', click: () => browser.tabs.close(tabId) },
-    { label: 'Close other tabs', click: () => browser.tabs.closeOthers(tabId) },
-    { label: 'Close tabs to the right', click: () => browser.tabs.closeToTheRight(tabId) },
+    { label: t('main.menu.file.closeTab'), click: () => browser.tabs.close(tabId) },
+    { label: t('main.menu.context.closeOtherTabs'), click: () => browser.tabs.closeOthers(tabId) },
+    { label: t('main.menu.context.closeTabsToTheRight'), click: () => browser.tabs.closeToTheRight(tabId) },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
@@ -195,11 +227,11 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
  */
 export function showNewTabMenu(browser: Browser): void {
   const items: MenuItemConstructorOptions[] = [
-    { label: 'New tab', click: () => browser.commands.newTab() },
-    { label: 'New Hush tab', click: () => browser.commands.newHushTab() },
+    { label: t('main.menu.file.newTab'), click: () => browser.commands.newTab() },
+    { label: t('main.menu.file.newHushTab'), click: () => browser.commands.newHushTab() },
     { type: 'separator' },
     {
-      label: 'Reopen closed tab',
+      label: t('main.menu.file.reopenClosedTab'),
       enabled: browser.tabs.hasClosedTabs(),
       click: () => browser.commands.reopenClosedTab(),
     },
@@ -229,24 +261,24 @@ function groupSubmenu(browser: Browser, tabId: TabId): MenuItemConstructorOption
   }));
 
   return {
-    label: 'Group',
+    label: t('main.menu.context.group'),
     submenu: [
       {
-        label: 'New group',
-        click: () => browser.groups.create(tabId, 'Group', GROUP_COLOURS[0].id, false),
+        label: t('main.menu.context.newGroup'),
+        click: () => browser.groups.create(tabId, t('main.menu.context.group'), GROUP_COLOURS[0].id, false),
       },
       {
-        label: 'New group that keeps its own browsing',
+        label: t('main.menu.context.newGroupKeepingBrowsing'),
         // A Hush tab would not use it: its session must never be written down,
         // so the group's separation could not reach it anyway.
         enabled: !isHush,
-        click: () => browser.groups.create(tabId, 'Group', GROUP_COLOURS[0].id, true),
+        click: () => browser.groups.create(tabId, t('main.menu.context.group'), GROUP_COLOURS[0].id, true),
       },
       ...(existing.length > 0 ? [{ type: 'separator' as const }, ...existing] : []),
       ...(current
         ? [
             { type: 'separator' as const },
-            { label: 'Remove from group', click: () => browser.groups.setForTab(tabId, null) },
+            { label: t('main.menu.context.removeFromGroup'), click: () => browser.groups.setForTab(tabId, null) },
           ]
         : []),
     ],
@@ -275,9 +307,9 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
   const items: MenuItemConstructorOptions[] = [
     { label: describeClaim(claim), enabled: false },
     { type: 'separator' },
-    { label: `Rename “${group.name}”`, click: () => browser.groups.rename(groupId) },
+    { label: t('main.menu.context.renameNamed', { name: group.name }), click: () => browser.groups.rename(groupId) },
     {
-      label: 'Colour',
+      label: t('main.menu.context.colour'),
       submenu: GROUP_COLOURS.map((colour) => ({
         label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
         type: 'radio' as const,
@@ -287,20 +319,20 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
     },
     { type: 'separator' },
     {
-      label: group.collapsed ? 'Expand' : 'Collapse',
+      label: group.collapsed ? t('main.menu.context.expand') : t('main.menu.context.collapse'),
       click: () => browser.groups.update(groupId, { collapsed: !group.collapsed }),
     },
     {
       // The other half of the round trip: a folder is a group at rest, so a
       // group can be put to rest. A Hush tab is never saved, and the result
       // says how many were left out rather than leaving it to be noticed.
-      label: 'Save as a bookmark folder',
+      label: t('main.menu.context.saveAsBookmarkFolder'),
       click: () => browser.groups.saveAsFolder(groupId),
     },
     { type: 'separator' },
     // Said plainly, because "delete" beside a row of tabs reads as deleting them.
-    { label: 'Ungroup these tabs', click: () => browser.groups.remove(groupId) },
-    { label: 'Close these tabs', click: () => browser.groups.close(groupId) },
+    { label: t('main.menu.context.ungroupTabs'), click: () => browser.groups.remove(groupId) },
+    { label: t('main.menu.context.closeTheseTabs'), click: () => browser.groups.close(groupId) },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
@@ -328,14 +360,17 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
     {
       label:
         counted.here === counted.withDescendants
-          ? `${counted.here} bookmarks`
-          : `${counted.here} here, ${counted.withDescendants} with folders inside`,
+          ? t('main.menu.context.folderBookmarkCount', { count: counted.here })
+          : t('main.menu.context.folderCountWithFolders', { here: counted.here, total: counted.withDescendants }),
       enabled: false,
     },
     { type: 'separator' },
-    { label: `Rename “${folder.name}”`, click: () => browser.bookmarks.renameFolder(folderId) },
     {
-      label: 'Colour',
+      label: t('main.menu.context.renameNamed', { name: folder.name }),
+      click: () => browser.bookmarks.renameFolder(folderId),
+    },
+    {
+      label: t('main.menu.context.colour'),
       submenu: GROUP_COLOURS.map((colour) => ({
         label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
         type: 'radio' as const,
@@ -347,20 +382,20 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
     {
       // Names the number it is about to act on: a tree makes every count
       // ambiguous, and 31 tabs is not what someone expecting 18 wants.
-      label: `Open all ${counted.withDescendants} as a tab group`,
+      label: t('main.menu.context.openAllCountAsTabGroup', { count: counted.withDescendants }),
       enabled: counted.withDescendants > 0,
       click: () => browser.groups.openFolder(folderId),
     },
     { type: 'separator' },
     {
-      label: 'Delete this folder',
+      label: t('main.menu.context.deleteFolder'),
       click: () => browser.bookmarks.deleteFolder(folderId),
     },
     {
       label:
         children > 0
-          ? `Its ${counted.here} bookmarks and ${children} folders move up`
-          : `Its ${counted.here} bookmarks move up`,
+          ? t('main.menu.context.deleteFolderKeepsWithFolders', { bookmarks: counted.here, folders: children })
+          : t('main.menu.context.deleteFolderKeeps', { bookmarks: counted.here }),
       enabled: false,
     },
   ];
@@ -395,13 +430,13 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
   const items: MenuItemConstructorOptions[] = [
     { label: bookmark.title || bookmark.url, enabled: false },
     { type: 'separator' },
-    { label: 'Open', click: () => browser.commands.openInActiveTab(bookmark.url) },
+    { label: t('main.menu.context.open'), click: () => browser.commands.openInActiveTab(bookmark.url) },
     { type: 'separator' },
     {
-      label: 'Move to folder',
+      label: t('main.menu.context.moveToFolder'),
       submenu: [
         {
-          label: 'Unfiled',
+          label: t('main.menu.context.unfiled'),
           type: 'radio' as const,
           checked: bookmark.folderId === null,
           click: () => browser.bookmarks.file(bookmarkId, null),
@@ -416,7 +451,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
       ],
     },
     { type: 'separator' },
-    { label: 'Remove bookmark', click: () => browser.bookmarks.remove(bookmarkId) },
+    { label: t('main.menu.context.removeBookmark'), click: () => browser.bookmarks.remove(bookmarkId) },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
@@ -440,10 +475,10 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
   const items: MenuItemConstructorOptions[] = [
     { label: site, enabled: false },
     { type: 'separator' },
-    { label: 'Open', click: () => browser.commands.openInActiveTab(address) },
+    { label: t('main.menu.context.open'), click: () => browser.commands.openInActiveTab(address) },
     { type: 'separator' },
     {
-      label: `Forget ${site}`,
+      label: t('main.menu.context.forgetSite', { site }),
       enabled: countTraces(traces) > 0,
       click: () => browser.sites.forget(address),
     },
@@ -483,7 +518,7 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
     const items = [...inside, ...here];
     // An empty submenu on macOS is a dead arrow with nothing behind it, which
     // reads as a fault rather than as an empty folder.
-    return items.length > 0 ? items : [{ label: 'Empty', enabled: false }];
+    return items.length > 0 ? items : [{ label: t('main.menu.context.empty'), enabled: false }];
   };
 
   if (!browser.store.folderFor(folderId)) {
@@ -494,7 +529,7 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
     ...build(folderId, new Set([folderId])),
     { type: 'separator' },
     {
-      label: 'Open all as a tab group',
+      label: t('main.menu.context.openAllAsTabGroup'),
       click: () => browser.groups.openFolder(folderId),
     },
   ];

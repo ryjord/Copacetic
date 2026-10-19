@@ -22,6 +22,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 import { labelledOptions, updateSettings } from '@/components/views/settings/shared/options';
 import { ask } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
@@ -35,9 +36,21 @@ import {
   type ThemeId,
 } from '@shared/types';
 
-const APPEARANCE_LABELS: Record<AppearanceId, string> = { system: 'System', light: 'Light', dark: 'Dark' };
-const DENSITY_LABELS: Record<DensityId, string> = { comfortable: 'Comfortable', compact: 'Compact' };
-const THEME_LABELS: Record<ThemeId, string> = { deep: 'Deep', slate: 'Slate', ember: 'Ember', moss: 'Moss' };
+const APPEARANCE_LABELS: Record<AppearanceId, string> = {
+  system: t('settings.appearance.interface.system'),
+  light: t('settings.appearance.interface.light'),
+  dark: t('settings.appearance.interface.dark'),
+};
+const DENSITY_LABELS: Record<DensityId, string> = {
+  comfortable: t('settings.appearance.interface.density.comfortable'),
+  compact: t('settings.appearance.interface.density.compact'),
+};
+const THEME_LABELS: Record<ThemeId, string> = {
+  deep: t('settings.appearance.startPage.colour.deep'),
+  slate: t('settings.appearance.startPage.colour.slate'),
+  ember: t('settings.appearance.startPage.colour.ember'),
+  moss: t('settings.appearance.startPage.colour.moss'),
+};
 
 const ZOOM_LEVELS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2].map((level) => ({
   id: String(level),
@@ -86,12 +99,12 @@ export function AppearancePane({ openPane }: SettingsPaneProps) {
 
   return (
     <>
-      <SettingGroup title="Interface">
+      <SettingGroup title={t('settings.appearance.interface.title')}>
         <SettingRow
-          label="Appearance"
+          label={t('settings.appearance.interface.appearance')}
           control={
             <SegmentedControl
-              label="Appearance"
+              label={t('settings.appearance.interface.appearance')}
               options={labelledOptions(APPEARANCE_LABELS)}
               value={settings.appearance}
               onChange={(appearance) => updateSettings({ appearance })}
@@ -99,11 +112,11 @@ export function AppearancePane({ openPane }: SettingsPaneProps) {
           }
         />
         <SettingRow
-          label="Density"
-          help="How much room the tab strip and toolbar take."
+          label={t('settings.appearance.interface.density.label')}
+          help={t('settings.appearance.interface.density.help')}
           control={
             <SegmentedControl
-              label="Density"
+              label={t('settings.appearance.interface.density.label')}
               options={labelledOptions(DENSITY_LABELS)}
               value={settings.density}
               onChange={(density) => updateSettings({ density })}
@@ -112,13 +125,13 @@ export function AppearancePane({ openPane }: SettingsPaneProps) {
         />
       </SettingGroup>
 
-      <SettingGroup title="Zoom">
+      <SettingGroup title={t('settings.appearance.zoom.title')}>
         <SettingRow
-          label="Default zoom"
-          help="Sites you zoom yourself remember their own level."
+          label={t('settings.appearance.zoom.default.label')}
+          help={t('settings.appearance.zoom.default.help')}
           control={
             <Select
-              label="Default zoom"
+              label={t('settings.appearance.zoom.default.label')}
               options={ZOOM_LEVELS}
               value={String(settings.defaultZoomFactor)}
               onChange={(level) => updateSettings({ defaultZoomFactor: Number(level) })}
@@ -127,17 +140,17 @@ export function AppearancePane({ openPane }: SettingsPaneProps) {
         />
         {zoomedSites > 0 && (
           <SettingRow
-            label={zoomedSites === 1 ? 'One site has its own zoom' : `${zoomedSites} sites have their own zoom`}
+            label={t('settings.appearance.zoom.zoomedSites', { count: zoomedSites })}
             control={
               <Button size="sm" variant="ghost" onClick={() => openPane('sites')}>
-                Site settings
+                {t('settings.appearance.zoom.siteSettings')}
               </Button>
             }
           />
         )}
       </SettingGroup>
 
-      <SettingGroup title="Start page">
+      <SettingGroup title={t('settings.appearance.startPage.title')}>
         <div className="flex flex-col gap-3 p-3.5">
           <AppearancePreview
             widgets={settings.startPageWidgets}
@@ -145,8 +158,8 @@ export function AppearancePane({ openPane }: SettingsPaneProps) {
           />
         </div>
         <SettingRow
-          label="Colour"
-          help="Applies to the start page only."
+          label={t('settings.appearance.startPage.colour.label')}
+          help={t('settings.appearance.startPage.colour.help')}
           control={
             <ThemeSwatches
               value={settings.theme}
@@ -157,16 +170,20 @@ export function AppearancePane({ openPane }: SettingsPaneProps) {
         />
         <HueRow theme={settings.theme} hue={settings.ambientHue} />
         <SettingRow
-          label="Wallpaper"
-          help={wallpaperError || (settings.hasWallpaper ? 'A copy is kept in your profile.' : undefined)}
+          label={t('settings.appearance.startPage.wallpaper.label')}
+          help={
+            wallpaperError || (settings.hasWallpaper ? t('settings.appearance.startPage.wallpaper.help') : undefined)
+          }
           control={
             <>
               <Button size="sm" onClick={() => void chooseWallpaper()}>
-                {settings.hasWallpaper ? 'Change' : 'Choose'}
+                {settings.hasWallpaper
+                  ? t('settings.appearance.startPage.wallpaper.change')
+                  : t('settings.appearance.startPage.wallpaper.choose')}
               </Button>
               {settings.hasWallpaper && (
                 <Button size="sm" variant="ghost" onClick={() => void removeWallpaper()}>
-                  Remove
+                  {t('settings.appearance.startPage.wallpaper.remove')}
                 </Button>
               )}
             </>
@@ -191,7 +208,7 @@ function ThemeSwatches({
   onChange: (theme: ThemeId) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label="Start page colour" className="flex gap-1.5">
+    <div role="radiogroup" aria-label={t('settings.appearance.startPage.colour.group')} className="flex gap-1.5">
       {THEME_IDS.map((theme) => {
         const { near, far } = ambientStopsFor(theme, theme === value ? hue : 0);
         const isChosen = theme === value;
@@ -227,7 +244,7 @@ function HueRow({ theme, hue }: { theme: ThemeId; hue: number }) {
 
   return (
     <SettingRow
-      label="Shade"
+      label={t('settings.appearance.startPage.shade.label')}
       control={
         <>
           <input
@@ -235,7 +252,7 @@ function HueRow({ theme, hue }: { theme: ThemeId; hue: number }) {
             min={0}
             max={359}
             value={hue}
-            aria-label="Start page shade"
+            aria-label={t('settings.appearance.startPage.shade.slider')}
             onChange={(event) => {
               setTyped(null);
               updateSettings({ ambientHue: Number(event.target.value) });
@@ -245,7 +262,7 @@ function HueRow({ theme, hue }: { theme: ThemeId; hue: number }) {
           <TextField
             value={shown}
             spellCheck={false}
-            aria-label="Start page colour as hex"
+            aria-label={t('settings.appearance.startPage.shade.hex')}
             onChange={(event) => {
               setTyped(event.target.value);
               const turn = hueForAmbientHex(theme, event.target.value);
@@ -296,21 +313,21 @@ function WidgetRows({
           control={
             <>
               <IconButton
-                label={`Move ${widget.label} up`}
+                label={t('settings.appearance.startPage.widgets.moveUp', { widget: widget.label })}
                 onClick={() => move(widget.id, -1)}
                 disabled={index === 0}
               >
                 <ChevronUp size={16} />
               </IconButton>
               <IconButton
-                label={`Move ${widget.label} down`}
+                label={t('settings.appearance.startPage.widgets.moveDown', { widget: widget.label })}
                 onClick={() => move(widget.id, 1)}
                 disabled={index === shown.length - 1}
               >
                 <ChevronDown size={16} />
               </IconButton>
               <IconButton
-                label={`Remove ${widget.label}`}
+                label={t('settings.appearance.startPage.widgets.remove', { widget: widget.label })}
                 onClick={() => onChange(widgets.filter((entry) => entry !== widget.id))}
               >
                 <X size={16} />

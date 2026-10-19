@@ -1,6 +1,7 @@
 import { app, shell } from 'electron';
 import { isPageNavigableUrl } from '../../shared/url';
 import type { DefaultBrowserStatus } from '../../shared/types';
+import { t } from '../../shared/i18n/translate';
 
 /**
  * Becoming the default browser is three different features wearing one name.
@@ -42,17 +43,17 @@ export async function makeDefaultBrowser(): Promise<string> {
     case 'default':
       return '';
     case 'unavailable':
-      return 'A development build cannot be made the default browser.';
+      return t('main.defaultBrowser.development');
     case 'settings-only':
       // Windows decides this itself, and only through its own settings.
       for (const scheme of HANDLED) {
         app.setAsDefaultProtocolClient(scheme);
       }
       await shell.openExternal('ms-settings:defaultapps');
-      return 'Windows only lets you choose a default browser yourself, so its settings are open for you to pick Copacetic.';
+      return t('main.defaultBrowser.windows');
     case 'can-ask': {
       const asked = HANDLED.map((scheme) => app.setAsDefaultProtocolClient(scheme));
-      return asked.every(Boolean) ? '' : 'The system did not accept the change.';
+      return asked.every(Boolean) ? '' : t('main.defaultBrowser.refused');
     }
   }
 }

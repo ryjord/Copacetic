@@ -5,6 +5,8 @@
  * the same move it is meant to protect you from.
  */
 
+import { t } from './i18n/translate';
+
 export type DnsMode = 'system' | 'encrypted';
 
 export interface DnsResolver {
@@ -25,19 +27,19 @@ export const DNS_RESOLVERS: readonly DnsResolver[] = [
     id: 'quad9',
     name: 'Quad9',
     template: 'https://dns.quad9.net/dns-query',
-    detail: 'Swiss non-profit. Blocks known malware domains.',
+    detail: t('main.dns.resolvers.quad9'),
   },
   {
     id: 'cloudflare',
     name: 'Cloudflare',
     template: 'https://cloudflare-dns.com/dns-query',
-    detail: 'US company, one of the largest. Fast almost everywhere.',
+    detail: t('main.dns.resolvers.cloudflare'),
   },
   {
     id: 'mullvad',
     name: 'Mullvad',
     template: 'https://dns.mullvad.net/dns-query',
-    detail: 'Swedish company, independently audited. Slower from some places.',
+    detail: t('main.dns.resolvers.mullvad'),
   },
 ];
 
@@ -73,11 +75,11 @@ export function hostResolverFor(mode: DnsMode, resolverId: string): HostResolver
 /** What is actually happening to your DNS, in the words shown to the user. */
 export function describeDns(mode: DnsMode, resolverId: string): string {
   if (mode !== 'encrypted') {
-    return 'Your network looks up each site you visit, and can read every one.';
+    return t('main.dns.describe.system');
   }
   const resolver = resolverFor(resolverId);
   if (!resolver) {
-    return 'No provider is chosen, so sites are looked up the usual way.';
+    return t('main.dns.describe.noProvider');
   }
-  return `${resolver.name} looks up each site over an encrypted connection. Your network cannot read them; ${resolver.name} can. If ${resolver.name} cannot be reached, pages will not load.`;
+  return t('main.dns.describe.encrypted', { name: resolver.name });
 }

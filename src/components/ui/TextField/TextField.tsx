@@ -3,6 +3,7 @@
 import { Search, X } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 type TextFieldProps = ComponentProps<'input'>;
 
@@ -44,7 +45,7 @@ export function SearchField({ value, onChange, label, className, ...props }: Sea
       {value && (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={t('shell.ui.searchField.clear')}
           onClick={() => onChange('')}
           className="absolute right-1.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-xs text-ink-faint hover:text-ink"
         >

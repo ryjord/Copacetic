@@ -1,3 +1,5 @@
+import { t } from './i18n/translate';
+
 const CONTROL_CHARACTERS = new RegExp('[\\u0000-\\u001f\\u007f]', 'g');
 /** The bidi overrides that let text render right-to-left and reorder itself. */
 const BIDI_OVERRIDES = new RegExp('[\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]', 'g');
@@ -26,10 +28,10 @@ const MAX_MENU_TEXT = 32;
 
 /** The searched-for text is the page's, so it is sanitised like any other page string. */
 export function searchSelectionLabel(selection: string): string {
-  return `Search for “${sanitiseChromeText(selection, MAX_MENU_TEXT)}”`;
+  return t('main.chromeText.searchFor', { selection: sanitiseChromeText(selection, MAX_MENU_TEXT) });
 }
 
 /** So is the misspelled word, which arrives straight out of the page's own input. */
 export function addToDictionaryLabel(word: string): string {
-  return `Add “${sanitiseChromeText(word, MAX_MENU_TEXT)}” to dictionary`;
+  return t('main.chromeText.addToDictionary', { word: sanitiseChromeText(word, MAX_MENU_TEXT) });
 }

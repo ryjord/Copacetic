@@ -1,3 +1,5 @@
+import { t } from './i18n/translate';
+
 /** Which keychain holds the vault's key, or why there is none, in the words settings shows. */
 export interface KeychainDescription {
   /** Empty when there is no keychain to name. */
@@ -13,9 +15,6 @@ const LINUX_KEYRINGS: Record<string, string> = {
   kwallet6: 'KWallet',
 };
 
-const NO_KEYCHAIN =
-  'This machine has no keychain Copacetic can use, so there is nowhere safe to keep a password. Nothing has been saved.';
-
 /**
  * Chromium's Linux fallback, basic_text, encrypts with a key every copy of
  * Chromium shares; Copacetic refuses it, and says why rather than only that.
@@ -28,18 +27,17 @@ export function describeKeychain(
   if (platform === 'linux' && backend === 'basic_text') {
     return {
       name: '',
-      problem:
-        'No keyring is running, and the only fallback encrypts with a key every Chromium-based browser shares, so Copacetic will not save passwords. Start GNOME Keyring or KWallet, then restart Copacetic.',
+      problem: t('main.vault.keychain.noKeyring'),
     };
   }
   if (!isAvailable) {
-    return { name: '', problem: NO_KEYCHAIN };
+    return { name: '', problem: t('main.vault.keychain.none') };
   }
   if (platform === 'darwin') {
-    return { name: 'the macOS Keychain', problem: '' };
+    return { name: t('main.vault.keychain.macos'), problem: '' };
   }
   if (platform === 'win32') {
-    return { name: 'your Windows account', problem: '' };
+    return { name: t('main.vault.keychain.windows'), problem: '' };
   }
-  return { name: LINUX_KEYRINGS[backend ?? ''] ?? 'your desktop keyring', problem: '' };
+  return { name: LINUX_KEYRINGS[backend ?? ''] ?? t('main.vault.keychain.desktopKeyring'), problem: '' };
 }

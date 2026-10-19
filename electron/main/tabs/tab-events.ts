@@ -9,6 +9,7 @@ import type { BrowserStore } from '../data/store';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';
 import type { TabRecord } from './tab-record';
+import { t } from '../../shared/i18n/translate';
 
 /**
  * What the page can tell us about itself. Everything here is reported by the
@@ -171,10 +172,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     tab.error = {
       code: 0,
       name: `RENDERER_${details.reason.toUpperCase().replace(/-/g, '_')}`,
-      description:
-        details.reason === 'oom'
-          ? 'This page ran out of memory. Reloading usually recovers it.'
-          : 'The process rendering this page stopped unexpectedly.',
+      description: details.reason === 'oom' ? t('main.tabs.crash.outOfMemory') : t('main.tabs.crash.stopped'),
       url: tab.url,
     };
     deps.applyVisibility();

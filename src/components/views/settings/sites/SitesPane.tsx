@@ -16,6 +16,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import {
   PERMISSION_NAMES,
@@ -31,8 +32,8 @@ import {
 import { ASKABLE_PERMISSIONS, type AskablePermission, type PermissionDefault } from '@shared/types';
 
 const DEFAULT_OPTIONS: readonly { id: PermissionDefault; label: string }[] = [
-  { id: 'ask', label: 'Ask' },
-  { id: 'block', label: 'Block' },
+  { id: 'ask', label: t('settings.sites.defaults.ask') },
+  { id: 'block', label: t('settings.sites.defaults.block') },
 ];
 
 /** Everything kept about particular sites, one site at a time, in the one place it can all be changed. */
@@ -53,11 +54,8 @@ export function SitesPane() {
       <>
         <PermissionDefaults sites={sites} onShowSites={setKindShown} />
         <AddSiteRule settings={settings} />
-        <SettingGroup title="Sites">
-          <SettingRow
-            label="Nothing is kept about any site yet"
-            help="Permissions you answer with Remember, zoom levels you change and sites you let show trackers appear here."
-          />
+        <SettingGroup title={t('settings.sites.list.empty.title')}>
+          <SettingRow label={t('settings.sites.list.empty.label')} help={t('settings.sites.list.empty.help')} />
         </SettingGroup>
       </>
     );
@@ -67,19 +65,19 @@ export function SitesPane() {
     <>
       <PermissionDefaults sites={sites} onShowSites={setKindShown} />
       <AddSiteRule settings={settings} />
-      <SearchField value={query} onChange={setQuery} label="Search sites" />
+      <SearchField value={query} onChange={setQuery} label={t('settings.sites.list.search')} />
       {kindShown && (
         <SettingRow
-          label={`Sites with an answer for ${PERMISSION_NAMES[kindShown].toLowerCase()}`}
+          label={t('settings.sites.list.filtered', { permission: PERMISSION_NAMES[kindShown].toLowerCase() })}
           control={
             <Button size="sm" variant="ghost" onClick={() => setKindShown(null)}>
-              Show every site
+              {t('settings.sites.list.showEvery')}
             </Button>
           }
         />
       )}
-      <SettingGroup title={`Sites (${sites.length})`}>
-        {shown.length === 0 && <SettingRow label="No site matches" />}
+      <SettingGroup title={t('settings.sites.list.title', { count: sites.length })}>
+        {shown.length === 0 && <SettingRow label={t('settings.sites.list.noMatch')} />}
         {shown.map((site) => (
           <SiteRows
             key={site.site}
@@ -104,7 +102,7 @@ function PermissionDefaults({
 }) {
   const defaults = useBrowserStore((state) => state.settings.permissionDefaults);
   return (
-    <SettingGroup title="When a site asks">
+    <SettingGroup title={t('settings.sites.defaults.title')}>
       {ASKABLE_PERMISSIONS.map((kind) => {
         const answers = answersFor(sites, kind);
         const hasAnswers = answers.allowed + answers.blocked > 0;
@@ -117,11 +115,11 @@ function PermissionDefaults({
               <>
                 {hasAnswers && (
                   <Button size="sm" variant="ghost" onClick={() => onShowSites(kind)}>
-                    Show sites
+                    {t('settings.sites.defaults.showSites')}
                   </Button>
                 )}
                 <Select
-                  label={`${PERMISSION_NAMES[kind]} by default`}
+                  label={t('settings.sites.defaults.byDefault', { permission: PERMISSION_NAMES[kind] })}
                   options={DEFAULT_OPTIONS}
                   value={defaults[kind] ?? 'ask'}
                   onChange={(answer) => updateSettings({ permissionDefaults: { ...defaults, [kind]: answer } })}
@@ -155,10 +153,10 @@ function SiteRows({
         control={
           <>
             <Button size="sm" variant="ghost" aria-expanded={isOpen} onClick={onToggle}>
-              {isOpen ? 'Done' : 'Change'}
+              {isOpen ? t('settings.sites.site.done') : t('settings.sites.site.change')}
             </Button>
             <Button size="sm" onClick={onReset}>
-              Reset
+              {t('settings.sites.site.reset')}
             </Button>
           </>
         }
@@ -173,14 +171,16 @@ function SiteRows({
               control={
                 <>
                   <StatusPill status={permission.decision === 'allow' ? 'secure' : 'danger'}>
-                    {permission.decision === 'allow' ? 'Allowed' : 'Blocked'}
+                    {permission.decision === 'allow'
+                      ? t('settings.sites.site.allowed')
+                      : t('settings.sites.site.blocked')}
                   </StatusPill>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => send((api) => api.permissions.forget(permission.origin, permission.kind))}
                   >
-                    Ask again
+                    {t('settings.sites.site.askAgain')}
                   </Button>
                 </>
               }
@@ -189,7 +189,7 @@ function SiteRows({
           {site.zoomLevels.map((zoom) => (
             <SettingRow
               key={zoom.origin}
-              label={`Zoom ${Math.round(zoom.zoomFactor * 100)}%`}
+              label={t('settings.sites.site.zoom', { percent: Math.round(zoom.zoomFactor * 100) })}
               help={zoom.origin.replace(/^https?:\/\//, '')}
               control={
                 <Button
@@ -203,15 +203,15 @@ function SiteRows({
                     })
                   }
                 >
-                  Use default
+                  {t('settings.sites.site.useDefault')}
                 </Button>
               }
             />
           ))}
           {site.allowsTrackers && (
             <SettingRow
-              label="Trackers allowed"
-              help="Turned off for this site, from its connection details."
+              label={t('settings.sites.trackersAllowed')}
+              help={t('settings.sites.site.trackersHelp')}
               control={
                 <Button
                   size="sm"
@@ -222,7 +222,7 @@ function SiteRows({
                     })
                   }
                 >
-                  Block again
+                  {t('settings.sites.site.blockAgain')}
                 </Button>
               }
             />

@@ -3,6 +3,7 @@
 import { AlertDialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button/Button';
+import { t } from '@shared/i18n/translate';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -45,7 +46,7 @@ export function ConfirmDialog({
           </AlertDialog.Description>
           <div className="mt-5 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
-              <Button variant="ghost">Cancel</Button>
+              <Button variant="ghost">{t('shell.ui.confirmDialog.cancel')}</Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action asChild>
               <Button variant={isDestructive ? 'danger' : 'primary'} disabled={disabled} onClick={onConfirm}>

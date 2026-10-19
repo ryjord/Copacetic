@@ -7,6 +7,8 @@
  * page that asked.
  */
 
+import { t } from './i18n/translate';
+
 export interface DisplaySource {
   id: string;
   name: string;
@@ -29,7 +31,7 @@ export function displayChoices(sources: readonly DisplaySource[], ownWindowName:
 
 function screenLabel(screen: DisplaySource, index: number, count: number): string {
   if (count === 1) {
-    return 'Entire screen';
+    return t('main.screenShare.entireScreen');
   }
-  return screen.name.trim() || `Screen ${index + 1}`;
+  return screen.name.trim() || t('main.screenShare.numberedScreen', { position: index + 1 });
 }

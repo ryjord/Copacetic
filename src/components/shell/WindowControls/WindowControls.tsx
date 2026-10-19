@@ -2,18 +2,26 @@
 
 import { Minus, Square, X } from 'lucide-react';
 import { send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 /** Only drawn off macOS. */
 export function WindowControls() {
   return (
     <div className="no-drag ml-1 flex items-center">
-      <ControlButton label="Minimise" onClick={() => send((api) => api.window.minimize())}>
+      <ControlButton label={t('shell.windowControls.minimise')} onClick={() => send((api) => api.window.minimize())}>
         <Minus size={13} />
       </ControlButton>
-      <ControlButton label="Maximise" onClick={() => send((api) => api.window.toggleMaximize())}>
+      <ControlButton
+        label={t('shell.windowControls.maximise')}
+        onClick={() => send((api) => api.window.toggleMaximize())}
+      >
         <Square size={11} />
       </ControlButton>
-      <ControlButton label="Close window" isClose onClick={() => send((api) => api.window.close())}>
+      <ControlButton
+        label={t('shell.windowControls.close')}
+        isClose
+        onClick={() => send((api) => api.window.close())}
+      >
         <X size={13} />
       </ControlButton>
     </div>

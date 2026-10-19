@@ -61,6 +61,7 @@ import { compareCertificate, rememberCertificate } from '../../shared/certificat
 import { type SecurityDelegate, guardTabWebContents } from '../security/security';
 import type { ProfilePartitions } from '../../shared/partitions';
 import type { BrowserStore } from '../data/store';
+import { t } from '../../shared/i18n/translate';
 
 export class TabManager {
   private readonly tabs = new Map<TabId, TabRecord>();
@@ -432,12 +433,12 @@ export class TabManager {
   async savePage(id: TabId): Promise<string> {
     const contents = this.contentsFor(id);
     if (!contents || this.window.isDestroyed()) {
-      return 'There is no page here to save.';
+      return t('main.dialogs.savePage.noPage');
     }
     const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
-      title: 'Save page as',
-      defaultPath: `${sanitiseFilename(contents.getTitle() || 'Page')}.html`,
-      filters: [{ name: 'Web page, complete', extensions: ['html', 'htm'] }],
+      title: t('main.dialogs.savePage.title'),
+      defaultPath: `${sanitiseFilename(contents.getTitle() || t('main.dialogs.savePage.defaultName'))}.html`,
+      filters: [{ name: t('main.dialogs.savePage.filterName'), extensions: ['html', 'htm'] }],
     });
     if (canceled || !filePath) {
       return '';
@@ -446,7 +447,7 @@ export class TabManager {
       await contents.savePage(filePath, 'HTMLComplete');
       return '';
     } catch (error) {
-      return error instanceof Error ? error.message : 'The page could not be saved.';
+      return error instanceof Error ? error.message : t('main.dialogs.savePage.failed');
     }
   }
 

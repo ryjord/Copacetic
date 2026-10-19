@@ -3,6 +3,7 @@
 // handed to whoever asked for it, and cannot be taken back.
 
 import { isLoopbackHost, registrableDomainOf } from './url';
+import { t } from './i18n/translate';
 
 export interface MatchableEntry {
   id: string;
@@ -60,19 +61,18 @@ export function entriesForPage(url: string, entries: readonly MatchableEntry[]):
 /** What can be offered here, or why nothing can. */
 export function offerFor(url: string, entries: readonly MatchableEntry[]): FillOffer {
   if (!siteOf(url)) {
-    return { entries: [], refusal: 'There is no site here to fill a password into.' };
+    return { entries: [], refusal: t('main.passwords.refusal.noSite') };
   }
   if (!isFillablePage(url)) {
     return {
       entries: [],
-      refusal:
-        'This page is not encrypted, so a password typed into it can be read by anyone on the network. Copacetic will not put one there for you.',
+      refusal: t('main.passwords.refusal.notEncrypted'),
     };
   }
 
   const matches = entriesForPage(url, entries);
   if (matches.length === 0) {
-    return { entries: [], refusal: 'Nothing saved for this site.' };
+    return { entries: [], refusal: t('main.passwords.refusal.nothingSaved') };
   }
   return { entries: matches, refusal: '' };
 }

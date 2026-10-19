@@ -1,6 +1,7 @@
 import { app, net, shell } from 'electron';
 import type { UpdateDelivery, UpdateState, UpdateStatus } from '../../shared/types';
 import { isNewerVersion } from '../../shared/version';
+import { t } from '../../shared/i18n/translate';
 
 const REPO = 'ryjord/Copacetic';
 const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
@@ -27,7 +28,7 @@ export interface DeliveryInputs {
 /** The whole platform decision, as a pure function so it can be tested for every combination rather than only the one this machine happens to be. */
 export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryInputs): DeliveryDescription {
   if (!isPackaged) {
-    return { delivery: 'unsupported', manualReason: 'This is a development build, so there is nothing to update.' };
+    return { delivery: 'unsupported', manualReason: t('main.updates.manual.development') };
   }
 
   if (platform === 'darwin') {
@@ -35,8 +36,7 @@ export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryI
     // Apple Developer account. Saying so is better than a button that fails.
     return {
       delivery: 'manual',
-      manualReason:
-        'Copacetic for macOS is not code-signed, so it cannot install updates itself. New versions have to be downloaded and replaced by hand.',
+      manualReason: t('main.updates.manual.macos'),
     };
   }
 
@@ -46,8 +46,7 @@ export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryI
     // the upgrade arrives the way every other upgrade on the machine does.
     return {
       delivery: 'system',
-      manualReason:
-        'Your package manager installs updates for this build. Copacetic adds its own signed apt repository, so new versions arrive with a normal system update.',
+      manualReason: t('main.updates.manual.linuxPackage'),
     };
   }
 
@@ -136,13 +135,13 @@ export class UpdateManager {
         headers: { accept: 'application/vnd.github+json', 'user-agent': `Copacetic/${app.getVersion()}` },
       });
       if (!response.ok) {
-        throw new Error(`GitHub answered ${response.status}`);
+        throw new Error(t('main.updates.githubAnswered', { status: response.status }));
       }
 
       const payload: unknown = await response.json();
       const tag = readTag(payload);
       if (!tag) {
-        throw new Error('That release has no version tag.');
+        throw new Error(t('main.updates.noVersionTag'));
       }
 
       this.setStatus(
@@ -201,7 +200,7 @@ export function pickAutoUpdater(imported: unknown): AutoUpdaterLike {
   const namespace = imported as { autoUpdater?: unknown; default?: { autoUpdater?: unknown } };
   const updater = namespace.autoUpdater ?? namespace.default?.autoUpdater;
   if (!updater || typeof updater !== 'object') {
-    throw new Error('The updater could not be loaded.');
+    throw new Error(t('main.updates.loadFailed'));
   }
   return updater as AutoUpdaterLike;
 }
@@ -234,10 +233,10 @@ function readTag(payload: unknown): string | null {
 
 function messageFor(error: unknown): string {
   if (error instanceof Error && error.name === 'AbortError') {
-    return 'The check timed out.';
+    return t('main.updates.timedOut');
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return 'The check failed.';
+  return t('main.updates.failed');
 }

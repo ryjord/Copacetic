@@ -4,6 +4,7 @@ import type { NoticeCentre } from '../notices/notice-centre';
 import type { VaultSession } from '../vault/vault-session';
 import { fillScriptFor } from '../system/fill-script';
 import type { TabManager } from '../tabs/tabs';
+import { t } from '../../shared/i18n/translate';
 
 interface PasswordFillDeps {
   tabs: TabManager;
@@ -47,17 +48,17 @@ export class PasswordFill {
     const offer = offerFor(url, this.deps.vaultSession.vault.state().entries);
     const entry = offer.entries.find((candidate) => candidate.id === entryId);
     if (!entry) {
-      return offer.refusal || 'That password does not belong to this page.';
+      return offer.refusal || t('main.passwords.fill.wrongPage');
     }
 
     const password = this.deps.vaultSession.vault.reveal(entryId);
     if (password === null) {
-      return 'The vault is locked, or that password cannot be decrypted on this machine.';
+      return t('main.passwords.fill.locked');
     }
 
     const contents = this.deps.tabs.contentsForTab(tabId);
     if (!contents) {
-      return 'There is no page here to fill.';
+      return t('main.passwords.fill.noPage');
     }
 
     try {
@@ -66,14 +67,14 @@ export class PasswordFill {
         exact?: boolean;
       };
       if (!result?.filled) {
-        return 'No password box was found on this page.';
+        return t('main.passwords.fill.noBox');
       }
       if (result.exact === false) {
-        return 'Filled, but this password contains a line break and the box on this page cannot hold one. Sign-in will fail; paste it yourself.';
+        return t('main.passwords.fill.lineBreak');
       }
       return '';
     } catch {
-      return 'The page would not accept it.';
+      return t('main.passwords.fill.rejected');
     }
   }
 }

@@ -2,6 +2,7 @@ import { Menu, type MenuItemConstructorOptions, shell } from 'electron';
 import type { Browser } from '../app/browser';
 import { profileMenuItems } from './profile-menu';
 import { acceleratorFor, readShortcutOverrides } from '../../shared/shortcuts';
+import { t } from '../../shared/i18n/translate';
 
 const PROJECT_URL = 'https://github.com/ryjord/Copacetic';
 
@@ -12,56 +13,78 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
   const shortcut = (id: string) => ({ accelerator: acceleratorFor(id, overrides), registerAccelerator: false });
 
   return [
-    { label: 'New window', ...shortcut('new-window'), click: () => browser.openNewWindow() },
-    { label: 'New tab', ...shortcut('new-tab'), click: () => browser.commands.newTab() },
-    { label: 'New Hush tab', ...shortcut('new-hush-tab'), click: () => browser.commands.newHushTab() },
-    { label: 'Profiles', submenu: profileMenuItems(browser) },
+    { label: t('main.menu.file.newWindow'), ...shortcut('new-window'), click: () => browser.openNewWindow() },
+    { label: t('main.menu.file.newTab'), ...shortcut('new-tab'), click: () => browser.commands.newTab() },
     {
-      label: 'Reopen closed tab',
+      label: t('main.menu.file.newHushTab'),
+      ...shortcut('new-hush-tab'),
+      click: () => browser.commands.newHushTab(),
+    },
+    { label: t('main.menu.mainMenu.profiles'), submenu: profileMenuItems(browser) },
+    {
+      label: t('main.menu.file.reopenClosedTab'),
       ...shortcut('reopen'),
       enabled: browser.tabs.hasClosedTabs(),
       click: () => browser.commands.reopenClosedTab(),
     },
     { type: 'separator' },
-    { label: 'Bookmarks', ...shortcut('bookmarks'), click: () => browser.openSurface('bookmarks') },
-    { label: 'History', ...shortcut('history'), click: () => browser.openSurface('history') },
-    { label: 'Downloads', ...shortcut('downloads'), click: () => browser.openSurface('downloads') },
+    {
+      label: t('main.menu.bookmarks.title'),
+      ...shortcut('bookmarks'),
+      click: () => browser.openSurface('bookmarks'),
+    },
+    { label: t('main.menu.history.title'), ...shortcut('history'), click: () => browser.openSurface('history') },
+    { label: t('main.menu.tabs.downloads'), ...shortcut('downloads'), click: () => browser.openSurface('downloads') },
     { type: 'separator' },
-    { label: 'Find on page…', ...shortcut('find'), click: () => browser.openFind() },
-    { label: 'Save page as…', ...shortcut('save-page'), click: () => browser.commands.saveActiveTab() },
-    { label: 'Print…', ...shortcut('print'), click: () => browser.commands.printActiveTab() },
+    { label: t('main.menu.edit.findOnPage'), ...shortcut('find'), click: () => browser.openFind() },
+    {
+      label: t('main.menu.file.savePageAs'),
+      ...shortcut('save-page'),
+      click: () => browser.commands.saveActiveTab(),
+    },
+    { label: t('main.menu.file.print'), ...shortcut('print'), click: () => browser.commands.printActiveTab() },
     { type: 'separator' },
-    { label: 'Command palette', ...shortcut('palette'), click: () => browser.openSurface('palette') },
-    { label: 'Settings…', ...shortcut('settings'), click: () => browser.openSurface('settings') },
+    {
+      label: t('main.menu.view.commandPalette'),
+      ...shortcut('palette'),
+      click: () => browser.openSurface('palette'),
+    },
+    { label: t('main.menu.app.settings'), ...shortcut('settings'), click: () => browser.openSurface('settings') },
     // Windows and Linux show no menu bar, so this is the only menu a pointer can reach there.
     {
-      label: 'More tools',
+      label: t('main.menu.mainMenu.moreTools'),
       submenu: [
         {
-          label: 'Developer tools',
+          label: t('main.menu.view.developerTools'),
           accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
           registerAccelerator: false,
           click: () => browser.commands.toggleTabDevTools(),
         },
         {
-          label: 'View page source',
+          label: t('main.menu.view.viewPageSource'),
           ...shortcut('view-source'),
           click: () => browser.commands.viewSourceOfActiveTab(),
         },
-        { label: 'Open downloads folder', click: () => browser.openDownloadsFolder() },
+        { label: t('main.menu.help.openDownloadsFolder'), click: () => browser.openDownloadsFolder() },
       ],
     },
     {
-      label: 'Help',
+      label: t('main.menu.help.title'),
       submenu: [
-        { label: 'Copacetic on GitHub', click: () => void shell.openExternal(PROJECT_URL) },
-        { label: 'Report a problem', click: () => void shell.openExternal(`${PROJECT_URL}/issues/new`) },
+        { label: t('main.menu.help.github'), click: () => void shell.openExternal(PROJECT_URL) },
+        {
+          label: t('main.menu.help.reportProblem'),
+          click: () => void shell.openExternal(`${PROJECT_URL}/issues/new`),
+        },
       ],
     },
     // Windows and Linux have no menu bar in a frameless window, so this is the only way to quit by pointer.
     ...(process.platform === 'darwin'
       ? []
-      : ([{ type: 'separator' }, { role: 'quit', label: 'Quit Copacetic' }] as MenuItemConstructorOptions[])),
+      : ([
+          { type: 'separator' },
+          { role: 'quit', label: t('main.menu.mainMenu.quit') },
+        ] as MenuItemConstructorOptions[])),
   ];
 }
 

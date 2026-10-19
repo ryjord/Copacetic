@@ -1,6 +1,7 @@
 import { app, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { t } from '../../shared/i18n/translate';
 
 const FILE = 'LICENSES.chromium.html';
 
@@ -22,7 +23,7 @@ export async function openChromiumLicences(): Promise<string> {
     existsSync(file),
   );
   if (!found) {
-    return "Chromium's licences were not found beside this copy of Copacetic.";
+    return t('main.chromiumLicences.missing');
   }
   return shell.openPath(found);
 }

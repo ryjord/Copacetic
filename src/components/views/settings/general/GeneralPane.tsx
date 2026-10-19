@@ -13,6 +13,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 import { updateSettings } from '@/components/views/settings/shared/options';
 
 // Types
@@ -20,11 +21,11 @@ import { SEARCH_ENGINE_OPTIONS } from '@shared/url';
 import { isSleepAfterMinutes } from '@shared/types';
 
 const SLEEP_OPTIONS = [
-  { id: '0', label: 'Never' },
-  { id: '15', label: 'After 15 minutes' },
-  { id: '30', label: 'After 30 minutes' },
-  { id: '60', label: 'After an hour' },
-  { id: '120', label: 'After two hours' },
+  { id: '0', label: t('settings.general.memory.sleep.never') },
+  { id: '15', label: t('settings.general.memory.sleep.after15') },
+  { id: '30', label: t('settings.general.memory.sleep.after30') },
+  { id: '60', label: t('settings.general.memory.sleep.after60') },
+  { id: '120', label: t('settings.general.memory.sleep.after120') },
 ];
 
 const ENGINES = SEARCH_ENGINE_OPTIONS.map((engine) => ({ id: engine.id, label: engine.name }));
@@ -34,12 +35,12 @@ export function GeneralPane() {
 
   return (
     <>
-      <SettingGroup title="Startup">
+      <SettingGroup title={t('settings.general.startup.title')}>
         <SettingRow
-          label="Reopen the tabs from last time"
+          label={t('settings.general.startup.reopenTabs')}
           control={
             <Switch
-              label="Reopen the tabs from last time"
+              label={t('settings.general.startup.reopenTabs')}
               checked={settings.restoreTabsOnLaunch}
               onChange={(restoreTabsOnLaunch) => updateSettings({ restoreTabsOnLaunch })}
             />
@@ -47,13 +48,13 @@ export function GeneralPane() {
         />
       </SettingGroup>
 
-      <SettingGroup title="Search">
+      <SettingGroup title={t('settings.general.search.title')}>
         <SettingRow
-          label="Search engine"
-          help="Used when what you type is not an address. Suggestions come from your own history."
+          label={t('settings.general.search.engine.label')}
+          help={t('settings.general.search.engine.help')}
           control={
             <Select
-              label="Search engine"
+              label={t('settings.general.search.engine.label')}
               options={ENGINES}
               value={settings.searchEngine}
               onChange={(searchEngine) => updateSettings({ searchEngine })}
@@ -62,13 +63,13 @@ export function GeneralPane() {
         />
       </SettingGroup>
 
-      <SettingGroup title="Memory">
+      <SettingGroup title={t('settings.general.memory.title')}>
         <SettingRow
-          label="Put tabs to sleep"
-          help="A tab left alone this long gives back its memory and comes back where it was when you return to it. Never one playing sound."
+          label={t('settings.general.memory.sleep.label')}
+          help={t('settings.general.memory.sleep.help')}
           control={
             <Select
-              label="Put tabs to sleep"
+              label={t('settings.general.memory.sleep.label')}
               options={SLEEP_OPTIONS}
               value={String(settings.sleepTabsAfterMinutes)}
               onChange={(minutes) => {
@@ -82,13 +83,13 @@ export function GeneralPane() {
         />
       </SettingGroup>
 
-      <SettingGroup title="Typing">
+      <SettingGroup title={t('settings.general.typing.title')}>
         <SettingRow
-          label="Check spelling"
-          help="Underlines misspelt words in what you type into pages. Checked on this machine."
+          label={t('settings.general.typing.spelling.label')}
+          help={t('settings.general.typing.spelling.help')}
           control={
             <Switch
-              label="Check spelling"
+              label={t('settings.general.typing.spelling.label')}
               checked={settings.spellcheck}
               onChange={(spellcheck) => updateSettings({ spellcheck })}
             />
@@ -97,29 +98,29 @@ export function GeneralPane() {
         {settings.spellcheck && <SpellcheckLanguagesRow chosen={settings.spellcheckLanguages} />}
       </SettingGroup>
 
-      <SettingGroup title="Downloads">
+      <SettingGroup title={t('settings.general.downloads.title')}>
         <SettingRow
-          label="Save files to"
-          help={settings.downloadDirectory ?? 'Your Downloads folder'}
+          label={t('settings.general.downloads.saveTo.label')}
+          help={settings.downloadDirectory ?? t('settings.general.downloads.saveTo.fallback')}
           control={
             <>
               {settings.downloadDirectory && (
                 <Button size="sm" variant="ghost" onClick={() => updateSettings({ downloadDirectory: null })}>
-                  Use Downloads folder
+                  {t('settings.general.downloads.saveTo.useDefault')}
                 </Button>
               )}
               <Button size="sm" onClick={() => send((api) => api.downloads.chooseFolder())}>
-                Change…
+                {t('settings.general.downloads.saveTo.change')}
               </Button>
             </>
           }
         />
         <SettingRow
-          label="Ask where to save each file"
-          help="Each download asks for a place first, rather than going straight to the folder above."
+          label={t('settings.general.downloads.ask.label')}
+          help={t('settings.general.downloads.ask.help')}
           control={
             <Switch
-              label="Ask where to save each file"
+              label={t('settings.general.downloads.ask.label')}
               checked={settings.askWhereToSave}
               onChange={(askWhereToSave) => updateSettings({ askWhereToSave })}
             />
@@ -127,13 +128,13 @@ export function GeneralPane() {
         />
       </SettingGroup>
 
-      <SettingGroup title="Bookmarks">
+      <SettingGroup title={t('settings.general.bookmarks.title')}>
         <SettingRow
-          label="Show the bookmarks bar"
-          help="Top-level bookmarks and folders, under the address bar."
+          label={t('settings.general.bookmarks.showBar.label')}
+          help={t('settings.general.bookmarks.showBar.help')}
           control={
             <Switch
-              label="Show the bookmarks bar"
+              label={t('settings.general.bookmarks.showBar.label')}
               checked={settings.showBookmarksBar}
               onChange={(showBookmarksBar) => updateSettings({ showBookmarksBar })}
             />
@@ -141,7 +142,7 @@ export function GeneralPane() {
         />
       </SettingGroup>
 
-      <SettingGroup title="Default browser">
+      <SettingGroup title={t('settings.general.defaultBrowser.title')}>
         <DefaultBrowserRow />
       </SettingGroup>
     </>

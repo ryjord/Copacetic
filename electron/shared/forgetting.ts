@@ -1,4 +1,5 @@
 import { registrableDomainOf } from './url';
+import { type MessageKey, t } from './i18n/translate';
 
 /**
  * What this browser knows about a site, and what forgetting one has to mean.
@@ -37,25 +38,21 @@ export interface KeptAboutSites {
 
 /** The kinds that can be cleared on their own, named as a person would say them. */
 export const KEPT_KINDS = [
-  { id: 'zoom', one: 'Zoom set on 1 site', many: 'Zoom set on {n} sites' },
-  { id: 'permissions', one: 'Permissions decided for 1 site', many: 'Permissions decided for {n} sites' },
-  { id: 'blockingOff', one: 'Blocking switched off on 1 site', many: 'Blocking switched off on {n} sites' },
-  { id: 'certificates', one: 'Certificate remembered for 1 site', many: 'Certificates remembered for {n} sites' },
+  { id: 'zoom' },
+  { id: 'permissions' },
+  { id: 'blockingOff' },
+  { id: 'certificates' },
   // The file is on disk because it was asked for; where it came from is
   // browsing. Kept, because someone may need to know where a file they still
   // have came from - and listed, because clearing history did not touch it and
   // nothing said so.
-  { id: 'downloads', one: 'Where 1 download came from', many: 'Where {n} downloads came from' },
+  { id: 'downloads' },
 ] as const;
 
 export type KeptKind = (typeof KEPT_KINDS)[number]['id'];
 
 export function describeKept(kind: KeptKind, count: number): string {
-  const entry = KEPT_KINDS.find((candidate) => candidate.id === kind);
-  if (!entry) {
-    return '';
-  }
-  return count === 1 ? entry.one : entry.many.replace('{n}', String(count));
+  return t(`main.forgetting.kept.${kind}`, { count });
 }
 
 /** Everything keyed by a site, in the order a person would think of them. */
@@ -164,25 +161,25 @@ export function countTraces(traces: SiteTraces): number {
  */
 export function describeTraces(traces: SiteTraces): string {
   const parts: string[] = [];
-  const add = (count: number, one: string, many: string) => {
+  const add = (count: number, key: MessageKey) => {
     if (count > 0) {
-      parts.push(`${count} ${count === 1 ? one : many}`);
+      parts.push(t(key, { count }));
     }
   };
 
-  add(traces.visits, 'visit', 'visits');
-  add(traces.icons, 'cached icon', 'cached icons');
-  add(traces.zoom, 'zoom', 'zooms');
-  add(traces.permissions, 'permission', 'permissions');
-  add(traces.blockingOff, 'blocking exception', 'blocking exceptions');
-  add(traces.certificates, 'accepted certificate', 'accepted certificates');
-  add(traces.cookies, 'cookie', 'cookies');
+  add(traces.visits, 'main.forgetting.traces.visits');
+  add(traces.icons, 'main.forgetting.traces.icons');
+  add(traces.zoom, 'main.forgetting.traces.zoom');
+  add(traces.permissions, 'main.forgetting.traces.permissions');
+  add(traces.blockingOff, 'main.forgetting.traces.blockingOff');
+  add(traces.certificates, 'main.forgetting.traces.certificates');
+  add(traces.cookies, 'main.forgetting.traces.cookies');
 
   if (parts.length === 0) {
-    return 'Nothing is kept about this site.';
+    return t('main.forgetting.nothingKept');
   }
   if (parts.length === 1) {
-    return `${parts[0]}.`;
+    return t('main.forgetting.single', { part: parts[0] ?? '' });
   }
-  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}.`;
+  return t('main.forgetting.list', { leading: parts.slice(0, -1).join(', '), last: parts.at(-1) ?? '' });
 }

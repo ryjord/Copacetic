@@ -1,7 +1,13 @@
 'use client';
 
+// Libs
 import { useEffect, useRef, useState } from 'react';
+
+// Store
 import { useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
+import { t } from '@shared/i18n/translate';
 
 /** The running commentary a screen reader would otherwise miss entirely. */
 export function LiveAnnouncer() {
@@ -22,13 +28,13 @@ export function LiveAnnouncer() {
     let next = '';
     // Ordered by how much the person needs to hear it, not by when it happened.
     if (prompts > was.prompts) {
-      next = 'A site is asking for permission.';
+      next = t('shell.liveAnnouncer.permissionRequested');
     } else if (completed > was.completed) {
-      next = 'Download finished.';
+      next = t('shell.liveAnnouncer.downloadFinished');
     } else if (was.loading && !isLoading && title) {
-      next = `Loaded: ${title}`;
+      next = t('shell.liveAnnouncer.loaded', { title });
     } else if (!was.loading && isLoading) {
-      next = 'Loading';
+      next = t('shell.liveAnnouncer.loading');
     }
 
     previous.current = { loading: isLoading, title, completed, prompts };

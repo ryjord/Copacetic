@@ -13,6 +13,7 @@ import { Check, CircleAlert, Info, X } from 'lucide-react';
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { type Notice, admit, dismiss, dismissAfterMs } from '@shared/notices';
@@ -95,7 +96,9 @@ export function NoticeStrip() {
             </div>
             <IconButton
               // A question that is closed is a question answered with no, which is a real answer.
-              label={notice.tone === 'ask' ? 'No' : 'Dismiss'}
+              label={
+                notice.tone === 'ask' ? t('shell.overlay.noticeStrip.no') : t('shell.overlay.noticeStrip.dismiss')
+              }
               size="sm"
               onClick={() => answer(notice, false)}
             >

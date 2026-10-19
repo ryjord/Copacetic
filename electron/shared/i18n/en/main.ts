@@ -1,2 +1,617 @@
-/** Filled as the strings move out of the code. */
-export const main = {} as const;
+/** Words from the main process: menus, dialogs, notices and what the app says back to the renderer. */
+export const main = {
+  menu: {
+    app: {
+      settings: 'Settings…',
+    },
+    file: {
+      title: 'File',
+      newWindow: 'New window',
+      newWindowInProfile: 'New window in profile',
+      newTab: 'New tab',
+      newHushTab: 'New Hush tab',
+      reopenClosedTab: 'Reopen closed tab',
+      closeTab: 'Close tab',
+      savePageAs: 'Save page as…',
+      print: 'Print…',
+    },
+    profiles: {
+      manage: 'Manage profiles…',
+      thisWindow: '{name} (this window)',
+    },
+    edit: {
+      title: 'Edit',
+      openAddressBar: 'Open address bar',
+      findOnPage: 'Find on page…',
+      findNext: 'Find next',
+      findPrevious: 'Find previous',
+    },
+    view: {
+      title: 'View',
+      reload: 'Reload',
+      reloadIgnoringCache: 'Reload, ignoring cache',
+      stop: 'Stop',
+      zoomIn: 'Zoom in',
+      zoomOut: 'Zoom out',
+      actualSize: 'Actual size',
+      commandPalette: 'Command palette',
+      viewPageSource: 'View page source',
+      developerTools: 'Developer tools',
+    },
+    history: {
+      title: 'History',
+      back: 'Back',
+      forward: 'Forward',
+      home: 'Home',
+      showAll: 'Show all history',
+      clearBrowsingData: 'Clear browsing data…',
+    },
+    bookmarks: {
+      title: 'Bookmarks',
+      bookmarkThisPage: 'Bookmark this page',
+      showAll: 'Show all bookmarks',
+    },
+    tabs: {
+      title: 'Tabs',
+      next: 'Next tab',
+      previous: 'Previous tab',
+      searchOpen: 'Search open tabs',
+      downloads: 'Downloads',
+      last: 'Last tab',
+      numbered: 'Tab {position}',
+    },
+    help: {
+      github: 'Copacetic on GitHub',
+      openDownloadsFolder: 'Open downloads folder',
+      title: 'Help',
+      reportProblem: 'Report a problem',
+    },
+    context: {
+      openLinkInNewTab: 'Open link in new tab',
+      openLinkInBackgroundTab: 'Open link in background tab',
+      copyLinkAddress: 'Copy link address',
+      downloadLinkedFile: 'Download linked file',
+      openImageInNewTab: 'Open image in new tab',
+      copyImage: 'Copy image',
+      copyImageAddress: 'Copy image address',
+      saveImage: 'Save image',
+      fillPassword: 'Fill password',
+      noSpellingSuggestions: 'No spelling suggestions',
+      copyPageAddress: 'Copy page address',
+      inspectElement: 'Inspect element',
+      newTabToTheRight: 'New tab to the right',
+      duplicateTab: 'Duplicate tab',
+      moveToNewWindow: 'Move to new window',
+      putTabToSleep: 'Put tab to sleep',
+      copyAddress: 'Copy address',
+      openInDefaultBrowser: 'Open in default browser',
+      closeOtherTabs: 'Close other tabs',
+      closeTabsToTheRight: 'Close tabs to the right',
+      group: 'Group',
+      newGroup: 'New group',
+      newGroupKeepingBrowsing: 'New group that keeps its own browsing',
+      removeFromGroup: 'Remove from group',
+      colour: 'Colour',
+      saveAsBookmarkFolder: 'Save as a bookmark folder',
+      ungroupTabs: 'Ungroup these tabs',
+      closeTheseTabs: 'Close these tabs',
+      deleteFolder: 'Delete this folder',
+      open: 'Open',
+      moveToFolder: 'Move to folder',
+      unfiled: 'Unfiled',
+      removeBookmark: 'Remove bookmark',
+      openAllAsTabGroup: 'Open all as a tab group',
+      empty: 'Empty',
+      savedPassword: 'Saved password',
+      unpinTab: 'Unpin tab',
+      pinTab: 'Pin tab',
+      renameNamed: 'Rename “{name}”',
+      expand: 'Expand',
+      collapse: 'Collapse',
+      folderBookmarkCount: '{count} bookmarks',
+      folderCountWithFolders: '{here} here, {total} with folders inside',
+      openAllCountAsTabGroup: 'Open all {count} as a tab group',
+      deleteFolderKeepsWithFolders: 'Its {bookmarks} bookmarks and {folders} folders move up',
+      deleteFolderKeeps: 'Its {bookmarks} bookmarks move up',
+      forgetSite: 'Forget {site}',
+    },
+    mainMenu: {
+      profiles: 'Profiles',
+      moreTools: 'More tools',
+      quit: 'Quit Copacetic',
+    },
+  },
+  chromeText: {
+    searchFor: 'Search for “{selection}”',
+    addToDictionary: 'Add “{word}” to dictionary',
+  },
+  forgetting: {
+    kept: {
+      zoom: { one: 'Zoom set on 1 site', other: 'Zoom set on {count} sites' },
+      permissions: { one: 'Permissions decided for 1 site', other: 'Permissions decided for {count} sites' },
+      blockingOff: { one: 'Blocking switched off on 1 site', other: 'Blocking switched off on {count} sites' },
+      certificates: { one: 'Certificate remembered for 1 site', other: 'Certificates remembered for {count} sites' },
+      downloads: { one: 'Where 1 download came from', other: 'Where {count} downloads came from' },
+    },
+    traces: {
+      visits: { one: '{count} visit', other: '{count} visits' },
+      icons: { one: '{count} cached icon', other: '{count} cached icons' },
+      zoom: { one: '{count} zoom', other: '{count} zooms' },
+      permissions: { one: '{count} permission', other: '{count} permissions' },
+      blockingOff: { one: '{count} blocking exception', other: '{count} blocking exceptions' },
+      certificates: { one: '{count} accepted certificate', other: '{count} accepted certificates' },
+      cookies: { one: '{count} cookie', other: '{count} cookies' },
+    },
+    nothingKept: 'Nothing is kept about this site.',
+    single: '{part}.',
+    list: '{leading} and {last}.',
+  },
+  notices: {
+    pages: { one: '{count} page', other: '{count} pages' },
+    savedGroup: 'Saved {pages} to “{folderName}”.',
+    hushTabsWere: { one: '{count} Hush tab was', other: '{count} Hush tabs were' },
+    savedGroupWithHush: 'Saved {pages} to “{folderName}”. {hush} left out, because a bookmark is written to disk.',
+    bookmarks: { one: '{count} bookmark', other: '{count} bookmarks' },
+    added: 'Added {bookmarks}.',
+    wereAlreadySaved: { one: '{count} was already saved', other: '{count} were already saved' },
+    addedWithExisting: 'Added {bookmarks}. {alreadySaved}.',
+    openFolder: '“{folderName}” holds {count} pages. Open them all as a tab group?',
+    forgotSite: 'Forgot {site}: {traces}',
+    openTabs: 'Open {count} tabs',
+    saveFailed: 'The page was not saved: {problem}',
+    printFailed: 'The page did not print: {reason}',
+    keepDownload:
+      '{filename} is a program or installer, and runs when opened. Keep it only if you meant to download it.',
+    keep: 'Keep',
+    databaseAside:
+      'Copacetic could not read its database, so it kept it aside and started a new one. Nothing was deleted: it is at {aside}.',
+    restoreSession: 'Copacetic did not close properly last time. Reopen the tabs you had open?',
+    reopenTabs: 'Reopen tabs',
+    filterListsUpdated: 'Filter lists updated: {rules} rules, from {lists}.',
+  },
+  passwords: {
+    refusal: {
+      noSite: 'There is no site here to fill a password into.',
+      notEncrypted:
+        'This page is not encrypted, so a password typed into it can be read by anyone on the network. Copacetic will not put one there for you.',
+      nothingSaved: 'Nothing saved for this site.',
+    },
+    fill: {
+      wrongPage: 'That password does not belong to this page.',
+      locked: 'The vault is locked, or that password cannot be decrypted on this machine.',
+      noPage: 'There is no page here to fill.',
+      noBox: 'No password box was found on this page.',
+      lineBreak:
+        'Filled, but this password contains a line break and the box on this page cannot hold one. Sign-in will fail; paste it yourself.',
+      rejected: 'The page would not accept it.',
+    },
+  },
+  groups: {
+    claim: {
+      separate: 'Its own cookies and logins. Signing in here signs you in nowhere else.',
+      shared: 'Shares cookies and logins with your other tabs.',
+      mixed:
+        'Mixed: one of these tabs keeps nothing, and the rest are kept. This group cannot say one thing about all of them.',
+    },
+  },
+  vault: {
+    keychain: {
+      noKeyring:
+        'No keyring is running, and the only fallback encrypts with a key every Chromium-based browser shares, so Copacetic will not save passwords. Start GNOME Keyring or KWallet, then restart Copacetic.',
+      none: 'This machine has no keychain Copacetic can use, so there is nowhere safe to keep a password. Nothing has been saved.',
+      macos: 'the macOS Keychain',
+      windows: 'your Windows account',
+      desktopKeyring: 'your desktop keyring',
+    },
+    lock: {
+      touchId:
+        'Locking hides your passwords until macOS confirms it is you: Touch ID where it can, your login password otherwise. Which one you get is macOS’s decision, not Copacetic’s, and it never sees what you type. It does not protect the file itself either: anything running as you can still ask the keychain for it.',
+      none: 'This machine has no way for Copacetic to check who you are, so unlocking here is a single click. It stops someone reading over your shoulder and nothing more.',
+    },
+    touchIdReason: 'unlock your saved passwords',
+    notUnlocked: 'Not unlocked.',
+    unreadable:
+      '{count} of your saved passwords cannot be decrypted on this machine. They have not been deleted. This usually means the keychain no longer recognises this build of Copacetic.',
+    errors: {
+      needsSite: 'A password needs a site to belong to.',
+      nothingToSave: 'There is no password here to save.',
+      unlockToChange: 'Unlock the vault before changing a password.',
+      gone: 'That password is no longer here.',
+      unreadableToChange: 'This password cannot be read on this machine, so it cannot be changed here.',
+      unlockToRemove: 'Unlock the vault before removing a password.',
+    },
+  },
+  screenShare: {
+    entireScreen: 'Entire screen',
+    numberedScreen: 'Screen {position}',
+  },
+  shortcuts: {
+    descriptions: {
+      newWindow: 'New window',
+      newTab: 'New tab',
+      newHushTab: 'New Hush tab',
+      closeTab: 'Close tab',
+      reopen: 'Reopen the last closed tab',
+      nextTab: 'Next tab',
+      previousTab: 'Previous tab',
+      lastTab: 'Last tab',
+      tabSearch: 'Search open tabs',
+      bookmark: 'Bookmark this page',
+      address: 'Focus the address bar',
+      palette: 'Command palette',
+      back: 'Back',
+      forward: 'Forward',
+      reload: 'Reload',
+      reloadHard: 'Reload, ignoring the cache',
+      stop: 'Stop loading',
+      home: 'Home',
+      find: 'Find on page',
+      findNext: 'Find next',
+      findPrevious: 'Find previous',
+      zoomIn: 'Zoom in',
+      zoomOut: 'Zoom out',
+      zoomReset: 'Reset zoom',
+      print: 'Print',
+      savePage: 'Save page as',
+      viewSource: 'View page source',
+      history: 'History',
+      downloads: 'Downloads',
+      bookmarks: 'Bookmarks',
+      settings: 'Settings',
+      selectTab: 'Select tab by position',
+      stripArrows: 'Move between tabs, once the strip has focus',
+      stripDelete: 'Close the focused tab',
+      escape: 'Close the topmost panel',
+    },
+    groups: {
+      tabs: 'Tabs',
+      navigation: 'Navigation',
+      thisPage: 'This page',
+      panels: 'Panels',
+      withoutAMenuItem: 'Without a menu item',
+    },
+  },
+  permissions: {
+    labels: {
+      geolocation: 'Know your location',
+      notifications: 'Send you notifications',
+      media: 'Use your camera and microphone',
+      clipboardRead: 'Read your clipboard',
+      displayCapture: 'Record your screen',
+      midi: 'Use your MIDI devices',
+      pointerLock: 'Lock your pointer',
+      fullscreen: 'Go fullscreen',
+      openExternal: 'Open another application',
+    },
+    prompts: {
+      geolocation: 'know your location',
+      notifications: 'send you notifications',
+      media: 'use your camera and microphone',
+      midi: 'use your MIDI devices',
+      midiSysex: 'send system messages to your MIDI devices',
+      clipboardRead: 'read your clipboard',
+      openExternal: 'open another application',
+    },
+  },
+  startPage: {
+    widgets: {
+      clock: {
+        label: 'Clock',
+        description: 'The current time.',
+      },
+      search: {
+        label: 'Search',
+        description: 'Search or enter an address.',
+      },
+      topSites: {
+        label: 'Most visited',
+        description: 'The sites you visit most.',
+      },
+      bookmarks: {
+        label: 'Bookmarks',
+        description: 'Your latest bookmarks.',
+      },
+    },
+  },
+  certificates: {
+    locallyTrusted:
+      'This site’s certificate now comes from an authority installed on this machine rather than one shipped with your system. Software on this computer, or the network you are on, is reading this connection. That is how a workplace proxy or an antivirus that inspects traffic works. It is also what an attacker would look like.',
+    issuerChanged:
+      'This site’s certificate is now issued by {current} rather than {remembered}. Sites change authority for ordinary reasons, so this is worth a glance rather than an alarm.',
+    unknownIssuer: 'Unknown',
+  },
+  downloads: {
+    provenance: {
+      redirectedWithin: 'Redirected within {site}.',
+      cameFrom: 'You asked {first} and the file came from {last}.',
+      cameFromVia: {
+        one: 'You asked {first} and the file came from {last}, by way of {count} other host.',
+        other: 'You asked {first} and the file came from {last}, by way of {count} other hosts.',
+      },
+    },
+    notListed: 'That download is no longer listed.',
+    notFinished: 'That download has not finished.',
+    fileMoved: 'That file is no longer where Copacetic saved it.',
+  },
+  dns: {
+    resolvers: {
+      quad9: 'Swiss non-profit. Blocks known malware domains.',
+      cloudflare: 'US company, one of the largest. Fast almost everywhere.',
+      mullvad: 'Swedish company, independently audited. Slower from some places.',
+    },
+    describe: {
+      system: 'Your network looks up each site you visit, and can read every one.',
+      noProvider: 'No provider is chosen, so sites are looked up the usual way.',
+      encrypted:
+        '{name} looks up each site over an encrypted connection. Your network cannot read them; {name} can. If {name} cannot be reached, pages will not load.',
+    },
+  },
+  tabs: {
+    newTabTitle: 'New tab',
+    crash: {
+      outOfMemory: 'This page ran out of memory. Reloading usually recovers it.',
+      stopped: 'The process rendering this page stopped unexpectedly.',
+    },
+  },
+  import: {
+    bookmarks: {
+      unnamedFolder: 'Folder',
+      title: 'Import bookmarks',
+      nothingImportable: 'Nothing in that file could be imported. {count} entries were not ordinary web addresses.',
+      none: 'No bookmarks were found in that file.',
+      folderName: 'Imported bookmarks',
+      added: 'added {count}',
+      alreadyHad: '{count} you already had',
+      refused: '{count} refused for not being web addresses',
+      exportTitle: 'Export bookmarks',
+    },
+    passwords: {
+      exportLocked: 'Your vault is locked. Unlock it, then try exporting again.',
+      noneReadable:
+        'None of your {count} saved passwords could be decrypted on this machine, so there was nothing to write.',
+      nothingToExport: 'There are no saved passwords to export.',
+      exportTitle: 'Export passwords',
+      exportedShort: 'Wrote {written}. {unreadable} could not be decrypted on this machine and were left out.',
+      importTitle: 'Import passwords',
+      none: 'No passwords were found in that file. It needs a header row naming a url and a password column.',
+      added: 'added {count}',
+      updated: 'updated {count}',
+      ignored: 'ignored {count} that had no site or no password',
+      nothingImportable: 'Nothing in that file could be imported.',
+    },
+    fileTypes: {
+      passwords: 'Passwords',
+      bookmarks: 'Bookmarks',
+      history: 'History',
+    },
+    summary: 'Imported: {parts}.',
+    history: {
+      title: 'Import history',
+      notOurs: 'That is not a history file Copacetic exported.',
+      added: { one: 'added {count} page', other: 'added {count} pages' },
+      older: '{count} older than history keeps',
+      notAddresses: '{count} that were not web addresses',
+      exportTitle: 'Export history',
+    },
+    browser: {
+      gone: 'That browser is no longer on this computer.',
+      folderName: 'Imported from {source}',
+      countedWithExisting: '{counted} ({count} you already had)',
+      bookmarksUnreadable: 'no bookmarks, as its bookmarks could not be read',
+      historyPages: { one: '{count} page of history', other: '{count} pages of history' },
+      historyUnreadable: 'no history, as its history could not be read',
+      summary: 'From {source}: {parts}.',
+      nothing: '{source} had nothing to import.',
+    },
+    firefox: {
+      roots: {
+        menu: 'Bookmarks Menu',
+        toolbar: 'Bookmarks Toolbar',
+        unfiled: 'Other Bookmarks',
+        mobile: 'Mobile Bookmarks',
+      },
+      defaultProfile: 'Default',
+    },
+  },
+  security: {
+    internalPage: 'A Copacetic page. Nothing here touches the network.',
+    failed: 'This page did not load, so there is nothing to say about the connection.',
+    localFile: {
+      detail: 'A file on this machine. It was never sent over a network.',
+      host: 'local file',
+    },
+    acceptedException:
+      'You chose to continue although this site’s certificate could not be verified. The connection is encrypted, but Copacetic cannot confirm who is on the other end.',
+    localException:
+      'Encrypted to a server on this machine. Its certificate was not checked against any authority. Copacetic accepts those from loopback so local development works, and this traffic never leaves your machine.',
+    secure: 'Encrypted. Chromium checked this site’s certificate against your system’s trusted authorities.',
+    loopback: 'Loopback connection. This traffic never leaves your machine.',
+    insecure: 'Not encrypted. Anyone on this network can read this page and change it before you see it.',
+    unknown: 'Copacetic cannot describe this connection.',
+  },
+  dialogs: {
+    savePage: {
+      noPage: 'There is no page here to save.',
+      title: 'Save page as',
+      defaultName: 'Page',
+      filterName: 'Web page, complete',
+      failed: 'The page could not be saved.',
+    },
+    common: {
+      open: 'Open',
+      cancel: 'Cancel',
+    },
+    externalOpen: {
+      title: 'Leave Copacetic?',
+      message: 'Open this link in another application?',
+      detail: 'This page wants to hand a {scheme} link to whichever app handles it on this machine.\n\n{url}',
+    },
+    screenShare: {
+      title: 'Share your screen',
+      message: '{host} wants to share your screen',
+      detail: 'Choose what to share. Nothing is shared until you pick something, and the choice is not remembered.',
+    },
+    downloadFolder: {
+      title: 'Save downloads to',
+    },
+  },
+  filterLists: {
+    noLists: 'There are no lists to update.',
+    unreachable: '{name} could not be reached. Nothing was changed.',
+    notIntact: '{name} did not arrive intact. Nothing was changed.',
+    saveFailed: 'The new lists could not be saved. Nothing was changed.',
+  },
+  profiles: {
+    fallbackName: 'Profile',
+    firstName: 'Personal',
+  },
+  netErrors: {
+    failed: {
+      headline: 'The request failed',
+      description: 'Chromium stopped the request without saying why. Reloading often works.',
+    },
+    fileNotFound: {
+      headline: 'That file is not there',
+      description: 'Nothing exists at this path on disk.',
+    },
+    timedOut: {
+      headline: 'The site took too long',
+      description: 'The server accepted the connection but never finished replying.',
+    },
+    networkChanged: {
+      headline: 'Your network changed',
+      description: 'You switched network partway through loading. Reload to start again.',
+    },
+    connectionClosed: {
+      headline: 'The connection closed early',
+      description: 'The server hung up before sending a full response.',
+    },
+    connectionReset: {
+      headline: 'The connection was reset',
+      description: 'Something between you and the server dropped the connection.',
+    },
+    connectionRefused: {
+      headline: 'The server refused the connection',
+      description: 'Nothing is listening on that address and port.',
+    },
+    nameNotResolved: {
+      headline: 'That address does not exist',
+      description: 'DNS has no record for this hostname. Check the spelling.',
+    },
+    internetDisconnected: {
+      headline: 'You are offline',
+      description: 'This machine has no network connection right now.',
+    },
+    sslProtocolError: {
+      headline: 'The secure connection failed',
+      description: 'The server sent a TLS response Chromium could not understand.',
+    },
+    addressUnreachable: {
+      headline: 'That address is unreachable',
+      description: 'The route to this server does not go anywhere from your network.',
+    },
+    connectionTimedOut: {
+      headline: 'The connection timed out',
+      description: 'The server never answered. It may be down or blocked from here.',
+    },
+    proxyConnectionFailed: {
+      headline: 'The proxy did not respond',
+      description: 'Your system proxy is configured but not reachable.',
+    },
+    nameResolutionFailed: {
+      headline: 'DNS lookup failed',
+      description: 'Your DNS resolver could not be reached.',
+    },
+    certCommonNameInvalid: {
+      headline: 'This certificate is for a different site',
+      description: 'The certificate does not cover this hostname. Do not enter anything sensitive.',
+    },
+    certDateInvalid: {
+      headline: 'This certificate is out of date',
+      description: 'It has expired or is not valid yet. Check your system clock first.',
+    },
+    certAuthorityInvalid: {
+      headline: 'This certificate is not trusted',
+      description: 'It was not issued by an authority your system trusts.',
+    },
+    certRevoked: {
+      headline: 'This certificate was revoked',
+      description: 'Its issuer withdrew it. Treat this site as compromised.',
+    },
+    certInvalid: {
+      headline: 'This certificate is invalid',
+      description: 'Chromium could not make sense of the certificate the server sent.',
+    },
+    invalidUrl: {
+      headline: 'That address is not valid',
+      description: 'Copacetic could not parse it as a web address.',
+    },
+    disallowedUrlScheme: {
+      headline: 'That kind of address is blocked',
+      description: 'Copacetic only opens http, https and file addresses in a tab.',
+    },
+    unknownUrlScheme: {
+      headline: 'Nothing handles that address',
+      description: 'No application on this machine is registered for this scheme.',
+    },
+    tooManyRedirects: {
+      headline: 'The site redirected too many times',
+      description: 'It sent you in a loop. Clearing cookies for the site often fixes it.',
+    },
+    emptyResponse: {
+      headline: 'The server sent nothing back',
+      description: 'The connection succeeded but the response was empty.',
+    },
+    insecureResponse: {
+      headline: 'The response was not secure',
+      description: 'Part of this page was served over a connection that failed validation.',
+    },
+    generic: {
+      headline: 'This page did not load',
+      description: 'Chromium reported an error without a description.',
+    },
+  },
+  files: {
+    readFailed: 'The file could not be read.',
+    writeFailed: 'The file could not be written.',
+  },
+  wallpaper: {
+    saveFailed: 'The wallpaper could not be saved.',
+    chooseTitle: 'Choose a wallpaper',
+    notAnImage: 'That file could not be read as an image.',
+    notConverted: 'That image could not be converted.',
+    filterName: 'Images',
+  },
+  defaultBrowser: {
+    development: 'A development build cannot be made the default browser.',
+    windows:
+      'Windows only lets you choose a default browser yourself, so its settings are open for you to pick Copacetic.',
+    refused: 'The system did not accept the change.',
+  },
+  chromiumLicences: {
+    missing: "Chromium's licences were not found beside this copy of Copacetic.",
+  },
+  updates: {
+    manual: {
+      development: 'This is a development build, so there is nothing to update.',
+      macos:
+        'Copacetic for macOS is not code-signed, so it cannot install updates itself. New versions have to be downloaded and replaced by hand.',
+      linuxPackage:
+        'Your package manager installs updates for this build. Copacetic adds its own signed apt repository, so new versions arrive with a normal system update.',
+    },
+    githubAnswered: 'GitHub answered {status}',
+    noVersionTag: 'That release has no version tag.',
+    loadFailed: 'The updater could not be loaded.',
+    timedOut: 'The check timed out.',
+    failed: 'The check failed.',
+  },
+  startup: {
+    couldNotStart: 'Copacetic could not start',
+    couldNotOpenWindow: 'Copacetic could not open a window',
+    generic: 'Something went wrong, and the diagnostics log says what.',
+  },
+  search: {
+    searchWith: 'Search with {engine}',
+    fallbackEngine: 'your search engine',
+  },
+} as const;

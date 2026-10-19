@@ -1,5 +1,6 @@
 import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tab-groups';
 import { PersistedFile, asString, isRecord, newId } from './persistence';
+import { t } from '../../shared/i18n/translate';
 
 /**
  * The groups themselves, which persist. Which tabs are in them does not live
@@ -23,7 +24,13 @@ export class GroupsStore {
   }
 
   create(name: string, colour: GroupColourId, ownSession: boolean): TabGroup {
-    const group: TabGroup = { id: newId(), name: name.trim() || 'Group', colour, ownSession, collapsed: false };
+    const group: TabGroup = {
+      id: newId(),
+      name: name.trim() || t('main.menu.context.group'),
+      colour,
+      ownSession,
+      collapsed: false,
+    };
     this.file.update((groups) => [...groups, group]);
     return group;
   }

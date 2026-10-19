@@ -43,6 +43,7 @@ import { CertificatesStore } from './certificates-store';
 import { FaviconsStore } from './favicons-store';
 import { type SavedSession, SessionStore, type SessionSnapshot } from './session-store';
 import type { ImportedVisit } from '../import/chromium-history';
+import { t } from '../../shared/i18n/translate';
 
 export type { SavedSession, SessionSnapshot };
 
@@ -529,7 +530,9 @@ export class BrowserStore {
       kind: 'search',
       target: buildSearchUrl(query, settings.searchEngine),
       title: query,
-      subtitle: `Search with ${SEARCH_ENGINES[settings.searchEngine]?.name ?? 'your search engine'}`,
+      subtitle: t('main.search.searchWith', {
+        engine: SEARCH_ENGINES[settings.searchEngine]?.name ?? t('main.search.fallbackEngine'),
+      }),
       faviconDataUrl: null,
     });
 

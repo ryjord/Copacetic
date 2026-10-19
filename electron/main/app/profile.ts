@@ -22,6 +22,7 @@ import { isDevelopment } from './env';
 import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
+import { t } from '../../shared/i18n/translate';
 
 /** What a profile is given by the app that holds it: the parts there is only one of. */
 export interface ProfileHost {
@@ -115,8 +116,8 @@ export class Profile {
             id: `keep-${download.id}`,
             key: `keep-${download.id}`,
             tone: 'ask',
-            message: `${download.filename} is a program or installer, and runs when opened. Keep it only if you meant to download it.`,
-            confirm: 'Keep',
+            message: t('main.notices.keepDownload', { filename: download.filename }),
+            confirm: t('main.notices.keep'),
           },
           () => this.downloads.keep(download.id),
         ),
@@ -152,7 +153,7 @@ export class Profile {
     return (
       this.allProfiles().find((profile) => profile.id === this.id) ?? {
         id: this.id,
-        name: 'Profile',
+        name: t('main.profiles.fallbackName'),
         colour: 'ocean',
       }
     );
@@ -207,7 +208,7 @@ export class Profile {
       id: 'database-set-aside',
       key: 'database-set-aside',
       tone: 'info',
-      message: `Copacetic could not read its database, so it kept it aside and started a new one. Nothing was deleted: it is at ${aside}.`,
+      message: t('main.notices.databaseAside', { aside }),
     });
   }
 
@@ -235,8 +236,8 @@ export class Profile {
           id: 'reopen-after-crash',
           key: 'reopen-after-crash',
           tone: 'ask',
-          message: 'Copacetic did not close properly last time. Reopen the tabs you had open?',
-          confirm: 'Reopen tabs',
+          message: t('main.notices.restoreSession'),
+          confirm: t('main.notices.reopenTabs'),
         },
         () => void this.reopenInPlaceOf(fresh, saved),
       );
@@ -367,7 +368,10 @@ export class Profile {
       return response.text();
     });
     const message = outcome.ok
-      ? `Filter lists updated: ${outcome.rules.toLocaleString()} rules, from ${outcome.lists.map((list) => list.name).join(' and ')}.`
+      ? t('main.notices.filterListsUpdated', {
+          rules: outcome.rules.toLocaleString(),
+          lists: outcome.lists.map((list) => list.name).join(' and '),
+        })
       : outcome.reason;
     this.focused()?.notices.notify({
       id: 'filters-update',

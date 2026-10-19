@@ -1,5 +1,8 @@
 'use client';
 
+// Utils
+import { t } from '@shared/i18n/translate';
+
 // Types
 import type { StartPageWidgetId } from '@shared/types';
 
@@ -12,7 +15,7 @@ interface AppearancePreviewProps {
 export function AppearancePreview({ widgets, wallpaper }: AppearancePreviewProps) {
   return (
     <div
-      aria-label="Start page preview"
+      aria-label={t('settings.appearance.startPage.preview.label')}
       className="relative flex h-44 flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-line bg-void p-4"
     >
       {wallpaper ? (
@@ -26,7 +29,7 @@ export function AppearancePreview({ widgets, wallpaper }: AppearancePreviewProps
       )}
 
       {widgets.length === 0 ? (
-        <span className="relative text-caption text-ink-dim">Nothing but the page</span>
+        <span className="relative text-caption text-ink-dim">{t('settings.appearance.startPage.preview.empty')}</span>
       ) : (
         widgets.map((widget) => (
           <div key={widget} className="relative flex w-full justify-center">

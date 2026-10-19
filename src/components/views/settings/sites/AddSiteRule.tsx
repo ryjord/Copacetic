@@ -12,6 +12,7 @@ import { TextField } from '@/components/ui/TextField/TextField';
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { PERMISSION_NAMES, originFromInput, siteOf } from '@/components/views/settings/sites/siteSettings';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { ASKABLE_PERMISSIONS, type Settings } from '@shared/types';
@@ -21,11 +22,11 @@ type RuleAnswer = 'allow' | 'block';
 
 const KINDS: readonly { id: RuleKind; label: string }[] = [
   ...ASKABLE_PERMISSIONS.map((kind) => ({ id: kind, label: PERMISSION_NAMES[kind] })),
-  { id: 'trackers', label: 'Trackers' },
+  { id: 'trackers', label: t('settings.sites.addRule.trackers') },
 ];
 const ANSWERS: readonly { id: RuleAnswer; label: string }[] = [
-  { id: 'allow', label: 'Allow' },
-  { id: 'block', label: 'Block' },
+  { id: 'allow', label: t('settings.sites.addRule.allow') },
+  { id: 'block', label: t('settings.sites.addRule.block') },
 ];
 
 /** A decision about a site before visiting it, rather than only when it asks. */
@@ -38,7 +39,7 @@ export function AddSiteRule({ settings }: { settings: Pick<Settings, 'permission
   const add = () => {
     const origin = originFromInput(address);
     if (!origin) {
-      setProblem('That is not a web address. Try something like example.com.');
+      setProblem(t('settings.sites.addRule.problem'));
       return;
     }
     if (kind === 'trackers') {
@@ -58,9 +59,9 @@ export function AddSiteRule({ settings }: { settings: Pick<Settings, 'permission
   };
 
   return (
-    <SettingGroup title="Add a site">
+    <SettingGroup title={t('settings.sites.addRule.title')}>
       <SettingRow
-        label="Decide for a site before it asks"
+        label={t('settings.sites.addRule.label')}
         help={problem || undefined}
         control={
           <form
@@ -71,16 +72,21 @@ export function AddSiteRule({ settings }: { settings: Pick<Settings, 'permission
             }}
           >
             <TextField
-              aria-label="Site address"
-              placeholder="example.com"
+              aria-label={t('settings.sites.addRule.address')}
+              placeholder={t('settings.sites.addRule.placeholder')}
               value={address}
               onChange={(event) => setAddress(event.target.value)}
               className="w-40"
             />
-            <Select label="What to decide" options={KINDS} value={kind} onChange={setKind} />
-            <Select label="Decision" options={ANSWERS} value={answer} onChange={setAnswer} />
+            <Select label={t('settings.sites.addRule.kind')} options={KINDS} value={kind} onChange={setKind} />
+            <Select
+              label={t('settings.sites.addRule.decision')}
+              options={ANSWERS}
+              value={answer}
+              onChange={setAnswer}
+            />
             <Button size="sm" type="submit" disabled={!address.trim()}>
-              Add
+              {t('settings.sites.addRule.add')}
             </Button>
           </form>
         }

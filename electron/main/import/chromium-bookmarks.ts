@@ -7,6 +7,7 @@ import {
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import { isRecord } from '../data/persistence';
 import { millisecondsFromChromiumTime } from './chromium-time';
+import { t } from '../../shared/i18n/translate';
 
 interface ChromiumUrlNode {
   url: string;
@@ -24,7 +25,10 @@ function urlsIn(node: unknown, folders: string[]): ChromiumUrlNode[] {
   if (node.type === 'url' && typeof node.url === 'string') {
     return [{ url: node.url.trim(), name, dateAdded: node.date_added, folders }];
   }
-  const inside = [...folders, sanitiseChromeText(name, MAX_IMPORTED_FOLDER_NAME) || 'Folder'];
+  const inside = [
+    ...folders,
+    sanitiseChromeText(name, MAX_IMPORTED_FOLDER_NAME) || t('main.import.bookmarks.unnamedFolder'),
+  ];
   return Array.isArray(node.children) ? node.children.flatMap((child) => urlsIn(child, inside)) : [];
 }
 

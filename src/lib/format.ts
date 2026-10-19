@@ -1,3 +1,5 @@
+import { t } from '@shared/i18n/translate';
+
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 
 export function formatBytes(bytes: number): string {
@@ -28,12 +30,12 @@ export function formatEta(receivedBytes: number, totalBytes: number, bytesPerSec
     return '';
   }
   if (seconds < 60) {
-    return `${seconds}s left`;
+    return t('shell.format.secondsLeft', { count: seconds });
   }
   if (seconds < 3600) {
-    return `${Math.round(seconds / 60)} min left`;
+    return t('shell.format.minutesLeft', { count: Math.round(seconds / 60) });
   }
-  return `${Math.round(seconds / 3600)} hr left`;
+  return t('shell.format.hoursLeft', { count: Math.round(seconds / 3600) });
 }
 
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -52,7 +54,7 @@ export function formatRelativeTime(timestamp: number, now = Date.now()): string 
   const elapsed = timestamp - now;
   const magnitude = Math.abs(elapsed);
   if (magnitude < 45_000) {
-    return 'just now';
+    return t('shell.format.justNow');
   }
 
   let chosen: [Intl.RelativeTimeFormatUnit, number] = RELATIVE_UNITS[0]!;
@@ -73,12 +75,12 @@ export function formatDateHeading(timestamp: number, now = Date.now()): string {
   const today = new Date(now);
   const isSameDay = date.toDateString() === today.toDateString();
   if (isSameDay) {
-    return 'Today';
+    return t('shell.format.today');
   }
 
   const yesterday = new Date(now - 24 * 60 * 60 * 1000);
   if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday';
+    return t('shell.format.yesterday');
   }
 
   return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });

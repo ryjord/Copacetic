@@ -15,6 +15,7 @@ export interface DownloadPreferences {
   askWhereToSave: boolean;
 }
 import { newId } from './persistence';
+import { t } from '../../shared/i18n/translate';
 
 /** How often a download's speed sample is refreshed. */
 const SPEED_SAMPLE_MS = 700;
@@ -331,14 +332,14 @@ export class DownloadManager {
   async openFile(id: string): Promise<string> {
     const entry = this.find(id);
     if (!entry) {
-      return 'That download is no longer listed.';
+      return t('main.downloads.notListed');
     }
     if (entry.status !== 'completed') {
-      return 'That download has not finished.';
+      return t('main.downloads.notFinished');
     }
     if (!existsSync(entry.savePath)) {
       this.patch(id, (current) => ({ ...current, fileExists: false }));
-      return 'That file is no longer where Copacetic saved it.';
+      return t('main.downloads.fileMoved');
     }
     return shell.openPath(entry.savePath);
   }

@@ -1,5 +1,7 @@
 /** Every keyboard shortcut, in one place, so what Settings shows and what the menu actually binds cannot drift apart. */
 
+import { t } from './i18n/translate';
+
 export interface Shortcut {
   /** Stable across releases: overrides are stored against it. */
   id: string;
@@ -16,68 +18,84 @@ export interface ShortcutGroup {
 
 export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
   {
-    title: 'Tabs',
+    title: t('main.shortcuts.groups.tabs'),
     isRebindable: true,
     shortcuts: [
-      { accelerator: 'CmdOrCtrl+N', description: 'New window', id: 'new-window' },
-      { accelerator: 'CmdOrCtrl+T', description: 'New tab', id: 'new-tab' },
-      { accelerator: 'CmdOrCtrl+Shift+N', description: 'New Hush tab', id: 'new-hush-tab' },
-      { accelerator: 'CmdOrCtrl+W', description: 'Close tab', id: 'close-tab' },
-      { accelerator: 'CmdOrCtrl+Shift+T', description: 'Reopen the last closed tab', id: 'reopen' },
-      { accelerator: 'Ctrl+Tab', description: 'Next tab', id: 'next-tab' },
-      { accelerator: 'Ctrl+Shift+Tab', description: 'Previous tab', id: 'previous-tab' },
-      { accelerator: 'CmdOrCtrl+9', description: 'Last tab', id: 'last-tab' },
-      { accelerator: 'CmdOrCtrl+Shift+A', description: 'Search open tabs', id: 'tab-search' },
-      { accelerator: 'CmdOrCtrl+D', description: 'Bookmark this page', id: 'bookmark' },
+      { accelerator: 'CmdOrCtrl+N', description: t('main.shortcuts.descriptions.newWindow'), id: 'new-window' },
+      { accelerator: 'CmdOrCtrl+T', description: t('main.shortcuts.descriptions.newTab'), id: 'new-tab' },
+      {
+        accelerator: 'CmdOrCtrl+Shift+N',
+        description: t('main.shortcuts.descriptions.newHushTab'),
+        id: 'new-hush-tab',
+      },
+      { accelerator: 'CmdOrCtrl+W', description: t('main.shortcuts.descriptions.closeTab'), id: 'close-tab' },
+      { accelerator: 'CmdOrCtrl+Shift+T', description: t('main.shortcuts.descriptions.reopen'), id: 'reopen' },
+      { accelerator: 'Ctrl+Tab', description: t('main.shortcuts.descriptions.nextTab'), id: 'next-tab' },
+      {
+        accelerator: 'Ctrl+Shift+Tab',
+        description: t('main.shortcuts.descriptions.previousTab'),
+        id: 'previous-tab',
+      },
+      { accelerator: 'CmdOrCtrl+9', description: t('main.shortcuts.descriptions.lastTab'), id: 'last-tab' },
+      { accelerator: 'CmdOrCtrl+Shift+A', description: t('main.shortcuts.descriptions.tabSearch'), id: 'tab-search' },
+      { accelerator: 'CmdOrCtrl+D', description: t('main.shortcuts.descriptions.bookmark'), id: 'bookmark' },
     ],
   },
   {
-    title: 'Navigation',
+    title: t('main.shortcuts.groups.navigation'),
     isRebindable: true,
     shortcuts: [
-      { accelerator: 'CmdOrCtrl+L', description: 'Focus the address bar', id: 'address' },
-      { accelerator: 'CmdOrCtrl+K', description: 'Command palette', id: 'palette' },
-      { accelerator: 'CmdOrCtrl+[', description: 'Back', id: 'back' },
-      { accelerator: 'CmdOrCtrl+]', description: 'Forward', id: 'forward' },
-      { accelerator: 'CmdOrCtrl+R', description: 'Reload', id: 'reload' },
-      { accelerator: 'CmdOrCtrl+Shift+R', description: 'Reload, ignoring the cache', id: 'reload-hard' },
-      { accelerator: 'CmdOrCtrl+.', description: 'Stop loading', id: 'stop' },
-      { accelerator: 'CmdOrCtrl+Shift+H', description: 'Home', id: 'home' },
+      { accelerator: 'CmdOrCtrl+L', description: t('main.shortcuts.descriptions.address'), id: 'address' },
+      { accelerator: 'CmdOrCtrl+K', description: t('main.shortcuts.descriptions.palette'), id: 'palette' },
+      { accelerator: 'CmdOrCtrl+[', description: t('main.shortcuts.descriptions.back'), id: 'back' },
+      { accelerator: 'CmdOrCtrl+]', description: t('main.shortcuts.descriptions.forward'), id: 'forward' },
+      { accelerator: 'CmdOrCtrl+R', description: t('main.shortcuts.descriptions.reload'), id: 'reload' },
+      {
+        accelerator: 'CmdOrCtrl+Shift+R',
+        description: t('main.shortcuts.descriptions.reloadHard'),
+        id: 'reload-hard',
+      },
+      { accelerator: 'CmdOrCtrl+.', description: t('main.shortcuts.descriptions.stop'), id: 'stop' },
+      { accelerator: 'CmdOrCtrl+Shift+H', description: t('main.shortcuts.descriptions.home'), id: 'home' },
     ],
   },
   {
-    title: 'This page',
+    title: t('main.shortcuts.groups.thisPage'),
     isRebindable: true,
     shortcuts: [
-      { accelerator: 'CmdOrCtrl+F', description: 'Find on page', id: 'find' },
-      { accelerator: 'CmdOrCtrl+G', description: 'Find next', id: 'find-next' },
-      { accelerator: 'CmdOrCtrl+Shift+G', description: 'Find previous', id: 'find-previous' },
-      { accelerator: 'CmdOrCtrl+Plus', description: 'Zoom in', id: 'zoom-in' },
-      { accelerator: 'CmdOrCtrl+-', description: 'Zoom out', id: 'zoom-out' },
-      { accelerator: 'CmdOrCtrl+0', description: 'Reset zoom', id: 'zoom-reset' },
-      { accelerator: 'CmdOrCtrl+P', description: 'Print', id: 'print' },
-      { accelerator: 'CmdOrCtrl+S', description: 'Save page as', id: 'save-page' },
-      { accelerator: 'CmdOrCtrl+U', description: 'View page source', id: 'view-source' },
+      { accelerator: 'CmdOrCtrl+F', description: t('main.shortcuts.descriptions.find'), id: 'find' },
+      { accelerator: 'CmdOrCtrl+G', description: t('main.shortcuts.descriptions.findNext'), id: 'find-next' },
+      {
+        accelerator: 'CmdOrCtrl+Shift+G',
+        description: t('main.shortcuts.descriptions.findPrevious'),
+        id: 'find-previous',
+      },
+      { accelerator: 'CmdOrCtrl+Plus', description: t('main.shortcuts.descriptions.zoomIn'), id: 'zoom-in' },
+      { accelerator: 'CmdOrCtrl+-', description: t('main.shortcuts.descriptions.zoomOut'), id: 'zoom-out' },
+      { accelerator: 'CmdOrCtrl+0', description: t('main.shortcuts.descriptions.zoomReset'), id: 'zoom-reset' },
+      { accelerator: 'CmdOrCtrl+P', description: t('main.shortcuts.descriptions.print'), id: 'print' },
+      { accelerator: 'CmdOrCtrl+S', description: t('main.shortcuts.descriptions.savePage'), id: 'save-page' },
+      { accelerator: 'CmdOrCtrl+U', description: t('main.shortcuts.descriptions.viewSource'), id: 'view-source' },
     ],
   },
   {
-    title: 'Panels',
+    title: t('main.shortcuts.groups.panels'),
     isRebindable: true,
     shortcuts: [
-      { accelerator: 'CmdOrCtrl+Y', description: 'History', id: 'history' },
-      { accelerator: 'CmdOrCtrl+Shift+J', description: 'Downloads', id: 'downloads' },
-      { accelerator: 'CmdOrCtrl+Shift+B', description: 'Bookmarks', id: 'bookmarks' },
-      { accelerator: 'CmdOrCtrl+,', description: 'Settings', id: 'settings' },
+      { accelerator: 'CmdOrCtrl+Y', description: t('main.shortcuts.descriptions.history'), id: 'history' },
+      { accelerator: 'CmdOrCtrl+Shift+J', description: t('main.shortcuts.descriptions.downloads'), id: 'downloads' },
+      { accelerator: 'CmdOrCtrl+Shift+B', description: t('main.shortcuts.descriptions.bookmarks'), id: 'bookmarks' },
+      { accelerator: 'CmdOrCtrl+,', description: t('main.shortcuts.descriptions.settings'), id: 'settings' },
     ],
   },
   {
-    title: 'Without a menu item',
+    title: t('main.shortcuts.groups.withoutAMenuItem'),
     isRebindable: false,
     shortcuts: [
-      { accelerator: 'CmdOrCtrl+1…8', description: 'Select tab by position', id: 'select-tab' },
-      { accelerator: 'Arrows', description: 'Move between tabs, once the strip has focus', id: 'strip-arrows' },
-      { accelerator: 'Delete', description: 'Close the focused tab', id: 'strip-delete' },
-      { accelerator: 'Escape', description: 'Close the topmost panel', id: 'escape' },
+      { accelerator: 'CmdOrCtrl+1…8', description: t('main.shortcuts.descriptions.selectTab'), id: 'select-tab' },
+      { accelerator: 'Arrows', description: t('main.shortcuts.descriptions.stripArrows'), id: 'strip-arrows' },
+      { accelerator: 'Delete', description: t('main.shortcuts.descriptions.stripDelete'), id: 'strip-delete' },
+      { accelerator: 'Escape', description: t('main.shortcuts.descriptions.escape'), id: 'escape' },
     ],
   },
 ];
@@ -150,7 +168,7 @@ const POSITION_KEYS = Array.from({ length: 8 }, (_unused, index) => `CmdOrCtrl+$
 /** What already answers to a key, so a new binding cannot quietly take another's place. */
 export function conflictFor(id: string, accelerator: string, overrides: ShortcutOverrides): string | null {
   if (POSITION_KEYS.includes(accelerator)) {
-    return 'Select tab by position';
+    return t('main.shortcuts.descriptions.selectTab');
   }
   const taken = REBINDABLE.find(
     (shortcut) => shortcut.id !== id && acceleratorFor(shortcut.id, overrides) === accelerator,

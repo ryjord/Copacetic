@@ -12,6 +12,7 @@ import { CaseSensitive, ChevronDown, ChevronUp, X } from 'lucide-react';
 // Utils
 import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { FindState } from '@shared/types';
@@ -41,7 +42,7 @@ export function FindBar({ find }: { find: FindState }) {
   return (
     <div
       role="search"
-      aria-label="Find on page"
+      aria-label={t('shell.overlay.findBar.label')}
       className="animate-pop flex h-11 w-95 items-center gap-1 rounded-lg border border-line bg-raised pl-3 pr-1.5 shadow-popover"
     >
       <input
@@ -58,8 +59,8 @@ export function FindBar({ find }: { find: FindState }) {
             send((api) => (event.shiftKey ? api.find.previous() : api.find.next()));
           }
         }}
-        placeholder="Find on page"
-        aria-label="Find on page"
+        placeholder={t('shell.overlay.findBar.label')}
+        aria-label={t('shell.overlay.findBar.label')}
         spellCheck={false}
         className="h-full min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-faint"
       />
@@ -70,23 +71,35 @@ export function FindBar({ find }: { find: FindState }) {
           hasQuery && !hasMatches ? 'text-alert' : 'text-ink-faint',
         )}
       >
-        {hasQuery ? (hasMatches ? `${find.activeMatch} of ${find.totalMatches}` : 'No matches') : ''}
+        {hasQuery
+          ? hasMatches
+            ? t('shell.overlay.findBar.matchCount', { current: find.activeMatch, total: find.totalMatches })
+            : t('shell.overlay.findBar.noMatches')
+          : ''}
       </span>
       <IconButton
-        label="Match case"
+        label={t('shell.overlay.findBar.matchCase')}
         tone={find.matchCase ? 'active' : 'default'}
         aria-pressed={find.matchCase}
         onClick={() => send((api) => api.find.setMatchCase(!find.matchCase))}
       >
         <CaseSensitive size={16} strokeWidth={1.75} />
       </IconButton>
-      <IconButton label="Previous match" disabled={!hasMatches} onClick={() => send((api) => api.find.previous())}>
+      <IconButton
+        label={t('shell.overlay.findBar.previous')}
+        disabled={!hasMatches}
+        onClick={() => send((api) => api.find.previous())}
+      >
         <ChevronUp size={16} strokeWidth={1.75} />
       </IconButton>
-      <IconButton label="Next match" disabled={!hasMatches} onClick={() => send((api) => api.find.next())}>
+      <IconButton
+        label={t('shell.overlay.findBar.next')}
+        disabled={!hasMatches}
+        onClick={() => send((api) => api.find.next())}
+      >
         <ChevronDown size={16} strokeWidth={1.75} />
       </IconButton>
-      <IconButton label="Close find" onClick={() => send((api) => api.find.stop())}>
+      <IconButton label={t('shell.overlay.findBar.close')} onClick={() => send((api) => api.find.stop())}>
         <X size={16} strokeWidth={1.75} />
       </IconButton>
     </div>

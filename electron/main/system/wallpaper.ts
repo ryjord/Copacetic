@@ -1,6 +1,7 @@
 import { dialog, nativeImage, type BrowserWindow } from 'electron';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { t } from '../../shared/i18n/translate';
 
 /** Wide enough for any display this will run on, small enough to stay sane. */
 const MAX_WIDTH = 2560;
@@ -88,7 +89,7 @@ export class Wallpaper {
     try {
       writeFileSync(this.file, this.staged);
     } catch (error) {
-      return error instanceof Error ? error.message : 'The wallpaper could not be saved.';
+      return error instanceof Error ? error.message : t('main.wallpaper.saveFailed');
     } finally {
       this.isWallpaperSet = null;
     }
@@ -108,9 +109,9 @@ export class Wallpaper {
   /** Asks for an image and stages a copy. */
   async choose(window: BrowserWindow): Promise<string> {
     const { canceled, filePaths } = await dialog.showOpenDialog(window, {
-      title: 'Choose a wallpaper',
+      title: t('main.wallpaper.chooseTitle'),
       properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'] }],
+      filters: [{ name: t('main.wallpaper.filterName'), extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'] }],
     });
 
     const source = filePaths[0];
@@ -121,7 +122,7 @@ export class Wallpaper {
     try {
       let image = nativeImage.createFromPath(source);
       if (image.isEmpty()) {
-        return 'That file could not be read as an image.';
+        return t('main.wallpaper.notAnImage');
       }
 
       const { width } = image.getSize();
@@ -131,13 +132,13 @@ export class Wallpaper {
 
       const encoded = image.toJPEG(JPEG_QUALITY);
       if (encoded.length === 0) {
-        return 'That image could not be converted.';
+        return t('main.wallpaper.notConverted');
       }
 
       this.staged = encoded;
       return '';
     } catch (error) {
-      return error instanceof Error ? error.message : 'The wallpaper could not be saved.';
+      return error instanceof Error ? error.message : t('main.wallpaper.saveFailed');
     }
   }
 

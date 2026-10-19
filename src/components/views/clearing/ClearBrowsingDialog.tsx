@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 
 // Utils
 import { CLEAR_RANGES, clearTitle } from '@/lib/clearing';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { type ClearChoice, choosesNothing, defaultClearChoice } from '@shared/clearing';
@@ -32,20 +33,20 @@ export function ClearBrowsingDialog({ range, open, onOpenChange, onConfirm }: Cl
       open={open}
       onOpenChange={onOpenChange}
       title={clearTitle(range)}
-      confirmLabel="Clear"
+      confirmLabel={t('views.clearing.confirm')}
       isDestructive
       disabled={choosesNothing(choice)}
       onConfirm={() => onConfirm(choice)}
     >
       <div className="flex flex-col gap-2.5">
-        <Checkbox label={`History from ${rangeLabel}`} checked={choice.history} onChange={choose('history')} />
         <Checkbox
-          label="Cookies and site data, from all time. You will be signed out of sites."
-          checked={choice.siteData}
-          onChange={choose('siteData')}
+          label={t('views.clearing.history', { range: rangeLabel })}
+          checked={choice.history}
+          onChange={choose('history')}
         />
-        <Checkbox label="Cached images and files, from all time" checked={choice.cache} onChange={choose('cache')} />
-        <span>Groups that keep their own browsing are cleared too. Open tabs stay open.</span>
+        <Checkbox label={t('views.clearing.siteData')} checked={choice.siteData} onChange={choose('siteData')} />
+        <Checkbox label={t('views.clearing.cache')} checked={choice.cache} onChange={choose('cache')} />
+        <span>{t('views.clearing.groupsNote')}</span>
       </div>
     </ConfirmDialog>
   );

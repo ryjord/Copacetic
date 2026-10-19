@@ -12,6 +12,7 @@ import { selectActiveDownloadCount, selectDownloadProgress, useBrowserStore } fr
 
 // Utils
 import { send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { colourOf } from '@shared/tab-groups';
@@ -25,21 +26,21 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
   return (
     <div className="flex items-center gap-1 px-2.5 pb-2">
       <IconButton
-        label="Back"
+        label={t('shell.toolbar.back')}
         disabled={!tab?.canGoBack}
         onClick={() => tab && send((api) => api.tabs.goBack(tab.id))}
       >
         <ArrowLeft {...ICON} />
       </IconButton>
       <IconButton
-        label="Forward"
+        label={t('shell.toolbar.forward')}
         disabled={!tab?.canGoForward}
         onClick={() => tab && send((api) => api.tabs.goForward(tab.id))}
       >
         <ArrowRight {...ICON} />
       </IconButton>
       <IconButton
-        label={isBusy ? 'Stop loading' : 'Reload'}
+        label={isBusy ? t('shell.toolbar.stop') : t('shell.toolbar.reload')}
         disabled={!tab || tab.isStartPage}
         onClick={() => tab && send((api) => (isBusy ? api.tabs.stop(tab.id) : api.tabs.reload(tab.id)))}
       >
@@ -51,7 +52,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       <ProfileChip />
       <DownloadsButton />
       <IconButton
-        label="Menu"
+        label={t('shell.toolbar.menu')}
         onClick={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
           send((api) => api.chrome.openMainMenu(Math.round(box.left), Math.round(box.bottom + 4)));
@@ -73,8 +74,8 @@ function ProfileChip() {
   return (
     <button
       type="button"
-      aria-label={`Profile: ${profile.name}`}
-      title="Switch profile"
+      aria-label={t('shell.toolbar.profile', { name: profile.name })}
+      title={t('shell.toolbar.switchProfile')}
       onClick={(event) => {
         const box = event.currentTarget.getBoundingClientRect();
         send((api) => api.profiles.openMenu(Math.round(box.left), Math.round(box.bottom + 4)));
@@ -96,7 +97,8 @@ function DownloadsButton() {
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);
   const activeCount = useBrowserStore(selectActiveDownloadCount);
   const progress = useBrowserStore(selectDownloadProgress);
-  const label = activeCount > 0 ? `Downloads, ${activeCount} in progress` : 'Downloads';
+  const label =
+    activeCount > 0 ? t('shell.toolbar.downloadsActive', { count: activeCount }) : t('shell.toolbar.downloads');
 
   return (
     <IconButton

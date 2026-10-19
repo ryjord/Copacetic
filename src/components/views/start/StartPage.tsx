@@ -18,6 +18,7 @@ import { updateSettings } from '@/components/views/settings/shared/options';
 import { ask, send } from '@/lib/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { formatClockTime } from '@/lib/format';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { Bookmark, TopSite } from '@shared/types';
@@ -107,8 +108,8 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search or enter address"
-                  aria-label="Search or enter address"
+                  placeholder={t('views.start.search')}
+                  aria-label={t('views.start.search')}
                   spellCheck={false}
                   autoComplete="off"
                   className="h-12 w-full rounded-full border border-line-strong bg-raised/80 pl-11 pr-5 text-title text-ink shadow-popover outline-none backdrop-blur-xl placeholder:text-ink-faint focus:border-ink-faint"
@@ -145,7 +146,7 @@ function useMinuteTick(): number | null {
 
 function TopSites({ sites, tabId }: { sites: TopSite[]; tabId: string }) {
   if (sites.length === 0) {
-    return <p className="text-body text-ink-dim">Sites you visit often appear here.</p>;
+    return <p className="text-body text-ink-dim">{t('views.start.topSitesEmpty')}</p>;
   }
   return (
     <ul className="grid w-full grid-cols-4 gap-2">
@@ -188,7 +189,7 @@ function BookmarkStrip({ tabId }: { tabId: string }) {
   }, []);
 
   if (bookmarks.length === 0) {
-    return <p className="text-body text-ink-dim">Your latest bookmarks appear here.</p>;
+    return <p className="text-body text-ink-dim">{t('views.start.bookmarksEmpty')}</p>;
   }
 
   return (
@@ -220,20 +221,16 @@ function HushNotice() {
       <div className="flex items-center gap-2.5">
         <EyeOff size={18} className="shrink-0 text-hush" aria-hidden />
         <h2 id="hush-notice-title" className="text-title font-semibold text-ink">
-          This is a Hush tab
+          {t('views.start.hush.title')}
         </h2>
       </div>
-      <p className="text-body text-ink-dim">
-        Nothing here reaches the disk: no history, cookies, cache, icons or list of tabs to reopen.
-      </p>
+      <p className="text-body text-ink-dim">{t('views.start.hush.keeps')}</p>
       {/* Only ever saying the first half would be a boast. */}
-      <p className="text-body text-ink-dim">
-        It does not hide you. Sites, your network and your internet provider see this tab like any other.
-      </p>
+      <p className="text-body text-ink-dim">{t('views.start.hush.hides')}</p>
       <div className="flex justify-end">
         {/* A setting rather than something this tab remembers: a Hush tab keeps nothing, not even having been read. */}
         <Button size="sm" onClick={() => updateSettings({ hushNoticeDismissed: true })}>
-          Got it
+          {t('views.start.hush.dismiss')}
         </Button>
       </div>
     </section>

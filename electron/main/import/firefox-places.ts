@@ -11,13 +11,14 @@ import {
 } from '../../shared/bookmark-import';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import type { ImportedVisit } from './chromium-history';
+import { t } from '../../shared/i18n/translate';
 
 // Firefox's own root folders carry internal titles; these are the names its window shows. Tags are not bookmarks.
 const ROOT_NAMES: Record<string, string> = {
-  menu________: 'Bookmarks Menu',
-  toolbar_____: 'Bookmarks Toolbar',
-  unfiled_____: 'Other Bookmarks',
-  mobile______: 'Mobile Bookmarks',
+  menu________: t('main.import.firefox.roots.menu'),
+  toolbar_____: t('main.import.firefox.roots.toolbar'),
+  unfiled_____: t('main.import.firefox.roots.unfiled'),
+  mobile______: t('main.import.firefox.roots.mobile'),
 };
 const TAGS_ROOT = 'tags________';
 const BOOKMARK = 1;
@@ -65,7 +66,9 @@ export function bookmarksFromPlaces(rows: readonly PlacesRow[]): ImportedBookmar
       return null;
     }
     const above = foldersOf(parent);
-    const name = ROOT_NAMES[parent.guid] ?? (sanitiseChromeText(parent.title, MAX_IMPORTED_FOLDER_NAME) || 'Folder');
+    const name =
+      ROOT_NAMES[parent.guid] ??
+      (sanitiseChromeText(parent.title, MAX_IMPORTED_FOLDER_NAME) || t('main.import.bookmarks.unnamedFolder'));
     return above === null ? null : [...above, name];
   };
 

@@ -12,6 +12,7 @@ import { KeyRound } from 'lucide-react';
 
 // Utils
 import { send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { AuthPrompt } from '@shared/types';
@@ -44,7 +45,7 @@ export function SignInCard({ prompt }: { prompt: AuthPrompt }) {
           cancel();
         }
       }}
-      aria-label="Sign in"
+      aria-label={t('shell.overlay.signInCard.label')}
       className="animate-pop flex w-90 flex-col gap-3 rounded-lg border border-line bg-raised p-4 shadow-popover"
     >
       <div className="flex items-start gap-3">
@@ -52,10 +53,14 @@ export function SignInCard({ prompt }: { prompt: AuthPrompt }) {
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-body text-ink">
             <span className="break-all font-medium">{prompt.host}</span>
-            {prompt.isProxy ? ', the proxy for this network, asks you to sign in.' : ' asks you to sign in.'}
+            {prompt.isProxy ? t('shell.overlay.signInCard.proxyAsks') : ` ${t('shell.overlay.signInCard.asks')}`}
           </p>
           {/* Quoted and attributed, so a realm reading "enter your Google password" is plainly the site talking. */}
-          {prompt.realm && <p className="text-body-sm text-ink-dim">The site says: “{prompt.realm}”</p>}
+          {prompt.realm && (
+            <p className="text-body-sm text-ink-dim">
+              {t('shell.overlay.signInCard.realm', { realm: prompt.realm })}
+            </p>
+          )}
         </div>
       </div>
       <TextField
@@ -64,26 +69,24 @@ export function SignInCard({ prompt }: { prompt: AuthPrompt }) {
         onChange={(event) => setUsername(event.target.value)}
         autoComplete="off"
         spellCheck={false}
-        placeholder="Username"
-        aria-label="Username"
+        placeholder={t('shell.overlay.signInCard.username')}
+        aria-label={t('shell.overlay.signInCard.username')}
       />
       <TextField
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         type="password"
         autoComplete="off"
-        placeholder="Password"
-        aria-label="Password"
+        placeholder={t('shell.overlay.signInCard.password')}
+        aria-label={t('shell.overlay.signInCard.password')}
       />
-      <p className="text-caption text-ink-faint">
-        Sent to this site only, for this request. Copacetic does not store passwords.
-      </p>
+      <p className="text-caption text-ink-faint">{t('shell.overlay.signInCard.privacy')}</p>
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={cancel}>
-          Cancel
+          {t('shell.overlay.signInCard.cancel')}
         </Button>
         <Button size="sm" variant="primary" type="submit">
-          Sign in
+          {t('shell.overlay.signInCard.submit')}
         </Button>
       </div>
     </form>

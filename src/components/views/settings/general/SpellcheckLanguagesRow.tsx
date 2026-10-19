@@ -10,6 +10,7 @@ import { SettingRow } from '@/components/ui/SettingRow/SettingRow';
 // Utils
 import { ask } from '@/lib/bridge';
 import { updateSettings } from '@/components/views/settings/shared/options';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { SpellcheckChoices } from '@shared/spellcheck';
@@ -42,8 +43,12 @@ export function SpellcheckLanguagesRow({ chosen }: { chosen: readonly string[] }
   if (!choices.canChoose) {
     return (
       <SettingRow
-        label="Languages"
-        help={`macOS checks spelling in the languages set in System Settings${inUse ? `, now ${inUse}` : ''}.`}
+        label={t('settings.general.typing.languages.label')}
+        help={
+          inUse
+            ? t('settings.general.typing.languages.macOsWithCurrent', { languages: inUse })
+            : t('settings.general.typing.languages.macOs')
+        }
       />
     );
   }
@@ -52,25 +57,26 @@ export function SpellcheckLanguagesRow({ chosen }: { chosen: readonly string[] }
     .map((code) => ({ id: code, label: nameOf(code) }))
     .sort((aLanguage, bLanguage) => aLanguage.label.localeCompare(bLanguage.label));
   const [first, second] = chosen;
-  const help = `${inUse ? `Checking in ${inUse}. ` : ''}A dictionary is downloaded from Google the first time a language is used.`;
+  const checkingIn = inUse ? `${t('settings.general.typing.languages.checkingIn', { languages: inUse })} ` : '';
+  const help = `${checkingIn}${t('settings.general.typing.languages.download')}`;
 
   return (
     <SettingRow
-      label="Languages"
+      label={t('settings.general.typing.languages.label')}
       help={help}
       control={
         <>
           <Select
-            label="Spelling language"
-            options={[{ id: SYSTEM, label: "Your system's language" }, ...languages]}
+            label={t('settings.general.typing.languages.first')}
+            options={[{ id: SYSTEM, label: t('settings.general.typing.languages.system') }, ...languages]}
             value={first ?? SYSTEM}
             onChange={(code) => updateSettings({ spellcheckLanguages: languagesAfterChoosing(code, second) })}
           />
           {first && (
             <Select
-              label="Second spelling language"
+              label={t('settings.general.typing.languages.second')}
               options={[
-                { id: NONE, label: 'No second language' },
+                { id: NONE, label: t('settings.general.typing.languages.noSecond') },
                 ...languages.filter((language) => language.id !== first),
               ]}
               value={second ?? NONE}

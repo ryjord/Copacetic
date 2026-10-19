@@ -1,3 +1,5 @@
+import { t } from './i18n/translate';
+
 /**
  * The rules for what the app is allowed to tell you, before any of it is drawn.
  *
@@ -87,12 +89,12 @@ export function dismiss(current: readonly Notice[], id: string): Notice[] {
  * late - the promise Hush makes is only kept if it is also stated.
  */
 export function savedGroupMessage(saved: number, skippedHush: number, folderName: string): string {
-  const pages = `${saved} ${saved === 1 ? 'page' : 'pages'}`;
+  const pages = t('main.notices.pages', { count: saved });
   if (skippedHush === 0) {
-    return `Saved ${pages} to “${folderName}”.`;
+    return t('main.notices.savedGroup', { pages, folderName });
   }
-  const hush = `${skippedHush} Hush ${skippedHush === 1 ? 'tab was' : 'tabs were'}`;
-  return `Saved ${pages} to “${folderName}”. ${hush} left out, because a bookmark is written to disk.`;
+  const hush = t('main.notices.hushTabsWere', { count: skippedHush });
+  return t('main.notices.savedGroupWithHush', { pages, folderName, hush });
 }
 
 /**
@@ -103,11 +105,12 @@ export function savedGroupMessage(saved: number, skippedHush: number, folderName
  * as a failure.
  */
 export function importedMessage(added: number, alreadyHad: number): string {
-  const bookmarks = `${added} ${added === 1 ? 'bookmark' : 'bookmarks'}`;
+  const bookmarks = t('main.notices.bookmarks', { count: added });
   if (alreadyHad === 0) {
-    return `Added ${bookmarks}.`;
+    return t('main.notices.added', { bookmarks });
   }
-  return `Added ${bookmarks}. ${alreadyHad} ${alreadyHad === 1 ? 'was' : 'were'} already saved.`;
+  const alreadySaved = t('main.notices.wereAlreadySaved', { count: alreadyHad });
+  return t('main.notices.addedWithExisting', { bookmarks, alreadySaved });
 }
 
 /**
@@ -120,5 +123,5 @@ export function importedMessage(added: number, alreadyHad: number): string {
 export const OPEN_WITHOUT_ASKING = 10;
 
 export function openFolderMessage(count: number, folderName: string): string {
-  return `“${folderName}” holds ${count} pages. Open them all as a tab group?`;
+  return t('main.notices.openFolder', { folderName, count });
 }

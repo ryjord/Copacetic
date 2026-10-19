@@ -5,6 +5,7 @@ import type { Session } from 'electron';
 import type { ConnectionEntry } from '../../shared/types';
 import { registrableDomainOf } from '../../shared/url';
 import type { BlockingPolicy } from './blocking-policy';
+import { t } from '../../shared/i18n/translate';
 
 /** What a shipped list says about itself, for a pane that has to name it. */
 export interface FilterListInfo {
@@ -222,7 +223,7 @@ export class ContentBlocker {
   ): Promise<{ ok: true; rules: number; lists: FilterListInfo[] } | { ok: false; reason: string }> {
     const sources = this.lists;
     if (sources.length === 0) {
-      return { ok: false, reason: 'There are no lists to update.' };
+      return { ok: false, reason: t('main.filterLists.noLists') };
     }
 
     const fetched: { list: FilterListInfo; text: string }[] = [];
@@ -231,12 +232,12 @@ export class ContentBlocker {
       try {
         text = await fetchText(list.url);
       } catch {
-        return { ok: false, reason: `${list.name} could not be reached. Nothing was changed.` };
+        return { ok: false, reason: t('main.filterLists.unreachable', { name: list.name }) };
       }
       // A truncated list parses and simply blocks less, which is the one
       // failure nobody would notice. Refuse the whole update instead.
       if (text.length < 100_000 || !text.startsWith('[Adblock')) {
-        return { ok: false, reason: `${list.name} did not arrive intact. Nothing was changed.` };
+        return { ok: false, reason: t('main.filterLists.notIntact', { name: list.name }) };
       }
       fetched.push({
         list: {
@@ -265,7 +266,7 @@ export class ContentBlocker {
       renameSync(engineTemp, path.join(directory, 'engine.bin'));
       renameSync(manifestTemp, path.join(directory, 'manifest.json'));
     } catch {
-      return { ok: false, reason: 'The new lists could not be saved. Nothing was changed.' };
+      return { ok: false, reason: t('main.filterLists.saveFailed') };
     }
 
     this.engine = engine;

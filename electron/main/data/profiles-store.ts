@@ -3,6 +3,7 @@ import { FIRST_PROFILE_ID } from '../../shared/partitions';
 import { MAX_PROFILE_NAME, type ProfileSummary } from '../../shared/profiles';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import { PersistedFile, isRecord } from './persistence';
+import { t } from '../../shared/i18n/translate';
 
 interface ProfilesFile {
   profiles: ProfileSummary[];
@@ -10,7 +11,7 @@ interface ProfilesFile {
   openAtQuit: string[];
 }
 
-const FIRST_PROFILE: ProfileSummary = { id: FIRST_PROFILE_ID, name: 'Personal', colour: 'ocean' };
+const FIRST_PROFILE: ProfileSummary = { id: FIRST_PROFILE_ID, name: t('main.profiles.firstName'), colour: 'ocean' };
 
 // Part of a folder name and a partition name, so lowercase hex only: nothing a disk could fold together.
 const PROFILE_ID = /^[0-9a-f]{12}$/;
@@ -76,7 +77,7 @@ export class ProfilesStore {
 }
 
 function nameFrom(value: string): string {
-  return value.trim().slice(0, MAX_PROFILE_NAME) || 'Profile';
+  return value.trim().slice(0, MAX_PROFILE_NAME) || t('main.profiles.fallbackName');
 }
 
 function isGroupColour(value: unknown): value is GroupColourId {
@@ -109,7 +110,7 @@ export function reviveProfiles(raw: unknown): ProfilesFile | null {
     },
     ...others.map((entry) => ({
       id: String(entry.id),
-      name: typeof entry.name === 'string' ? nameFrom(entry.name) : 'Profile',
+      name: typeof entry.name === 'string' ? nameFrom(entry.name) : t('main.profiles.fallbackName'),
       colour: isGroupColour(entry.colour) ? entry.colour : FIRST_PROFILE.colour,
     })),
   ];

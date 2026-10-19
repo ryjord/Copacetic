@@ -12,6 +12,7 @@ import { markQuit, markRunning } from './system/exit-marker';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/url';
+import { t } from '../shared/i18n/translate';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
@@ -30,7 +31,7 @@ if (!app.requestSingleInstanceLock()) {
   start().catch((error: unknown) => {
     console.error('[copacetic] failed to start', error);
     log.error('failed to start', describeError(error));
-    dialog.showErrorBox('Copacetic could not start', sentenceFor(error));
+    dialog.showErrorBox(t('main.startup.couldNotStart'), sentenceFor(error));
     app.exit(1);
   });
 }
@@ -38,7 +39,7 @@ if (!app.requestSingleInstanceLock()) {
 /** What to put in front of a person when something failed before they could act. */
 function sentenceFor(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  return message.trim() || 'Something went wrong, and the diagnostics log says what.';
+  return message.trim() || t('main.startup.generic');
 }
 
 // One for the life of the app; profiles and their windows come and go inside it.
@@ -126,7 +127,7 @@ async function start(): Promise<void> {
     // in the dock, and unusable until it was force-quit.
     void profiles.first.openWindow().catch((error: unknown) => {
       log.error('could not reopen the window', describeError(error));
-      dialog.showErrorBox('Copacetic could not open a window', sentenceFor(error));
+      dialog.showErrorBox(t('main.startup.couldNotOpenWindow'), sentenceFor(error));
     });
   });
 }

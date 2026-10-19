@@ -1,16 +1,24 @@
 'use client';
 
+// Icons
 import { FileText, HelpCircle, Lock, Search, ShieldOff } from 'lucide-react';
-import type { SecurityLevel, TabState } from '@shared/types';
-import { send } from '@/lib/bridge';
-import { cn } from '@/lib/utils';
+
+// Store
 import { useBrowserStore } from '@/store/useBrowserStore';
 
+// Utils
+import { send } from '@/lib/bridge';
+import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
+
+// Types
+import type { SecurityLevel, TabState } from '@shared/types';
+
 const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string; word: string }> = {
-  secure: { icon: Lock, className: 'text-clear', word: 'Encrypted' },
-  insecure: { icon: ShieldOff, className: 'text-caution', word: 'Not secure' },
-  internal: { icon: FileText, className: 'text-ink-dim', word: 'Local' },
-  unknown: { icon: HelpCircle, className: 'text-ink-faint', word: 'Unknown' },
+  secure: { icon: Lock, className: 'text-clear', word: t('shell.securityLevel.secure') },
+  insecure: { icon: ShieldOff, className: 'text-caution', word: t('shell.securityLevel.insecure') },
+  internal: { icon: FileText, className: 'text-ink-dim', word: t('shell.securityLevel.internal') },
+  unknown: { icon: HelpCircle, className: 'text-ink-faint', word: t('shell.securityLevel.unknown') },
 };
 
 /** The one badge in the chrome that is allowed to be coloured, because it is the only one reporting something the user cannot otherwise see. */
@@ -29,7 +37,7 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
     <button
       type="button"
       onClick={() => send((api) => api.chrome.toggleSiteInfo())}
-      aria-label={`Connection: ${style.word}. Show details`}
+      aria-label={t('shell.connectionBadge.label', { level: style.word })}
       aria-expanded={openTabId === tab.id}
       className={cn(
         'flex shrink-0 items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-line-strong',
@@ -37,7 +45,7 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
       )}
     >
       <Icon size={12} />
-      {tab.security.level === 'insecure' && <span className="label text-caution">Not secure</span>}
+      {tab.security.level === 'insecure' && <span className="label text-caution">{style.word}</span>}
     </button>
   );
 }

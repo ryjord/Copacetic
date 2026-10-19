@@ -10,6 +10,7 @@ import { ChevronDown, Inbox, List, Plus } from 'lucide-react';
 import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
 import { getBridge, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import { type BookmarkFolder, countIn, visibleTree, wouldCycle } from '@shared/bookmark-folders';
@@ -102,7 +103,10 @@ export function FolderTree({
     );
 
   return (
-    <nav aria-label="Bookmark folders" className="flex w-60 shrink-0 flex-col gap-0.5 border-r border-line p-3">
+    <nav
+      aria-label={t('views.bookmarks.folderTree.label')}
+      className="flex w-60 shrink-0 flex-col gap-0.5 border-r border-line p-3"
+    >
       <button
         type="button"
         onClick={() => onSelect({ kind: 'all' })}
@@ -111,7 +115,7 @@ export function FolderTree({
         className={cn(rowClasses(selection.kind === 'all', false), 'pl-2')}
       >
         <List size={16} strokeWidth={1.75} className="shrink-0" />
-        <span className="flex-1 truncate text-left">All bookmarks</span>
+        <span className="flex-1 truncate text-left">{t('views.bookmarks.folderTree.all')}</span>
         <span className="shrink-0 text-body-sm text-ink-faint tabular-nums">{bookmarks.length}</span>
       </button>
 
@@ -141,7 +145,11 @@ export function FolderTree({
             {hasChildren ? (
               <button
                 type="button"
-                aria-label={folder.collapsed ? `Expand ${folder.name}` : `Collapse ${folder.name}`}
+                aria-label={
+                  folder.collapsed
+                    ? t('views.bookmarks.folderTree.expand', { name: folder.name })
+                    : t('views.bookmarks.folderTree.collapse', { name: folder.name })
+                }
                 onClick={() => send((api) => api.bookmarkFolders.update(folder.id, { collapsed: !folder.collapsed }))}
                 className="shrink-0 rounded text-ink-faint transition-colors hover:text-ink"
               >
@@ -203,7 +211,7 @@ export function FolderTree({
         className={cn(rowClasses(selection.kind === 'unfiled', false), 'pl-2')}
       >
         <Inbox size={16} strokeWidth={1.75} className="shrink-0" />
-        <span className="flex-1 truncate text-left">Unfiled</span>
+        <span className="flex-1 truncate text-left">{t('views.bookmarks.unfiled')}</span>
         <span className="shrink-0 text-body-sm text-ink-faint tabular-nums">{unfiled}</span>
       </button>
 
@@ -217,7 +225,11 @@ export function FolderTree({
           // colour names what a thing was filed under, and a folder inside
           // Work is still Work.
           const parent = folders.find((candidate) => candidate.id === parentId);
-          const created = await getBridge()?.bookmarkFolders.create('Folder', parent?.colour ?? 'violet', parentId);
+          const created = await getBridge()?.bookmarkFolders.create(
+            t('views.bookmarks.folderTree.newFolderName'),
+            parent?.colour ?? 'violet',
+            parentId,
+          );
           onChanged();
           if (created) {
             setRenamingId(created.id);
@@ -226,7 +238,7 @@ export function FolderTree({
         className="flex h-8 items-center gap-2 rounded-sm px-2 text-body text-ink-dim transition-colors hover:bg-hover hover:text-ink"
       >
         <Plus size={16} strokeWidth={1.75} className="shrink-0" />
-        <span>New folder</span>
+        <span>{t('views.bookmarks.folderTree.newFolder')}</span>
       </button>
     </nav>
   );

@@ -1,6 +1,8 @@
 // Certificates rotate constantly and legitimately. Reporting every change would
 // train people to ignore the one that matters.
 
+import { t } from './i18n/translate';
+
 export interface RememberedCertificate {
   fingerprint: string;
   issuer: string;
@@ -41,15 +43,14 @@ export function compareCertificate(
   if (remembered.isIssuedByKnownRoot && !current.isIssuedByKnownRoot) {
     return {
       change: 'now-locally-trusted',
-      detail:
-        'This site’s certificate now comes from an authority installed on this machine rather than one shipped with your system. Software on this computer, or the network you are on, is reading this connection. That is how a workplace proxy or an antivirus that inspects traffic works. It is also what an attacker would look like.',
+      detail: t('main.certificates.locallyTrusted'),
     };
   }
 
   if (remembered.issuer !== current.issuer) {
     return {
       change: 'issuer-changed',
-      detail: `This site’s certificate is now issued by ${current.issuer} rather than ${remembered.issuer}. Sites change authority for ordinary reasons, so this is worth a glance rather than an alarm.`,
+      detail: t('main.certificates.issuerChanged', { current: current.issuer, remembered: remembered.issuer }),
     };
   }
 

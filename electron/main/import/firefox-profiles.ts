@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Machine } from './chromium-profiles';
 import type { ImportSource } from '../../shared/types';
+import { t } from '../../shared/i18n/translate';
 
 /** A Firefox profile found on disk. As with Chromium, the directory never leaves the main process. */
 export interface FirefoxProfile extends ImportSource {
@@ -61,7 +62,7 @@ export function findFirefoxProfiles(machine: Machine): FirefoxProfile[] {
     return sections
       .filter((section) => section.Path)
       .map((section) => ({
-        name: section.Name || 'Default',
+        name: section.Name || t('main.import.firefox.defaultProfile'),
         directory: section.IsRelative === '0' ? (section.Path ?? '') : path.join(root, section.Path ?? ''),
       }))
       .filter((profile) => existsSync(path.join(profile.directory, 'places.sqlite')));

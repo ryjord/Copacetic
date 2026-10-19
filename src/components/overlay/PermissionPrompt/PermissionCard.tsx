@@ -23,6 +23,7 @@ import {
 
 // Utils
 import { send } from '@/lib/bridge';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { PermissionKind, PermissionPrompt } from '@shared/types';
@@ -55,23 +56,28 @@ export function PermissionCard({ prompt }: { prompt: PermissionPrompt }) {
 
   return (
     <section
-      aria-label="Permission request"
+      aria-label={t('shell.overlay.permissionCard.label')}
       className="animate-pop flex w-90 flex-col gap-3 rounded-lg border border-line bg-raised p-4 shadow-popover"
     >
       <div className="flex items-start gap-3">
         <Icon size={18} strokeWidth={1.75} className="mt-px shrink-0 text-ink-dim" aria-hidden />
         <p className="min-w-0 text-body text-ink">
-          <span className="break-all font-medium">{hostFrom(prompt.origin)}</span> wants to {prompt.description}.
+          <span className="break-all font-medium">{hostFrom(prompt.origin)}</span>{' '}
+          {t('shell.overlay.permissionCard.wantsTo', { description: prompt.description })}
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <Checkbox checked={shouldRemember} onChange={setShouldRemember} label="Remember for this site" />
+        <Checkbox
+          checked={shouldRemember}
+          onChange={setShouldRemember}
+          label={t('shell.overlay.permissionCard.remember')}
+        />
         <div className="ml-auto flex gap-2">
           <Button size="sm" variant="ghost" onClick={() => respond('deny')}>
-            Block
+            {t('shell.overlay.permissionCard.block')}
           </Button>
           <Button size="sm" onClick={() => respond('allow')}>
-            Allow
+            {t('shell.overlay.permissionCard.allow')}
           </Button>
         </div>
       </div>

@@ -12,6 +12,7 @@ import { ChevronDown, CloudOff, RotateCw, ShieldAlert, TriangleAlert } from 'luc
 // Utils
 import { send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
+import { t } from '@shared/i18n/translate';
 
 // Types
 import type { PageError } from '@shared/types';
@@ -36,31 +37,26 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
         <h1 className="text-heading font-normal text-ink">{headlineFor(error)}</h1>
         <p className="text-body text-ink-dim">{error.description}</p>
         {isCertificateProblem && !error.canAcceptCertificate && (
-          <p className="text-body text-ink-dim">Copacetic will not open this site with this certificate.</p>
+          <p className="text-body text-ink-dim">{t('views.error.certificateRefused')}</p>
         )}
-        {error.plainUrl && (
-          <p className="text-body text-ink-dim">
-            This site did not answer over HTTPS. The HTTP version is not encrypted, so anyone on your network can read
-            or change it.
-          </p>
-        )}
+        {error.plainUrl && <p className="text-body text-ink-dim">{t('views.error.plainHttp')}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {!isCertificateProblem && (
             <Button variant="primary" onClick={() => send((api) => api.tabs.reload(tabId))}>
               <RotateCw size={14} aria-hidden />
-              Try again
+              {t('views.error.tryAgain')}
             </Button>
           )}
           {error.plainUrl && (
             <Button variant="danger" onClick={() => send((api) => api.tabs.continueOverHttp(tabId))}>
-              Continue over HTTP
+              {t('views.error.continueOverHttp')}
             </Button>
           )}
           <Button
             variant={isCertificateProblem ? 'primary' : 'ghost'}
             onClick={() => send((api) => api.tabs.navigate(tabId, 'copacetic://start'))}
           >
-            Back to start
+            {t('views.error.backToStart')}
           </Button>
         </div>
         <div className="mt-2 border-t border-line pt-3">
@@ -75,25 +71,22 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
               className={cn('transition-transform', !isShowingDetails && '-rotate-90')}
               aria-hidden
             />
-            Technical details
+            {t('views.error.technicalDetails')}
           </button>
           {isShowingDetails && (
             <div className="mt-3 flex flex-col gap-3">
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-sm">
-                <dt className="text-ink-faint">Error</dt>
+                <dt className="text-ink-faint">{t('views.error.errorName')}</dt>
                 <dd className="min-w-0 font-mono text-ink-dim select-text">{error.name}</dd>
-                <dt className="text-ink-faint">Address</dt>
+                <dt className="text-ink-faint">{t('views.error.address')}</dt>
                 <dd className="min-w-0 break-all font-mono text-ink-dim select-text">{error.url}</dd>
               </dl>
               {/* Behind the disclosure on purpose: the way past a refused certificate should take a deliberate step. */}
               {error.canAcceptCertificate && (
                 <div className="flex flex-col items-start gap-3 rounded-md border border-line-strong p-3">
-                  <p className="text-body-sm text-ink-dim">
-                    If you continue, this certificate is accepted for {host} until Copacetic closes. Anyone able to
-                    intercept the connection could read or change what you send.
-                  </p>
+                  <p className="text-body-sm text-ink-dim">{t('views.error.acceptCertificate', { host })}</p>
                   <Button size="sm" variant="danger" onClick={() => send((api) => api.tabs.acceptCertificate(tabId))}>
-                    Continue to {host}
+                    {t('views.error.continueTo', { host })}
                   </Button>
                 </div>
               )}
@@ -107,12 +100,12 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
 
 function headlineFor(error: PageError): string {
   if (error.name.startsWith('RENDERER_')) {
-    return 'This page stopped responding';
+    return t('views.error.headline.crashed');
   }
   if (error.name.startsWith('ERR_CERT')) {
-    return 'Copacetic could not verify this site';
+    return t('views.error.headline.certificate');
   }
-  return 'This page did not load';
+  return t('views.error.headline.failed');
 }
 
 function hostFrom(url: string): string {

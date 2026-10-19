@@ -3,6 +3,7 @@
 // is showing you the least interesting one.
 
 import { hostOf, registrableDomainOf } from './url';
+import { t } from './i18n/translate';
 
 export interface Provenance {
   /** Every URL the download passed through, first to last. */
@@ -47,10 +48,10 @@ export function describeChain(urlChain: readonly string[]): string {
   const between = hosts.length - 2;
 
   if (!crossedSites(urlChain)) {
-    return `Redirected within ${registrableDomainOf(first) ?? first}.`;
+    return t('main.downloads.provenance.redirectedWithin', { site: registrableDomainOf(first) ?? first });
   }
   if (between <= 0) {
-    return `You asked ${first} and the file came from ${last}.`;
+    return t('main.downloads.provenance.cameFrom', { first, last });
   }
-  return `You asked ${first} and the file came from ${last}, by way of ${between} other ${between === 1 ? 'host' : 'hosts'}.`;
+  return t('main.downloads.provenance.cameFromVia', { first, last, count: between });
 }

@@ -4,6 +4,7 @@ import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asString, isRecord, newId } from './persistence';
+import { t } from '../../shared/i18n/translate';
 
 const MAX_NAME = 60;
 const LEGACY_FILE = 'bookmark-folders.json';
@@ -36,7 +37,7 @@ export class BookmarkFoldersStore {
     const parent = parentId && this.find(parentId) ? parentId : null;
     const folder: BookmarkFolder = {
       id: newId(),
-      name: name.trim().slice(0, MAX_NAME) || 'Folder',
+      name: name.trim().slice(0, MAX_NAME) || t('main.import.bookmarks.unnamedFolder'),
       colour,
       parentId: parent,
       collapsed: false,
@@ -134,7 +135,7 @@ export function reviveFolders(raw: unknown): BookmarkFolder[] | null {
     return [
       {
         id,
-        name: asString(item.name).trim().slice(0, MAX_NAME) || 'Folder',
+        name: asString(item.name).trim().slice(0, MAX_NAME) || t('main.import.bookmarks.unnamedFolder'),
         // An unknown colour is a colour this build does not have. Falling back
         // keeps the folder; refusing it would lose what someone filed.
         colour: (colours.has(colour) ? colour : GROUP_COLOURS[0].id) as GroupColourId,
