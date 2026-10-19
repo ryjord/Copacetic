@@ -236,6 +236,33 @@ describe('what forgetting leaves on disk', () => {
     expect(store.listHistory().total).toBe(1);
   });
 
+  /*
+   * The search index holds three-letter pieces rather than whole addresses, so
+   * looking for the address cannot see what the index kept. A name made of
+   * pieces nothing else has is looked for piece by piece instead.
+   */
+  it('leaves none of the pieces the search index kept of it', () => {
+    const store = openStore();
+    store.recordVisit('https://qzvkxw.example/jqxzvq', 'Wbqxjz');
+    store.recordVisit('https://news.example.org/', 'News');
+    const pieces = ['qzv', 'zvk', 'jqx', 'bqx'];
+    expect(pieces.some((piece) => onDisk().includes(piece))).toBe(true);
+
+    store.forgetSite('qzvkxw.example');
+    expect(pieces.filter((piece) => onDisk().includes(piece))).toEqual([]);
+  });
+
+  // Securely deleting from a trigram index rewrote every row sharing a piece with the one removed: 3.4s here.
+  it('forgets a site in a full history without stalling the browser', () => {
+    const store = openStore();
+    Array.from({ length: 10_000 }, (_unused, index) =>
+      store.recordVisit(`https://site-${index % 3000}.example.com/article-${index}`, `Article ${index}`),
+    );
+    const start = performance.now();
+    store.forgetSite('site-77.example.com');
+    expect(performance.now() - start).toBeLessThan(1_000);
+  });
+
   it('leaves no trace of a cleared history', () => {
     const store = openStore();
     store.recordVisit('https://private-matter.example/', 'Private');

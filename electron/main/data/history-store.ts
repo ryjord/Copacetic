@@ -174,8 +174,13 @@ export class HistoryStore {
       .run(MAX_HISTORY_ENTRIES);
   }
 
-  /** Something was forgotten, so the old copies in the write-ahead log go too, not only the row. */
+  /**
+   * Something was forgotten, so its traces go too, not only the row: the search
+   * index is merged, which drops the deleted entries rather than marking them,
+   * and the old copies in the write-ahead log are truncated away.
+   */
   private scrub(): void {
+    this.database.exec("INSERT INTO history_search (history_search) VALUES ('optimize')");
     this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   }
 

@@ -112,6 +112,15 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 6,
+    sql: `
+      -- The index's own secure delete rewrites every row sharing a trigram with the one removed, and with
+      -- trigrams that is all of them: 3.4s to forget a site at 10,000 pages. Forgetting optimises the index
+      -- instead, which drops deleted entries in one pass, and secure_delete overwrites the pages that frees.
+      INSERT INTO history_search (history_search, rank) VALUES ('secure-delete', 0);
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];
