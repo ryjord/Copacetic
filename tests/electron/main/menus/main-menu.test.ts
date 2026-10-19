@@ -14,6 +14,11 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
     tabs: { hasClosedTabs: () => hasClosedTabs },
     openFind: () => {},
     openSurface: (surface: string) => opened.push(surface),
+    profile: {
+      id: 'default',
+      allProfiles: () => [{ id: 'default', name: 'Personal', colour: 'ocean' }],
+      openWindowIn: async () => {},
+    },
   } as never;
 }
 

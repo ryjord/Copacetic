@@ -1,3 +1,4 @@
+import type { ProfileSummary } from './profiles';
 import type { DnsMode } from './dns';
 import type { TabGroup } from './tab-groups';
 
@@ -465,6 +466,10 @@ export interface BrowserState {
   update: UpdateState;
   /** The site information card, open for one tab, or null. */
   siteInfo: SiteInfoState | null;
+  /** The profile this window belongs to. */
+  profile: ProfileSummary;
+  /** Every profile, to switch between and to manage. */
+  profiles: ProfileSummary[];
 }
 
 export interface SiteInfoState {

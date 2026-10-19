@@ -150,6 +150,11 @@ export const CHANNELS = {
   'vault.lock': 'vault:lock',
   'vault.facts': 'vault:facts',
 
+  'profiles.create': 'profile:create',
+  'profiles.update': 'profile:update',
+  'profiles.remove': 'profile:remove',
+  'profiles.openWindow': 'profile:open-window',
+  'profiles.openMenu': 'profile:open-menu',
   'groups.create': 'group:create',
   'groups.update': 'group:update',
   'groups.remove': 'group:remove',

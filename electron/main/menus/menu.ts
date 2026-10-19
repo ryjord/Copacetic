@@ -41,6 +41,17 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         accelerator: 'CmdOrCtrl+N',
         click: () => void (profiles.focused()?.profile ?? profiles.first).openWindow(),
       },
+      {
+        label: 'New window in profile',
+        submenu: [
+          ...profiles.summaries().map((summary): MenuItemConstructorOptions => ({
+            label: summary.name,
+            click: () => void profiles.openWindow(summary.id),
+          })),
+          { type: 'separator' },
+          { label: 'Manage profiles…', click: () => inWindow((browser) => browser.openSurface('settings')) },
+        ],
+      },
       { label: 'New tab', accelerator: 'CmdOrCtrl+T', click: () => inWindow((browser) => browser.commands.newTab()) },
       {
         label: 'New Hush tab',

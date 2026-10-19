@@ -19,7 +19,7 @@ import type { UpdateManager } from '../system/updates';
 import { log } from '../system/diagnostics';
 import { Wallpaper } from '../system/wallpaper';
 import { isDevelopment } from './env';
-import type { AppWideSetting } from '../../shared/profiles';
+import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
 
@@ -31,6 +31,8 @@ export interface ProfileHost {
   updateAppSettings(patch: Partial<Pick<Settings, AppWideSetting>>): void;
   /** A window of this profile opened or closed, which decides what the next launch reopens. */
   windowsChanged(): void;
+  summaries(): ProfileSummary[];
+  openWindowIn(profileId: string): Promise<void>;
 }
 
 /**
@@ -142,6 +144,25 @@ export class Profile {
     this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details));
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
+  }
+
+  summary(): ProfileSummary {
+    return (
+      this.allProfiles().find((profile) => profile.id === this.id) ?? {
+        id: this.id,
+        name: 'Profile',
+        colour: 'ocean',
+      }
+    );
+  }
+
+  allProfiles(): ProfileSummary[] {
+    return this.host.summaries();
+  }
+
+  /** A window of another profile, or a new one of this. Asked from a window, which knows only its own profile. */
+  openWindowIn(profileId: string): Promise<void> {
+    return this.host.openWindowIn(profileId);
   }
 
   /** This profile's settings, with the app-wide ones as the app has them. */

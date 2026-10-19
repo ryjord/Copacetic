@@ -214,6 +214,8 @@ export class Browser {
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
       siteInfo: this.siteInfo,
+      profile: this.profile.summary(),
+      profiles: this.profile.allProfiles(),
     };
   }
 

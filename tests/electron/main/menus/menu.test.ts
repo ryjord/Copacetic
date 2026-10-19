@@ -75,6 +75,8 @@ const profileWithWindow = () =>
     focused: () => recorder(''),
     focusedOrNew: async () => recorder(''),
     first: recorder('profile'),
+    summaries: () => [{ id: 'default', name: 'Personal', colour: 'ocean' }],
+    openWindow: async () => recorder(''),
   }) as unknown as Parameters<typeof buildApplicationMenu>[0];
 buildApplicationMenu(profileWithWindow());
 const items = everyItem(captured);

@@ -32,6 +32,8 @@ export class Profiles {
   private readonly host: ProfileHost;
   private readonly stopWatchingAppearance: () => void;
   private isQuitting = false;
+  /** Told when a profile is added, renamed or removed, so the application menu can be built again. */
+  private onListChanged: () => void = () => {};
 
   constructor() {
     const appData = app.getPath('userData');
@@ -59,6 +61,12 @@ export class Profiles {
       },
       updateAppSettings: (patch) => this.updateAppSettings(patch),
       windowsChanged: () => this.rememberWhatIsOpen(),
+      summaries: () => this.summaries(),
+      openWindowIn: async (profileId) => {
+        if (this.list.find(profileId)) {
+          await this.openWindow(profileId);
+        }
+      },
     };
     // Before any window exists, so each is created in the colour it will be painted.
     applyAppearance(this.first.store.getSettings().appearance);
@@ -82,6 +90,10 @@ export class Profiles {
     const opened = new Profile(id, profileDirectory(app.getPath('userData'), id), this.host);
     this.open.set(id, opened);
     return opened;
+  }
+
+  whenListChanges(listener: () => void): void {
+    this.onListChanged = listener;
   }
 
   summaries(): ProfileSummary[] {
@@ -145,13 +157,13 @@ export class Profiles {
 
   create(name: string, colour: GroupColourId): ProfileSummary {
     const created = this.list.add(name, colour);
-    this.scheduleStatePush();
+    this.listChanged();
     return created;
   }
 
   update(id: string, changes: { name?: string; colour?: GroupColourId }): void {
     this.list.update(id, changes);
-    this.scheduleStatePush();
+    this.listChanged();
   }
 
   /**
@@ -176,8 +188,13 @@ export class Profiles {
       }
     }
     this.list.remove(id);
-    this.scheduleStatePush();
+    this.listChanged();
     return true;
+  }
+
+  private listChanged(): void {
+    this.onListChanged();
+    this.scheduleStatePush();
   }
 
   // -------------------------------------------------------------- settings

@@ -1,5 +1,6 @@
 import { Menu, type MenuItemConstructorOptions } from 'electron';
 import type { Browser } from '../app/browser';
+import { profileMenuItems } from './profile-menu';
 
 /** Everything the toolbar no longer gives its own button, in the order people look for it. */
 export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
@@ -10,6 +11,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     { label: 'New window', ...shortcut('CmdOrCtrl+N'), click: () => browser.openNewWindow() },
     { label: 'New tab', ...shortcut('CmdOrCtrl+T'), click: () => browser.commands.newTab() },
     { label: 'New Hush tab', ...shortcut('CmdOrCtrl+Shift+N'), click: () => browser.commands.newHushTab() },
+    { label: 'Profiles', submenu: profileMenuItems(browser) },
     {
       label: 'Reopen closed tab',
       ...shortcut('CmdOrCtrl+Shift+T'),

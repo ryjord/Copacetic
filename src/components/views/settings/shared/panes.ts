@@ -8,6 +8,7 @@ import { DataPane } from '@/components/views/settings/data/DataPane';
 import { GeneralPane } from '@/components/views/settings/general/GeneralPane';
 import { PasswordsPane } from '@/components/views/settings/passwords/PasswordsPane';
 import { PrivacyPane } from '@/components/views/settings/privacy/PrivacyPane';
+import { ProfilesPane } from '@/components/views/settings/profiles/ProfilesPane';
 import { ShortcutsPane } from '@/components/views/settings/shortcuts/ShortcutsPane';
 import { SitesPane } from '@/components/views/settings/sites/SitesPane';
 import { TransparencyPane } from '@/components/views/settings/transparency/TransparencyPane';
@@ -26,6 +27,7 @@ import {
   Palette,
   Settings2,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 
 // Types
@@ -116,6 +118,13 @@ export const SETTINGS_PANES = [
       'Trackers allowed',
       'Exceptions',
     ],
+  },
+  {
+    id: 'profiles',
+    label: 'Profiles',
+    icon: Users,
+    Component: ProfilesPane,
+    terms: ['Profiles', 'People', 'Add profile', 'Another person', 'Work profile', 'Remove profile'],
   },
   {
     id: 'passwords',

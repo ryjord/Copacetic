@@ -45,6 +45,8 @@ const EMPTY_STATE: BrowserState = {
     lastCheckedAt: null,
     releasesUrl: 'https://github.com/ryjord/Copacetic/releases/latest',
   },
+  profile: { id: 'default', name: 'Personal', colour: 'ocean' },
+  profiles: [],
 };
 
 export const useBrowserStore = create<BrowserStoreState>((set, get) => ({

@@ -5,6 +5,7 @@ import type { Notice } from './notices';
 import type { BrowserStatePatch } from './state-slices';
 import type { SuggestionView } from './suggestion-view';
 import type { GroupColourId } from './tab-groups';
+import type { ProfileSummary } from './profiles';
 import type {
   AppInfo,
   DefaultBrowserStatus,
@@ -226,6 +227,15 @@ export interface CopaceticApi {
     facts(): Promise<VaultFacts>;
   };
 
+  profiles: {
+    create(name: string, colour: GroupColourId): Promise<ProfileSummary>;
+    update(id: string, changes: { name?: string; colour?: GroupColourId }): Promise<void>;
+    /** Removes a profile and everything it kept. Resolves false for the first profile, or the one asking. */
+    remove(id: string): Promise<boolean>;
+    openWindow(id: string): Promise<void>;
+    /** The profile menu, opened from the toolbar at this point. */
+    openMenu(x: number, y: number): Promise<void>;
+  };
   groups: {
     /** Makes a group and puts a tab in it. Returns the new group's id. */
     create(tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): Promise<string>;

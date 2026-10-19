@@ -65,6 +65,8 @@ const state = (downloads: DownloadState[]): BrowserState => ({
   tabOrder: ['one', 'two', 'three'],
   activeTabId: 'one',
   siteInfo: null,
+  profile: { id: 'default', name: 'Personal', colour: 'ocean' },
+  profiles: [],
   downloads,
   find: { isOpen: false, query: '', activeMatch: 0, totalMatches: 0, matchCase: false },
   permissionPrompts: [],

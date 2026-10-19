@@ -14,6 +14,7 @@ import { selectActiveDownloadCount, selectDownloadProgress, useBrowserStore } fr
 import { send } from '@/lib/bridge';
 
 // Types
+import { colourOf } from '@shared/tab-groups';
 import type { TabState } from '@shared/types';
 
 const ICON = { size: 16, strokeWidth: 1.75 } as const;
@@ -47,6 +48,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       <div className="mx-1 flex min-w-0 flex-1">
         <Omnibox tab={tab} />
       </div>
+      <ProfileChip />
       <DownloadsButton />
       <IconButton
         label="Menu"
@@ -58,6 +60,30 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
         <Menu {...ICON} />
       </IconButton>
     </div>
+  );
+}
+
+/** Which profile this window is, shown once there is more than one to confuse it with. */
+function ProfileChip() {
+  const profile = useBrowserStore((state) => state.profile);
+  const profileCount = useBrowserStore((state) => state.profiles.length);
+  if (profileCount < 2) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      aria-label={`Profile: ${profile.name}`}
+      title="Switch profile"
+      onClick={(event) => {
+        const box = event.currentTarget.getBoundingClientRect();
+        send((api) => api.profiles.openMenu(Math.round(box.left), Math.round(box.bottom + 4)));
+      }}
+      className="no-drag flex h-7 max-w-36 shrink-0 items-center gap-1.5 rounded-sm px-2 text-body-sm text-ink-dim hover:bg-hover hover:text-ink"
+    >
+      <span className="size-2 shrink-0 rounded-full" style={{ background: colourOf(profile.colour) }} />
+      <span className="truncate">{profile.name}</span>
+    </button>
   );
 }
 

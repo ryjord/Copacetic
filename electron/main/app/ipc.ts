@@ -21,6 +21,7 @@ import {
   showTabContextMenu,
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
+import { showProfileMenu } from '../menus/profile-menu';
 import { toSuggestionView } from '../../shared/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
@@ -300,6 +301,24 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('wallpaper.staged', (browser) => browser.wallpaper.stagedImage());
   handle('wallpaper.keep', (browser) => thenPush(browser, browser.wallpaper.commitStagedChanges()));
   handle('wallpaper.remove', (browser) => thenPush(browser, browser.wallpaper.stageRemoval()));
+
+  // ---------------------------------------------------------------- profiles
+
+  handle('profiles.create', (_browser, _event, name, colour) =>
+    profiles.create(asString(name), asGroupColour(colour)),
+  );
+  handle('profiles.update', (_browser, _event, id, changes) => {
+    const { name, colour } = asGroupChanges(changes);
+    profiles.update(asString(id), { name, colour });
+  });
+  // Never the profile of the window asking: removing it would close the window mid-answer.
+  handle('profiles.remove', (browser, _event, id) =>
+    asString(id) === browser.profile.id ? false : profiles.remove(asString(id)),
+  );
+  handle('profiles.openWindow', async (browser, _event, id) => browser.profile.openWindowIn(asString(id)));
+  handle('profiles.openMenu', (browser, _event, x, y) =>
+    showProfileMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
+  );
 
   // ------------------------------------------------------------------ groups
 

@@ -102,6 +102,8 @@ async function start(): Promise<void> {
   profiles = new Profiles();
   registerIpcHandlers(profiles);
   installApplicationMenu(profiles);
+  // The menu lists the profiles, so it is built again when they change.
+  profiles.whenListChanges(() => profiles && installApplicationMenu(profiles));
   profiles.start();
   await profiles.restoreWindows(didLastRunEndBadly);
 
