@@ -66,6 +66,8 @@ const NO_KEYCHAIN = t('main.vault.keychain.none');
 export class Vault {
   /** Sites and usernames already opened, keyed by what was sealed: the list shows them, so they are not secret here. */
   private readonly opened = new Map<string, Identity>();
+  /** Ciphertexts that have opened on this machine; only positives, so a keychain that comes back is noticed. */
+  private readonly knownReadable = new Set<string>();
 
   constructor(
     private readonly secrets: SecretStore,
@@ -290,7 +292,15 @@ export class Vault {
 
   /** Whether the secret decrypts, which is a different question from whether the vault is unlocked. */
   private canRead(entry: StoredEntry): boolean {
-    return this.decryptEntry(entry) !== null && this.identityOf(entry) !== null;
+    // Asked for every entry on every list, so a secret that opened once is not decrypted again to say so.
+    if (this.knownReadable.has(entry.secret)) {
+      return true;
+    }
+    const isReadable = this.decryptEntry(entry) !== null && this.identityOf(entry) !== null;
+    if (isReadable) {
+      this.knownReadable.add(entry.secret);
+    }
+    return isReadable;
   }
 
   /** The site and username, opened once and remembered, or null where this machine cannot open them. */
