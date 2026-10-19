@@ -263,6 +263,7 @@ function fakeDownloadSession() {
       item,
       // What the save dialog would have done, for a download that asked.
       choose: (chosen: string) => (savePath = chosen),
+      update: () => handlers.updated?.({}, 'progressing'),
       finish: (state: 'completed' | 'interrupted' | 'cancelled') => handlers.done?.({}, state),
     };
   };
@@ -338,6 +339,26 @@ describe('a file that runs when opened', () => {
     expect(item.pause).toHaveBeenCalled();
     expect(asked).toEqual(['setup.exe']);
     expect(manager.list()[0]?.isHeld).toBe(true);
+  });
+
+  // Asked where to save, a person could rename notes.txt to notes.exe in the dialog and land it unheld.
+  it('is held when it is renamed into one in the save dialog', () => {
+    const { manager, offer, asked } = managerFor({ downloadDirectory: null, askWhereToSave: true });
+    const download = offer('notes.txt');
+    expect(manager.list()[0]?.isHeld).toBe(false);
+    download.choose(path.join(dir, 'notes.exe'));
+    download.update();
+    expect(download.item.pause).toHaveBeenCalled();
+    expect(manager.list()[0]).toMatchObject({ isHeld: true, filename: 'notes.exe' });
+    expect(asked).toEqual(['notes.exe']);
+  });
+
+  it('does not ask again about a file already kept', () => {
+    const { manager, offer, asked } = managerFor(ordinary);
+    const download = offer('setup.exe');
+    manager.keep(manager.list()[0]!.id);
+    download.update();
+    expect(asked).toEqual(['setup.exe']);
   });
 
   // Resuming past the question would make the question decoration.

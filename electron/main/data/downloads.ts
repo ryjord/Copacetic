@@ -44,6 +44,8 @@ interface LiveDownload {
 }
 
 export class DownloadManager {
+  /** Downloads someone chose to keep, so a later look at the same file does not ask again. */
+  private readonly kept = new Set<string>();
   private readonly live = new Map<string, LiveDownload>();
   /**
    * Downloads from a Hush tab, held here and never written.
@@ -185,6 +187,19 @@ export class DownloadManager {
           return;
         }
 
+        // The name picked in the save dialog is judged again: renaming a file there must not take it past the hold.
+        const current = this.find(id);
+        const chosen = current ? this.chosenPath(item, current).savePath : undefined;
+        if (current && chosen && !current.isHeld && !this.kept.has(id) && isRunnableFile(chosen)) {
+          item.pause();
+          this.patch(id, (entry) => ({ ...entry, savePath: chosen, filename: path.basename(chosen), isHeld: true }));
+          const held = this.find(id);
+          if (held) {
+            this.askToKeep(held);
+          }
+          return;
+        }
+
         const now = Date.now();
         const received = item.getReceivedBytes();
         const status = state === 'interrupted' ? 'interrupted' : item.isPaused() ? 'paused' : 'progressing';
@@ -273,6 +288,7 @@ export class DownloadManager {
     if (!entry?.isHeld) {
       return;
     }
+    this.kept.add(id);
     this.patch(id, (current) => ({ ...current, isHeld: false }));
     this.live.get(id)?.item.resume();
   }
