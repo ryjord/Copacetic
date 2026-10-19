@@ -13,7 +13,7 @@ export function TextField({ className, ...props }: TextFieldProps) {
     <input
       className={cn(
         'no-drag h-8 w-full min-w-0 rounded-sm border border-line-strong bg-raised px-2.5 text-body text-ink',
-        'placeholder:text-ink-faint focus:border-ink-faint focus:outline-none disabled:opacity-40',
+        'placeholder:text-ink-faint focus:border-accent focus:outline-none disabled:opacity-40',
         className,
       )}
       {...props}

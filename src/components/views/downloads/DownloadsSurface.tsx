@@ -184,7 +184,7 @@ function DownloadRow({ download, onNotice }: { download: DownloadState; onNotice
           {!isActive && (
             <IconButton
               label={t('views.downloads.remove')}
-              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
               onClick={() => send((api) => api.downloads.remove(download.id))}
             >
               <X size={16} />
