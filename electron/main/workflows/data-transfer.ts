@@ -1,7 +1,5 @@
 import type { BrowserWindow } from 'electron';
-import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import path from 'node:path';
 import { bookmarksFromHtml } from '../../shared/bookmark-import';
 import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
 import type { ExportKind, ImportSource } from '../../shared/types';
@@ -9,9 +7,8 @@ import { fileStamp, readChosenFile, writeChosenFile } from '../system/file-dialo
 import type { VaultSession } from '../vault/vault-session';
 import { bookmarksToHtml, historyToJson } from '../data/export';
 import { MAX_HISTORY_AGE_MS, MAX_HISTORY_ENTRIES } from '../data/history-store';
-import { bookmarksFromChromium } from '../import/chromium-bookmarks';
-import { readChromiumHistory } from '../import/chromium-history';
-import { type Machine, findChromiumProfiles } from '../import/chromium-profiles';
+import { findReadableProfiles } from '../import/browser-profiles';
+import type { Machine } from '../import/chromium-profiles';
 import { describeError, log } from '../system/diagnostics';
 import type { BrowserStore } from '../data/store';
 import type { BookmarkCommands } from './bookmarks';
@@ -97,43 +94,41 @@ export class DataTransfer {
 
   /** The renderer is told names and ids only; where each profile lives stays here. */
   importSources(): ImportSource[] {
-    return findChromiumProfiles(THIS_MACHINE()).map((profile) => ({ id: profile.id, label: profile.label }));
+    return findReadableProfiles(THIS_MACHINE()).map((profile) => ({ id: profile.id, label: profile.label }));
   }
 
   /** Bookmarks and the history this browser keeps, from another browser's profile. Passwords stay where they are. */
   importFromBrowser(sourceId: string): string {
-    const source = findChromiumProfiles(THIS_MACHINE()).find((profile) => profile.id === sourceId);
+    const source = findReadableProfiles(THIS_MACHINE()).find((profile) => profile.id === sourceId);
     if (!source) {
       return 'That browser is no longer on this computer.';
     }
 
     const parts: string[] = [];
-    const bookmarksFile = path.join(source.directory, 'Bookmarks');
-    if (existsSync(bookmarksFile)) {
-      try {
-        const { bookmarks } = bookmarksFromChromium(JSON.parse(readFileSync(bookmarksFile, 'utf8')));
-        const { added, alreadyHad } = this.deps.store.importBookmarks(bookmarks, `Imported from ${source.label}`);
+    try {
+      const read = source.readBookmarks();
+      if (read) {
+        const { added, alreadyHad } = this.deps.store.importBookmarks(
+          read.bookmarks,
+          `Imported from ${source.label}`,
+        );
         const counted = `${added} ${added === 1 ? 'bookmark' : 'bookmarks'}`;
         parts.push(alreadyHad > 0 ? `${counted} (${alreadyHad} you already had)` : counted);
-      } catch (error) {
-        log.warn('could not read bookmarks to import', describeError(error));
-        parts.push('no bookmarks, as its bookmarks file could not be read');
       }
+    } catch (error) {
+      log.warn('could not read bookmarks to import', describeError(error));
+      parts.push('no bookmarks, as its bookmarks could not be read');
     }
 
-    const historyFile = path.join(source.directory, 'History');
-    if (existsSync(historyFile)) {
-      try {
-        const visits = readChromiumHistory(historyFile, {
-          since: Date.now() - MAX_HISTORY_AGE_MS,
-          limit: MAX_HISTORY_ENTRIES,
-        });
+    try {
+      const visits = source.readHistory({ since: Date.now() - MAX_HISTORY_AGE_MS, limit: MAX_HISTORY_ENTRIES });
+      if (visits) {
         const { added } = this.deps.store.importHistory(visits);
         parts.push(`${added} ${added === 1 ? 'page' : 'pages'} of history`);
-      } catch (error) {
-        log.warn('could not read history to import', describeError(error));
-        parts.push('no history, as its history could not be read');
       }
+    } catch (error) {
+      log.warn('could not read history to import', describeError(error));
+      parts.push('no history, as its history could not be read');
     }
 
     this.deps.bookmarks.changed();

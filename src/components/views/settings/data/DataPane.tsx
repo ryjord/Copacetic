@@ -110,7 +110,7 @@ export function DataPane() {
       <SettingGroup title="Import">
         <SettingRow
           label="Bookmarks"
-          help="From the HTML file Chrome, Firefox, Safari or Edge exports."
+          help="From the file any browser exports, folders and all. In Safari, choose File, then Export Bookmarks."
           control={
             <Button
               size="sm"
@@ -128,7 +128,7 @@ export function DataPane() {
           help={
             chosenSource
               ? 'Bookmarks, and the last 90 days of history. Passwords are left where they are.'
-              : 'No Chrome, Brave, Edge, Vivaldi or Arc profile was found on this computer.'
+              : 'No Chrome, Brave, Edge, Vivaldi, Arc or Firefox profile was found on this computer.'
           }
           control={
             chosenSource && (
