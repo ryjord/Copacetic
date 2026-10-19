@@ -24,7 +24,7 @@ import {
   resolveOmniboxInput,
 } from '../../shared/browsing/url';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
-import { fetchFaviconDataUrl } from './tab-favicon';
+import { fetchFaviconDataUrl, fetchImageDataUrl } from './tab-favicon';
 import {
   DEFAULT_INSETS,
   type ContentBounds,
@@ -517,6 +517,31 @@ export class TabManager {
       .getAppMetrics()
       .map((metric) => ({ processId: metric.pid, kilobytes: metric.memory.workingSetSize }));
     return memoryByTab(tabs, processes);
+  }
+
+  /**
+   * The images an article names, fetched in the tab's own session so blocking
+   * and its cookies apply as they did on the page; one that fails is left out.
+   */
+  async readerImages(id: TabId, urls: readonly string[]): Promise<Record<string, string>> {
+    const tab = this.tabs.get(id);
+    if (!tab) {
+      return {};
+    }
+    const session = this.prepareSession(tab.partition);
+    const wanted = [...new Set(urls)].slice(0, MAX_READER_IMAGES);
+    const fetched = await Promise.all(
+      wanted.map(async (url) => {
+        const dataUrl = await fetchImageDataUrl(
+          tab.url,
+          url,
+          (target, options) => session.fetch(target, options),
+          MAX_READER_IMAGE_BYTES,
+        );
+        return dataUrl ? [[url, dataUrl] as const] : [];
+      }),
+    );
+    return Object.fromEntries(fetched.flat());
   }
 
   /** The page's document for reader view, or null when there is no page to read. */
@@ -1520,6 +1545,8 @@ export class TabManager {
 }
 
 // Taller than this is a page that keeps growing as it scrolls, not one anyone wants as a single picture.
+const MAX_READER_IMAGES = 40;
+const MAX_READER_IMAGE_BYTES = 4 * 1024 * 1024;
 // Past this a page is not an article, and parsing it would stall the chrome.
 const MAX_READER_DOCUMENT = 10 * 1024 * 1024;
 const MAX_SCREENSHOT_HEIGHT = 16_384;

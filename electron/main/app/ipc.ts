@@ -110,6 +110,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('tabs.savePage', (browser, _event, id) => browser.commands.savePage(asString(id)));
   handle('tabs.saveScreenshot', (browser, _event, id) => browser.commands.saveScreenshot(asString(id)));
   handle('tabs.readerDocument', (browser, _event, id) => browser.tabs.readerDocument(asString(id)));
+  handle('tabs.readerImages', (browser, _event, id, urls) => browser.tabs.readerImages(asString(id), pickUrls(urls)));
   handle('tabs.memoryUse', (browser) => browser.tabs.memoryUse());
   handle('tabs.viewSource', (browser, _event, id) => browser.commands.viewSource(asString(id)));
   handle('tabs.toggleDevTools', (browser, _event, id) => browser.tabs.toggleDevTools(asString(id)));

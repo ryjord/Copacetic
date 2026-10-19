@@ -20,7 +20,9 @@ export type ReaderTag =
   | 'figcaption';
 
 export type ReaderNode =
-  { kind: 'text'; text: string } | { kind: 'element'; tag: ReaderTag; href: string | null; children: ReaderNode[] };
+  | { kind: 'text'; text: string }
+  | { kind: 'image'; src: string; alt: string }
+  | { kind: 'element'; tag: ReaderTag; href: string | null; children: ReaderNode[] };
 
 export interface Article {
   title: string;
@@ -63,7 +65,6 @@ const DROPPED_TAGS = new Set([
   'embed',
   'svg',
   'math',
-  'img',
   'picture',
   'video',
   'audio',
@@ -104,12 +105,28 @@ function readerNodesOf(node: Node, base: string): ReaderNode[] {
   if (DROPPED_TAGS.has(name)) {
     return [];
   }
+  // Kept by address only; the chrome asks for it through the tab's own session, never loads it itself.
+  if (name === 'img') {
+    const src = linkFrom(node.getAttribute('src'), base);
+    return src ? [{ kind: 'image', src, alt: node.getAttribute('alt') ?? '' }] : [];
+  }
   const children = [...node.childNodes].flatMap((child) => readerNodesOf(child, base));
   const tag = KEPT_TAGS[name];
   if (!tag) {
     return children;
   }
   return [{ kind: 'element', tag, href: tag === 'a' ? linkFrom(node.getAttribute('href'), base) : null, children }];
+}
+
+/** Every image an article names, in order, once each. */
+export function imagesIn(nodes: readonly ReaderNode[]): string[] {
+  const found = nodes.flatMap((node): string[] => {
+    if (node.kind === 'image') {
+      return [node.src];
+    }
+    return node.kind === 'element' ? imagesIn(node.children) : [];
+  });
+  return [...new Set(found)];
 }
 
 /**

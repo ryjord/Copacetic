@@ -79,6 +79,8 @@ export interface CopaceticApi {
     saveScreenshot(id: TabId): Promise<void>;
     /** The page's document as it stands, read without a script in it, for reader view. */
     readerDocument(id: TabId): Promise<{ url: string; html: string } | null>;
+    /** The article's images, fetched in the tab's own session, keyed by the address each was named by. */
+    readerImages(id: TabId, urls: string[]): Promise<Record<string, string>>;
     /** What each tab's page process holds now; a sleeping tab has none and is left out. */
     memoryUse(): Promise<Record<TabId, TabMemory>>;
     viewSource(id: TabId): Promise<void>;

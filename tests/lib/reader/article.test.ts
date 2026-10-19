@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { articleFrom, type ReaderNode } from '@/lib/reader/article';
+import { articleFrom, imagesIn, type ReaderNode } from '@/lib/reader/article';
 
 const paragraph = (text: string) => `<p>${text}</p>`;
 const story = Array.from({ length: 12 }, (_unused, index) =>
@@ -12,7 +12,9 @@ const page = (body: string) => `<!doctype html><html><head><title>A long story</
 const tagsIn = (nodes: readonly ReaderNode[]): string[] =>
   nodes.flatMap((node) => (node.kind === 'element' ? [node.tag, ...tagsIn(node.children)] : []));
 const textOf = (nodes: readonly ReaderNode[]): string =>
-  nodes.map((node) => (node.kind === 'text' ? node.text : textOf(node.children))).join('');
+  nodes
+    .map((node) => (node.kind === 'text' ? node.text : node.kind === 'element' ? textOf(node.children) : ''))
+    .join('');
 
 describe('articleFrom', () => {
   it('finds the article and leaves the page around it', () => {
@@ -39,6 +41,12 @@ describe('articleFrom', () => {
     // A relative link is made whole against the page, not against the chrome that reads it.
     expect(links).toContain('https://news.example/next');
     expect(links.some((link) => link?.startsWith('javascript:'))).toBe(false);
+  });
+
+  it('keeps an image by its whole address, for the main process to fetch, and drops one that is not a web address', () => {
+    const pictured = `${story}<p><img src="/figure.png" alt="A figure"><img src="javascript:alert(1)"></p>`;
+    const article = articleFrom(page(pictured), 'https://news.example/story');
+    expect(imagesIn(article?.body ?? [])).toEqual(['https://news.example/figure.png']);
   });
 
   it('says there is no article when a page has no body of text', () => {

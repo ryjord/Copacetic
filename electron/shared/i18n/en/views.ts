@@ -132,7 +132,7 @@ export const views = {
       hint: 'Reader view needs a page with a main body of text, such as an article or a post.',
     },
     minutes: { one: '{count} minute read', other: '{count} minute read' },
-    imagesLeftOut: 'Images are left out, so nothing loads from outside the page.',
+    imagesFetched: 'Images are fetched through the page’s own session, so what blocking refuses stays out.',
   },
   palette: {
     label: 'Command palette',

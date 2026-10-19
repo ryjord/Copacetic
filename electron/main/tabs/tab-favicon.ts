@@ -14,19 +14,29 @@ export type SessionFetch = (
  * holds, so every guard here is refusing an authenticated request to somewhere
  * the user never asked to go.
  */
-export async function fetchFaviconDataUrl(
+export function fetchFaviconDataUrl(
   pageUrl: string,
   faviconUrl: string,
   fetchFromWebSession: SessionFetch,
 ): Promise<string | null> {
-  if (!isFetchableFavicon(pageUrl, faviconUrl)) {
+  return fetchImageDataUrl(pageUrl, faviconUrl, fetchFromWebSession, MAX_FAVICON_BYTES);
+}
+
+/** An image a page names, fetched in that page's session under the same guards, as a data URL the chrome can show. */
+export async function fetchImageDataUrl(
+  pageUrl: string,
+  imageUrl: string,
+  fetchFromWebSession: SessionFetch,
+  maxBytes: number,
+): Promise<string | null> {
+  if (!isFetchableFavicon(pageUrl, imageUrl)) {
     return null;
   }
 
   try {
     // Not followed: the guard above judged this address, and a redirect could
     // point the same authenticated request at your router.
-    const response = await fetchFromWebSession(faviconUrl, {
+    const response = await fetchFromWebSession(imageUrl, {
       bypassCustomProtocolHandlers: true,
       redirect: 'manual',
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -43,11 +53,11 @@ export async function fetchFaviconDataUrl(
     // Checked before buffering: reading the body first would let a hostile
     // response exhaust main-process memory whatever cap is applied afterwards.
     const declaredLength = Number(response.headers.get('content-length') ?? '0');
-    if (declaredLength > MAX_FAVICON_BYTES) {
+    if (declaredLength > maxBytes) {
       return null;
     }
 
-    const buffer = await readCapped(response, MAX_FAVICON_BYTES);
+    const buffer = await readCapped(response, maxBytes);
     if (!buffer || buffer.byteLength === 0) {
       return null;
     }

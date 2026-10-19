@@ -13,23 +13,36 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { ask, send } from '@/lib/bridge/bridge';
-import { articleFrom, type Article, type ReaderNode } from '@/lib/reader/article';
+import { articleFrom, imagesIn, type Article, type ReaderNode } from '@/lib/reader/article';
 import { t } from '@shared/i18n/translate';
 
 type Reading = { state: 'loading' } | { state: 'none' } | { state: 'ready'; article: Article };
+
+/** Data URLs fetched by the main process, keyed by the address the article named. */
+type ImageData = Record<string, string>;
 
 /** The page in front, without the page around its text. */
 export function ReaderSurface() {
   const activeTabId = useBrowserStore((state) => state.activeTabId);
   const [reading, setReading] = useState<Reading>({ state: 'loading' });
+  const [images, setImages] = useState<ImageData>({});
 
   useEffect(() => {
     let isCurrent = true;
     void (async () => {
       const document = activeTabId ? await ask((api) => api.tabs.readerDocument(activeTabId), null) : null;
       const article = document ? articleFrom(document.html, document.url) : null;
-      if (isCurrent) {
-        setReading(article ? { state: 'ready', article } : { state: 'none' });
+      if (!isCurrent) {
+        return;
+      }
+      setReading(article ? { state: 'ready', article } : { state: 'none' });
+      // The text first, so reading can start while the pictures arrive.
+      const wanted = article ? imagesIn(article.body) : [];
+      if (activeTabId && wanted.length > 0) {
+        const fetched = await ask((api) => api.tabs.readerImages(activeTabId, wanted), {});
+        if (isCurrent) {
+          setImages(fetched);
+        }
       }
     })();
     return () => {
@@ -49,12 +62,12 @@ export function ReaderSurface() {
       {reading.state === 'none' && (
         <EmptyState title={t('views.reader.none.title')} hint={t('views.reader.none.hint')} />
       )}
-      {reading.state === 'ready' && <ArticleView article={reading.article} />}
+      {reading.state === 'ready' && <ArticleView article={reading.article} images={images} />}
     </SurfaceShell>
   );
 }
 
-function ArticleView({ article }: { article: Article }) {
+function ArticleView({ article, images }: { article: Article; images: ImageData }) {
   const details = [article.siteName, article.byline, t('views.reader.minutes', { count: article.minutes })].filter(
     Boolean,
   );
@@ -62,17 +75,25 @@ function ArticleView({ article }: { article: Article }) {
     <article className="mx-auto w-full max-w-[68ch] px-6 pb-16 pt-10 text-title leading-relaxed text-ink">
       <h1 className="text-display font-semibold leading-tight">{article.title}</h1>
       <p className="mt-3 text-body-sm text-ink-dim">{details.join(' · ')}</p>
-      <div className="mt-8 flex flex-col gap-4">{article.body.map((node, index) => renderNode(node, index))}</div>
-      <p className="mt-12 border-t border-line pt-4 text-body-sm text-ink-faint">{t('views.reader.imagesLeftOut')}</p>
+      <div className="mt-8 flex flex-col gap-4">
+        {article.body.map((node, index) => renderNode(node, index, images))}
+      </div>
+      <p className="mt-12 border-t border-line pt-4 text-body-sm text-ink-faint">{t('views.reader.imagesFetched')}</p>
     </article>
   );
 }
 
-function renderNode(node: ReaderNode, key: number): ReactNode {
+function renderNode(node: ReaderNode, key: number, images: ImageData): ReactNode {
   if (node.kind === 'text') {
     return <Fragment key={key}>{node.text}</Fragment>;
   }
-  const children = node.children.map((child, index) => renderNode(child, index));
+  if (node.kind === 'image') {
+    const dataUrl = images[node.src];
+    // Only ever a data URL from the main process: the chrome makes no request of its own.
+    // eslint-disable-next-line @next/next/no-img-element -- next/image optimises fetched images, and this one is already data.
+    return dataUrl ? <img key={key} src={dataUrl} alt={node.alt} className="h-auto max-w-full rounded-sm" /> : null;
+  }
+  const children = node.children.map((child, index) => renderNode(child, index, images));
   switch (node.tag) {
     case 'p':
       return <p key={key}>{children}</p>;
