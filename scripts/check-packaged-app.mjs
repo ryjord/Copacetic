@@ -233,8 +233,10 @@ async function startUpdateFeed() {
   ].join('\n');
   const requested = [];
   const server = createServer((request, response) => {
-    requested.push(request.url ?? '');
-    if ((request.url ?? '').endsWith('.yml')) {
+    // The updater adds a cache-busting query, so the file is matched by its path alone.
+    const requestedPath = new URL(request.url ?? '/', 'http://feed').pathname;
+    requested.push(requestedPath);
+    if (requestedPath.endsWith('.yml')) {
       response.writeHead(200, { 'content-type': 'text/yaml' }).end(feed);
       return;
     }

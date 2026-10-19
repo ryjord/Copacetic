@@ -98,7 +98,9 @@ jobs:
 
       # The one fuse left on for this tree is the inspector, which is how the check below drives the app.
       # The release keeps it off; the check reads every other fuse back from the binary.
+      # bash on every runner: PowerShell splits the dotted flag and electron-builder reads it as a file name.
       - name: Check the packaged tree assembles
+        shell: bash
         run: npx electron-builder --dir --publish never -c.electronFuses.enableNodeCliInspectArguments=true
 
       # Assembling it is not the same as it working. Everything above runs
