@@ -137,6 +137,7 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('notices.pending', () => browser.notices.pending());
   handle('chrome.pendingSurface', () => browser.pendingSurface());
   handle('chrome.setOverlayHeight', (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
+  handle('favicons.forUrls', (_event, urls) => browser.store.faviconsFor(pickUrls(urls)));
   handle('filters.update', () => browser.updateFilterLists());
   handle('bookmarks.file', (_event, id, folderId) => {
     browser.store.fileBookmark(asString(id), asOptionalId(folderId));
@@ -478,3 +479,11 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
 
 /** Refused on purpose, so the coverage test has something to check against. */
 export const SETTINGS_NOT_PATCHABLE: readonly string[] = ['hasWallpaper'];
+
+/** At most a few hundred addresses, each a string: a list on screen, not a dump of history. */
+function pickUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length < 2048).slice(0, 500);
+}

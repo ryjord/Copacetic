@@ -91,3 +91,10 @@ export function formatDuration(ms: number): string {
   }
   return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
 }
+
+const timeFormatter = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+
+/** The clock time a page was visited, for lists already grouped by day. */
+export function formatTimeOfDay(timestamp: number): string {
+  return timeFormatter.format(timestamp);
+}

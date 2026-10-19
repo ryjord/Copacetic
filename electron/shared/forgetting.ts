@@ -186,18 +186,3 @@ export function describeTraces(traces: SiteTraces): string {
   }
   return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}.`;
 }
-
-/**
- * How a page's refused-request count is said.
- *
- * "None" rather than "0": a column of zeroes reads as a broken feature rather
- * than as a clean site. And "requests", never "adverts" — one advert is usually
- * several requests and most of these are trackers, so the number that is easy
- * to inflate is the one to be careful with.
- */
-export function describeRefused(count: number): string {
-  if (count <= 0) {
-    return 'none';
-  }
-  return `${count.toLocaleString()} refused`;
-}

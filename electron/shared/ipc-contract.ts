@@ -68,6 +68,8 @@ export const CHANNELS = {
   'history.clear': 'history:clear',
   'history.topSites': 'history:top-sites',
 
+  'favicons.forUrls': 'favicons:for-urls',
+
   'filters.update': 'filters:update',
 
   'notices.answer': 'notice:answer',

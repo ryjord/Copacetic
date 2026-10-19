@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   NOTHING,
   countTraces,
-  describeRefused,
   describeTraces,
   sameSite,
   siteOf,
@@ -144,26 +143,5 @@ describe('what is said before forgetting a site', () => {
 
   it('adds up to what will actually go', () => {
     expect(countTraces(traces({ visits: 31, icons: 1, permissions: 2 }))).toBe(34);
-  });
-});
-
-/**
- * The number that is easy to inflate, so the one to be careful with. One advert
- * is usually several requests, and most of these are trackers rather than
- * adverts at all.
- */
-describe('how a refused count is said', () => {
-  it('says none rather than zero, so a clean site does not read as a fault', () => {
-    expect(describeRefused(0)).toBe('none');
-    expect(describeRefused(-1)).toBe('none');
-  });
-
-  it('says requests, never adverts', () => {
-    expect(describeRefused(64)).toBe('64 refused');
-    expect(describeRefused(64)).not.toContain('ad');
-  });
-
-  it('groups a big number so it can be read', () => {
-    expect(describeRefused(18204)).toContain(',');
   });
 });

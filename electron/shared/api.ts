@@ -88,6 +88,10 @@ export interface CopaceticApi {
     clear(range: ClearRange): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;
   };
+  favicons: {
+    /** Icons already fetched for these pages, keyed by origin, so a list can show each site once. */
+    forUrls(urls: string[]): Promise<Record<string, string>>;
+  };
   filters: {
     /** Fetches the lists once, now, because someone asked. Never called on a timer. */
     update(): Promise<{ ok: boolean; message: string }>;

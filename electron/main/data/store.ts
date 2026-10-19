@@ -15,7 +15,7 @@ import {
   sameSite,
   siteOf,
 } from '../../shared/forgetting';
-import { SEARCH_ENGINES, buildSearchUrl, hostOf, resolveOmniboxInput } from '../../shared/url';
+import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../../shared/url';
 import type { RememberedCertificate } from '../../shared/certificate-changes';
 import { BookmarksStore } from './bookmarks-store';
 import { BookmarkFoldersStore } from './bookmark-folders-store';
@@ -353,6 +353,21 @@ export class BrowserStore {
   }
 
   // ---------------------------------------------------------------- favicons
+
+  /** One icon per origin, for the ones that have been fetched. */
+  faviconsFor(urls: readonly string[]): Record<string, string> {
+    const icons: Record<string, string> = {};
+    for (const url of urls) {
+      const origin = originOf(url);
+      if (origin && !(origin in icons)) {
+        const icon = this.getFavicon(url);
+        if (icon) {
+          icons[origin] = icon;
+        }
+      }
+    }
+    return icons;
+  }
 
   getFavicon(url: string): string | null {
     return this.favicons.get(url);

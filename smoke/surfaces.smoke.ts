@@ -68,7 +68,7 @@ describe('a surface when a tab is chosen', () => {
       await copacetic.waitForChrome(() => Boolean(document.querySelector('[role="dialog"][aria-label="History"]'))),
     ).toBe(true);
 
-    await copacetic.chrome.getByRole('textbox', { name: /Search history/ }).fill('example');
+    await copacetic.chrome.getByRole('searchbox', { name: /Search history/ }).fill('example');
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     expect(await surfaceOpen()).toBe(true);

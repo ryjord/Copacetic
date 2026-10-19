@@ -11,25 +11,11 @@ import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow'
 
 // Utils
 import { ask, send } from '@/lib/bridge';
+import { CLEAR_RANGES, WHAT_CLEARING_REMOVES, clearTitle } from '@/lib/clearing';
 
 // Types
 import type { ClearRange, ExportKind } from '@shared/types';
 import { KEPT_KINDS, type KeptAboutSites, describeKept } from '@shared/forgetting';
-
-const RANGES: readonly { id: ClearRange; label: string }[] = [
-  { id: 'hour', label: 'Last hour' },
-  { id: 'day', label: 'Last 24 hours' },
-  { id: 'week', label: 'Last 7 days' },
-  { id: 'all', label: 'All time' },
-];
-
-/** What a clear removes, said before it happens. A time range touches history only; all time reaches every session. */
-const CLEARS: Record<ClearRange, string> = {
-  hour: 'History from the last hour is removed.',
-  day: 'History from the last 24 hours is removed.',
-  week: 'History from the last 7 days is removed.',
-  all: 'All history, cookies, site data and the cache are removed, including those of groups that keep their own. You will be signed out of sites.',
-};
 
 export function DataPane() {
   const [kept, setKept] = useState<KeptAboutSites | null>(null);
@@ -58,7 +44,7 @@ export function DataPane() {
           help="History older than 90 days is removed automatically."
           control={
             <>
-              <Select label="Time range" options={RANGES} value={range} onChange={setRange} />
+              <Select label="Time range" options={CLEAR_RANGES} value={range} onChange={setRange} />
               <Button size="sm" variant="danger" onClick={() => setIsConfirming(true)}>
                 Clear…
               </Button>
@@ -140,7 +126,7 @@ export function DataPane() {
       <ConfirmDialog
         open={isConfirming}
         onOpenChange={setIsConfirming}
-        title={`Clear browsing data from ${RANGES.find((option) => option.id === range)?.label.toLowerCase()}?`}
+        title={clearTitle(range)}
         confirmLabel="Clear"
         isDestructive
         onConfirm={() => {
@@ -148,7 +134,7 @@ export function DataPane() {
           reload();
         }}
       >
-        {CLEARS[range]} Open tabs stay open.
+        {WHAT_CLEARING_REMOVES[range]} Open tabs stay open.
       </ConfirmDialog>
     </>
   );
