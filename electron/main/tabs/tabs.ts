@@ -201,7 +201,7 @@ export class TabManager {
         });
       }
     }
-    return sessionFrom(candidates, this.activeId);
+    return sessionFrom(candidates, this.activeId, this.split);
   }
 
   private toState(tab: TabRecord): TabState {
@@ -1175,6 +1175,17 @@ export class TabManager {
       return;
     }
     this.splitWith(null);
+  }
+
+  /** A pair coming back after a restart: shown again as it was, without moving or choosing either tab. */
+  restoreSplit(leftId: TabId, rightId: TabId, ratio: number): void {
+    if (leftId === rightId || !this.tabs.has(leftId) || !this.tabs.has(rightId)) {
+      return;
+    }
+    this.split = { leftId, rightId, ratio: clampSplitRatio(ratio) };
+    this.applyBounds();
+    this.applyVisibility();
+    this.onChanged();
   }
 
   leaveSplit(): void {

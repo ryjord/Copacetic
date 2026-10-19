@@ -69,3 +69,36 @@ describe('split view', () => {
     expect(alone?.width).toBeGreaterThan((left?.width ?? 0) + (right?.width ?? 0));
   }, 90_000);
 });
+
+describe('split view across a restart', () => {
+  it('comes back as the pair it was, at the width it was', async () => {
+    const first = await copacetic.chrome.evaluate(() =>
+      window.copacetic.tabs.create('https://example.com/kept-left'),
+    );
+    const second = await copacetic.chrome.evaluate(() =>
+      window.copacetic.tabs.create('https://example.com/kept-right'),
+    );
+    await copacetic.chrome.evaluate((id) => window.copacetic.tabs.activate(id), first);
+    await copacetic.chrome.evaluate((id) => window.copacetic.tabs.splitWith(id), second);
+    await copacetic.chrome.evaluate(() => window.copacetic.tabs.setSplitRatio(0.35));
+
+    const profile = copacetic.profile;
+    await copacetic.close({ keepProfile: true });
+    copacetic = await SmokeApp.launch({ profile });
+    await copacetic.waitForReady();
+
+    const restored = async () => {
+      const state = await copacetic.chrome.evaluate(() => window.copacetic.chrome.getState());
+      const urlOf = (id: string | undefined) => state.tabs.find((tab) => tab.id === id)?.url;
+      return state.split
+        ? { left: urlOf(state.split.leftId), right: urlOf(state.split.rightId), ratio: state.split.ratio }
+        : null;
+    };
+    expect(await copacetic.until(async () => (await restored()) !== null, 20_000)).toBe(true);
+    expect(await restored()).toEqual({
+      left: 'https://example.com/kept-left',
+      right: 'https://example.com/kept-right',
+      ratio: 0.35,
+    });
+  }, 120_000);
+});

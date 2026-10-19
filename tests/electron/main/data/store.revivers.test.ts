@@ -53,6 +53,22 @@ describe('the saved session, read back off disk', () => {
     expect(oneWindow({ tabs: tabs('a', 'b'), activeIndex: -5 })?.activeIndex).toBe(0);
   });
 
+  it('brings a split back only when it names two different tabs that are there', () => {
+    expect(
+      oneWindow({ tabs: tabs('a', 'b'), activeIndex: 0, split: { leftIndex: 0, rightIndex: 1, ratio: 0.3 } })?.split,
+    ).toEqual({ leftIndex: 0, rightIndex: 1, ratio: 0.3 });
+    expect(
+      oneWindow({ tabs: tabs('a', 'b'), activeIndex: 0, split: { leftIndex: 0, rightIndex: 5, ratio: 0.3 } })?.split,
+    ).toBeUndefined();
+    expect(
+      oneWindow({ tabs: tabs('a', 'b'), activeIndex: 0, split: { leftIndex: 1, rightIndex: 1, ratio: 0.3 } })?.split,
+    ).toBeUndefined();
+    expect(
+      oneWindow({ tabs: tabs('a', 'b'), activeIndex: 0, split: { leftIndex: 0, rightIndex: 1, ratio: 9 } })?.split
+        ?.ratio,
+    ).toBe(0.8);
+  });
+
   // A window with nothing to reopen is not a window to bring back.
   it('leaves out a window with no tabs at all', () => {
     expect(

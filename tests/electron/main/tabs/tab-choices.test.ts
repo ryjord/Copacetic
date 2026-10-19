@@ -69,6 +69,17 @@ describe('what is written down to reopen', () => {
     expect(snapshot.tabs.map((entry) => entry.url)).toEqual(['https://a.example/']);
   });
 
+  it('keeps a split by the places of its two tabs in what is written', () => {
+    const split = { leftId: 'b', rightId: 'c', ratio: 0.4 };
+    const snapshot = sessionFrom([tab('start', { isStartPage: true }), tab('b'), tab('c')], 'b', split);
+    expect(snapshot.split).toEqual({ leftIndex: 0, rightIndex: 1, ratio: 0.4 });
+  });
+
+  it('forgets a split when either half is not written down', () => {
+    const split = { leftId: 'a', rightId: 'secret', ratio: 0.5 };
+    expect(sessionFrom([tab('a'), tab('secret', { isHush: true })], 'a', split).split).toBeUndefined();
+  });
+
   it('leaves out a Hush tab, and its group with it', () => {
     const snapshot = sessionFrom([tab('secret', { isHush: true, groupId: 'work' }), tab('a')], 'a');
     expect(snapshot.tabs.map((entry) => entry.url)).toEqual(['https://a.example/']);

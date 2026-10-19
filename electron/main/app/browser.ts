@@ -194,13 +194,19 @@ export class Browser {
 
   private restoreTabs(session: SessionSnapshot): void {
     // A group whose tabs were all Hush comes back empty and is left alone: nothing that was in it was written down.
-    session.tabs.forEach((tab, index) => {
+    const ids = session.tabs.map((tab, index) =>
       this.tabs.create(tab.url, {
         activate: index === session.activeIndex,
         groupId: tab.groupId,
         pinned: tab.isPinned === true,
-      });
-    });
+      }),
+    );
+    const { split } = session;
+    const leftId = split ? ids[split.leftIndex] : undefined;
+    const rightId = split ? ids[split.rightIndex] : undefined;
+    if (split && leftId && rightId) {
+      this.tabs.restoreSplit(leftId, rightId, split.ratio);
+    }
     if (this.tabs.tabCount === 0) {
       this.tabs.create(START_PAGE_URL);
     }

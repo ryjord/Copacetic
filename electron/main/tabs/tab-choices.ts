@@ -1,5 +1,6 @@
 import type { SessionSnapshot, SessionTab } from '../data/session-store';
 import type { TabId } from '../../shared/types';
+import type { SplitView } from '../../shared/tabs/split-view';
 
 /**
  * The decisions `tabs.ts` makes that do not need a window to make.
@@ -50,8 +51,13 @@ export interface SessionCandidate {
  * page sitting to the left of the active tab, which restores the wrong site -
  * quietly, and only for people who keep a start page open.
  */
-export function sessionFrom(tabs: readonly SessionCandidate[], activeId: TabId | null): SessionSnapshot {
+export function sessionFrom(
+  tabs: readonly SessionCandidate[],
+  activeId: TabId | null,
+  split: SplitView | null = null,
+): SessionSnapshot {
   const saved: SessionTab[] = [];
+  const placeOf = new Map<TabId, number>();
   let activeIndex = 0;
 
   for (const tab of tabs) {
@@ -61,10 +67,18 @@ export function sessionFrom(tabs: readonly SessionCandidate[], activeId: TabId |
     if (tab.id === activeId) {
       activeIndex = saved.length;
     }
+    placeOf.set(tab.id, saved.length);
     saved.push({ url: tab.url, groupId: tab.groupId, ...(tab.isPinned ? { isPinned: true } : {}) });
   }
 
-  return { tabs: saved, activeIndex };
+  const leftIndex = split ? placeOf.get(split.leftId) : undefined;
+  const rightIndex = split ? placeOf.get(split.rightId) : undefined;
+  const isSplitKept = split !== null && leftIndex !== undefined && rightIndex !== undefined;
+  return {
+    tabs: saved,
+    activeIndex,
+    ...(isSplitKept ? { split: { leftIndex, rightIndex, ratio: split.ratio } } : {}),
+  };
 }
 
 /**

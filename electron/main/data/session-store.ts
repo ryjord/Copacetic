@@ -1,4 +1,5 @@
 import { PersistedFile, asNumber, asString, isRecord } from './persistence';
+import { EVEN_SPLIT_RATIO, clampSplitRatio } from '../../shared/tabs/split-view';
 import type { SchemaPlan } from './schema';
 
 export interface SessionTab {
@@ -9,10 +10,19 @@ export interface SessionTab {
   isPinned?: boolean;
 }
 
-/** One window's tabs, and which of them was in front. */
+/** Two of a window's tabs shown side by side, by their place in its list. */
+export interface SessionSplit {
+  leftIndex: number;
+  rightIndex: number;
+  ratio: number;
+}
+
+/** One window's tabs, which of them was in front, and the pair it showed side by side. */
 export interface SessionSnapshot {
   tabs: SessionTab[];
   activeIndex: number;
+  /** Written only when both tabs were, so a split with a Hush or new tab in it is not kept. */
+  split?: SessionSplit;
 }
 
 /** Every window to reopen, the one that was in front last so it comes back in front. */
@@ -113,7 +123,25 @@ function reviveWindow(raw: unknown): SessionSnapshot {
         return [{ url, groupId: groupId || null, ...(entry.isPinned === true ? { isPinned: true } : {}) }];
       })
     : [];
-  return { tabs, activeIndex: clamp(asNumber(raw.activeIndex, 0), 0, Math.max(0, tabs.length - 1)) };
+  const split = reviveSplit(raw.split, tabs.length);
+  return {
+    tabs,
+    activeIndex: clamp(asNumber(raw.activeIndex, 0), 0, Math.max(0, tabs.length - 1)),
+    ...(split ? { split } : {}),
+  };
+}
+
+function reviveSplit(raw: unknown, tabCount: number): SessionSplit | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+  const leftIndex = asNumber(raw.leftIndex, -1);
+  const rightIndex = asNumber(raw.rightIndex, -1);
+  const isPlace = (index: number) => Number.isInteger(index) && index >= 0 && index < tabCount;
+  if (!isPlace(leftIndex) || !isPlace(rightIndex) || leftIndex === rightIndex) {
+    return null;
+  }
+  return { leftIndex, rightIndex, ratio: clampSplitRatio(asNumber(raw.ratio, EVEN_SPLIT_RATIO)) };
 }
 
 function clamp(value: number, min: number, max: number): number {
