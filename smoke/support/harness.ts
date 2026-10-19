@@ -264,7 +264,7 @@ export class SmokeApp {
   }
 
   /** Polls until `condition` holds, for the things the app does on its own schedule. */
-  private async until(condition: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
+  async until(condition: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       try {
