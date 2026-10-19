@@ -6,6 +6,8 @@ import type { VaultFacts } from '../../../../../electron/shared/types';
 let facts: VaultFacts = {
   filePath: '/Users/someone/Library/Application Support/Copacetic/vault.json',
   hasKeychain: true,
+  keychainName: 'the macOS Keychain',
+  keychainProblem: '',
   canAskWhoYouAre: true,
   isSigned: false,
   entryCount: 2,
@@ -90,5 +92,16 @@ describe('the promise not to watch what you type', () => {
     const text = document.body.textContent ?? '';
     expect(text).toContain('code running in every page');
     expect(text).toContain('Fill password');
+  });
+
+  it('names what keeps the key, and says why when nothing can', async () => {
+    render(<TransparencyPane info={null} />);
+    await waitFor(() => expect(document.body.textContent).toContain('A key kept by the macOS Keychain'));
+    cleanup();
+
+    facts = { ...facts, hasKeychain: false, keychainName: '', keychainProblem: 'No keyring is running.' };
+    render(<TransparencyPane info={null} />);
+    await waitFor(() => expect(document.body.textContent).toContain('No keyring is running.'));
+    facts = { ...facts, hasKeychain: true, keychainName: 'the macOS Keychain', keychainProblem: '' };
   });
 });

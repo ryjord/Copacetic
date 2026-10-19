@@ -14,6 +14,7 @@ const { DEFAULT_TIMEOUT_MS } = await import('../../../../electron/shared/vault-l
 function fakeHost(overrides: Partial<VaultHost> = {}): VaultHost {
   return {
     isEncryptionAvailable: () => true,
+    storageBackend: () => null,
     encryptString: (plainText) => Buffer.from(plainText, 'utf8'),
     decryptString: (cipherText) => cipherText.toString('utf8'),
     platform: 'darwin',
@@ -153,6 +154,30 @@ describe('what the honesty page is told', () => {
   it('reports the keychain as missing when there is none', () => {
     const { session } = setup({ isEncryptionAvailable: () => false });
     expect(session.facts().hasKeychain).toBe(false);
+  });
+
+  it('names the keychain that holds the key', () => {
+    expect(setup().session.facts().keychainName).toBe('the macOS Keychain');
+    const { session } = setup({ platform: 'linux', storageBackend: () => 'gnome_libsecret' });
+    expect(session.facts().keychainName).toBe('GNOME Keyring');
+  });
+
+  // Chromium's fallback encrypts with a key every Chromium shares, which is no protection worth the name.
+  it('refuses the Linux plain-text fallback even when it reports itself available, and says why', () => {
+    const { session } = setup({
+      platform: 'linux',
+      storageBackend: () => 'basic_text',
+      isEncryptionAvailable: () => true,
+    });
+    expect(session.facts().hasKeychain).toBe(false);
+    expect(session.facts().keychainProblem).toContain('Start GNOME Keyring or KWallet');
+    expect(session.vault.state()).toMatchObject({
+      availability: 'unavailable',
+      detail: expect.stringContaining('No keyring is running'),
+    });
+    expect(session.vault.add({ origin: 'https://example.com', username: 'ada', password: 'hunter2' })).toHaveProperty(
+      'error',
+    );
   });
 
   it('says nothing can vouch for you where nothing can', () => {

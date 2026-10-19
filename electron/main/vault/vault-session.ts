@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { type KeychainDescription, describeKeychain } from '../../shared/vault-keychain';
 import type { VaultFacts, VaultLock } from '../../shared/types';
 import {
   LOCKED,
@@ -20,6 +21,8 @@ import { PersistedFile } from '../data/persistence';
  */
 export interface VaultHost {
   isEncryptionAvailable(): boolean;
+  /** Which secret store Chromium chose; only Linux has a choice, so elsewhere null. */
+  storageBackend(): string | null;
   encryptString(plainText: string): Buffer;
   decryptString(cipherText: Buffer): string;
   platform: string;
@@ -48,7 +51,8 @@ export class VaultSession {
     });
     this.vault = new Vault(
       {
-        isAvailable: () => this.host.isEncryptionAvailable(),
+        isAvailable: () => this.keychain().problem === '',
+        whyUnavailable: () => this.keychain().problem,
         encrypt: (plainText) => this.host.encryptString(plainText),
         decrypt: (cipherText) => this.host.decryptString(cipherText),
       },
@@ -79,12 +83,19 @@ export class VaultSession {
   facts(): VaultFacts {
     return {
       filePath: path.join(this.host.profileDirectory(), 'vault.json'),
-      hasKeychain: this.host.isEncryptionAvailable(),
+      hasKeychain: this.keychain().problem === '',
+      keychainName: this.keychain().name,
+      keychainProblem: this.keychain().problem,
       canAskWhoYouAre: this.method() !== 'none',
       // No certificate is bought, so this is false everywhere until one is.
       isSigned: false,
       entryCount: this.vault.count(),
     };
+  }
+
+  // Asked each time: a keyring can start or stop while Copacetic runs.
+  private keychain(): KeychainDescription {
+    return describeKeychain(this.host.platform, this.host.storageBackend(), this.host.isEncryptionAvailable());
   }
 
   lockInfo(): VaultLock {

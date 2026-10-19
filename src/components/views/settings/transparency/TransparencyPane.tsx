@@ -16,6 +16,8 @@ import type { SettingsPaneProps } from '@/components/views/settings/shared/types
 const NO_FACTS: VaultFacts = {
   filePath: '',
   hasKeychain: false,
+  keychainName: '',
+  keychainProblem: '',
   canAskWhoYouAre: false,
   isSigned: false,
   entryCount: 0,
@@ -88,8 +90,9 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
         </Answer>
         <Answer question="What protects them?">
           {facts.hasKeychain
-            ? 'A key your operating system keeps. It stops someone reading the file, but not software running as you, which can ask for the same key.'
-            : 'This machine has no keychain Copacetic can use, so passwords cannot be saved here.'}
+            ? `A key kept by ${facts.keychainName}. It stops someone reading the file, but not software running as you, which can ask for the same key.`
+            : facts.keychainProblem ||
+              'This machine has no keychain Copacetic can use, so passwords cannot be saved here.'}
         </Answer>
         <Answer question="Does locking help?">
           {facts.canAskWhoYouAre

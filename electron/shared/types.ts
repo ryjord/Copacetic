@@ -411,6 +411,10 @@ export interface VaultFacts {
   filePath: string;
   /** False when there is no keychain, in which case nothing can be saved at all. */
   hasKeychain: boolean;
+  /** What holds the key, such as the macOS Keychain or GNOME Keyring; empty without one. */
+  keychainName: string;
+  /** Why there is no keychain, when there is not one. */
+  keychainProblem: string;
   /** True only where Copacetic can ask the operating system who you are. */
   canAskWhoYouAre: boolean;
   /** Unsigned builds are why an update can cost the keychain entry on macOS. */

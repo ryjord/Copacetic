@@ -90,6 +90,7 @@ export class Profile {
     this.vaultSession = new VaultSession(
       {
         isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+        storageBackend: () => (process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null),
         encryptString: (plainText) => safeStorage.encryptString(plainText),
         decryptString: (cipherText) => safeStorage.decryptString(cipherText),
         platform: process.platform,

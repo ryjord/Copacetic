@@ -5,6 +5,8 @@ import type { VaultEntry, VaultState } from '../../shared/types';
 /** The OS keychain, behind an interface so the rules above it can be tested without one. */
 export interface SecretStore {
   isAvailable(): boolean;
+  /** Why it is not available, where the platform can say more than that. */
+  whyUnavailable?(): string;
   encrypt(plainText: string): Buffer;
   decrypt(cipherText: Buffer): string;
 }
@@ -79,7 +81,7 @@ export class Vault {
       // Every secret is unreadable, but they are all still there.
       return {
         availability: 'unavailable',
-        detail: NO_KEYCHAIN,
+        detail: this.secrets.whyUnavailable?.() || NO_KEYCHAIN,
         entries: stored.map((entry) => this.describe(entry, false)),
         unreadableCount: stored.length,
       };
@@ -103,7 +105,7 @@ export class Vault {
   /** Returns the new entry's id, or a message explaining why nothing was saved. */
   add(input: { origin: string; username: string; password: string }): { id: string } | { error: string } {
     if (!this.secrets.isAvailable()) {
-      return { error: NO_KEYCHAIN };
+      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
     }
 
     const origin = input.origin.trim();
@@ -121,7 +123,7 @@ export class Vault {
     }
     const identity = this.sealIdentity({ origin, username: input.username.trim() });
     if (identity === null) {
-      return { error: NO_KEYCHAIN };
+      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
     }
 
     const timestamp = this.now();
@@ -153,7 +155,7 @@ export class Vault {
     let secret = existing.secret;
     if (changes.password !== undefined) {
       if (!this.secrets.isAvailable()) {
-        return { error: NO_KEYCHAIN };
+        return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
       }
       if (!changes.password) {
         return { error: 'There is no password here to save.' };
@@ -178,7 +180,7 @@ export class Vault {
       username: changes.username === undefined ? current.username : changes.username.trim(),
     });
     if (identity === null) {
-      return { error: NO_KEYCHAIN };
+      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
     }
 
     const updated: SealedEntry = {
@@ -353,7 +355,7 @@ export class Vault {
       return { secret: this.secrets.encrypt(password).toString('base64') };
     } catch {
       // Never fall back to storing it in the clear.
-      return { error: NO_KEYCHAIN };
+      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
     }
   }
 
