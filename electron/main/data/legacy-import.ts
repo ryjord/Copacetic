@@ -1,4 +1,13 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { describeError, log } from '../system/diagnostics';
@@ -34,6 +43,32 @@ export function importLegacyFile<T>(
       file: filename,
       ...describeError(error),
     });
+  }
+}
+
+/** How long an import has to hold before the file it came from is deleted. */
+export const IMPORTED_KEPT_FOR_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Deletes what earlier versions left behind once it is no longer a safety net.
+ *
+ * The `.imported` files go a week after the import, by which time the database
+ * has held through real use. With `isClearingEverything`, they go now, and the
+ * before-2.0 copy with them: clearing all history has to reach every copy, and a
+ * rollback that brought back what someone cleared would undo what they asked for.
+ */
+export function forgetLegacyCopies(directory: string, options: { isClearingEverything: boolean; now: number }): void {
+  try {
+    readdirSync(directory)
+      .filter((name) => name.endsWith('.imported'))
+      .map((name) => path.join(directory, name))
+      .filter((file) => options.isClearingEverything || options.now - statSync(file).mtimeMs > IMPORTED_KEPT_FOR_MS)
+      .forEach((file) => rmSync(file, { force: true }));
+    if (options.isClearingEverything) {
+      rmSync(path.join(directory, BACKUP_BEFORE_MIGRATION), { recursive: true, force: true });
+    }
+  } catch (error) {
+    log.warn('files from an earlier version could not be removed', describeError(error));
   }
 }
 
