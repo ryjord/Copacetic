@@ -5,6 +5,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 // Components
 import { FindBar } from '@/components/overlay/FindBar/FindBar';
+import { FinishedDownloads } from '@/components/overlay/Downloads/FinishedDownloads';
 import { NoticeStrip } from '@/components/overlay/Notices/NoticeStrip';
 import { PermissionCard } from '@/components/overlay/PermissionPrompt/PermissionCard';
 import { SignInCard } from '@/components/overlay/AuthPrompt/SignInCard';
@@ -112,6 +113,7 @@ function TrailingRegion() {
     <>
       {find.isOpen && <FindBar find={find} />}
       <NoticeStrip />
+      <FinishedDownloads />
     </>
   );
 }

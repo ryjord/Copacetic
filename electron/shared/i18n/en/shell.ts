@@ -96,6 +96,13 @@ export const shell = {
     },
   },
   overlay: {
+    finishedDownload: {
+      done: 'Downloaded, {size}',
+      failed: 'The download did not finish.',
+      open: 'Open',
+      reveal: 'Show in folder',
+      retry: 'Try again',
+    },
     permissionCard: {
       label: 'Permission request',
       wantsTo: 'wants to {description}.',
