@@ -18,6 +18,10 @@ export const PUSH = {
   notice: 'push:notice',
   /** A notice is finished with. Said so the layer drawing it can stop. */
   noticeSettled: 'push:notice-settled',
+  /** The suggestions under the address field, or null when there are none, for the leading overlay to draw. */
+  omniboxSuggestions: 'push:omnibox-suggestions',
+  /** A suggestion was clicked in the overlay, for the address field to commit. */
+  omniboxChosen: 'push:omnibox-chosen',
   /** Find was asked for again while open, so its field should take the keyboard and select what it holds. */
   focusFind: 'push:focus-find',
   /** The same, for a bookmark folder: a native menu cannot hold a text field. */

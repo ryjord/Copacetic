@@ -63,6 +63,8 @@ export const CHANNELS = {
   'chrome.openMainMenu': 'chrome:open-main-menu',
 
   'omnibox.suggest': 'omnibox:suggest',
+  'omnibox.showSuggestions': 'omnibox:show-suggestions',
+  'omnibox.choose': 'omnibox:choose',
 
   'history.list': 'history:list',
   'history.remove': 'history:remove',

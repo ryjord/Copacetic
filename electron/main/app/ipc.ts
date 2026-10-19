@@ -30,6 +30,7 @@ import {
   showTabContextMenu,
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
+import { toSuggestionView } from '../../shared/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 /**
@@ -100,6 +101,8 @@ export function registerIpcHandlers(browser: Browser): void {
   // ---------------------------------------------------------------- omnibox
 
   handle('omnibox.suggest', (_event, query) => browser.store.suggest(asString(query)));
+  handle('omnibox.showSuggestions', (_event, view) => browser.showSuggestions(toSuggestionView(view)));
+  handle('omnibox.choose', (_event, target) => browser.chooseSuggestion(asString(target)));
 
   // ---------------------------------------------------------------- history
 

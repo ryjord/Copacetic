@@ -9,6 +9,7 @@ import { NoticeStrip } from '@/components/overlay/Notices/NoticeStrip';
 import { PermissionCard } from '@/components/overlay/PermissionPrompt/PermissionCard';
 import { SignInCard } from '@/components/overlay/AuthPrompt/SignInCard';
 import { SiteInfoCard } from '@/components/overlay/SiteInfo/SiteInfoCard';
+import { SuggestionList } from '@/components/overlay/Suggestions/SuggestionList';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -97,6 +98,7 @@ function LeadingRegion() {
   const authPrompt = authPrompts.find((candidate) => candidate.tabId === activeTabId || candidate.isProxy);
   return (
     <>
+      <SuggestionList />
       {activeTab && siteInfoTabId === activeTab.id && <SiteInfoCard tab={activeTab} />}
       {authPrompt && <SignInCard key={authPrompt.id} prompt={authPrompt} />}
       {prompt && <PermissionCard key={prompt.id} prompt={prompt} />}

@@ -4,6 +4,7 @@ import { PUSH, type ChromeSurface, type PushChannel } from '../shared/channels';
 import { type ApiMethod, CHANNELS } from '../shared/ipc-contract';
 import type { Notice } from '../shared/notices';
 import type { BrowserStatePatch } from '../shared/state-slices';
+import type { SuggestionView } from '../shared/suggestion-view';
 
 /** One function per entry in the contract, grouped the way the API is. */
 function invokers(): Record<string, Record<string, (...args: unknown[]) => Promise<unknown>>> {
@@ -31,6 +32,9 @@ const api = {
     noticeSettled: (listener: (id: string) => void) => subscribe(PUSH.noticeSettled, listener),
     renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),
     focusFind: (listener: () => void) => subscribe(PUSH.focusFind, listener),
+    omniboxSuggestions: (listener: (view: SuggestionView | null) => void) =>
+      subscribe(PUSH.omniboxSuggestions, listener),
+    omniboxChosen: (listener: (target: string) => void) => subscribe(PUSH.omniboxChosen, listener),
   },
 } as CopaceticApi;
 

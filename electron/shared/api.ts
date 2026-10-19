@@ -3,6 +3,7 @@ import type { ChromeSurface } from './channels';
 import type { BookmarkFolder } from './bookmark-folders';
 import type { Notice } from './notices';
 import type { BrowserStatePatch } from './state-slices';
+import type { SuggestionView } from './suggestion-view';
 import type { GroupColourId } from './tab-groups';
 import type {
   AppInfo,
@@ -81,6 +82,10 @@ export interface CopaceticApi {
   };
   omnibox: {
     suggest(query: string): Promise<Suggestion[]>;
+    /** From the chrome: what the overlay should draw under the field. */
+    showSuggestions(view: SuggestionView | null): Promise<void>;
+    /** From the overlay: the suggestion someone clicked. */
+    choose(target: string): Promise<void>;
   };
   history: {
     list(query?: string, offset?: number): Promise<HistoryPage>;
@@ -280,5 +285,8 @@ export interface CopaceticApi {
 
     /** Find was asked for while already open. */
     focusFind(listener: () => void): Unsubscribe;
+
+    omniboxSuggestions(listener: (view: SuggestionView | null) => void): Unsubscribe;
+    omniboxChosen(listener: (target: string) => void): Unsubscribe;
   };
 }

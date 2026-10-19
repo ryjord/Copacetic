@@ -47,6 +47,7 @@ import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
 import { OverlayLayer } from '../window/overlay';
 import type { OverlayRegion } from '../../shared/overlay-regions';
+import type { SuggestionView } from '../../shared/suggestion-view';
 import { VaultSession } from '../vault/vault-session';
 import { log } from '../system/diagnostics';
 import { UpdateManager } from '../system/updates';
@@ -477,6 +478,18 @@ export class Browser {
     this.siteInfo = null;
     this.tabs.focusActive();
     this.scheduleStatePush();
+  }
+
+  /** Drawn by the leading overlay, under the address field the chrome keeps the keyboard in. */
+  showSuggestions(view: SuggestionView | null): void {
+    this.overlays.leading.send(PUSH.omniboxSuggestions, view);
+  }
+
+  /** Committed by the address field itself, so a click and the Enter key take the same path. */
+  chooseSuggestion(target: string): void {
+    if (target) {
+      this.pushToChrome(PUSH.omniboxChosen, target);
+    }
   }
 
   /** Hands the keyboard to the overlay asking for it; a frame that is not an overlay gets nothing. */
