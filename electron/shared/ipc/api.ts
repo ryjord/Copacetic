@@ -76,6 +76,8 @@ export interface CopaceticApi {
     print(id: TabId): Promise<void>;
     savePage(id: TabId): Promise<void>;
     saveScreenshot(id: TabId): Promise<void>;
+    /** The page's document as it stands, read without a script in it, for reader view. */
+    readerDocument(id: TabId): Promise<{ url: string; html: string } | null>;
     viewSource(id: TabId): Promise<void>;
     /** The page's own developer tools, in a window of their own. */
     toggleDevTools(id: TabId): Promise<void>;

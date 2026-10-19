@@ -190,6 +190,13 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         const zoomTo = (factor: number) => then(() => send((api) => api.tabs.setZoom(tabId, clampZoom(factor))));
         list.push(
           {
+            id: 'reader-view',
+            label: t('views.palette.commands.reader'),
+            group: 'page',
+            keywords: t('views.palette.keywords.reader'),
+            run: () => setSurface('reader'),
+          },
+          {
             id: 'reload',
             label: t('views.palette.commands.reload'),
             accelerator: 'CmdOrCtrl+R',

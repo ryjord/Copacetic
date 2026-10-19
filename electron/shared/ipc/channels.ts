@@ -31,4 +31,5 @@ export const PUSH = {
 export type PushChannel = (typeof PUSH)[keyof typeof PUSH];
 
 /** Chrome surfaces that cover the page content and therefore hide the tab view. */
-export type ChromeSurface = 'settings' | 'downloads' | 'history' | 'bookmarks' | 'palette' | 'tab-search' | 'none';
+export type ChromeSurface =
+  'settings' | 'downloads' | 'history' | 'bookmarks' | 'palette' | 'tab-search' | 'reader' | 'none';

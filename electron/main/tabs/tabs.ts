@@ -506,6 +506,17 @@ export class TabManager {
     }
   }
 
+  /** The page's document for reader view, or null when there is no page to read. */
+  async readerDocument(id: TabId): Promise<{ url: string; html: string } | null> {
+    const tab = this.tabs.get(id);
+    const contents = tab ? pageOf(tab) : null;
+    if (!tab || !contents || tab.isStartPage || tab.error) {
+      return null;
+    }
+    const html = await documentOf(contents);
+    return html ? { url: contents.getURL(), html } : null;
+  }
+
   print(id: TabId, onFailed: (reason: string) => void): void {
     this.contentsFor(id)?.print({}, (isPrinted, failureReason) => {
       // Cancelling the dialog is an answer, not a failure.
@@ -1485,40 +1496,69 @@ export class TabManager {
 }
 
 // Taller than this is a page that keeps growing as it scrolls, not one anyone wants as a single picture.
+// Past this a page is not an article, and parsing it would stall the chrome.
+const MAX_READER_DOCUMENT = 10 * 1024 * 1024;
 const MAX_SCREENSHOT_HEIGHT = 16_384;
 
 /** A PNG of the whole page, or why there is none. Through the page's own debugger, which DevTools may already hold. */
-async function captureWholePage(contents: WebContents): Promise<Buffer | string> {
+/**
+ * Runs DevTools commands against a page without a script in it. Usually
+ * borrowed from describeTab, which keeps it attached because detaching drops
+ * the tab's identity; attached and let go here only when nobody holds it.
+ */
+async function withPageDebugger<T>(
+  contents: WebContents,
+  work: (send: (method: string, parameters?: object) => Promise<unknown>) => Promise<T>,
+): Promise<{ value: T } | { problem: string }> {
   const debuggerSession = contents.debugger;
-  // Usually already attached, by describeTab, and left that way: detaching would drop the tab's identity.
   const isOurs = !debuggerSession.isAttached();
   if (isOurs) {
     try {
       debuggerSession.attach('1.3');
     } catch {
-      return t('main.dialogs.screenshot.devToolsOpen');
+      return { problem: t('main.dialogs.screenshot.devToolsOpen') };
     }
   }
   try {
-    const metrics: unknown = await debuggerSession.sendCommand('Page.getLayoutMetrics');
+    return { value: await work((method, parameters) => debuggerSession.sendCommand(method, parameters)) };
+  } catch (error) {
+    return { problem: error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten') };
+  } finally {
+    if (isOurs) {
+      debuggerSession.detach();
+    }
+  }
+}
+
+async function captureWholePage(contents: WebContents): Promise<Buffer | string> {
+  const outcome = await withPageDebugger(contents, async (send): Promise<Buffer | string> => {
+    const metrics: unknown = await send('Page.getLayoutMetrics');
     const size = typeof metrics === 'object' && metrics !== null ? Reflect.get(metrics, 'cssContentSize') : null;
     const width = Math.ceil(Number(typeof size === 'object' && size !== null ? Reflect.get(size, 'width') : 0));
     const height = Math.ceil(Number(typeof size === 'object' && size !== null ? Reflect.get(size, 'height') : 0));
     if (!width || !height) {
       return t('main.dialogs.screenshot.noPage');
     }
-    const result: unknown = await debuggerSession.sendCommand('Page.captureScreenshot', {
+    const result: unknown = await send('Page.captureScreenshot', {
       format: 'png',
       captureBeyondViewport: true,
       clip: { x: 0, y: 0, width, height: Math.min(height, MAX_SCREENSHOT_HEIGHT), scale: 1 },
     });
     const data = typeof result === 'object' && result !== null ? Reflect.get(result, 'data') : null;
     return typeof data === 'string' ? Buffer.from(data, 'base64') : t('main.dialogs.screenshot.notWritten');
-  } catch (error) {
-    return error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten');
-  } finally {
-    if (isOurs) {
-      debuggerSession.detach();
-    }
-  }
+  });
+  return 'value' in outcome ? outcome.value : outcome.problem;
+}
+
+/** The page as it stands now, serialised by DevTools, so reading it runs nothing in it. */
+async function documentOf(contents: WebContents): Promise<string> {
+  const outcome = await withPageDebugger(contents, async (send) => {
+    const document: unknown = await send('DOM.getDocument', { depth: 0 });
+    const root = typeof document === 'object' && document !== null ? Reflect.get(document, 'root') : null;
+    const nodeId = typeof root === 'object' && root !== null ? Reflect.get(root, 'nodeId') : null;
+    const result: unknown = typeof nodeId === 'number' ? await send('DOM.getOuterHTML', { nodeId }) : null;
+    const html = typeof result === 'object' && result !== null ? Reflect.get(result, 'outerHTML') : null;
+    return typeof html === 'string' ? html : '';
+  });
+  return 'value' in outcome && outcome.value.length <= MAX_READER_DOCUMENT ? outcome.value : '';
 }

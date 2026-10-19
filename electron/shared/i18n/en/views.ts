@@ -124,6 +124,16 @@ export const views = {
       dismiss: 'Got it',
     },
   },
+  reader: {
+    title: 'Reader view',
+    loading: 'Reading the page',
+    none: {
+      title: 'No article here',
+      hint: 'Reader view needs a page with a main body of text, such as an article or a post.',
+    },
+    minutes: { one: '{count} minute read', other: '{count} minute read' },
+    imagesLeftOut: 'Images are left out, so nothing loads from outside the page.',
+  },
   palette: {
     label: 'Command palette',
     tabSearch: 'Tab search',
@@ -155,6 +165,7 @@ export const views = {
       split: 'Split with a new tab',
       leaveSplit: 'Leave split view',
       saveSession: 'Save tabs as a session',
+      reader: 'Reader view',
       openSession: 'Open session: {name}',
       mute: 'Mute tab',
       unmute: 'Unmute tab',
@@ -188,6 +199,7 @@ export const views = {
       newHushTab: 'private incognito',
       mute: 'sound audio',
       split: 'side by side two pages columns',
+      reader: 'article read clean text',
       session: 'workspace project restore',
       groupRemove: 'ungroup',
       savePage: 'download html',

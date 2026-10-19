@@ -190,6 +190,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.commands.adjustZoom('reset')),
       },
       { type: 'separator' },
+      {
+        label: t('main.menu.view.readerView'),
+        accelerator: key('reader-view'),
+        click: () => inWindow((browser) => browser.openSurface('reader')),
+      },
       { role: 'togglefullscreen' },
       { type: 'separator' },
       {

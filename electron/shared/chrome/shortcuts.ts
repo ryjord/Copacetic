@@ -86,6 +86,11 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
         id: 'screenshot',
       },
       { accelerator: 'CmdOrCtrl+U', description: t('main.shortcuts.descriptions.viewSource'), id: 'view-source' },
+      {
+        accelerator: 'CmdOrCtrl+Alt+R',
+        description: t('main.shortcuts.descriptions.readerView'),
+        id: 'reader-view',
+      },
     ],
   },
   {

@@ -8,6 +8,7 @@ import { BookmarksSurface } from '@/components/views/bookmarks/BookmarksSurface'
 import { CommandPalette } from '@/components/views/palette/CommandPalette';
 import { DownloadsSurface } from '@/components/views/downloads/DownloadsSurface';
 import { HistorySurface } from '@/components/views/history/HistorySurface';
+import { ReaderSurface } from '@/components/views/reader/ReaderSurface';
 import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
 import { ErrorPage } from '@/components/views/error/ErrorPage';
 import { StartPage } from '@/components/views/start/StartPage';
@@ -214,6 +215,7 @@ export function Chrome() {
         {surface === 'downloads' && <DownloadsSurface />}
         {surface === 'palette' && <CommandPalette />}
         {surface === 'tab-search' && <CommandPalette scope="tabs" />}
+        {surface === 'reader' && <ReaderSurface />}
       </main>
     </div>
   );
