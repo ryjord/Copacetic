@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SmokeApp } from './support/harness';
+import { IS_FOREGROUND_RUN, SmokeApp } from './support/harness';
 
 let copacetic: SmokeApp;
 const PAGE = 'https://example.com/site-info';
@@ -68,14 +68,19 @@ describe('site information', () => {
     }
   }, 60_000);
 
-  it('closes when someone goes back to the page', async () => {
-    await openFromBadge();
-    await copacetic.main(({ webContents }, url) => {
-      webContents
-        .getAllWebContents()
-        .find((contents) => contents.getURL() === url)
-        ?.focus();
-    }, PAGE);
-    expect(await until(async () => !(await isCardShown()))).toBe(true);
-  }, 60_000);
+  // Focusing the page from here brings the app to the front, so this runs only when asked to take the screen.
+  it.skipIf(!IS_FOREGROUND_RUN)(
+    'closes when someone goes back to the page',
+    async () => {
+      await openFromBadge();
+      await copacetic.main(({ webContents }, url) => {
+        webContents
+          .getAllWebContents()
+          .find((contents) => contents.getURL() === url)
+          ?.focus();
+      }, PAGE);
+      expect(await until(async () => !(await isCardShown()))).toBe(true);
+    },
+    60_000,
+  );
 });

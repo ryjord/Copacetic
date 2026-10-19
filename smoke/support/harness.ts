@@ -13,9 +13,16 @@ import path from 'node:path';
  * means these never run from inside an editor, which is exactly where someone
  * would try them first.
  */
+/** Set for the checks that need the app in front - who holds the keyboard, fullscreen - so they never take the screen by default. */
+export const IS_FOREGROUND_RUN = process.env.COPACETIC_SMOKE_FOREGROUND === '1';
+
 const launchEnvironment = (): Record<string, string> => {
   const environment: Record<string, string> = { ...process.env, NODE_ENV: 'production' } as Record<string, string>;
   delete environment.ELECTRON_RUN_AS_NODE;
+  // Launched without taking the screen, unless a run asks for the focus checks, which need the app in front.
+  if (!IS_FOREGROUND_RUN) {
+    environment.COPACETIC_LAUNCH_IN_BACKGROUND = '1';
+  }
   return environment;
 };
 
@@ -213,13 +220,16 @@ export class SmokeApp {
    * typing proves nothing about focus. This asks Electron instead, and only
    * counts a moment when the window itself holds the keyboard: the desktop
    * hands focus around, and on a build machine may never hand it to the app at
-   * all. Null when the window never had it, because then nothing can be said.
+   * all. Null when the window never had it, because then nothing can be said,
+   * and at once in a background run, where the app is never in front.
    */
   async keyboardIsWith(holds: (url: string) => boolean): Promise<boolean | null> {
+    if (!IS_FOREGROUND_RUN) {
+      return null;
+    }
     let didWindowHaveIt = false;
     for (let attempt = 0; attempt < 40; attempt += 1) {
-      const now = await this.main(({ app, BrowserWindow, webContents }) => {
-        app.focus({ steal: true });
+      const now = await this.main(({ BrowserWindow, webContents }) => {
         return {
           isWindowFocused: BrowserWindow.getAllWindows()[0]?.isFocused() === true,
           focusedUrl:

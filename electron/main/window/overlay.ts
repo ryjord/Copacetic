@@ -1,5 +1,6 @@
 import { WebContentsView, type BaseWindow, type WebFrameMain } from 'electron';
 import { guardChromeWebContents } from '../security/security';
+import { focusContents } from '../system/launch-mode';
 import { chromeEntryUrl, preloadPath } from '../app/env';
 import type { ContentBounds } from '../tabs/tab-layout';
 import type { OverlayRegion } from '../../shared/overlay-regions';
@@ -160,7 +161,7 @@ export class OverlayLayer {
 
     if (this.wantsFocus) {
       this.wantsFocus = false;
-      this.view.webContents.focus();
+      focusContents(this.view.webContents);
     }
   }
 }

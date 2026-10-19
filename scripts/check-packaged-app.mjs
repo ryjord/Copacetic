@@ -165,7 +165,7 @@ if (process.platform === 'darwin') {
 
 // `ELECTRON_RUN_AS_NODE` is set by some editors' terminals and makes the binary
 // run as a plain Node process, which fails with a message about nothing.
-const environment = { ...process.env };
+const environment = { ...process.env, COPACETIC_LAUNCH_IN_BACKGROUND: '1' };
 delete environment.ELECTRON_RUN_AS_NODE;
 
 const profile = mkdtempSync(path.join(tmpdir(), 'copacetic-packaged-'));

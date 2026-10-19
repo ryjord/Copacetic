@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SmokeApp } from './support/harness';
+import { IS_FOREGROUND_RUN, SmokeApp } from './support/harness';
 
 let copacetic: SmokeApp;
 const PAGE = 'https://example.com/fullscreen';
@@ -40,7 +40,8 @@ const until = async (condition: () => Promise<boolean>, timeoutMs = 15_000) => {
  * fullscreen video filled the rectangle under the chrome. The page should take
  * the whole window, and give it back afterwards.
  */
-describe('a page that goes fullscreen', () => {
+// A fullscreen window takes a Space of its own on macOS, so this runs only when asked to take the screen.
+describe.skipIf(!IS_FOREGROUND_RUN)('a page that goes fullscreen', () => {
   it('takes the whole window', async () => {
     await copacetic.inOpenPage(PAGE, 'document.documentElement.requestFullscreen().then(() => true)', {
       userGesture: true,

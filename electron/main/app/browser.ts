@@ -46,6 +46,7 @@ import { createSecurityDelegate, watchAuthChallenges } from '../security/browser
 import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
 import { OverlayLayer } from '../window/overlay';
+import { focusContents, showWindow } from '../system/launch-mode';
 import type { OverlayRegion } from '../../shared/overlay-regions';
 import type { SuggestionView } from '../../shared/suggestion-view';
 import { VaultSession } from '../vault/vault-session';
@@ -235,7 +236,7 @@ export class Browser {
     const settings = this.store.getSettings();
     app.configureHostResolver(hostResolverFor(settings.dnsMode, settings.dnsResolverId));
     await this.window.loadURL(chromeEntryUrl());
-    this.window.show();
+    showWindow(this.window);
     this.restoreTabs();
     this.updates.start(this.store.getSettings().checkForUpdates);
     if (isDevelopment()) {
@@ -361,7 +362,7 @@ export class Browser {
   focusOmnibox(): void {
     // Focusing the field inside the chrome does not take the keyboard from a page view; this does.
     if (!this.window.isDestroyed()) {
-      this.window.webContents.focus();
+      focusContents(this.window.webContents);
     }
     this.pushToChrome(PUSH.focusOmnibox);
   }

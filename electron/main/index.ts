@@ -8,6 +8,7 @@ import { installApplicationMenu } from './menus/menu';
 import { applyPrivacySwitches } from './system/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
+import { applyLaunchMode } from './system/launch-mode';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/url';
@@ -86,6 +87,7 @@ async function start(): Promise<void> {
   });
 
   await app.whenReady();
+  applyLaunchMode();
   // Before anything else that can fail, so that when it does there is a record.
   startDiagnostics(app.getPath('userData'));
   watchCertificateErrors();

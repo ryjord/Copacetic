@@ -79,11 +79,16 @@ jobs:
       - name: Smoke test the built app
         if: runner.os != 'Linux'
         run: npm run smoke
+        # Nobody is at a runner, so the checks that need the app in front run here.
+        env:
+          COPACETIC_SMOKE_FOREGROUND: '1'
 
       # Electron needs a display even to open a window it never shows.
       - name: Smoke test the built app
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run smoke
+        env:
+          COPACETIC_SMOKE_FOREGROUND: '1'
 
       - name: Check the packaged tree assembles
         run: npx electron-builder --dir --publish never

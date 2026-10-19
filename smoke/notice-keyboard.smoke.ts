@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SmokeApp } from './support/harness';
+import { IS_FOREGROUND_RUN, SmokeApp } from './support/harness';
 
 let copacetic: SmokeApp;
 
@@ -89,7 +89,7 @@ describe('a question the app asks', () => {
      * where it can be trusted and the gap is written down. See ADD-OVERLAY-FOCUS
      * in the audit progress notes.
      */
-    if (process.platform === 'darwin' && windowEverHadIt) {
+    if (IS_FOREGROUND_RUN && process.platform === 'darwin' && windowEverHadIt) {
       expect(overlayTookIt).toBe(true);
     }
 

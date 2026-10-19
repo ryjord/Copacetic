@@ -5,6 +5,7 @@ import {
   WebContentsView,
   type WebContents,
 } from 'electron';
+import { focusContents } from '../system/launch-mode';
 import { randomUUID } from 'node:crypto';
 import type { FindState, TabId, TabState } from '../../shared/types';
 import {
@@ -807,14 +808,11 @@ export class TabManager {
     // A start page or an error is drawn by the chrome, so the keyboard belongs there rather than in a hidden view.
     if (!tab || tab.isStartPage || tab.error) {
       if (!this.window.isDestroyed()) {
-        this.window.webContents.focus();
+        focusContents(this.window.webContents);
       }
       return;
     }
-    const contents = tab.view.webContents;
-    if (!contents.isDestroyed()) {
-      contents.focus();
-    }
+    focusContents(tab.view.webContents);
   }
 
   move(id: TabId, toIndex: number): void {
