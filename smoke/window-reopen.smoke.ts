@@ -36,7 +36,7 @@ describe('closing the last window on macOS', () => {
 
       // Gone, and the app still running - the macOS convention, and the state the
       // bug left someone stuck in.
-      expect(await copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(0);
+      expect(await copacetic.read(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(0);
 
       // What clicking the dock icon does.
       await copacetic.main(({ app }) => app.emit('activate'));

@@ -5,7 +5,7 @@ let copacetic: SmokeApp;
 afterAll(async () => copacetic?.close());
 
 const windowCount = () =>
-  copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((window) => window.isVisible()).length);
+  copacetic.read(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((window) => window.isVisible()).length);
 
 const until = async (condition: () => Promise<boolean>, timeoutMs = 20_000) => {
   const deadline = Date.now() + timeoutMs;
@@ -55,7 +55,7 @@ describe('more than one window', () => {
     expect(await until(async () => (await windowCount()) === 2)).toBe(true);
     // A restored tab is a page before it has an address, so this waits for both to arrive.
     const everything = () =>
-      copacetic.main(({ webContents }) => webContents.getAllWebContents().map((contents) => contents.getURL()));
+      copacetic.read(({ webContents }) => webContents.getAllWebContents().map((contents) => contents.getURL()));
     const isBothBack = async () => {
       const urls = await everything();
       return ['https://example.com/first-window', 'https://example.com/second-window'].every((url) =>

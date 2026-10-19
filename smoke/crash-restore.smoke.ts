@@ -20,7 +20,7 @@ const until = async (condition: () => Promise<boolean>, timeoutMs = 20_000) => {
 const pendingNotices = () => copacetic.chrome.evaluate(() => window.copacetic.notices.pending());
 
 const isOpenAnywhere = () =>
-  copacetic.main(
+  copacetic.read(
     ({ webContents }, url) => webContents.getAllWebContents().some((contents) => contents.getURL() === url),
     KEPT,
   );

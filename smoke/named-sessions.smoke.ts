@@ -11,7 +11,7 @@ beforeAll(async () => {
 afterAll(async () => copacetic?.close());
 
 const openAddresses = () =>
-  copacetic.main(({ webContents }) => webContents.getAllWebContents().map((contents) => contents.getURL()));
+  copacetic.read(({ webContents }) => webContents.getAllWebContents().map((contents) => contents.getURL()));
 
 describe('saved sessions', () => {
   it('keeps the pages, Hush aside, and opens them again in a window of their own', async () => {
@@ -33,7 +33,7 @@ describe('saved sessions', () => {
 
     await copacetic.chrome.evaluate((id) => window.copacetic.sessions.open(id), session?.id ?? '');
     const windowCount = () =>
-      copacetic.main(
+      copacetic.read(
         ({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((window) => window.isVisible()).length,
       );
     expect(await copacetic.until(async () => (await windowCount()) === 2, 20_000)).toBe(true);

@@ -12,7 +12,7 @@ afterAll(async () => copacetic?.close());
 
 describe('it writes where it says it writes', () => {
   it('keeps its files in the profile it was given', async () => {
-    const dir = await copacetic.main(({ app }) => app.getPath('userData'));
+    const dir = await copacetic.read(({ app }) => app.getPath('userData'));
     expect(dir).toBe(copacetic.profile);
   });
 

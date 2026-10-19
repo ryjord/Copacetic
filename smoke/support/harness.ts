@@ -63,6 +63,8 @@ for (const ending of ['exit', 'SIGINT', 'SIGTERM'] as const) {
   });
 }
 
+const READ_ATTEMPTS = 3;
+
 /**
  * A running copy of the built app, with a profile of its own.
  *
@@ -72,6 +74,7 @@ for (const ending of ['exit', 'SIGINT', 'SIGTERM'] as const) {
  * at all, and the failures it catches (a preload that cannot be found, a window
  * that never shows) are invisible to every other kind of test here.
  */
+
 export class SmokeApp {
   private constructor(
     private readonly app: ElectronApplication,
@@ -215,6 +218,29 @@ export class SmokeApp {
     // over a mismatch.
     const run = fn as (electronModule: typeof import('electron'), arg: unknown) => T | Promise<T>;
     return this.app.evaluate(run, arg);
+  }
+
+  /**
+   * `main` for a function that only looks, and so can be asked again.
+   *
+   * Playwright now and then loses the promise of a main-process evaluate and
+   * reports it garbage collected, more often on a loaded CI runner. Only a
+   * read is retried: something that changes state might already have changed it.
+   */
+  async read<T, A = undefined>(
+    fn: (electronModule: typeof import('electron'), arg: A) => T | Promise<T>,
+    arg?: A,
+  ): Promise<T> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.main(fn, arg);
+      } catch (error) {
+        const isLost = error instanceof Error && error.message.includes('Resulting promise was garbage collected');
+        if (!isLost || attempt === READ_ATTEMPTS) {
+          throw error;
+        }
+      }
+    }
   }
 
   /** Chooses an application menu item by label, the same as a click on it in the menu bar. */

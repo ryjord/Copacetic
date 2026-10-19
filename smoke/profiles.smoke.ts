@@ -19,14 +19,14 @@ const until = async (condition: () => Promise<boolean>, timeoutMs = 20_000) => {
 };
 
 const windowCount = () =>
-  copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((window) => window.isVisible()).length);
+  copacetic.read(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((window) => window.isVisible()).length);
 
 /** What a chrome says about its own window's profile, which is the routing being tested. */
 const profileIn = (index: number) =>
   copacetic.chromePages()[index]!.evaluate(async () => (await window.copacetic.chrome.getState()).profile.name);
 
 const cookieNamesIn = (partition: string) =>
-  copacetic.main(
+  copacetic.read(
     async ({ session }, name) => (await session.fromPartition(name).cookies.get({})).map((cookie) => cookie.name),
     partition,
   );

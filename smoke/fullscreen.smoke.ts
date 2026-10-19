@@ -14,7 +14,7 @@ afterAll(async () => copacetic?.close());
 
 /** The page's view rectangle and the window's content size, read from Electron. */
 const geometry = () =>
-  copacetic.main(({ BrowserWindow, webContents }, url) => {
+  copacetic.read(({ BrowserWindow, webContents }, url) => {
     const window = BrowserWindow.getAllWindows()[0];
     const page = webContents.getAllWebContents().find((contents) => contents.getURL() === url);
     const view = window?.contentView.children.find(

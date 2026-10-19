@@ -14,7 +14,7 @@ afterAll(async () => copacetic?.close());
 
 /** Every view's URL, bounds and visibility, read from Electron itself. */
 const layers = () =>
-  copacetic.main(({ BrowserWindow }) =>
+  copacetic.read(({ BrowserWindow }) =>
     (BrowserWindow.getAllWindows()[0]?.contentView.children ?? []).map((view) => ({
       url: 'webContents' in view ? (view as Electron.WebContentsView).webContents.getURL() : '',
       bounds: view.getBounds(),

@@ -58,7 +58,7 @@ describe('the app starts', () => {
   });
 
   it('starts with no error dialog and one window', async () => {
-    expect(await copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+    expect(await copacetic.read(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   });
 });
 

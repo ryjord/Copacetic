@@ -51,7 +51,7 @@ describe('a PDF', () => {
     await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), pdfUrl);
     // The viewer is an extension page, either a frame inside the tab or a contents of its own.
     const viewerPages = () =>
-      copacetic.main(({ webContents }) =>
+      copacetic.read(({ webContents }) =>
         webContents
           .getAllWebContents()
           .flatMap((contents) => [

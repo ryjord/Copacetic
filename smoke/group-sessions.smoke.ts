@@ -12,7 +12,7 @@ const partitionDirectory = (profile: string, id: string) =>
 
 /** The cookies a group's own session holds, read from the real session in the main process. */
 const groupCookies = (id: string) =>
-  copacetic.main(
+  copacetic.read(
     async ({ session }, partition) =>
       (await session.fromPartition(partition).cookies.get({})).map((cookie) => cookie.name),
     `persist:copacetic-group-${id}`,
@@ -45,7 +45,7 @@ describe('a group with its own session', () => {
 
     // The tab moves by getting a new page, so the old one may still be closing when this first looks.
     const isInGroupSession = () =>
-      copacetic.main(({ session, webContents }, partition) => {
+      copacetic.read(({ session, webContents }, partition) => {
         const group = session.fromPartition(partition);
         return webContents
           .getAllWebContents()

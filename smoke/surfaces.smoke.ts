@@ -18,7 +18,7 @@ const surfaceOpen = () =>
   copacetic.chrome.evaluate(() => Boolean(document.querySelector('[role="dialog"][aria-label="History"]')));
 
 const pageVisible = () =>
-  copacetic.main(({ BrowserWindow }) =>
+  copacetic.read(({ BrowserWindow }) =>
     (BrowserWindow.getAllWindows()[0]?.contentView.children ?? []).some((view) => view.getVisible?.() === true),
   );
 

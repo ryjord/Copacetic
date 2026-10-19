@@ -20,7 +20,7 @@ interface PlacedPage {
 
 /** Where the window has actually put each page, asked of Electron rather than of the code that asked it to. */
 const placedPages = (): Promise<PlacedPage[]> =>
-  copacetic.main(({ BrowserWindow, WebContentsView }) =>
+  copacetic.read(({ BrowserWindow, WebContentsView }) =>
     BrowserWindow.getAllWindows()
       .flatMap((window) => window.contentView.children)
       .filter((view) => view instanceof WebContentsView)

@@ -27,7 +27,7 @@ const sleeperState = () =>
 
 /** Whether a live page anywhere in the app is showing the address, which is what sleeping takes away. */
 const isPageOpen = () =>
-  copacetic.main(
+  copacetic.read(
     ({ webContents }, url) => webContents.getAllWebContents().some((contents) => contents.getURL() === url),
     SLEEPER,
   );

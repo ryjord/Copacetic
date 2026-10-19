@@ -55,7 +55,7 @@ describe('a question the app asks', () => {
      * unnoticed for as long as it did.
      */
     const sample = () =>
-      copacetic.main(({ BrowserWindow, webContents }) => ({
+      copacetic.read(({ BrowserWindow, webContents }) => ({
         window: BrowserWindow.getAllWindows()[0]?.isFocused() === true,
         overlay: webContents
           .getAllWebContents()

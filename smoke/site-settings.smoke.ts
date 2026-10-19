@@ -36,7 +36,7 @@ describe('what Site settings keeps about a site', () => {
     await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), zoomed);
     await copacetic.inOpenPage(zoomed, 'true');
     const zoomOfPage = () =>
-      copacetic.main(
+      copacetic.read(
         ({ webContents }, url) =>
           webContents
             .getAllWebContents()

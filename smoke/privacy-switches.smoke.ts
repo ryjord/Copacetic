@@ -21,7 +21,7 @@ const update = (patch: Record<string, unknown>) =>
 
 /** What Chromium itself was told for the open page, read in the main process rather than from a setting. */
 const webRtcPolicyOfPage = () =>
-  copacetic.main(
+  copacetic.read(
     ({ webContents }, url) =>
       webContents
         .getAllWebContents()
@@ -50,7 +50,7 @@ describe('the privacy switches', () => {
 
   it('switches the spelling checker in the session, not only in the setting', async () => {
     const isChecking = () =>
-      copacetic.main(({ session }) => session.fromPartition('persist:copacetic-web').isSpellCheckerEnabled());
+      copacetic.read(({ session }) => session.fromPartition('persist:copacetic-web').isSpellCheckerEnabled());
     await update({ spellcheck: false });
     expect(await isChecking()).toBe(false);
     await update({ spellcheck: true });
