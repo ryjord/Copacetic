@@ -107,6 +107,23 @@ export class TabCommands {
     this.withActiveTab((tabId) => this.savePage(tabId));
   }
 
+  saveScreenshotOfActiveTab(): void {
+    this.withActiveTab((tabId) => this.saveScreenshot(tabId));
+  }
+
+  saveScreenshot(tabId: TabId): void {
+    void this.deps.tabs.saveScreenshot(tabId).then((problem) => {
+      if (problem) {
+        this.deps.notices.notify({
+          id: `screenshot-failed-${tabId}`,
+          tone: 'info',
+          key: 'screenshot-failed',
+          message: t('main.notices.screenshotFailed', { problem }),
+        });
+      }
+    });
+  }
+
   savePage(tabId: TabId): void {
     void this.deps.tabs.savePage(tabId).then((problem) => {
       if (problem) {

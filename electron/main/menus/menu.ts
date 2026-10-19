@@ -93,6 +93,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.commands.saveActiveTab()),
       },
       {
+        label: t('main.menu.file.screenshot'),
+        accelerator: key('screenshot'),
+        click: () => inWindow((browser) => browser.commands.saveScreenshotOfActiveTab()),
+      },
+      {
         label: t('main.menu.file.print'),
         accelerator: key('print'),
         click: () => inWindow((browser) => browser.commands.printActiveTab()),

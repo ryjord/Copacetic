@@ -23,6 +23,7 @@ function commandsWith(
       urlFor: () => page.url,
       isHush: () => page.isHush,
       savePage: async () => printFails ?? '',
+      saveScreenshot: async () => printFails ?? '',
       print: (_id: string, onFailed: (reason: string) => void) => {
         if (printFails) {
           onFailed(printFails);
@@ -95,6 +96,21 @@ describe('saving a page', () => {
     await vi.waitFor(() =>
       expect(notices).toEqual([
         expect.objectContaining({ key: 'save-failed', message: 'The page was not saved: Disk full' }),
+      ]),
+    );
+  });
+});
+
+describe('saving a picture of the page', () => {
+  it('says so when no picture was saved', async () => {
+    const { commands, notices } = commandsWith('Close the developer tools first');
+    commands.saveScreenshotOfActiveTab();
+    await vi.waitFor(() =>
+      expect(notices).toEqual([
+        expect.objectContaining({
+          key: 'screenshot-failed',
+          message: 'No picture of the page was saved: Close the developer tools first',
+        }),
       ]),
     );
   });

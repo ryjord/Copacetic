@@ -97,6 +97,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('tabs.reopenClosed', (browser) => browser.commands.reopenClosedTab());
   handle('tabs.print', (browser, _event, id) => browser.commands.print(asString(id)));
   handle('tabs.savePage', (browser, _event, id) => browser.commands.savePage(asString(id)));
+  handle('tabs.saveScreenshot', (browser, _event, id) => browser.commands.saveScreenshot(asString(id)));
   handle('tabs.viewSource', (browser, _event, id) => browser.commands.viewSource(asString(id)));
   handle('tabs.toggleDevTools', (browser, _event, id) => browser.tabs.toggleDevTools(asString(id)));
   handle('tabs.setZoom', (browser, _event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));

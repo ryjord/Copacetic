@@ -13,6 +13,7 @@ export const main = {
       reopenClosedTab: 'Reopen closed tab',
       closeTab: 'Close tab',
       savePageAs: 'Save page as…',
+      screenshot: 'Save a picture of the whole page…',
       print: 'Print…',
     },
     profiles: {
@@ -158,6 +159,7 @@ export const main = {
     openFolder: '“{folderName}” holds {count} pages. Open them all as a tab group?',
     forgotSite: 'Forgot {site}: {traces}',
     openTabs: 'Open {count} tabs',
+    screenshotFailed: 'No picture of the page was saved: {problem}',
     saveFailed: 'The page was not saved: {problem}',
     printFailed: 'The page did not print: {reason}',
     keepDownload:
@@ -253,6 +255,7 @@ export const main = {
       zoomReset: 'Reset zoom',
       print: 'Print',
       savePage: 'Save page as',
+      screenshot: 'Save a picture of the whole page',
       viewSource: 'View page source',
       history: 'History',
       downloads: 'Downloads',
@@ -430,6 +433,13 @@ export const main = {
     unknown: 'Copacetic cannot describe this connection.',
   },
   dialogs: {
+    screenshot: {
+      title: 'Save a picture of the whole page',
+      filter: 'PNG image',
+      noPage: 'There is no page here to picture.',
+      devToolsOpen: 'Close the developer tools for this page first; they hold what the picture is taken with.',
+      notWritten: 'The picture could not be saved.',
+    },
     savePage: {
       noPage: 'There is no page here to save.',
       title: 'Save page as',

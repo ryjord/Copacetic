@@ -75,6 +75,11 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { accelerator: 'CmdOrCtrl+0', description: t('main.shortcuts.descriptions.zoomReset'), id: 'zoom-reset' },
       { accelerator: 'CmdOrCtrl+P', description: t('main.shortcuts.descriptions.print'), id: 'print' },
       { accelerator: 'CmdOrCtrl+S', description: t('main.shortcuts.descriptions.savePage'), id: 'save-page' },
+      {
+        accelerator: 'CmdOrCtrl+Shift+S',
+        description: t('main.shortcuts.descriptions.screenshot'),
+        id: 'screenshot',
+      },
       { accelerator: 'CmdOrCtrl+U', description: t('main.shortcuts.descriptions.viewSource'), id: 'view-source' },
     ],
   },

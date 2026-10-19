@@ -192,6 +192,13 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
             run: then(() => send((api) => api.tabs.savePage(tabId))),
           },
           {
+            id: 'screenshot',
+            label: t('views.palette.commands.screenshot'),
+            group: 'page',
+            keywords: t('views.palette.keywords.screenshot'),
+            run: then(() => send((api) => api.tabs.saveScreenshot(tabId))),
+          },
+          {
             id: 'view-source',
             label: t('views.palette.commands.viewSource'),
             group: 'page',

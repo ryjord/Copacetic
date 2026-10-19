@@ -51,6 +51,7 @@ export const CHANNELS = {
   'tabs.reopenClosed': 'tab:reopen-closed',
   'tabs.print': 'tab:print',
   'tabs.savePage': 'tab:save-page',
+  'tabs.saveScreenshot': 'tab:save-screenshot',
   'tabs.viewSource': 'tab:view-source',
   'tabs.toggleDevTools': 'tab:toggle-devtools',
   'tabs.setZoom': 'tab:set-zoom',

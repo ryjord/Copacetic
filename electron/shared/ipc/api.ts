@@ -71,6 +71,7 @@ export interface CopaceticApi {
     /** The system print dialog for this tab's page. */
     print(id: TabId): Promise<void>;
     savePage(id: TabId): Promise<void>;
+    saveScreenshot(id: TabId): Promise<void>;
     viewSource(id: TabId): Promise<void>;
     /** The page's own developer tools, in a window of their own. */
     toggleDevTools(id: TabId): Promise<void>;

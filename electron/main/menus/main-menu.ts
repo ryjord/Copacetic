@@ -47,6 +47,11 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
       ...shortcut('save-page'),
       click: () => browser.commands.saveActiveTab(),
     },
+    {
+      label: t('main.menu.file.screenshot'),
+      ...shortcut('screenshot'),
+      click: () => browser.commands.saveScreenshotOfActiveTab(),
+    },
     { label: t('main.menu.file.print'), ...shortcut('print'), click: () => browser.commands.printActiveTab() },
     { type: 'separator' },
     {

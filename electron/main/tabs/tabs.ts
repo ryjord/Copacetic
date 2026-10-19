@@ -5,9 +5,12 @@ import {
   type Session,
   WebContentsView,
   type WebContents,
+  app,
   dialog,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 // Utils
 import { sanitiseFilename } from '../data/downloads';
@@ -453,6 +456,39 @@ export class TabManager {
       return '';
     } catch (error) {
       return error instanceof Error ? error.message : t('main.dialogs.savePage.failed');
+    }
+  }
+
+  /**
+   * The whole page as one image, saved where the person chooses. Captured by
+   * Chromium itself past the visible area, rather than stitched from scrolled
+   * pieces, and capped so an endless page cannot exhaust memory.
+   */
+  async saveScreenshot(id: TabId): Promise<string> {
+    const contents = this.contentsFor(id);
+    if (!contents || this.window.isDestroyed()) {
+      return t('main.dialogs.screenshot.noPage');
+    }
+    const image = await captureWholePage(contents);
+    if (typeof image === 'string') {
+      return image;
+    }
+    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
+      title: t('main.dialogs.screenshot.title'),
+      defaultPath: path.join(
+        app.getPath('downloads'),
+        `${sanitiseFilename(contents.getTitle() || t('main.dialogs.savePage.defaultName'))}.png`,
+      ),
+      filters: [{ name: t('main.dialogs.screenshot.filter'), extensions: ['png'] }],
+    });
+    if (canceled || !filePath) {
+      return '';
+    }
+    try {
+      await writeFile(filePath, image);
+      return '';
+    } catch (error) {
+      return error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten');
     }
   }
 
@@ -1272,5 +1308,41 @@ export class TabManager {
     this.tabs.clear();
     this.order = [];
     this.activeId = null;
+  }
+}
+
+// Taller than this is a page that keeps growing as it scrolls, not one anyone wants as a single picture.
+const MAX_SCREENSHOT_HEIGHT = 16_384;
+
+/** A PNG of the whole page, or why there is none. Through the page's own debugger, which DevTools may already hold. */
+async function captureWholePage(contents: WebContents): Promise<Buffer | string> {
+  const debuggerSession = contents.debugger;
+  if (debuggerSession.isAttached()) {
+    return t('main.dialogs.screenshot.devToolsOpen');
+  }
+  try {
+    debuggerSession.attach('1.3');
+  } catch {
+    return t('main.dialogs.screenshot.devToolsOpen');
+  }
+  try {
+    const metrics: unknown = await debuggerSession.sendCommand('Page.getLayoutMetrics');
+    const size = typeof metrics === 'object' && metrics !== null ? Reflect.get(metrics, 'cssContentSize') : null;
+    const width = Math.ceil(Number(typeof size === 'object' && size !== null ? Reflect.get(size, 'width') : 0));
+    const height = Math.ceil(Number(typeof size === 'object' && size !== null ? Reflect.get(size, 'height') : 0));
+    if (!width || !height) {
+      return t('main.dialogs.screenshot.noPage');
+    }
+    const result: unknown = await debuggerSession.sendCommand('Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: true,
+      clip: { x: 0, y: 0, width, height: Math.min(height, MAX_SCREENSHOT_HEIGHT), scale: 1 },
+    });
+    const data = typeof result === 'object' && result !== null ? Reflect.get(result, 'data') : null;
+    return typeof data === 'string' ? Buffer.from(data, 'base64') : t('main.dialogs.screenshot.notWritten');
+  } catch (error) {
+    return error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten');
+  } finally {
+    debuggerSession.detach();
   }
 }
