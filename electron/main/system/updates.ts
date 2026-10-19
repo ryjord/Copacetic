@@ -160,8 +160,8 @@ export class UpdateManager {
   private async checkViaUpdater(): Promise<void> {
     const autoUpdater = await loadAutoUpdater();
     autoUpdater.autoDownload = true;
-    // The app applies it on quit rather than restarting underneath someone.
-    autoUpdater.autoInstallOnAppQuit = true;
+    // Unsigned builds have only TLS and the feed's hash behind them, so nothing installs until someone presses Restart.
+    autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.removeAllListeners();
 
     autoUpdater.on('update-available', (info: { version: string }) => {
