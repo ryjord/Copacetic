@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
-import { PrivacyPane } from '../../../../../src/components/views/settings/privacy/PrivacyPane';
+import { PrivacyPane } from '@/components/views/settings/privacy/PrivacyPane';
 
 vi.mock('@/lib/bridge', async () => (await import('../bridge-mock')).fallbackBridge);
 

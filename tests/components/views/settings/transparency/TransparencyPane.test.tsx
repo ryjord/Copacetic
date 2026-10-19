@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { globSync, readFileSync } from 'node:fs';
 import { cleanup, render } from '@testing-library/react';
-import { TransparencyPane } from '../../../../../src/components/views/settings/transparency/TransparencyPane';
+import { TransparencyPane } from '@/components/views/settings/transparency/TransparencyPane';
 
 vi.mock('@/lib/bridge', async () => (await import('../bridge-mock')).fallbackBridge);
 

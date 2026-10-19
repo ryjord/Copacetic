@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { DEFAULT_SETTINGS_SHAPE } from '../../../../../src/lib/defaults';
-import { AppearancePane } from '../../../../../src/components/views/settings/appearance/AppearancePane';
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
+import { AppearancePane } from '@/components/views/settings/appearance/AppearancePane';
 
 let settings = { ...DEFAULT_SETTINGS_SHAPE };
 vi.mock('@/store/useBrowserStore', () => ({
@@ -10,7 +10,7 @@ vi.mock('@/store/useBrowserStore', () => ({
 
 const updateSettings = vi.fn();
 vi.mock('@/components/views/settings/shared/options', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../../src/components/views/settings/shared/options')>();
+  const actual = await importOriginal<typeof import('@/components/views/settings/shared/options')>();
   return { ...actual, updateSettings: (patch: unknown) => updateSettings(patch) };
 });
 

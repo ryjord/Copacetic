@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { BookmarkFolder } from '../../../../electron/shared/bookmark-folders';
 import type { Bookmark } from '../../../../electron/shared/types';
-import { DRAG_BOOKMARK, DRAG_FOLDER, FolderTree } from '../../../../src/components/views/bookmarks/FolderTree';
+import { DRAG_BOOKMARK, DRAG_FOLDER, FolderTree } from '@/components/views/bookmarks/FolderTree';
 
 const file = vi.fn();
 const move = vi.fn();

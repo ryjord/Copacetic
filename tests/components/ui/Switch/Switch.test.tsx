@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Switch } from '../../../../src/components/ui/Switch/Switch';
+import { Switch } from '@/components/ui/Switch/Switch';
 
 afterEach(cleanup);
 

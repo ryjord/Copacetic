@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchScore, rankByMatch } from '../../src/lib/fuzzy';
+import { matchScore, rankByMatch } from '@/lib/fuzzy';
 
 const LABELS = ['New tab', 'New Hush tab', 'Open settings', 'Reset zoom', 'Switch to Settings - Example'];
 

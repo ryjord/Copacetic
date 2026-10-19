@@ -24,8 +24,7 @@ vi.mock('@/lib/bridge', () => ({
   isRunningInShell: () => false,
 }));
 
-const { TransparencyPane } =
-  await import('../../../../../src/components/views/settings/transparency/TransparencyPane');
+const { TransparencyPane } = await import('@/components/views/settings/transparency/TransparencyPane');
 
 afterEach(cleanup);
 

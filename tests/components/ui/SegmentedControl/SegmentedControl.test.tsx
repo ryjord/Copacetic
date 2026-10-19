@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { SegmentedControl } from '../../../../src/components/ui/SegmentedControl/SegmentedControl';
+import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 
 afterEach(cleanup);
 
@@ -37,7 +37,7 @@ describe('a segmented control', () => {
 // tailwind-merge took `text-body-sm` for a colour and dropped it beside `text-ink-dim`.
 describe('the type scale', () => {
   it('survives being merged with a text colour', async () => {
-    const { cn } = await import('../../../../src/lib/utils');
+    const { cn } = await import('@/lib/utils');
     expect(cn('text-body-sm text-ink-dim')).toBe('text-body-sm text-ink-dim');
     expect(cn('text-body', 'text-caption')).toBe('text-caption');
   });

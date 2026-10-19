@@ -46,7 +46,7 @@ vi.mock('@/lib/bridge', () => ({
   isRunningInShell: () => false,
 }));
 
-const { CommandPalette } = await import('../../../../src/components/views/palette/CommandPalette');
+const { CommandPalette } = await import('@/components/views/palette/CommandPalette');
 
 beforeEach(() => setSurface.mockClear());
 afterEach(cleanup);
