@@ -136,3 +136,32 @@ describe('rows it cannot use', () => {
     expect(credentialsFromCsv(csv)).toMatchObject({ credentials: [one()], skipped: 0 });
   });
 });
+
+// A guard that stays on the way back in changes a password, and the generator makes ones that start with - or @.
+describe('the formula guard', () => {
+  it('leaves passwords exactly as they are', () => {
+    const csv = credentialsToCsv([{ origin: 'https://a.test', username: 'one', password: '=1+2' }]);
+    expect(csv).toContain(',=1+2');
+    expect(credentialsFromCsv(csv).credentials[0]?.password).toBe('=1+2');
+  });
+
+  it('still guards the fields a site could have shaped, and takes the guard back on import', () => {
+    const csv = credentialsToCsv([{ origin: 'https://a.test', username: '=HYPERLINK("x")', password: 'secret' }]);
+    expect(csv).toContain(`"'=HYPERLINK(""x"")"`);
+    expect(credentialsFromCsv(csv).credentials[0]?.username).toBe('=HYPERLINK("x")');
+  });
+
+  it('round trips passwords that begin with every formula character', () => {
+    const credentials = ['-dash', '@at', '+plus', '=equals'].map((password, index) => ({
+      origin: `https://site${index}.test`,
+      username: 'riley',
+      password,
+    }));
+    expect(credentialsFromCsv(credentialsToCsv(credentials)).credentials.map((each) => each.password)).toEqual([
+      '-dash',
+      '@at',
+      '+plus',
+      '=equals',
+    ]);
+  });
+});

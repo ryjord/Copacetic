@@ -26,8 +26,9 @@ const ALIASES: Record<string, readonly string[]> = {
 // A leading one of these is how a spreadsheet decides a cell is a formula, not text.
 const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
 
-function quote(value: string): string {
-  const safe = FORMULA_TRIGGER.test(value) ? `'${value}` : value;
+// The password is never guarded: it must arrive exactly, and no site can put text in it.
+function quote(value: string, isGuarded = true): string {
+  const safe = isGuarded && FORMULA_TRIGGER.test(value) ? `'${value}` : value;
   // Only where it changes the meaning, so an ordinary file stays readable.
   if (/[",\r\n]/.test(safe)) {
     return `"${safe.replace(/"/g, '""')}"`;
@@ -39,9 +40,12 @@ export function credentialsToCsv(credentials: readonly CsvCredential[]): string 
   const lines = [COLUMNS.join(',')];
   for (const credential of credentials) {
     lines.push(
-      [hostOf(credential.origin) || credential.origin, credential.origin, credential.username, credential.password]
-        .map(quote)
-        .join(','),
+      [
+        quote(hostOf(credential.origin) || credential.origin),
+        quote(credential.origin),
+        quote(credential.username),
+        quote(credential.password, false),
+      ].join(','),
     );
   }
   // A trailing newline: some importers drop the last row without one.
@@ -111,6 +115,11 @@ function columnIndexes(header: readonly string[]): { url: number; username: numb
   return { url, username: find('username'), password };
 }
 
+/** Takes back the mark the export put before a formula character, so a guarded field comes home as it left. */
+function unguard(value: string): string {
+  return value.startsWith("'") && FORMULA_TRIGGER.test(value.slice(1)) ? value.slice(1) : value;
+}
+
 export function credentialsFromCsv(text: string): ImportedCredentials {
   const rows = parseRows(text);
   const header = rows[0];
@@ -129,7 +138,7 @@ export function credentialsFromCsv(text: string): ImportedCredentials {
   let skipped = 0;
 
   for (const row of rows.slice(1)) {
-    const origin = (row[columns.url] ?? '').trim();
+    const origin = unguard((row[columns.url] ?? '').trim());
     const password = row[columns.password] ?? '';
     if (!origin || !password) {
       skipped += 1;
@@ -137,7 +146,7 @@ export function credentialsFromCsv(text: string): ImportedCredentials {
     }
     credentials.push({
       origin,
-      username: (columns.username === -1 ? '' : (row[columns.username] ?? '')).trim(),
+      username: unguard((columns.username === -1 ? '' : (row[columns.username] ?? '')).trim()),
       password,
     });
   }
