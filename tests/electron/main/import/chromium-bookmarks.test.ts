@@ -62,3 +62,20 @@ describe("a Chromium profile's bookmarks", () => {
     expect(bookmarksFromChromium(raw)).toEqual({ bookmarks: [], skipped: 0 });
   });
 });
+
+describe('the folders a Chromium profile kept', () => {
+  it("names each bookmark's folders from the root down", () => {
+    const { bookmarks } = bookmarksFromChromium({
+      roots: {
+        bookmark_bar: folder('Bookmarks bar', [
+          url('Top', 'https://top.example/'),
+          folder('Work', [folder('Deep', [url('Deep', 'https://deep.example/')])]),
+        ]),
+      },
+    });
+    expect(bookmarks.map((bookmark) => bookmark.folders)).toEqual([
+      ['Bookmarks bar'],
+      ['Bookmarks bar', 'Work', 'Deep'],
+    ]);
+  });
+});

@@ -18,7 +18,12 @@ describe('reading a file another browser exported', () => {
   it('finds the bookmarks inside the folders', () => {
     const { bookmarks } = bookmarksFromHtml(CHROME_EXPORT);
     expect(bookmarks).toHaveLength(2);
-    expect(bookmarks[0]).toEqual({ url: 'https://example.com/one', title: 'The first one', addedAt: 1690000001 });
+    expect(bookmarks[0]).toEqual({
+      url: 'https://example.com/one',
+      title: 'The first one',
+      addedAt: 1690000001,
+      folders: ['Reading'],
+    });
   });
 
   it.each([
@@ -147,5 +152,59 @@ describe('entities', () => {
 
   it('leaves something it does not know alone', () => {
     expect(decodeEntities('&notarealentity;')).toBe('&notarealentity;');
+  });
+});
+
+// An import that flattened every folder into one list lost the only organisation most people ever did.
+describe('the folders a file was organised into', () => {
+  it('follows nesting, and leaves a folder when its list ends', () => {
+    const html = `<DL><p>
+      <DT><H3>Work</H3>
+      <DL><p>
+        <DT><H3>Clients &amp; partners</H3>
+        <DL><p><DT><A HREF="https://deep.test/">Deep</A></DL><p>
+        <DT><A HREF="https://work.test/">Work</A>
+      </DL><p>
+      <DT><A HREF="https://top.test/">Top</A>
+    </DL><p>`;
+    expect(bookmarksFromHtml(html).bookmarks.map((bookmark) => [bookmark.url, bookmark.folders])).toEqual([
+      ['https://deep.test/', ['Work', 'Clients & partners']],
+      ['https://work.test/', ['Work']],
+      ['https://top.test/', []],
+    ]);
+  });
+
+  // Firefox's export opens with a menu folder and puts the toolbar inside it.
+  it('reads the way Firefox writes it', () => {
+    const html = `<H1>Bookmarks Menu</H1>
+<DL><p>
+    <DT><H3 ADD_DATE="1" PERSONAL_TOOLBAR_FOLDER="true">Bookmarks Toolbar</H3>
+    <DL><p>
+        <DT><A HREF="https://toolbar.test/" ADD_DATE="2">On the toolbar</A>
+    </DL><p>
+    <DT><A HREF="https://menu.test/">In the menu</A>
+</DL>`;
+    expect(bookmarksFromHtml(html).bookmarks.map((bookmark) => bookmark.folders)).toEqual([
+      ['Bookmarks Toolbar'],
+      [],
+    ]);
+  });
+
+  // Safari's has no paragraph tags and a folder for its reading list.
+  it('reads the way Safari writes it', () => {
+    const html = `<DL>
+<DT><H3 FOLDED>Favourites</H3>
+<DL>
+<DT><A HREF="https://favourite.test/">Favourite</A>
+</DL>
+<DT><H3 FOLDED id="com.apple.ReadingList">Reading List</H3>
+<DL>
+<DT><A HREF="https://later.test/">Later</A>
+</DL>
+</DL>`;
+    expect(bookmarksFromHtml(html).bookmarks.map((bookmark) => bookmark.folders)).toEqual([
+      ['Favourites'],
+      ['Reading List'],
+    ]);
   });
 });

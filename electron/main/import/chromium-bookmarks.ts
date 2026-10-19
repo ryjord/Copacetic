@@ -1,4 +1,9 @@
-import { type ImportedBookmarks, MAX_IMPORTED_TITLE, isImportable } from '../../shared/bookmark-import';
+import {
+  type ImportedBookmarks,
+  MAX_IMPORTED_FOLDER_NAME,
+  MAX_IMPORTED_TITLE,
+  isImportable,
+} from '../../shared/bookmark-import';
 import { sanitiseChromeText } from '../../shared/chrome-text';
 import { isRecord } from '../data/persistence';
 import { millisecondsFromChromiumTime } from './chromium-time';
@@ -7,25 +12,26 @@ interface ChromiumUrlNode {
   url: string;
   name: string;
   dateAdded: unknown;
+  folders: string[];
 }
 
-/** Every saved address under a node, however deep in folders. */
-function urlsIn(node: unknown): ChromiumUrlNode[] {
+/** Every saved address under a node, however deep, with the folders on the way down; the roots are folders too. */
+function urlsIn(node: unknown, folders: string[]): ChromiumUrlNode[] {
   if (!isRecord(node)) {
     return [];
   }
+  const name = typeof node.name === 'string' ? node.name : '';
   if (node.type === 'url' && typeof node.url === 'string') {
-    return [
-      { url: node.url.trim(), name: typeof node.name === 'string' ? node.name : '', dateAdded: node.date_added },
-    ];
+    return [{ url: node.url.trim(), name, dateAdded: node.date_added, folders }];
   }
-  return Array.isArray(node.children) ? node.children.flatMap(urlsIn) : [];
+  const inside = [...folders, sanitiseChromeText(name, MAX_IMPORTED_FOLDER_NAME) || 'Folder'];
+  return Array.isArray(node.children) ? node.children.flatMap((child) => urlsIn(child, inside)) : [];
 }
 
-/** The bookmarks in a Chromium profile's `Bookmarks` file, flattened as the HTML import flattens them. */
+/** The bookmarks in a Chromium profile's `Bookmarks` file, each with its folders. */
 export function bookmarksFromChromium(raw: unknown): ImportedBookmarks {
   const roots = isRecord(raw) && isRecord(raw.roots) ? Object.values(raw.roots) : [];
-  const nodes = roots.flatMap(urlsIn);
+  const nodes = roots.flatMap((root) => urlsIn(root, []));
   const importable = nodes.filter((node) => isImportable(node.url));
   const seen = new Set<string>();
   const bookmarks = importable
@@ -42,6 +48,7 @@ export function bookmarksFromChromium(raw: unknown): ImportedBookmarks {
         url: node.url,
         title: sanitiseChromeText(node.name, MAX_IMPORTED_TITLE) || node.url,
         addedAt: addedAtMs === null ? null : Math.floor(addedAtMs / 1000),
+        folders: node.folders,
       };
     });
   return { bookmarks, skipped: nodes.length - importable.length };

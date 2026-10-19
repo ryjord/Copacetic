@@ -69,3 +69,30 @@ describe('a folder whose parent is missing', () => {
     expect(folders[0]?.parentId).toBeNull();
   });
 });
+
+describe('importing bookmarks with their folders', () => {
+  const imported = (url: string, folders: string[]) => ({ url, title: url, addedAt: null, folders });
+
+  it('rebuilds the folders inside one folder of their own', () => {
+    store.importBookmarks(
+      [imported('https://top.test/', []), imported('https://deep.test/', ['Work', 'Clients'])],
+      'Imported from Chrome',
+    );
+    const folders = store.listBookmarkFolders();
+    const byName = (name: string) => folders.find((folder) => folder.name === name);
+    expect(byName('Work')?.parentId).toBe(byName('Imported from Chrome')?.id);
+    expect(byName('Clients')?.parentId).toBe(byName('Work')?.id);
+
+    const folderOf = (url: string) => store.listBookmarks().find((bookmark) => bookmark.url === url)?.folderId;
+    expect(folderOf('https://top.test/')).toBe(byName('Imported from Chrome')?.id);
+    expect(folderOf('https://deep.test/')).toBe(byName('Clients')?.id);
+  });
+
+  it('leaves a bookmark already saved where it was, and makes no folder for nothing', () => {
+    const existing = store.ensureBookmark('https://kept.test/', 'Kept');
+    const result = store.importBookmarks([imported('https://kept.test/', ['Elsewhere'])], 'Imported bookmarks');
+    expect(result).toEqual({ added: 0, alreadyHad: 1 });
+    expect(store.listBookmarkFolders()).toEqual([]);
+    expect(store.listBookmarks().find((bookmark) => bookmark.id === existing.id)?.folderId).toBeNull();
+  });
+});

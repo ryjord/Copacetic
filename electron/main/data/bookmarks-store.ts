@@ -39,7 +39,7 @@ export class BookmarksStore {
    * Adds what is not already here and counts what was already saved, so a short
    * number after an import is explained rather than looking like a failure.
    */
-  addMany(entries: readonly { url: string; title: string; addedAt: number | null }[]): {
+  addMany(entries: readonly { url: string; title: string; addedAt: number | null; folderId?: string | null }[]): {
     added: number;
     alreadyHad: number;
   } {
@@ -57,7 +57,7 @@ export class BookmarksStore {
       title: entry.title || entry.url,
       // Seconds in the file, milliseconds here.
       createdAt: entry.addedAt ? entry.addedAt * 1000 : Date.now(),
-      folderId: null,
+      folderId: entry.folderId ?? null,
     }));
     inTransaction(this.database, () => [...bookmarks].reverse().forEach((bookmark) => this.prepend(bookmark)));
     return { added: bookmarks.length, alreadyHad: entries.length - bookmarks.length };

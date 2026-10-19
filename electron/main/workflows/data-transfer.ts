@@ -79,7 +79,7 @@ export class DataTransfer {
         : 'No bookmarks were found in that file.';
     }
 
-    const { added, alreadyHad } = this.deps.store.addBookmarks(bookmarks);
+    const { added, alreadyHad } = this.deps.store.importBookmarks(bookmarks, 'Imported bookmarks');
     // An import adds bookmarks without touching a tab, so nothing else would
     // tell a surface that is already open that its list is now wrong.
     this.deps.bookmarks.changed();
@@ -112,7 +112,7 @@ export class DataTransfer {
     if (existsSync(bookmarksFile)) {
       try {
         const { bookmarks } = bookmarksFromChromium(JSON.parse(readFileSync(bookmarksFile, 'utf8')));
-        const { added, alreadyHad } = this.deps.store.addBookmarks(bookmarks);
+        const { added, alreadyHad } = this.deps.store.importBookmarks(bookmarks, `Imported from ${source.label}`);
         const counted = `${added} ${added === 1 ? 'bookmark' : 'bookmarks'}`;
         parts.push(alreadyHad > 0 ? `${counted} (${alreadyHad} you already had)` : counted);
       } catch (error) {

@@ -9,6 +9,8 @@ export interface ImportedBookmark {
   title: string;
   /** Seconds since the epoch, as the format stores them; null when absent. */
   addedAt: number | null;
+  /** The folders it was in, outermost first; empty for one at the top. */
+  folders: string[];
 }
 
 export interface ImportedBookmarks {
@@ -18,6 +20,7 @@ export interface ImportedBookmarks {
 }
 
 export const MAX_IMPORTED_TITLE = 200;
+export const MAX_IMPORTED_FOLDER_NAME = 80;
 
 const ENTITIES: Record<string, string> = {
   amp: '&',
@@ -67,16 +70,42 @@ export function isImportable(url: string): boolean {
   }
 }
 
+// The tags that matter in the format: a folder's heading, the list that holds its contents, and a bookmark.
+const TOKENS = /<h3\b[^>]*>([\s\S]*?)<\/h3>|<dl\b[^>]*>|<\/dl>|<a\b[^>]*>[\s\S]*?<\/a>/gi;
+
+function textOf(markup: string, limit: number): string {
+  // Tags inside a title are markup from a file we did not write.
+  return sanitiseChromeText(decodeEntities(markup.replace(/<[^>]*>/g, '')), limit);
+}
+
+/** Every bookmark in the file, each with the folders it sat in: a heading names the list that follows it. */
 export function bookmarksFromHtml(html: string): ImportedBookmarks {
-  const anchors = html.match(/<a\b[^>]*>[\s\S]*?<\/a>/gi) ?? [];
   const bookmarks: ImportedBookmark[] = [];
   const seen = new Set<string>();
+  // One entry per open list; null for a list with no heading, such as the file's outermost.
+  const open: (string | null)[] = [];
+  let heading: string | null = null;
   let skipped = 0;
 
-  for (const anchor of anchors) {
-    const openingTag = /<a\b[^>]*>/i.exec(anchor)?.[0] ?? '';
-    const url = decodeEntities(attribute(openingTag, 'href')).trim();
+  for (const match of html.matchAll(TOKENS)) {
+    const token = match[0];
+    const lower = token.slice(0, 4).toLowerCase();
+    if (lower.startsWith('<h3')) {
+      heading = textOf(match[1] ?? '', MAX_IMPORTED_FOLDER_NAME) || 'Folder';
+      continue;
+    }
+    if (lower.startsWith('<dl')) {
+      open.push(heading);
+      heading = null;
+      continue;
+    }
+    if (lower.startsWith('</dl')) {
+      open.pop();
+      continue;
+    }
 
+    const openingTag = /<a\b[^>]*>/i.exec(token)?.[0] ?? '';
+    const url = decodeEntities(attribute(openingTag, 'href')).trim();
     if (!isImportable(url)) {
       skipped += 1;
       continue;
@@ -86,15 +115,13 @@ export function bookmarksFromHtml(html: string): ImportedBookmarks {
     }
     seen.add(url);
 
-    const inner = anchor.replace(/<a\b[^>]*>/i, '').replace(/<\/a>/i, '');
-    // Tags inside a title are markup from a file we did not write.
-    const title = sanitiseChromeText(decodeEntities(inner.replace(/<[^>]*>/g, '')), MAX_IMPORTED_TITLE);
+    const title = textOf(token.replace(/<a\b[^>]*>/i, '').replace(/<\/a>/i, ''), MAX_IMPORTED_TITLE);
     const added = Number.parseInt(attribute(openingTag, 'add_date'), 10);
-
     bookmarks.push({
       url,
       title: title || url,
       addedAt: Number.isFinite(added) && added > 0 ? added : null,
+      folders: open.filter((name): name is string => name !== null),
     });
   }
 

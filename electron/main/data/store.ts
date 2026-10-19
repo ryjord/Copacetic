@@ -22,7 +22,8 @@ import { BookmarksStore } from './bookmarks-store';
 import { BookmarkFoldersStore } from './bookmark-folders-store';
 import { afterDeleting, type BookmarkFolder } from '../../shared/bookmark-folders';
 import { GroupsStore } from './groups-store';
-import type { GroupColourId, TabGroup } from '../../shared/tab-groups';
+import { GROUP_COLOURS, type GroupColourId, type TabGroup } from '../../shared/tab-groups';
+import type { ImportedBookmark } from '../../shared/bookmark-import';
 import { app } from 'electron';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -334,11 +335,39 @@ export class BrowserStore {
     return this.bookmarks.toggle(url, title);
   }
 
-  addBookmarks(entries: readonly { url: string; title: string; addedAt: number | null }[]): {
-    added: number;
-    alreadyHad: number;
-  } {
-    return this.bookmarks.addMany(entries);
+  /**
+   * Brings bookmarks in under one folder of their own, with their folders rebuilt inside it, so an import never
+   * scatters itself through what was already here. An address already saved stays where it is, and a folder is
+   * made only when something new goes in it.
+   */
+  importBookmarks(entries: readonly ImportedBookmark[], intoFolder: string): { added: number; alreadyHad: number } {
+    const known = new Set(this.bookmarks.list().map((bookmark) => bookmark.url));
+    const fresh = entries.filter((entry) => {
+      if (known.has(entry.url)) {
+        return false;
+      }
+      known.add(entry.url);
+      return true;
+    });
+
+    const folderIds = new Map<string, string>();
+    const folderFor = (folders: readonly string[]): string => {
+      const key = JSON.stringify(folders);
+      const existing = folderIds.get(key);
+      if (existing) {
+        return existing;
+      }
+      const parentId = folders.length === 0 ? null : folderFor(folders.slice(0, -1));
+      const name = folders.at(-1) ?? intoFolder;
+      const created = this.bookmarkFolders.create(name, GROUP_COLOURS[0].id, parentId).id;
+      folderIds.set(key, created);
+      return created;
+    };
+
+    const { added } = this.bookmarks.addMany(
+      fresh.map((entry) => ({ ...entry, folderId: folderFor(entry.folders) })),
+    );
+    return { added, alreadyHad: entries.length - added };
   }
 
   removeBookmark(id: string): void {
