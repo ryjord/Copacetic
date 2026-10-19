@@ -6,6 +6,8 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 // Components
 import { FindBar } from '@/components/overlay/FindBar/FindBar';
 import { NoticeStrip } from '@/components/overlay/Notices/NoticeStrip';
+import { PermissionCard } from '@/components/overlay/PermissionPrompt/PermissionCard';
+import { SignInCard } from '@/components/overlay/AuthPrompt/SignInCard';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -76,8 +78,25 @@ export default function OverlayPage() {
       // Padding so a card's shadow is inside the view rather than cut off at its edge.
       className={cn('flex w-max flex-col gap-2 p-2', region === 'trailing' ? 'ml-auto items-end' : 'items-start')}
     >
+      {region === 'leading' && <LeadingRegion />}
       {region === 'trailing' && <TrailingRegion />}
     </div>
+  );
+}
+
+/** What a site is asking, held to the corner nearest the address it came from. */
+function LeadingRegion() {
+  const activeTabId = useBrowserStore((state) => state.activeTabId);
+  const permissionPrompts = useBrowserStore((state) => state.permissionPrompts);
+  const authPrompts = useBrowserStore((state) => state.authPrompts);
+  const prompt = permissionPrompts.find((candidate) => candidate.tabId === activeTabId);
+  // A proxy challenge belongs to no tab, so it is shown whichever tab is open.
+  const authPrompt = authPrompts.find((candidate) => candidate.tabId === activeTabId || candidate.isProxy);
+  return (
+    <>
+      {authPrompt && <SignInCard key={authPrompt.id} prompt={authPrompt} />}
+      {prompt && <PermissionCard key={prompt.id} prompt={prompt} />}
+    </>
   );
 }
 

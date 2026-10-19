@@ -69,6 +69,8 @@ export interface CopaceticApi {
     setOverlayVisible(visible: boolean): Promise<void>;
     /** Told by an overlay layer itself, which is the only thing that can measure it. */
     setOverlaySize(width: number, height: number): Promise<void>;
+    /** The overlay asking for the keyboard, for something that cannot be answered without it. */
+    focusOverlay(): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;

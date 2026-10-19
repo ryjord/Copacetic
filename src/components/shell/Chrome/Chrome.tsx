@@ -13,11 +13,9 @@ import { isMacPlatform } from '@/lib/platform';
 import { ambientLightStopsFor, ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { reachedForAnotherTab } from '@shared/surfaces';
-import { AuthBanner } from '@/components/overlay/AuthPrompt/AuthBanner';
 import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
 import { ConnectionPanel } from '@/components/overlay/SiteInfo/ConnectionPanel';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
-import { PermissionBanner } from '@/components/overlay/PermissionPrompt/PermissionBanner';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
 import { Toolbar } from '@/components/shell/Toolbar/Toolbar';
 import { WindowControls } from '@/components/shell/WindowControls/WindowControls';
@@ -31,12 +29,10 @@ export function Chrome() {
   const isReady = useBrowserStore((state) => state.isReady);
   const surface = useBrowserStore((state) => state.surface);
   const theme = useBrowserStore((state) => state.settings.theme);
-  const permissionPrompts = useBrowserStore((state) => state.permissionPrompts);
   const tabs = useBrowserStore((state) => state.orderedTabs);
   const activeTab = useBrowserStore((state) => state.activeTab);
   const activeTabId = useBrowserStore((state) => state.activeTabId);
 
-  const authPrompts = useBrowserStore((state) => state.authPrompts);
   const density = useBrowserStore((state) => state.settings.density);
   const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
@@ -117,7 +113,7 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [permissionPrompts.length, surface, isConnectionPanelOpen, authPrompts.length, showBookmarksBar]);
+  }, [surface, isConnectionPanelOpen, showBookmarksBar]);
 
   /*
    * Reaching for a tab is asking to see it. The first state arriving is not.
@@ -172,10 +168,6 @@ export function Chrome() {
 
   // --- render --------------------------------------------------------------
 
-  const prompt = permissionPrompts.find((candidate) => candidate.tabId === activeTabId) ?? null;
-  // A proxy challenge belongs to no tab, so it is shown whichever tab is open.
-  const authPrompt = authPrompts.find((candidate) => candidate.tabId === activeTabId || candidate.isProxy) ?? null;
-
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-base">
       <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 px-2.5 pt-1.5">
@@ -191,9 +183,7 @@ export function Chrome() {
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />
 
-      {authPrompt && <AuthBanner key={authPrompt.id} prompt={authPrompt} />}
       {isConnectionPanelOpen && <ConnectionPanel tab={activeTab} />}
-      {prompt && <PermissionBanner prompt={prompt} />}
 
       <LiveAnnouncer />
 

@@ -82,7 +82,7 @@ export function NoticeStrip() {
           <div
             key={notice.id}
             role="status"
-            className="animate-pop flex w-[340px] items-start gap-2.5 rounded-lg border border-line bg-raised py-2.5 pl-3 pr-1.5 shadow-popover"
+            className="animate-pop flex w-85 items-start gap-2.5 rounded-lg border border-line bg-raised py-2.5 pl-3 pr-1.5 shadow-popover"
           >
             <Icon size={16} strokeWidth={1.75} className={cn('mt-px shrink-0', className)} aria-hidden />
             <div className="flex min-w-0 flex-1 flex-col items-start gap-2 pt-px">

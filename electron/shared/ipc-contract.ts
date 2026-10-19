@@ -55,6 +55,7 @@ export const CHANNELS = {
   'chrome.setContentInsets': 'chrome:set-content-insets',
   'chrome.setOverlayVisible': 'chrome:set-overlay-visible',
   'chrome.setOverlaySize': 'chrome:set-overlay-size',
+  'chrome.focusOverlay': 'chrome:focus-overlay',
   'chrome.getState': 'chrome:get-state',
   'chrome.pendingSurface': 'surface:pending',
   'chrome.openMainMenu': 'chrome:open-main-menu',

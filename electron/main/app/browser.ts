@@ -447,6 +447,11 @@ export class Browser {
     overlay?.setSize(width, height);
   }
 
+  /** Hands the keyboard to the overlay asking for it; a frame that is not an overlay gets nothing. */
+  focusOverlay(frame: WebFrameMain | null): void {
+    this.overlayFor(frame)?.takeFocus();
+  }
+
   /** Opens find, or brings the keyboard back to it if it is already open. */
   openFind(): void {
     this.tabs.openFind();
