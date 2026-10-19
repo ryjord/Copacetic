@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
-import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { Switch } from '@/components/ui/Switch/Switch';
 
 // Store
@@ -15,11 +14,10 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
-import { ask, send } from '@/lib/bridge';
+import { ask } from '@/lib/bridge';
 
 // Types
 import { DNS_RESOLVERS, describeDns, resolverFor } from '@shared/dns';
-import { PERMISSION_LABELS, type PermissionDecision, type PermissionKind } from '@shared/types';
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
 
 const DNS_MODES = [
@@ -29,7 +27,7 @@ const DNS_MODES = [
 
 const PROVIDERS = DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }));
 
-export function PrivacyPane({ info }: SettingsPaneProps) {
+export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
   const settings = useBrowserStore((state) => state.settings);
   const [isChecking, setIsChecking] = useState(false);
 
@@ -103,8 +101,6 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
         </SettingGroup>
       )}
 
-      <AllowlistGroup sites={settings.blockerAllowlist} />
-
       <SettingGroup title="Secure DNS">
         <SettingRow
           label="Look up sites"
@@ -134,71 +130,17 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
         )}
       </SettingGroup>
 
-      <PermissionGroup decisions={settings.permissionDecisions} />
-    </>
-  );
-}
-
-function AllowlistGroup({ sites }: { sites: string[] }) {
-  if (sites.length === 0) {
-    return null;
-  }
-  return (
-    <SettingGroup title="Sites allowed to show trackers">
-      {sites.map((site) => (
+      <SettingGroup title="Sites">
         <SettingRow
-          key={site}
-          label={site}
+          label="Site settings"
+          help="Permissions, zoom levels and tracker exceptions, for each site."
           control={
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => updateSettings({ blockerAllowlist: sites.filter((entry) => entry !== site) })}
-            >
-              Block again
+            <Button size="sm" onClick={() => openPane('sites')}>
+              Open
             </Button>
           }
         />
-      ))}
-    </SettingGroup>
-  );
-}
-
-function PermissionGroup({ decisions }: { decisions: Record<string, PermissionDecision> }) {
-  const entries = Object.entries(decisions)
-    .map(([key, decision]) => {
-      const [origin = '', kind = ''] = key.split('|');
-      return { key, origin, kind, decision };
-    })
-    .filter((entry): entry is typeof entry & { kind: PermissionKind } => entry.kind in PERMISSION_LABELS);
-
-  return (
-    <SettingGroup title="Site permissions">
-      {entries.length === 0 ? (
-        <SettingRow label="No site has been allowed or blocked yet" help="Sites ask when they need something." />
-      ) : (
-        entries.map((entry) => (
-          <SettingRow
-            key={entry.key}
-            label={entry.origin.replace(/^https?:\/\//, '')}
-            help={PERMISSION_LABELS[entry.kind]}
-            control={
-              <>
-                <StatusPill status={entry.decision === 'allow' ? 'secure' : 'danger'}>
-                  {entry.decision === 'allow' ? 'Allowed' : 'Blocked'}
-                </StatusPill>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => send((api) => api.permissions.forget(entry.origin, entry.kind))}
-                >
-                  Reset
-                </Button>
-              </>
-            }
-          />
-        ))
-      )}
-    </SettingGroup>
+      </SettingGroup>
+    </>
   );
 }

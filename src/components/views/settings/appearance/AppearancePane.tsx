@@ -24,6 +24,7 @@ import { ask } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 
 // Types
+import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
 import { ambientHexFor, ambientStopsFor, hueForAmbientHex } from '@shared/ambient';
 import {
   START_PAGE_WIDGETS,
@@ -43,8 +44,9 @@ const ZOOM_LEVELS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2].map((leve
   label: `${Math.round(level * 100)}%`,
 }));
 
-export function AppearancePane() {
+export function AppearancePane({ openPane }: SettingsPaneProps) {
   const settings = useBrowserStore((state) => state.settings);
+  const zoomedSites = Object.keys(settings.zoomLevels).length;
   const [wallpaper, setWallpaper] = useState<string | null>(null);
   const [wallpaperError, setWallpaperError] = useState('');
   const [wallpaperVersion, setWallpaperVersion] = useState(0);
@@ -123,7 +125,16 @@ export function AppearancePane() {
             />
           }
         />
-        <SiteZoomRows levels={settings.zoomLevels} />
+        {zoomedSites > 0 && (
+          <SettingRow
+            label={zoomedSites === 1 ? 'One site has its own zoom' : `${zoomedSites} sites have their own zoom`}
+            control={
+              <Button size="sm" variant="ghost" onClick={() => openPane('sites')}>
+                Site settings
+              </Button>
+            }
+          />
+        )}
       </SettingGroup>
 
       <SettingGroup title="Start page">
@@ -248,39 +259,6 @@ function HueRow({ theme, hue }: { theme: ThemeId; hue: number }) {
         </>
       }
     />
-  );
-}
-
-function SiteZoomRows({ levels }: { levels: Record<string, number> }) {
-  const entries = Object.entries(levels);
-  if (entries.length === 0) {
-    return null;
-  }
-  return (
-    <>
-      {entries.map(([origin, level]) => (
-        <SettingRow
-          key={origin}
-          label={origin.replace(/^https?:\/\//, '')}
-          control={
-            <>
-              <span className="text-body-sm text-ink-dim tabular-nums">{Math.round(level * 100)}%</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  const next = { ...levels };
-                  delete next[origin];
-                  updateSettings({ zoomLevels: next });
-                }}
-              >
-                Reset
-              </Button>
-            </>
-          }
-        />
-      ))}
-    </>
   );
 }
 

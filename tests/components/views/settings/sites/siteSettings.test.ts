@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest';
+import { sitesFrom, summaryOf, withoutSite } from '@/components/views/settings/sites/siteSettings';
+
+const kept = {
+  permissionDecisions: {
+    'https://maps.example.com|geolocation': 'allow',
+    'https://www.example.com|notifications': 'deny',
+    'https://news.example.org|notifications': 'allow',
+    'https://broken|nonsense': 'allow',
+  } as const,
+  zoomLevels: { 'https://docs.example.com': 1.25 },
+  blockerAllowlist: ['shop.example.net'],
+};
+
+describe('what is kept about each site', () => {
+  // A subdomain is the same site, so maps. and www. are listed together rather than as strangers.
+  it('gathers every origin of a site under the site', () => {
+    const [example] = sitesFrom(kept).filter((site) => site.site === 'example.com');
+    expect(example?.permissions.map((permission) => permission.origin).sort()).toEqual([
+      'https://maps.example.com',
+      'https://www.example.com',
+    ]);
+    expect(example?.zoomLevels).toEqual([{ origin: 'https://docs.example.com', zoomFactor: 1.25 }]);
+  });
+
+  it('lists each site once, alphabetically, with tracker exceptions among them', () => {
+    expect(sitesFrom(kept).map((site) => site.site)).toEqual(['example.com', 'example.org', 'shop.example.net']);
+    expect(sitesFrom(kept).find((site) => site.site === 'shop.example.net')?.allowsTrackers).toBe(true);
+  });
+
+  it('ignores a decision about a permission this build does not have', () => {
+    expect(sitesFrom(kept).some((site) => site.site.includes('broken'))).toBe(false);
+  });
+
+  it('says in one line what is kept', () => {
+    const example = sitesFrom(kept).find((site) => site.site === 'example.com')!;
+    expect(summaryOf(example)).toBe('Location allowed · Notifications blocked · Zoom 125%');
+  });
+});
+
+describe('resetting one site', () => {
+  it('forgets everything about that site and nothing about any other', () => {
+    const patch = withoutSite(kept, 'example.com');
+    expect(Object.keys(patch.permissionDecisions)).toEqual([
+      'https://news.example.org|notifications',
+      'https://broken|nonsense',
+    ]);
+    expect(patch.zoomLevels).toEqual({});
+    expect(patch.blockerAllowlist).toEqual(['shop.example.net']);
+  });
+
+  it('forgets a tracker exception when that is all there was', () => {
+    expect(withoutSite(kept, 'shop.example.net').blockerAllowlist).toEqual([]);
+  });
+});

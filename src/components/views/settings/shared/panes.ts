@@ -9,6 +9,7 @@ import { GeneralPane } from '@/components/views/settings/general/GeneralPane';
 import { PasswordsPane } from '@/components/views/settings/passwords/PasswordsPane';
 import { PrivacyPane } from '@/components/views/settings/privacy/PrivacyPane';
 import { ShortcutsPane } from '@/components/views/settings/shortcuts/ShortcutsPane';
+import { SitesPane } from '@/components/views/settings/sites/SitesPane';
 import { TransparencyPane } from '@/components/views/settings/transparency/TransparencyPane';
 import { UpdatesPane } from '@/components/views/settings/updates/UpdatesPane';
 
@@ -17,6 +18,7 @@ import {
   Database,
   Download,
   Eye,
+  Globe,
   Info,
   KeyRound,
   Keyboard,
@@ -69,20 +71,23 @@ export const SETTINGS_PANES = [
     label: 'Privacy and security',
     icon: ShieldCheck,
     Component: PrivacyPane,
+    terms: ['HTTPS', 'Secure connections', 'Trackers', 'Ads', 'Block', 'Filter lists', 'DNS', 'Secure DNS'],
+  },
+  {
+    id: 'sites',
+    label: 'Site settings',
+    icon: Globe,
+    Component: SitesPane,
     terms: [
-      'HTTPS',
-      'Secure connections',
-      'Trackers',
-      'Ads',
-      'Block',
-      'Filter lists',
-      'DNS',
-      'Secure DNS',
+      'Site settings',
       'Permissions',
       'Camera',
       'Microphone',
       'Location',
       'Notifications',
+      'Site zoom',
+      'Trackers allowed',
+      'Exceptions',
     ],
   },
   {
