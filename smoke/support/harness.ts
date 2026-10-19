@@ -17,6 +17,14 @@ import path from 'node:path';
 /** Set for the checks that need the app in front - who holds the keyboard, fullscreen - so they never take the screen by default. */
 export const IS_FOREGROUND_RUN = process.env.COPACETIC_SMOKE_FOREGROUND === '1';
 
+/**
+ * Whether a check that needs a tool this machine may lack is skipped or failed.
+ *
+ * On a laptop without openssl the check is skipped; in CI that same skip read
+ * as green while proving nothing, so there it fails and says what is missing.
+ */
+export const skipsWhenMissing = (hasWhatItNeeds: boolean): boolean => !hasWhatItNeeds && process.env.CI !== 'true';
+
 /** A chrome is served from the app's own origin. Tabs never are, and each window's start-page tab is a page too. */
 const isChromeUrl = (url: string) => url.startsWith('copacetic-app://chrome/') && !url.includes('/overlay');
 

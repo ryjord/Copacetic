@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SmokeApp } from './support/harness';
+import { SmokeApp, skipsWhenMissing } from './support/harness';
 
 let copacetic: SmokeApp;
 let server: Server;
@@ -120,7 +120,11 @@ const loadPage = async () => {
 };
 
 /** Most tracking across sites is a cookie riding along with something a page loads from elsewhere. */
-describe.skipIf(!credentials)('a cookie from another site', () => {
+describe.skipIf(skipsWhenMissing(credentials !== null))('a cookie from another site', () => {
+  it('has a certificate to test with', () => {
+    expect(credentials, 'openssl could not make a certificate on this machine').not.toBeNull();
+  });
+
   it('does not ride along with what a page loads from that site', async () => {
     expect(await loadPage()).toBe('');
   }, 90_000);

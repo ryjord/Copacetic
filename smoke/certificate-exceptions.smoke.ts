@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SmokeApp } from './support/harness';
+import { SmokeApp, skipsWhenMissing } from './support/harness';
 
 const BAD_HOST = 'self-signed.example';
 
@@ -77,7 +77,11 @@ const theTab = () =>
  * continue, for that certificate and that session, and the badge stops
  * calling the connection secure.
  */
-describe.skipIf(!credentials)('a site whose certificate nobody signed', () => {
+describe.skipIf(skipsWhenMissing(credentials !== null))('a site whose certificate nobody signed', () => {
+  it('has a certificate to test with', () => {
+    expect(credentials, 'openssl could not make a certificate on this machine').not.toBeNull();
+  });
+
   it('is refused, and the error page may offer to continue', async () => {
     await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), `https://${BAD_HOST}/`);
     expect(
