@@ -26,7 +26,12 @@ export const PUSH = {
   focusFind: 'push:focus-find',
   /** The same, for a bookmark folder: a native menu cannot hold a text field. */
   renameBookmarkFolder: 'push:rename-bookmark-folder',
+  /** Kept data changed outside the view showing it, such as an undo, so the view asks again. */
+  dataChanged: 'push:data-changed',
 } as const;
+
+/** The kinds of kept data a view refetches when told it changed. */
+export type DataKind = 'history' | 'startTiles';
 
 export type PushChannel = (typeof PUSH)[keyof typeof PUSH];
 

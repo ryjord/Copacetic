@@ -18,7 +18,9 @@ export type NoticeTone =
   /** Something you asked for is finished, and the result is worth a number. */
   | 'done'
   /** Something needs a decision before it happens. */
-  | 'ask';
+  | 'ask'
+  /** Something was removed, and can be put back for a few seconds. */
+  | 'undo';
 
 export interface Notice {
   id: string;
@@ -30,7 +32,7 @@ export interface Notice {
    * is not three times the information.
    */
   key: string;
-  /** The label of the thing that acts, for an `ask`. Nothing else may carry one. */
+  /** The label of the thing that acts, for an `ask` or an `undo`. Nothing else may carry one. */
   confirm?: string;
 }
 
@@ -43,6 +45,9 @@ export interface Notice {
 export function dismissAfterMs(tone: NoticeTone): number | null {
   if (tone === 'ask') {
     return null;
+  }
+  if (tone === 'undo') {
+    return 8_000;
   }
   return tone === 'done' ? 4_000 : 6_000;
 }

@@ -1,6 +1,6 @@
 // Types
 import type { KeptAboutSites, KeptKind, SiteTraces } from '../data/forgetting';
-import type { ChromeSurface } from './channels';
+import type { ChromeSurface, DataKind } from './channels';
 import type { BookmarkFolder } from '../data/bookmark-folders';
 import type { Notice } from '../chrome/notices';
 import type { BrowserStatePatch } from './state-slices';
@@ -366,6 +366,8 @@ export interface CopaceticApi {
 
     /** Saved bookmarks or folders changed, from anywhere - a menu, another window, an import. */
     bookmarksChanged(listener: () => void): Unsubscribe;
+    /** History or the start page tiles changed outside the view showing them, such as an undo. */
+    dataChanged(listener: (kind: DataKind) => void): Unsubscribe;
 
     /** The bookmark folder whose label should become editable. */
     renameBookmarkFolder(listener: (folderId: string) => void): Unsubscribe;

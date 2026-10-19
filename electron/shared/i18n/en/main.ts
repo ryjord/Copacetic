@@ -330,6 +330,14 @@ export const main = {
       openExternal: 'open another application',
     },
   },
+  undo: {
+    action: 'Undo',
+    bookmark: 'Removed “{title}” from bookmarks.',
+    history: 'Removed “{title}” from history.',
+    download: 'Removed {name} from the list. The file is still there.',
+    session: 'Deleted the saved session “{name}”.',
+    tile: 'Removed from the start page.',
+  },
   startPage: {
     chooseIcon: 'Choose an icon',
     iconTooLarge: 'Choose a smaller picture. An icon can be up to 256 KB.',

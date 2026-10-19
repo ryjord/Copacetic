@@ -1,5 +1,6 @@
 // Libs
 import { type BrowserWindow, type WebContents, type WebFrameMain, app, dialog } from 'electron';
+import { randomUUID } from 'node:crypto';
 
 // Utils
 import { PUSH, type ChromeSurface } from '../../shared/ipc/channels';
@@ -379,8 +380,24 @@ export class Browser {
   }
 
   removeNamedSession(id: string): void {
+    const summary = this.store.listNamedSessions().find((session) => session.id === id);
+    const tabs = this.store.namedSessionTabs(id);
     this.store.removeNamedSession(id);
     this.profile.scheduleStatePush();
+    if (summary) {
+      this.offerUndo(t('main.undo.session', { name: summary.name }), () => {
+        this.store.restoreNamedSession(summary, tabs);
+        this.profile.scheduleStatePush();
+      });
+    }
+  }
+
+  /** Says something was removed, with a few seconds in which to put it back. */
+  offerUndo(message: string, restore: () => void): void {
+    this.notices.notify(
+      { id: `undo-${randomUUID()}`, key: `undo-${message}`, tone: 'undo', message, confirm: t('main.undo.action') },
+      restore,
+    );
   }
 
   openExternal(url: string): Promise<void> {

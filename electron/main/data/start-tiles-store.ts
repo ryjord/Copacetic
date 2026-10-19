@@ -49,6 +49,30 @@ export class StartTilesStore {
     this.database.prepare('DELETE FROM start_shortcuts WHERE url = ?').run(url);
   }
 
+  /** A shortcut and its place, so an undo puts it back where it was. */
+  snapshot(url: string): { shortcut: StartShortcut; position: number } | null {
+    const row = this.database
+      .prepare('SELECT url, title, icon, position FROM start_shortcuts WHERE url = ?')
+      .get(url);
+    return row
+      ? {
+          shortcut: { url: String(row.url), title: String(row.title), icon: row.icon ? String(row.icon) : null },
+          position: Number(row.position),
+        }
+      : null;
+  }
+
+  restoreShortcut(snapshot: { shortcut: StartShortcut; position: number }): void {
+    const { shortcut, position } = snapshot;
+    this.database
+      .prepare('INSERT OR IGNORE INTO start_shortcuts (url, title, icon, position) VALUES (?, ?, ?, ?)')
+      .run(shortcut.url, shortcut.title, shortcut.icon, position);
+  }
+
+  showSite(site: string): void {
+    this.database.prepare('DELETE FROM start_hidden WHERE site = ?').run(site);
+  }
+
   hiddenSites(): string[] {
     return this.database
       .prepare('SELECT site FROM start_hidden')

@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 
 // Utils
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc/ipc-contract';
+import { PUSH } from '../../shared/ipc/channels';
 import { resolverFor } from '../../shared/browsing/dns';
 import { generatePassword, readRecipe } from '../../shared/passwords/password-generator';
 import {
@@ -120,8 +121,12 @@ export function registerIpcHandlers(profiles: Profiles): void {
     return '';
   });
   handle('startPage.removeTile', (browser, _event, url) => {
-    browser.store.removeStartTile(asString(url));
-    browser.profile.scheduleStatePush();
+    const undo = browser.store.removeStartTile(asString(url));
+    browser.profile.broadcast(PUSH.dataChanged, 'startTiles');
+    browser.offerUndo(t('main.undo.tile'), () => {
+      undo();
+      browser.profile.broadcast(PUSH.dataChanged, 'startTiles');
+    });
   });
   handle('startPage.chooseIcon', async (browser) => {
     const chosen = await readChosenImage(browser.window, {
@@ -191,8 +196,15 @@ export function registerIpcHandlers(profiles: Profiles): void {
     browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, asBoundedInteger(offset, 0, 0, 1_000_000)),
   );
   handle('history.remove', (browser, _event, id) => {
+    const entry = browser.store.historyEntry(asString(id));
     browser.store.removeHistory(asString(id));
     browser.scheduleStatePush();
+    if (entry) {
+      browser.offerUndo(t('main.undo.history', { title: entry.title || hostOf(entry.url) }), () => {
+        browser.store.restoreHistory(entry);
+        browser.profile.broadcast(PUSH.dataChanged, 'history');
+      });
+    }
   });
   handle('history.clear', (browser, _event, range, choice) => {
     const clearRange = asClearRange(range);
@@ -210,9 +222,17 @@ export function registerIpcHandlers(profiles: Profiles): void {
     return bookmarked;
   });
   handle('bookmarks.remove', (browser, _event, id) => {
+    const snapshot = browser.store.bookmarkSnapshot(asString(id));
     browser.store.removeBookmark(asString(id));
     browser.bookmarks.changed();
     browser.scheduleStatePush();
+    if (snapshot) {
+      browser.offerUndo(t('main.undo.bookmark', { title: snapshot.bookmark.title }), () => {
+        browser.store.restoreBookmark(snapshot);
+        browser.bookmarks.changed();
+        browser.scheduleStatePush();
+      });
+    }
   });
   handle('bookmarks.update', (browser, _event, id, changes) => {
     const result = browser.store.updateBookmark(
@@ -281,7 +301,13 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('downloads.cancel', (browser, _event, id) => browser.downloads.cancel(asString(id)));
   handle('downloads.openFile', (browser, _event, id) => browser.downloads.openFile(asString(id)));
   handle('downloads.revealFile', (browser, _event, id) => browser.downloads.revealFile(asString(id)));
-  handle('downloads.remove', (browser, _event, id) => browser.downloads.remove(asString(id)));
+  handle('downloads.remove', (browser, _event, id) => {
+    const entry = browser.downloads.finishedEntry(asString(id));
+    browser.downloads.remove(asString(id));
+    if (entry) {
+      browser.offerUndo(t('main.undo.download', { name: entry.filename }), () => browser.downloads.restore(entry));
+    }
+  });
   handle('downloads.retry', (browser, _event, id) => browser.downloads.retry(asString(id)));
   handle('downloads.keep', (browser, _event, id) => browser.downloads.keep(asString(id)));
   handle('downloads.discard', (browser, _event, id) => browser.downloads.discard(asString(id)));

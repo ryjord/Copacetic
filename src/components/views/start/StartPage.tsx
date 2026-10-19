@@ -18,7 +18,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
-import { ask, send } from '@/lib/bridge/bridge';
+import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { formatClockTime, formatLongDate, timeOfDay } from '@/lib/text/format';
 import { t } from '@shared/i18n/translate';
@@ -35,6 +35,12 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   const [tilesVersion, setTilesVersion] = useState(0);
   // Back from a panel is when clearing history, or forgetting a site, has just happened.
   const isUncovered = useBrowserStore((state) => state.surface === 'none');
+
+  // A removal undone, from the notice or another window, comes back without this page asking.
+  useEffect(
+    () => getBridge()?.on.dataChanged((kind) => kind === 'startTiles' && setTilesVersion((version) => version + 1)),
+    [],
+  );
   const [fetched, setFetched] = useState<string | null>(null);
   const minute = useMinuteTick();
 

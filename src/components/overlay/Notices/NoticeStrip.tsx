@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 
 // Icons
-import { Check, CircleAlert, Info, X } from 'lucide-react';
+import { Check, CircleAlert, Info, Undo2, X } from 'lucide-react';
 
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
@@ -22,6 +22,7 @@ const LOOK: Record<Notice['tone'], { icon: typeof Info; className: string }> = {
   info: { icon: Info, className: 'text-ink-dim' },
   done: { icon: Check, className: 'text-clear' },
   ask: { icon: CircleAlert, className: 'text-caution' },
+  undo: { icon: Undo2, className: 'text-ink-dim' },
 };
 
 /** What the app has to say, as cards over the page's top-right corner, so nothing moves for something that lasts four seconds. */
@@ -88,7 +89,7 @@ export function NoticeStrip() {
             <Icon size={16} strokeWidth={1.75} className={cn('mt-px shrink-0', className)} aria-hidden />
             <div className="flex min-w-0 flex-1 flex-col items-start gap-2 pt-px">
               <p className="text-body text-ink">{notice.message}</p>
-              {notice.tone === 'ask' && notice.confirm && (
+              {(notice.tone === 'ask' || notice.tone === 'undo') && notice.confirm && (
                 <Button size="sm" variant="primary" onClick={() => answer(notice, true)}>
                   {notice.confirm}
                 </Button>

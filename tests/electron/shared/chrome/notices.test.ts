@@ -24,6 +24,11 @@ describe('how long a notice stays', () => {
     expect(dismissAfterMs('done')).toBeGreaterThan(0);
   });
 
+  // Long enough to reach for, and longer than a notice that only informs.
+  it('gives an undo the longest of anything that goes on its own', () => {
+    expect(dismissAfterMs('undo')).toBeGreaterThan(dismissAfterMs('info') ?? 0);
+  });
+
   /*
    * A question that withdraws itself is a decision made by timing out, which is
    * not a decision anyone made.

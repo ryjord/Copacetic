@@ -2,7 +2,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 // Utils
-import { PUSH, type ChromeSurface, type PushChannel } from '../shared/ipc/channels';
+import { PUSH, type ChromeSurface, type DataKind, type PushChannel } from '../shared/ipc/channels';
 import { type ApiMethod, CHANNELS } from '../shared/ipc/ipc-contract';
 
 // Types
@@ -33,6 +33,7 @@ const api = {
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
     renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
     bookmarksChanged: (listener: () => void) => subscribe(PUSH.bookmarksChanged, listener),
+    dataChanged: (listener: (kind: DataKind) => void) => subscribe(PUSH.dataChanged, listener),
     notice: (listener: (notice: Notice) => void) => subscribe(PUSH.notice, listener),
     noticeSettled: (listener: (id: string) => void) => subscribe(PUSH.noticeSettled, listener),
     renameBookmarkFolder: (listener: (folderId: string) => void) => subscribe(PUSH.renameBookmarkFolder, listener),

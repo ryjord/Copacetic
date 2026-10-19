@@ -219,6 +219,14 @@ export class BrowserStore {
     return this.history.importVisits(visits);
   }
 
+  historyEntry(id: string): HistoryEntry | null {
+    return this.history.find(id);
+  }
+
+  restoreHistory(entry: HistoryEntry): void {
+    this.history.restore(entry);
+  }
+
   removeHistory(id: string): void {
     this.history.removeHistory(id);
   }
@@ -386,17 +394,27 @@ export class BrowserStore {
     this.startTiles.saveShortcut(previousUrl, shortcut);
   }
 
-  /** A shortcut is deleted; a site visited often is not shown again. */
-  removeStartTile(url: string): void {
-    const isShortcut = this.startTiles.shortcuts().some((shortcut) => shortcut.url === url);
-    if (isShortcut) {
+  /** A shortcut is deleted; a site visited often is not shown again. Answers with how to undo it. */
+  removeStartTile(url: string): () => void {
+    const snapshot = this.startTiles.snapshot(url);
+    if (snapshot) {
       this.startTiles.removeShortcut(url);
-      return;
+      return () => this.startTiles.restoreShortcut(snapshot);
     }
     const site = siteOf(url);
     if (site) {
       this.startTiles.hideSite(site);
+      return () => this.startTiles.showSite(site);
     }
+    return () => {};
+  }
+
+  hiddenStartSites(): string[] {
+    return this.startTiles.hiddenSites();
+  }
+
+  showStartSites(): void {
+    this.startTiles.hiddenSites().forEach((site) => this.startTiles.showSite(site));
   }
 
   // ---------------------------------------------------------- saved sessions
@@ -415,6 +433,10 @@ export class BrowserStore {
 
   renameNamedSession(id: string, name: string): void {
     this.namedSessions.rename(id, name);
+  }
+
+  restoreNamedSession(summary: NamedSessionSummary, tabs: readonly NamedSessionTab[]): void {
+    this.namedSessions.restore(summary, tabs);
   }
 
   removeNamedSession(id: string): void {
@@ -468,6 +490,14 @@ export class BrowserStore {
       fresh.map((entry) => ({ ...entry, folderId: folderFor(entry.folders) })),
     );
     return { added, alreadyHad: entries.length - added };
+  }
+
+  bookmarkSnapshot(id: string): { bookmark: Bookmark; position: number } | null {
+    return this.bookmarks.snapshot(id);
+  }
+
+  restoreBookmark(snapshot: { bookmark: Bookmark; position: number }): void {
+    this.bookmarks.restore(snapshot);
   }
 
   removeBookmark(id: string): void {

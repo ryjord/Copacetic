@@ -375,6 +375,23 @@ export class DownloadManager {
     shell.showItemInFolder(entry.savePath);
   }
 
+  /** A finished entry, to put back if a removal is undone; one still running has no undo, since removing cancels it. */
+  finishedEntry(id: string): DownloadState | null {
+    if (this.live.has(id)) {
+      return null;
+    }
+    return [...this.ephemeral, ...this.file.get()].find((entry) => entry.id === id) ?? null;
+  }
+
+  restore(entry: DownloadState): void {
+    if (entry.isHush) {
+      this.ephemeral = [entry, ...this.ephemeral.filter((existing) => existing.id !== entry.id)];
+    } else {
+      this.file.update((entries) => [entry, ...entries.filter((existing) => existing.id !== entry.id)]);
+    }
+    this.onChanged();
+  }
+
   remove(id: string): void {
     this.live.get(id)?.item.cancel();
     this.live.delete(id);

@@ -59,6 +59,19 @@ export class NamedSessionsStore {
     return summary;
   }
 
+  /** Puts a deleted session back under its own id and date. */
+  restore(summary: NamedSessionSummary, tabs: readonly NamedSessionTab[]): void {
+    inTransaction(this.database, () => {
+      this.database
+        .prepare('INSERT OR IGNORE INTO named_sessions (id, name, saved_at) VALUES (?, ?, ?)')
+        .run(summary.id, summary.name, summary.savedAt);
+      const insertTab = this.database.prepare(
+        'INSERT OR IGNORE INTO named_session_tabs (session_id, position, url, title) VALUES (?, ?, ?, ?)',
+      );
+      tabs.forEach((tab, position) => insertTab.run(summary.id, position, tab.url, tab.title));
+    });
+  }
+
   rename(id: string, name: string): void {
     const trimmed = name.trim().slice(0, MAX_SESSION_NAME);
     if (trimmed) {

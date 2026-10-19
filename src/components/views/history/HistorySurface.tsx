@@ -21,7 +21,7 @@ import { History, X } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, send } from '@/lib/bridge/bridge';
+import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { CLEAR_RANGES } from '@/lib/text/clearing';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { formatDateHeading, formatTimeOfDay } from '@/lib/text/format';
@@ -55,6 +55,9 @@ export function HistorySurface() {
     const timer = setTimeout(() => void refresh(query), 120);
     return () => clearTimeout(timer);
   }, [query, refresh]);
+
+  // An undo puts an entry back from outside this view, which has to ask again to show it.
+  useEffect(() => getBridge()?.on.dataChanged((kind) => kind === 'history' && void refresh(query)), [query, refresh]);
 
   // Paged, so a search can reach a match past the first screenful and the surface stays quick.
   const loadMore = () => {

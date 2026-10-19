@@ -117,6 +117,23 @@ export class BookmarksStore {
     this.database.prepare('DELETE FROM bookmarks WHERE id = ?').run(id);
   }
 
+  /** A bookmark and where it sat, taken before it is removed so an undo can put it back. */
+  snapshot(id: string): { bookmark: Bookmark; position: number } | null {
+    const row = this.database.prepare(`SELECT position, ${COLUMNS} FROM bookmarks WHERE id = ?`).get(id);
+    return row ? { bookmark: toBookmark(row), position: Number(row.position) } : null;
+  }
+
+  /** Puts a removed bookmark back where it was, unless the same address was saved again meanwhile. */
+  restore(snapshot: { bookmark: Bookmark; position: number }): void {
+    const { bookmark, position } = snapshot;
+    if (this.has(bookmark.url)) {
+      return;
+    }
+    this.database
+      .prepare(`INSERT INTO bookmarks (position, ${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(position, bookmark.id, bookmark.url, bookmark.title, bookmark.createdAt, bookmark.folderId);
+  }
+
   /** Every write is already on disk; kept so the store's callers flush every part the same way. */
   flush(): void {}
 

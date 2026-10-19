@@ -110,6 +110,20 @@ export class HistoryStore {
     return this.database.prepare(`SELECT ${COLUMNS} FROM history ORDER BY last_visited_at DESC`).all().map(toEntry);
   }
 
+  find(id: string): HistoryEntry | null {
+    const row = this.database.prepare(`SELECT ${COLUMNS} FROM history WHERE id = ?`).get(id);
+    return row ? toEntry(row) : null;
+  }
+
+  /** Puts a removed entry back as it was, counts and all; a visit since then wins. */
+  restore(entry: HistoryEntry): void {
+    this.database
+      .prepare(
+        'INSERT OR IGNORE INTO history (id, url, title, last_visited_at, visit_count, blocked_count) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(entry.id, entry.url, entry.title, entry.lastVisitedAt, entry.visitCount, entry.blockedCount ?? 0);
+  }
+
   removeHistory(id: string): void {
     this.database.prepare('DELETE FROM history WHERE id = ?').run(id);
     this.scrub();
