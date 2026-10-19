@@ -14,7 +14,8 @@
  * Run after `electron-builder --dir -c.electronFuses.enableNodeCliInspectArguments=true`: Playwright drives
  * the app through the inspector, which the release itself switches off.
  */
-import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses';
+// A CommonJS package, so its exports arrive as one default object.
+import fuses from '@electron/fuses';
 import { _electron as electron } from 'playwright';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -126,6 +127,7 @@ function copyleftNativesIn(root) {
   return found;
 }
 
+const { FuseState, FuseV1Options, getCurrentFuseWire } = fuses;
 const binary = packagedBinary();
 console.log(`Starting ${path.relative(process.cwd(), binary)}`);
 

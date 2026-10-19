@@ -32,14 +32,16 @@ describe.skipIf(process.env.CI !== 'true')('the password vault', () => {
     expect(result).toEqual({ error: expect.stringContaining('No keyring is running') });
   });
 
-  it.runIf(process.platform !== 'linux')('writes no password to disk in plain text', async () => {
+  // Since version 2 the site and username are sealed too: which accounts exist is as revealing as their passwords.
+  it.runIf(process.platform !== 'linux')('writes nothing it was given to disk in plain text', async () => {
     const result = await add();
     expect(result).toHaveProperty('id');
     const file = path.join(copacetic.profile, 'vault.json');
     expect(await copacetic.until(() => existsSync(file), 10_000)).toBe(true);
     const onDisk = readFileSync(file, 'utf8');
-    expect(onDisk).toContain('example.com');
     expect(onDisk).not.toContain(PASSWORD);
+    expect(onDisk).not.toContain('example.com');
+    expect(onDisk).not.toContain('riley');
   });
 
   it.runIf(process.platform !== 'linux')('gives the password back only when asked for it by id', async () => {

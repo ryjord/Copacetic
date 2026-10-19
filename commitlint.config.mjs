@@ -7,7 +7,7 @@ const NO_EM_DASH = /—/u;
 const EMOJI = /\p{Extended_Pictographic}/u;
 const CO_AUTHOR = /^co-authored-by:/im;
 
-export default {
+const config = {
   extends: ['@commitlint/config-conventional'],
   rules: {
     'body-max-line-length': [0],
@@ -33,3 +33,5 @@ export default {
     },
   ],
 };
+
+export default config;
