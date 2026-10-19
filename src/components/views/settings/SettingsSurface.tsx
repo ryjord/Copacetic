@@ -50,7 +50,7 @@ export function SettingsSurface() {
       <div className="flex min-h-0 flex-1">
         <nav
           aria-label={t('settings.surface.sections')}
-          className="flex w-60 flex-none flex-col gap-3 border-r border-line p-3"
+          className="flex w-66 flex-none flex-col gap-3 border-r border-line bg-toolbar px-3 py-5"
         >
           <SearchField value={query} onChange={setQuery} label={t('settings.surface.search')} />
           <ul className="flex flex-col gap-0.5">
@@ -64,8 +64,10 @@ export function SettingsSurface() {
                     onClick={() => openPane(pane.id)}
                     aria-current={isActive ? 'page' : undefined}
                     className={cn(
-                      'flex min-h-8 w-full items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left text-body transition-colors',
-                      isActive ? 'bg-hover text-ink' : 'text-ink-dim hover:bg-hover hover:text-ink',
+                      'flex min-h-[34px] w-full items-center gap-2.5 rounded-field px-2.5 py-1.5 text-left text-body font-medium transition-colors',
+                      isActive
+                        ? 'bg-accent-soft font-semibold text-accent'
+                        : 'text-ink-dim hover:bg-hover hover:text-ink',
                     )}
                   >
                     <Icon size={16} strokeWidth={1.75} className="shrink-0" aria-hidden />
@@ -78,7 +80,7 @@ export function SettingsSurface() {
         </nav>
 
         <div className="scroll-thin relative min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-8 py-8">
+          <div className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-12 py-9">
             {query ? (
               <SearchResults query={query} matches={matches} onOpen={openPane} />
             ) : (

@@ -17,7 +17,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   danger: 'border border-line-strong text-alert hover:border-alert/50 hover:bg-alert/8 active:bg-alert/12',
 };
 
-/** Every text button in the interface. Colour is for state, so only `danger` is coloured, and only red. */
+/** Every text button in the interface. The accent marks the one main action; red is only ever destructive. */
 export function Button({ variant = 'secondary', size = 'md', type = 'button', className, ...props }: ButtonProps) {
   return (
     <button

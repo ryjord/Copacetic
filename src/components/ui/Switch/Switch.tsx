@@ -19,14 +19,14 @@ export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
       aria-label={label}
       disabled={disabled}
       className={cn(
-        'no-drag relative h-[18px] w-[30px] shrink-0 rounded-full transition-colors duration-100',
+        'no-drag relative h-5 w-9 shrink-0 rounded-full transition-colors duration-100',
         'bg-line-strong data-[state=checked]:bg-accent disabled:opacity-40',
       )}
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          'block size-[14px] translate-x-[2px] rounded-full bg-raised shadow-sm transition-transform duration-100',
-          'data-[state=checked]:translate-x-[14px] data-[state=checked]:bg-accent-ink',
+          'block size-4 translate-x-[2px] rounded-full bg-white shadow-sm transition-transform duration-100',
+          'data-[state=checked]:translate-x-[18px]',
         )}
       />
     </SwitchPrimitive.Root>
