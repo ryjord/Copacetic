@@ -126,4 +126,12 @@ describe('the command palette', () => {
     const option = screen.getAllByRole('option').find((candidate) => candidate.textContent?.startsWith('New tab'));
     expect(option?.textContent).toMatch(/Alt|⌥/);
   });
+
+  // Tab search is the palette with nothing in it but tabs, the one in front included.
+  it('lists only the open tabs when opened as tab search', () => {
+    render(<CommandPalette scope="tabs" />);
+    const options = screen.getAllByRole('option').map((option) => option.textContent);
+    expect(options).toEqual([expect.stringContaining('Example'), expect.stringContaining('The Book')]);
+    expect(screen.getByRole('combobox', { name: 'Search open tabs' })).toBeTruthy();
+  });
 });

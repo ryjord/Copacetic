@@ -200,6 +200,7 @@ export function Chrome() {
         {surface === 'bookmarks' && <BookmarksSurface />}
         {surface === 'downloads' && <DownloadsSurface />}
         {surface === 'palette' && <CommandPalette />}
+        {surface === 'tab-search' && <CommandPalette scope="tabs" />}
       </main>
     </div>
   );

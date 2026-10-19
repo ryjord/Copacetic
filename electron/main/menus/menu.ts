@@ -249,6 +249,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         accelerator: key('previous-tab'),
         click: () => inWindow((browser) => browser.commands.cycleTab(-1)),
       },
+      {
+        label: 'Search open tabs',
+        accelerator: key('tab-search'),
+        click: () => inWindow((browser) => browser.openSurface('tab-search')),
+      },
       { type: 'separator' },
       ...tabSelectionItems(inWindow, key),
       { type: 'separator' },

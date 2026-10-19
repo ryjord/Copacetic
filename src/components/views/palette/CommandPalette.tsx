@@ -39,7 +39,8 @@ interface Command {
 const GROUP_ORDER: readonly Command['group'][] = ['Tabs', 'Page', 'Go to', 'Your data', 'Appearance', 'Open tabs'];
 
 /** One keystroke to reach anything, and a place to learn the shortcut for it. */
-export function CommandPalette() {
+/** Every command and open tab, or, opened as tab search, the open tabs alone. */
+export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' | 'tabs' }) {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);
   const openSettings = useBrowserStore((state) => state.openSettings);
@@ -313,18 +314,19 @@ export function CommandPalette() {
       },
     );
 
-    for (const tab of tabs) {
-      if (tab.id === activeTab?.id) {
-        continue;
-      }
-      list.push({
+    const tabCommands = tabs
+      .filter((tab) => scope === 'tabs' || tab.id !== activeTab?.id)
+      .map<Command>((tab) => ({
         id: `switch:${tab.id}`,
         label: tab.isStartPage ? 'New tab' : tab.title || tab.url,
         group: 'Open tabs',
         keywords: tab.url,
         run: then(() => send((api) => api.tabs.activate(tab.id))),
-      });
+      }));
+    if (scope === 'tabs') {
+      return tabCommands;
     }
+    list.push(...tabCommands);
 
     // Taught as they are bound now, which may not be where they started.
     return list.map((command) =>
@@ -338,6 +340,7 @@ export function CommandPalette() {
     openSettings,
     requestOmniboxFocus,
     setSurface,
+    scope,
     shortcutOverrides,
     tabs,
     toggleSurface,
@@ -359,6 +362,8 @@ export function CommandPalette() {
   useEffect(() => {
     document.getElementById(`${listId}-${highlighted}`)?.scrollIntoView?.({ block: 'nearest' });
   }, [highlighted, listId]);
+
+  const placeholder = scope === 'tabs' ? 'Search open tabs' : 'Search commands and open tabs';
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -390,7 +395,7 @@ export function CommandPalette() {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={scope === 'tabs' ? 'Tab search' : 'Command palette'}
         className="animate-pop flex h-fit max-h-[64vh] w-full max-w-xl flex-col overflow-hidden rounded-lg bg-raised shadow-dialog"
       >
         <div className="flex h-12 flex-none items-center gap-2.5 border-b border-line px-4">
@@ -400,8 +405,8 @@ export function CommandPalette() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search commands and open tabs"
-            aria-label="Search commands and open tabs"
+            placeholder={placeholder}
+            aria-label={placeholder}
             role="combobox"
             aria-expanded="true"
             aria-controls={listId}
@@ -411,7 +416,9 @@ export function CommandPalette() {
         </div>
 
         {matches.length === 0 ? (
-          <p className="px-4 py-8 text-center text-body text-ink-dim">No command or tab matches.</p>
+          <p className="px-4 py-8 text-center text-body text-ink-dim">
+            {scope === 'tabs' ? 'No open tab matches.' : 'No command or tab matches.'}
+          </p>
         ) : (
           <ul
             id={listId}

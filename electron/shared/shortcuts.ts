@@ -27,6 +27,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { accelerator: 'Ctrl+Tab', description: 'Next tab', id: 'next-tab' },
       { accelerator: 'Ctrl+Shift+Tab', description: 'Previous tab', id: 'previous-tab' },
       { accelerator: 'CmdOrCtrl+9', description: 'Last tab', id: 'last-tab' },
+      { accelerator: 'CmdOrCtrl+Shift+A', description: 'Search open tabs', id: 'tab-search' },
       { accelerator: 'CmdOrCtrl+D', description: 'Bookmark this page', id: 'bookmark' },
     ],
   },
