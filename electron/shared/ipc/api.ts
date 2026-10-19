@@ -315,6 +315,8 @@ export interface CopaceticApi {
   connections: {
     /** Every host the tab has contacted since its last page load. */
     list(id: TabId): Promise<ConnectionEntry[]>;
+    /** Saves the list as a file, after asking where; answers with a problem to show, or an empty string. */
+    exportReport(id: TabId): Promise<string>;
   };
   shortcuts: {
     /** While a new key is being recorded, the menu lets go of its own so the key reaches the page. */

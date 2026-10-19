@@ -158,6 +158,11 @@ export const main = {
     single: '{part}.',
     list: '{leading} and {last}.',
   },
+  pageReport: {
+    title: 'Save what this page contacted',
+    fileType: 'Connection report',
+    noPage: 'There is no page here to report on.',
+  },
   sessions: {
     untitled: 'Untitled',
     andMore: '{lead} and {count} more',

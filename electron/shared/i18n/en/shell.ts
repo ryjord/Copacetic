@@ -154,6 +154,7 @@ export const shell = {
       byRule: 'by rule {rule}',
       byHostname: 'by hostname',
       showAll: 'Show all {count}',
+      exportReport: 'Save as a report',
       certificateChanged: 'This certificate has changed',
       issuedBy: 'Issued by',
       issuedTo: 'Issued to',

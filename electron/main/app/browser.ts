@@ -1,5 +1,5 @@
 // Libs
-import { type BrowserWindow, type WebContents, type WebFrameMain, dialog } from 'electron';
+import { type BrowserWindow, type WebContents, type WebFrameMain, app, dialog } from 'electron';
 
 // Utils
 import { PUSH, type ChromeSurface } from '../../shared/ipc/channels';
@@ -23,6 +23,8 @@ import { showPageContextMenu } from '../menus/context-menu';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { t } from '../../shared/i18n/translate';
 import { defaultSessionName } from '../../shared/data/named-sessions';
+import { pageReportFileName, pageReportFrom } from '../../shared/browsing/page-report';
+import { writeChosenFile } from '../system/file-dialogs';
 
 // Types
 import type {
@@ -495,6 +497,33 @@ export class Browser {
   connectionsFor(tabId: TabId): ConnectionEntry[] {
     const webContentsId = this.tabs.webContentsIdFor(tabId);
     return webContentsId === undefined ? [] : this.blocker.connectionsFor(webContentsId);
+  }
+
+  /** Saves what a page contacted as a file anyone can read; answers with a problem to show, or nothing. */
+  async exportPageReport(tabId: TabId): Promise<string> {
+    const url = this.tabs.urlFor(tabId);
+    if (!url) {
+      return t('main.pageReport.noPage');
+    }
+    const now = Date.now();
+    const report = pageReportFrom({
+      url,
+      title: this.tabs.titleFor(tabId),
+      now,
+      version: app.getVersion(),
+      isBlocking: this.profile.settings().blockTrackers,
+      entries: this.connectionsFor(tabId),
+    });
+    const written = await writeChosenFile(
+      this.window,
+      {
+        title: t('main.pageReport.title'),
+        defaultPath: pageReportFileName(url, now),
+        filters: [{ name: t('main.pageReport.fileType'), extensions: ['json'] }],
+      },
+      () => `${JSON.stringify(report, null, 2)}\n`,
+    );
+    return written.value === null ? written.message : '';
   }
 
   setContentInsets(insets: ContentInsets): void {

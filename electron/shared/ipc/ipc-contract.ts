@@ -194,6 +194,7 @@ export const CHANNELS = {
   'auth.cancel': 'auth:cancel',
 
   'connections.list': 'connections:list',
+  'connections.exportReport': 'connections:export-report',
 
   'shortcuts.setRecording': 'shortcuts:set-recording',
   'updates.check': 'updates:check',

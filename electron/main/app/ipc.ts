@@ -384,6 +384,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   // ------------------------------------------------------------ connections
 
   handle('connections.list', (browser, _event, id) => browser.connectionsFor(asString(id)));
+  handle('connections.exportReport', (browser, _event, id) => browser.exportPageReport(asString(id)));
 
   // ---------------------------------------------------------------- updates
 

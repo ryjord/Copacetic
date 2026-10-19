@@ -196,6 +196,7 @@ function SitePermissions({ url }: { url: string }) {
 function ConnectionLog({ tabId }: { tabId: string }) {
   const [entries, setEntries] = useState<ConnectionEntry[] | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [exportProblem, setExportProblem] = useState('');
 
   useEffect(() => {
     let isCurrent = true;
@@ -266,11 +267,23 @@ function ConnectionLog({ tabId }: { tabId: string }) {
           </li>
         ))}
       </ul>
-      {entries.length > visible.length && (
-        <Button size="sm" variant="ghost" className="mt-2 -ml-2.5" onClick={() => setIsExpanded(true)}>
-          {t('shell.overlay.siteInfo.showAll', { count: entries.length })}
+      <div className="mt-2 -ml-2.5 flex items-center gap-1">
+        {entries.length > visible.length && (
+          <Button size="sm" variant="ghost" onClick={() => setIsExpanded(true)}>
+            {t('shell.overlay.siteInfo.showAll', { count: entries.length })}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() =>
+            void ask((api) => api.connections.exportReport(tabId), '').then((problem) => setExportProblem(problem))
+          }
+        >
+          {t('shell.overlay.siteInfo.exportReport')}
         </Button>
-      )}
+      </div>
+      {exportProblem && <p className="mt-1 text-caption text-caution">{exportProblem}</p>}
     </div>
   );
 }
