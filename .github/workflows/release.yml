@@ -56,6 +56,23 @@ jobs:
           fi
           echo "Releasing $pkg"
 
+      # electron-builder makes the release when it finds none, and the macOS job
+      # publishes two architectures at once: both found nothing, so 2.0.0-beta.1
+      # was made twice with the assets split between them. Made here, before any
+      # build, every publisher finds the one release.
+      - name: Create the release before anything publishes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "The release already exists."
+            exit 0
+          fi
+          case "$GITHUB_REF_NAME" in
+            *-*) gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "" --prerelease ;;
+            *)   gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "" ;;
+          esac
+
       # The .deb is built with the repository URL baked in, and it is published
       # before the apt job runs. If the bucket turns out to be unusable at that
       # point, the package is already out there pointing at a source that does
