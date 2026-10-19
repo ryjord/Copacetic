@@ -9,19 +9,42 @@ export interface SecretStore {
   decrypt(cipherText: Buffer): string;
 }
 
-interface StoredEntry {
-  id: string;
+/** Which site a password is for and whose it is: as revealing as the password, for the list of accounts it makes. */
+interface Identity {
   origin: string;
   username: string;
+}
+
+/** Version 2: the site and username sealed together, the password sealed on its own. */
+interface SealedEntry {
+  id: string;
+  /** Base64 of the encrypted site and username. */
+  identity: string;
   /** Base64 of the encrypted password. Encrypted per entry, so one unreadable secret is not all of them. */
   secret: string;
   createdAt: number;
   updatedAt: number;
 }
 
+/** Version 1 kept the site and username in the clear. Read, and sealed as soon as there is a keychain to seal with. */
+interface LegacyEntry extends Identity {
+  id: string;
+  secret: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+type StoredEntry = SealedEntry | LegacyEntry;
+
 export interface VaultFile {
   version: number;
   entries: StoredEntry[];
+}
+
+const CURRENT_VERSION = 2;
+
+function isSealed(entry: StoredEntry): entry is SealedEntry {
+  return 'identity' in entry;
 }
 
 export interface VaultStorage {
@@ -29,20 +52,25 @@ export interface VaultStorage {
   set(next: VaultFile): void;
 }
 
-export const EMPTY_VAULT_FILE: VaultFile = { version: 1, entries: [] };
+export const EMPTY_VAULT_FILE: VaultFile = { version: CURRENT_VERSION, entries: [] };
 
 const NO_KEYCHAIN =
   'This machine has no keychain Copacetic can use, so there is nowhere safe to keep a password. Nothing has been saved.';
 
 // A vault with nothing in it and one that cannot be decrypted are different states.
 export class Vault {
+  /** Sites and usernames already opened, keyed by what was sealed: the list shows them, so they are not secret here. */
+  private readonly opened = new Map<string, Identity>();
+
   constructor(
     private readonly secrets: SecretStore,
     private readonly storage: VaultStorage,
     private readonly now: () => number = Date.now,
     // Enforced here, not just the interface - a lock the renderer honours and the vault does not is decoration.
     private readonly isUnlocked: () => boolean = () => true,
-  ) {}
+  ) {
+    this.sealLegacyEntries();
+  }
 
   state(): VaultState {
     const stored = this.storage.get().entries;
@@ -91,14 +119,16 @@ export class Vault {
     if ('error' in encrypted) {
       return encrypted;
     }
-    const secret = encrypted.secret;
+    const identity = this.sealIdentity({ origin, username: input.username.trim() });
+    if (identity === null) {
+      return { error: NO_KEYCHAIN };
+    }
 
     const timestamp = this.now();
-    const entry: StoredEntry = {
+    const entry: SealedEntry = {
       id: newId(),
-      origin,
-      username: input.username.trim(),
-      secret,
+      identity,
+      secret: encrypted.secret,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -135,16 +165,27 @@ export class Vault {
       secret = encrypted.secret;
     }
 
-    const origin = changes.origin === undefined ? existing.origin : changes.origin.trim();
+    const current = this.identityOf(existing);
+    if (!current) {
+      return { error: 'This password cannot be read on this machine, so it cannot be changed here.' };
+    }
+    const origin = changes.origin === undefined ? current.origin : changes.origin.trim();
     if (!origin) {
       return { error: 'A password needs a site to belong to.' };
     }
-
-    const updated: StoredEntry = {
-      ...existing,
+    const identity = this.sealIdentity({
       origin,
-      username: changes.username === undefined ? existing.username : changes.username.trim(),
+      username: changes.username === undefined ? current.username : changes.username.trim(),
+    });
+    if (identity === null) {
+      return { error: NO_KEYCHAIN };
+    }
+
+    const updated: SealedEntry = {
+      id: existing.id,
+      identity,
       secret,
+      createdAt: existing.createdAt,
       updatedAt: this.now(),
     };
 
@@ -193,11 +234,12 @@ export class Vault {
 
     for (const entry of this.storage.get().entries) {
       const password = this.decryptEntry(entry);
-      if (password === null) {
+      const identity = this.identityOf(entry);
+      if (password === null || identity === null) {
         unreadable += 1;
         continue;
       }
-      credentials.push({ origin: entry.origin, username: entry.username, password });
+      credentials.push({ origin: identity.origin, username: identity.username, password });
     }
 
     return { credentials, unreadable };
@@ -215,11 +257,10 @@ export class Vault {
     let skipped = 0;
 
     for (const credential of credentials) {
-      const existing = this.storage
-        .get()
-        .entries.find(
-          (entry) => entry.origin === credential.origin.trim() && entry.username === credential.username.trim(),
-        );
+      const existing = this.storage.get().entries.find((entry) => {
+        const identity = this.identityOf(entry);
+        return identity?.origin === credential.origin.trim() && identity.username === credential.username.trim();
+      });
 
       if (existing) {
         const failure = this.update(existing.id, { password: credential.password });
@@ -244,7 +285,67 @@ export class Vault {
 
   /** Whether the secret decrypts, which is a different question from whether the vault is unlocked. */
   private canRead(entry: StoredEntry): boolean {
-    return this.decryptEntry(entry) !== null;
+    return this.decryptEntry(entry) !== null && this.identityOf(entry) !== null;
+  }
+
+  /** The site and username, opened once and remembered, or null where this machine cannot open them. */
+  private identityOf(entry: StoredEntry): Identity | null {
+    if (!isSealed(entry)) {
+      return { origin: entry.origin, username: entry.username };
+    }
+    const remembered = this.opened.get(entry.identity);
+    if (remembered) {
+      return remembered;
+    }
+    if (!this.secrets.isAvailable()) {
+      return null;
+    }
+    try {
+      const parsed: unknown = JSON.parse(this.secrets.decrypt(Buffer.from(entry.identity, 'base64')));
+      if (!isRecord(parsed) || typeof parsed.origin !== 'string' || typeof parsed.username !== 'string') {
+        return null;
+      }
+      const identity = { origin: parsed.origin, username: parsed.username };
+      this.opened.set(entry.identity, identity);
+      return identity;
+    } catch {
+      return null;
+    }
+  }
+
+  private sealIdentity(identity: Identity): string | null {
+    try {
+      const sealed = this.secrets.encrypt(JSON.stringify(identity)).toString('base64');
+      this.opened.set(sealed, identity);
+      return sealed;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Seals what version 1 left in the clear, as soon as there is a keychain.
+   *
+   * Only the site and username are sealed, so an entry whose password this
+   * machine cannot read is still upgraded and still kept. Without a keychain
+   * nothing changes and nothing is dropped: the entries wait for one.
+   */
+  private sealLegacyEntries(): void {
+    const file = this.storage.get();
+    if (!file.entries.some((entry) => !isSealed(entry)) || !this.secrets.isAvailable()) {
+      return;
+    }
+    const entries = file.entries.map((entry): StoredEntry => {
+      if (isSealed(entry)) {
+        return entry;
+      }
+      const identity = this.sealIdentity({ origin: entry.origin, username: entry.username });
+      return identity === null
+        ? entry
+        : { id: entry.id, identity, secret: entry.secret, createdAt: entry.createdAt, updatedAt: entry.updatedAt };
+    });
+    const isComplete = entries.every(isSealed);
+    this.storage.set({ version: isComplete ? CURRENT_VERSION : 1, entries });
   }
 
   private encryptOrError(password: string): { secret: string } | { error: string } {
@@ -273,10 +374,12 @@ export class Vault {
   }
 
   private describe(entry: StoredEntry, isReadable: boolean): VaultEntry {
+    // Unopenable on this machine: kept and counted, with nothing to say about which site it was for.
+    const identity = this.identityOf(entry) ?? { origin: '', username: '' };
     return {
       id: entry.id,
-      origin: entry.origin,
-      username: entry.username,
+      origin: identity.origin,
+      username: identity.username,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
       isReadable,
@@ -289,19 +392,24 @@ export function reviveVaultFile(raw: unknown): VaultFile | null {
     return null;
   }
 
-  const entries = raw.entries
-    .filter(isRecord)
-    .map((entry) => ({
+  const entries = raw.entries.filter(isRecord).flatMap((entry): StoredEntry[] => {
+    const common = {
       id: typeof entry.id === 'string' ? entry.id : newId(),
-      origin: asString(entry.origin),
-      username: asString(entry.username),
       secret: asString(entry.secret),
       createdAt: asNumber(entry.createdAt),
       updatedAt: asNumber(entry.updatedAt),
-    }))
-    // An entry with no origin or no secret is not a password, and keeping it
-    // would show a row that can never be used.
-    .filter((entry) => entry.origin !== '' && entry.secret !== '');
+    };
+    // An entry with no secret, or nothing to say which site it is for, is not a password and would show a row that can never be used.
+    if (!common.secret) {
+      return [];
+    }
+    const identity = asString(entry.identity);
+    if (identity) {
+      return [{ ...common, identity }];
+    }
+    const origin = asString(entry.origin);
+    return origin ? [{ ...common, origin, username: asString(entry.username) }] : [];
+  });
 
-  return { version: 1, entries };
+  return { version: entries.every(isSealed) ? CURRENT_VERSION : 1, entries };
 }

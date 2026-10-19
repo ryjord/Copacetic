@@ -468,3 +468,102 @@ describe('while the vault is locked', () => {
     expect(vault.add({ origin: 'https://new.test', username: 'x', password: 'y' })).toHaveProperty('id');
   });
 });
+
+/**
+ * Version 1 kept the site and username in the clear, so the file was a list of
+ * every account someone had, readable by anything that could read the disk.
+ */
+describe('what the vault file says about an account', () => {
+  it('names neither the site nor the username, and holds no password', () => {
+    const store = storage();
+    new Vault(keychain(), store, now).add({
+      origin: 'https://bank.example',
+      username: 'riley@home',
+      password: 'hunter2',
+    });
+    const written = JSON.stringify(store.written());
+    expect(written).not.toMatch(/bank\.example|riley@home|hunter2/);
+    expect(store.written().version).toBe(2);
+  });
+
+  it('still lists the site and username to whoever can open them', () => {
+    const vault = new Vault(keychain(), storage(), now);
+    vault.add({ origin: 'https://bank.example', username: 'riley', password: 'hunter2' });
+    expect(vault.state().entries.map((entry) => [entry.origin, entry.username])).toEqual([
+      ['https://bank.example', 'riley'],
+    ]);
+  });
+});
+
+describe('a vault file from version 1', () => {
+  const legacy = (secret = Buffer.from('sealed:hunter2').toString('base64')): VaultFile => ({
+    version: 1,
+    entries: [{ id: 'a', origin: 'https://bank.example', username: 'riley', secret, createdAt: 1, updatedAt: 1 }],
+  });
+
+  it('is sealed as soon as it is opened, keeping everything', () => {
+    const store = storage(legacy());
+    const vault = new Vault(keychain(), store, now);
+    expect(JSON.stringify(store.written())).not.toMatch(/bank\.example|riley/);
+    expect(store.written().version).toBe(2);
+    expect(vault.state().entries).toMatchObject([{ id: 'a', origin: 'https://bank.example', username: 'riley' }]);
+    expect(vault.reveal('a')).toBe('hunter2');
+  });
+
+  // Sealing needs only the site and username, so a password this machine cannot read is upgraded and kept too.
+  it('seals an entry whose password cannot be read here, rather than losing it', () => {
+    const unreadableSecret = Buffer.from('sealed:locked-away');
+    const store = storage(legacy(unreadableSecret.toString('base64')));
+    const vault = new Vault(keychain({ unreadable: new Set([unreadableSecret.toString()]) }), store, now);
+    expect(store.written().entries).toHaveLength(1);
+    expect(JSON.stringify(store.written())).not.toContain('bank.example');
+    expect(vault.state().unreadableCount).toBe(1);
+  });
+
+  it('is left exactly as it was where there is no keychain to seal it with', () => {
+    const before = legacy();
+    const store = storage(before);
+    const vault = new Vault(keychain({ available: false }), store, now);
+    expect(store.written()).toEqual(before);
+    expect(vault.state().entries).toHaveLength(1);
+  });
+
+  it('reads back through the reviver in either shape', () => {
+    const store = storage(legacy());
+    new Vault(keychain(), store, now);
+    const revived = reviveVaultFile(JSON.parse(JSON.stringify(store.written())));
+    expect(revived?.version).toBe(2);
+    expect(new Vault(keychain(), storage(revived ?? EMPTY_VAULT_FILE), now).state().entries[0]?.origin).toBe(
+      'https://bank.example',
+    );
+  });
+});
+
+describe('an entry this machine cannot open', () => {
+  it('is kept and counted, not dropped or shown as some other site', () => {
+    const store = storage();
+    new Vault(keychain(), store, now).add({ origin: 'https://bank.example', username: 'riley', password: 'hunter2' });
+    const [sealed] = store.written().entries;
+    const identity = 'identity' in sealed! ? Buffer.from(sealed.identity, 'base64').toString() : '';
+
+    const vault = new Vault(keychain({ unreadable: new Set([identity]) }), store, now);
+    const state = vault.state();
+    expect(state.entries).toHaveLength(1);
+    expect(state.entries[0]).toMatchObject({ origin: '', isReadable: false });
+    expect(state.unreadableCount).toBe(1);
+  });
+});
+
+describe('importing into a sealed vault', () => {
+  it('replaces the password for a site and username already there, rather than adding a second', () => {
+    const vault = new Vault(keychain(), storage(), now);
+    vault.add({ origin: 'https://bank.example', username: 'riley', password: 'old' });
+    expect(vault.importMany([{ origin: 'https://bank.example', username: 'riley', password: 'new' }])).toEqual({
+      added: 0,
+      updated: 1,
+      skipped: 0,
+    });
+    const [entry] = vault.state().entries;
+    expect(vault.reveal(entry!.id)).toBe('new');
+  });
+});

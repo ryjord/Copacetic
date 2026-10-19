@@ -127,7 +127,8 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
         {vault.entries.map((entry) => (
           <SettingRow
             key={entry.id}
-            label={entry.origin.replace(/^https?:\/\//, '')}
+            // Which site it was for is sealed with it, so a row this machine cannot open has no site to show.
+            label={entry.origin ? entry.origin.replace(/^https?:\/\//, '') : 'A password this machine cannot open'}
             help={
               revealed[entry.id] !== undefined ? (
                 <span className="font-mono text-ink select-text">{revealed[entry.id] || '(empty)'}</span>
