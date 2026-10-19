@@ -16,8 +16,8 @@ const savedTabs = (): { url: string }[] => {
   if (!existsSync(file)) {
     return [];
   }
-  const raw = JSON.parse(readFileSync(file, 'utf8')) as { tabs?: { url: string }[] };
-  return raw.tabs ?? [];
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as { windows?: { tabs: { url: string }[] }[] };
+  return raw.windows?.flatMap((window) => window.tabs) ?? [];
 };
 
 /**
