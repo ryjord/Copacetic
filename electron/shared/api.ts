@@ -285,6 +285,8 @@ export interface CopaceticApi {
     export(kind: ExportKind): Promise<string>;
     /** Reads the bookmark file any browser exports. Resolves with a summary. */
     importBookmarks(): Promise<string>;
+    /** Reads a history file Copacetic exported. Resolves with a summary. */
+    importHistory(): Promise<string>;
     /** Other browsers' profiles on this computer that can be imported from. */
     importSources(): Promise<ImportSource[]>;
     /** Brings in one profile's bookmarks and recent history. Resolves with a summary. */

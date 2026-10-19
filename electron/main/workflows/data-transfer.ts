@@ -8,6 +8,7 @@ import type { VaultSession } from '../vault/vault-session';
 import { bookmarksToHtml, historyToJson } from '../data/export';
 import { MAX_HISTORY_AGE_MS, MAX_HISTORY_ENTRIES } from '../data/history-store';
 import { findReadableProfiles } from '../import/browser-profiles';
+import { visitsFromHistoryFile } from '../import/history-file';
 import type { Machine } from '../import/chromium-profiles';
 import { describeError, log } from '../system/diagnostics';
 import type { BrowserStore } from '../data/store';
@@ -88,6 +89,38 @@ export class DataTransfer {
     }
     if (skipped > 0) {
       parts.push(`${skipped} refused for not being web addresses`);
+    }
+    return `Imported: ${parts.join(', ')}.`;
+  }
+
+  /** Reads the history file Copacetic exports, from this machine or another. */
+  async importHistory(): Promise<string> {
+    const chosen = await readChosenFile(this.deps.window, {
+      title: 'Import history',
+      filters: [{ name: 'History', extensions: ['json'] }],
+    });
+    if (chosen.value === null) {
+      return chosen.message;
+    }
+    const read = visitsFromHistoryFile(chosen.value);
+    if (!read) {
+      return 'That is not a history file Copacetic exported.';
+    }
+    // Only what history would still be keeping, newest first, the same bounds as any other import.
+    const since = Date.now() - MAX_HISTORY_AGE_MS;
+    const recent = read.visits
+      .filter((visit) => visit.lastVisitedAt >= since)
+      .sort((aVisit, bVisit) => bVisit.lastVisitedAt - aVisit.lastVisitedAt)
+      .slice(0, MAX_HISTORY_ENTRIES);
+    const { added } = this.deps.store.importHistory(recent);
+    this.deps.changed();
+    const older = read.visits.length - recent.length;
+    const parts = [`added ${added} ${added === 1 ? 'page' : 'pages'}`];
+    if (older > 0) {
+      parts.push(`${older} older than history keeps`);
+    }
+    if (read.skipped > 0) {
+      parts.push(`${read.skipped} that were not web addresses`);
     }
     return `Imported: ${parts.join(', ')}.`;
   }

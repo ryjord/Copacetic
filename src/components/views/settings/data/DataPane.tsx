@@ -124,6 +124,21 @@ export function DataPane() {
           }
         />
         <SettingRow
+          label="History"
+          help="From a file Copacetic exported, on this computer or another."
+          control={
+            <Button
+              size="sm"
+              onClick={() => {
+                setMessage('');
+                void ask((api) => api.data.importHistory(), '').then(setMessage);
+              }}
+            >
+              Import
+            </Button>
+          }
+        />
+        <SettingRow
           label="From another browser"
           help={
             chosenSource
