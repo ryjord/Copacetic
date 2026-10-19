@@ -75,6 +75,9 @@ export class SmokeApp {
       args: ['.', `--user-data-dir=${profile}`, ...(options.args ?? [])],
       cwd: process.cwd(),
       env: launchEnvironment(),
+      // Playwright emulates a light colour scheme by default, which pinned the
+      // chrome to light whatever Appearance said and made dark mode untestable.
+      colorScheme: null,
     });
 
     // Both the chrome and the overlay are pages, and Playwright hands back

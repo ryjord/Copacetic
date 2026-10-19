@@ -28,8 +28,9 @@
   --accent: #e6edf3;
   --accent-ink: #0b0f14;
   --shadow-colour: rgb(0 0 0 / 55%);
-  --ambient-near: #123043;
-  --ambient-far: #1b2a4a;
+  /* Set by the chrome from the start page's colour; these are only the first paint. */
+  --ambient-near: var(--ambient-near-dark, #123043);
+  --ambient-far: var(--ambient-far-dark, #1b2a4a);
   color-scheme: dark;
 }
 
@@ -52,8 +53,8 @@
     --accent: #14181d;
     --accent-ink: #ffffff;
     --shadow-colour: rgb(15 20 30 / 18%);
-    --ambient-near: #d7e6f0;
-    --ambient-far: #dde2f0;
+    --ambient-near: var(--ambient-near-light, #d4e5f0);
+    --ambient-far: var(--ambient-far-light, #dadff0);
     color-scheme: light;
   }
 }
@@ -136,38 +137,6 @@
   --chrome-field-height: 28px;
   --chrome-tab-min-width: 88px;
   --row-height: 30px;
-}
-
-/*
- * Start-page atmosphere. The only place a theme changes anything: the chrome
- * never shifts hue, so the state colours always read the same.
- */
-:root[data-theme='slate'] {
-  --ambient-near: #1e2730;
-  --ambient-far: #2a3440;
-}
-:root[data-theme='ember'] {
-  --ambient-near: #3a1f21;
-  --ambient-far: #46281c;
-}
-:root[data-theme='moss'] {
-  --ambient-near: #16302a;
-  --ambient-far: #1d3a2b;
-}
-
-@media (prefers-color-scheme: light) {
-  :root[data-theme='slate'] {
-    --ambient-near: #dfe5ea;
-    --ambient-far: #e4e8ee;
-  }
-  :root[data-theme='ember'] {
-    --ambient-near: #f2e1dc;
-    --ambient-far: #f1e6dc;
-  }
-  :root[data-theme='moss'] {
-    --ambient-near: #dcebe3;
-    --ambient-far: #e0ebe2;
-  }
 }
 
 @layer base {

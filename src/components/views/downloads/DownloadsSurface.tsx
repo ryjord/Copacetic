@@ -20,7 +20,6 @@ export function DownloadsSurface() {
   return (
     <SurfaceShell
       title="Downloads"
-      subtitle="Files Copacetic saved to your Downloads folder. Anything started in a Hush tab is listed until Copacetic closes and never written down."
       actions={
         hasFinished ? (
           <button

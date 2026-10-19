@@ -178,6 +178,7 @@ try {
     args: [`--user-data-dir=${profile}`],
     env: environment,
     timeout: 60_000,
+    colorScheme: null,
   });
 
   const chrome = await until(async () => app.windows().find((w) => !w.url().includes('/overlay')) ?? null, 45_000);

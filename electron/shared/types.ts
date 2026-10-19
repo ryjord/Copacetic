@@ -308,10 +308,10 @@ export type DensityId = 'comfortable' | 'compact';
 export type StartPageWidgetId = 'clock' | 'search' | 'topSites' | 'bookmarks';
 
 export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string; description: string }[] = [
-  { id: 'clock', label: 'Clock', description: 'The time, and not much else.' },
-  { id: 'search', label: 'Search', description: 'A box that searches or takes an address.' },
-  { id: 'topSites', label: 'Most visited', description: 'Ranked from how often you actually go there.' },
-  { id: 'bookmarks', label: 'Bookmarks', description: 'The most recent things you saved.' },
+  { id: 'clock', label: 'Clock', description: 'The current time.' },
+  { id: 'search', label: 'Search', description: 'Search or enter an address.' },
+  { id: 'topSites', label: 'Most visited', description: 'The sites you visit most.' },
+  { id: 'bookmarks', label: 'Bookmarks', description: 'Your latest bookmarks.' },
 ];
 
 export type VaultAvailability = 'ready' | 'unavailable' | 'unreadable';

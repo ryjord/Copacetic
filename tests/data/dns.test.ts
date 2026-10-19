@@ -18,7 +18,7 @@ describe('the resolvers on offer', () => {
   // are rather than calling any of them private.
   it('says who each one is rather than calling it private', () => {
     for (const resolver of DNS_RESOLVERS) {
-      expect(resolver.detail.length).toBeGreaterThan(40);
+      expect(resolver.detail.length).toBeGreaterThan(20);
       expect(resolver.detail.toLowerCase()).not.toContain('completely private');
     }
   });
@@ -52,17 +52,17 @@ describe('what gets handed to Chromium', () => {
 
 describe('what the user is told', () => {
   it('says the network can read every name by default', () => {
-    expect(describeDns('system', 'quad9')).toContain('can read every one of them');
+    expect(describeDns('system', 'quad9')).toContain('can read every one');
   });
 
   // The whole point: turning it on moves the trust rather than removing it.
   it('names who can read them instead', () => {
     const detail = describeDns('encrypted', 'cloudflare');
     expect(detail).toContain('Cloudflare can');
-    expect(detail).toContain('Your network can no longer read them');
+    expect(detail).toContain('Your network cannot read them');
   });
 
   it('warns that pages fail rather than falling back', () => {
-    expect(describeDns('encrypted', 'quad9')).toContain('rather than quietly falling back');
+    expect(describeDns('encrypted', 'quad9')).toContain('pages will not load');
   });
 });

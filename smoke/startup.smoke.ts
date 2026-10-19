@@ -79,7 +79,9 @@ describe('the Settings item in the menu bar', () => {
     // Waited for rather than slept through: the push crosses a process boundary
     // and then React renders, and a fixed pause is a guess about how long that
     // takes on a machine nobody has measured.
-    const opened = await copacetic.waitForChrome(() => document.body.innerText.includes('Everything here is stored'));
+    const opened = await copacetic.waitForChrome(() =>
+      Boolean(document.querySelector('[role="dialog"][aria-label="Settings"]')),
+    );
     expect(opened).toBe(true);
 
     // Put it back. A surface covers the content area, so leaving it open hides
@@ -146,7 +148,9 @@ describe('a surface asked for before the chrome is listening', () => {
     // to settle. The failure this catches happens after hydration, not during.
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    const showing = await copacetic.chrome.evaluate(() => document.body.innerText.includes('Kept on this machine'));
+    const showing = await copacetic.chrome.evaluate(() =>
+      Boolean(document.querySelector('[role="dialog"][aria-label="History"]')),
+    );
     expect(showing).toBe(true);
 
     await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();

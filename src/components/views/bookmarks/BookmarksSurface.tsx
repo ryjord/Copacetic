@@ -85,7 +85,6 @@ export function BookmarksSurface() {
   return (
     <SurfaceShell
       title="Bookmarks"
-      subtitle="Saved on this machine. Nothing is synced anywhere."
       actions={
         <input
           value={query}

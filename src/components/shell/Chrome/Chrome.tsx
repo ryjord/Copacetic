@@ -10,7 +10,7 @@ import { ErrorPage } from '@/components/views/error/ErrorPage';
 import { StartPage } from '@/components/views/start/StartPage';
 import { getBridge, isRunningInShell, send } from '@/lib/bridge';
 import { isMacPlatform } from '@/lib/platform';
-import { ambientStopsFor } from '@shared/ambient';
+import { ambientLightStopsFor, ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { reachedForAnotherTab } from '@shared/surfaces';
 import { AuthBanner } from '@/components/overlay/AuthPrompt/AuthBanner';
@@ -162,9 +162,14 @@ export function Chrome() {
   // Turned here rather than by a filter, so what the settings pane names is
   // what the start page paints.
   useEffect(() => {
-    const { near, far } = ambientStopsFor(theme, ambientHue);
-    document.documentElement.style.setProperty('--ambient-near', near);
-    document.documentElement.style.setProperty('--ambient-far', far);
+    // Both pairs, so the stylesheet picks by appearance without another round trip.
+    const dark = ambientStopsFor(theme, ambientHue);
+    const light = ambientLightStopsFor(theme, ambientHue);
+    const root = document.documentElement.style;
+    root.setProperty('--ambient-near-dark', dark.near);
+    root.setProperty('--ambient-far-dark', dark.far);
+    root.setProperty('--ambient-near-light', light.near);
+    root.setProperty('--ambient-far-light', light.far);
   }, [theme, ambientHue]);
 
   // --- render --------------------------------------------------------------
@@ -195,7 +200,7 @@ export function Chrome() {
 
       <LiveAnnouncer />
 
-      <main ref={contentRef} className="relative min-h-0 flex-1 bg-void">
+      <main ref={contentRef} className="relative isolate min-h-0 flex-1 bg-void">
         {/*
           Hidden behind a surface, so it must leave the tab order too. Without
           this, Tab walks out of the open panel and into controls nobody can

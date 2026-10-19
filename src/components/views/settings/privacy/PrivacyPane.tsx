@@ -1,16 +1,14 @@
+'use client';
+
+// Libs
 import { useState } from 'react';
+
 // Components
-import {
-  ChoiceGroup,
-  Note,
-  RowAction,
-  RowList,
-  OutlineButton,
-  RowValue,
-  Section,
-  Subheading,
-} from '@/components/views/settings/shared/controls';
-import { Toggle } from '@/components/ui/Toggle/Toggle';
+import { Button } from '@/components/ui/Button/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
+import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
+import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
+import { Switch } from '@/components/ui/Switch/Switch';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -18,219 +16,189 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { ask, send } from '@/lib/bridge';
-import { cn } from '@/lib/utils';
 
 // Types
 import { DNS_RESOLVERS, describeDns, resolverFor } from '@shared/dns';
-import { PERMISSION_LABELS, type PermissionKind } from '@shared/types';
+import { PERMISSION_LABELS, type PermissionDecision, type PermissionKind } from '@shared/types';
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
+
+const DNS_MODES = [
+  { id: 'system', label: 'System' },
+  { id: 'encrypted', label: 'Encrypted' },
+] as const;
+
+const PROVIDERS = DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }));
 
 export function PrivacyPane({ info }: SettingsPaneProps) {
   const settings = useBrowserStore((state) => state.settings);
+  const [isChecking, setIsChecking] = useState(false);
 
-  const [checking, setChecking] = useState(false);
   const lists = info?.filterLists ?? [];
   const listedRules = lists.reduce((total, list) => total + list.rules, 0);
-  const hosts = [...new Set(lists.map((list) => new URL(list.url).hostname))];
+  const listHosts = [...new Set(lists.map((list) => new URL(list.url).hostname))];
 
-  // The result arrives as a notice, said once, where everything else the app
-  // finishes is said — so there is nothing to report from here.
+  // Counted from the blocker, never written out: a number in copy goes stale silently.
+  const trackerHelp = info
+    ? listedRules > 0
+      ? `${listedRules.toLocaleString()} rules from EasyList and EasyPrivacy, plus ${info.blockerRuleCount} domains Copacetic blocks itself.`
+      : `Blocks ${info.blockerRuleCount} domains that exist to follow you between sites.`
+    : 'Blocks domains that exist to follow you between sites.';
+
+  // The result is announced as a notice, where everything else the browser finishes is said.
   const checkForNewerLists = () => {
-    setChecking(true);
-    void ask((api) => api.filters.update(), { ok: false, message: '' }).finally(() => setChecking(false));
+    setIsChecking(true);
+    void ask((api) => api.filters.update(), { ok: false, message: '' }).finally(() => setIsChecking(false));
   };
-
-  const trackerDescription = listedRules
-    ? `${listedRules.toLocaleString()} rules from the lists below, and ${info?.blockerRuleCount ?? 0} hostnames Copacetic keeps itself. The count in the address bar is the real number blocked on the page you are on.`
-    : info
-      ? `Blocks requests to ${info.blockerRuleCount} domains that exist only to follow you between sites. The count in the address bar is the real number blocked on the current page.`
-      : 'Blocks requests to domains that exist only to follow you between sites.';
 
   return (
     <>
-      <Section title="Privacy">
-        <Toggle
-          label="Upgrade addresses to HTTPS"
-          description="Type example.com and Copacetic tries the encrypted version first. Loopback addresses are left alone."
-          checked={settings.httpsFirst}
-          onChange={(httpsFirst) => updateSettings({ httpsFirst })}
+      <SettingGroup title="Browsing">
+        <SettingRow
+          label="Always use secure connections"
+          help="Tries HTTPS first, and asks before falling back to HTTP. Your own network is left alone."
+          control={
+            <Switch
+              label="Always use secure connections"
+              checked={settings.httpsFirst}
+              onChange={(httpsFirst) => updateSettings({ httpsFirst })}
+            />
+          }
         />
-        <Toggle
-          label="Block known trackers"
-          description={trackerDescription}
-          checked={settings.blockTrackers}
-          onChange={(blockTrackers) => updateSettings({ blockTrackers })}
+        <SettingRow
+          label="Block trackers and ads"
+          help={trackerHelp}
+          control={
+            <Switch
+              label="Block trackers and ads"
+              checked={settings.blockTrackers}
+              onChange={(blockTrackers) => updateSettings({ blockTrackers })}
+            />
+          }
         />
-        <AllowlistedSites sites={settings.blockerAllowlist} />
-        <PermissionList decisions={settings.permissionDecisions} />
-      </Section>
+      </SettingGroup>
 
       {lists.length > 0 && (
-        <Section title="The lists">
-          <Note>
-            These came with this version of Copacetic and have not changed since. They will not change on their own:
-            checking for a newer one is a request to a server, and this browser does not make those on a schedule
-            without being asked.
-          </Note>
-          <Note>
-            Both lists are maintained by the EasyList project and offered under the GPLv3 or CC BY-SA 3.0, neither of
-            which is Copacetic&apos;s own licence. They are someone else&apos;s work, shipped whole and unmodified,
-            and the NOTICE file in the repository says so in the terms those licences ask for.
-          </Note>
-          <RowList>
-            {lists.map((list) => (
-              <div key={list.name} className="flex items-baseline justify-between gap-4 py-2">
-                <div className="min-w-0">
-                  <p className="text-[13px] text-ink">{list.name}</p>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-ink-faint">{list.describe}</p>
-                </div>
-                <RowValue>
-                  {list.rules.toLocaleString()} rules
-                  {list.lastModified ? ` · ${list.lastModified}` : ''}
-                </RowValue>
-              </div>
-            ))}
-          </RowList>
-
-          <div className="mt-1 flex items-center gap-3">
-            <OutlineButton disabled={checking} onClick={checkForNewerLists}>
-              {checking ? 'Checking…' : 'Check for newer lists'}
-            </OutlineButton>
-            {/* Named before it is pressed. This is the one thing in the browser
-                that contacts a server nobody navigated to. */}
-            <span className="font-mono text-[11px] text-ink-faint">contacts {hosts.join(' and ')}, once</span>
-          </div>
-
-          <div className="h-3" aria-hidden />
-          <Subheading>What this cannot do</Subheading>
-          <Note>
-            An advert served from the same address as the page cannot be told apart from the page. One inserted by the
-            server is part of the document before it arrives. A sponsored post inside a feed is the feed. None of
-            those are blocked here, and a number that implied otherwise would be flattering itself.
-          </Note>
-          <Note>
-            Requests made from inside a frame are refused like any other, but the stylesheet that collapses the space
-            a blocked advert leaves behind reaches the page and not into its frames — doing that would mean running a
-            script inside them, and nothing of Copacetic&rsquo;s runs in a page.
-          </Note>
-        </Section>
+        <SettingGroup title="Filter lists">
+          {lists.map((list) => (
+            <SettingRow
+              key={list.name}
+              label={list.name === 'easylist' ? 'EasyList' : list.name === 'easyprivacy' ? 'EasyPrivacy' : list.name}
+              help={list.describe}
+              control={
+                <span className="text-body-sm text-ink-dim tabular-nums">
+                  {list.rules.toLocaleString()} rules{list.lastModified ? ` · ${list.lastModified}` : ''}
+                </span>
+              }
+            />
+          ))}
+          <SettingRow
+            label="Check for newer lists"
+            help={`Contacts ${listHosts.join(' and ')} once. Lists never update on their own.`}
+            control={
+              <Button size="sm" disabled={isChecking} onClick={checkForNewerLists}>
+                {isChecking ? 'Checking…' : 'Check now'}
+              </Button>
+            }
+          />
+        </SettingGroup>
       )}
 
-      <Section title="Where names are looked up">
-        <Note>{describeDns(settings.dnsMode, settings.dnsResolverId)}</Note>
-        <ChoiceGroup
-          options={[
-            { id: 'system', label: 'Your network' },
-            { id: 'encrypted', label: 'Encrypted' },
-          ]}
-          selected={settings.dnsMode}
-          onSelect={(dnsMode) => updateSettings({ dnsMode })}
+      <AllowlistGroup sites={settings.blockerAllowlist} />
+
+      <SettingGroup title="Secure DNS">
+        <SettingRow
+          label="Look up sites"
+          help={describeDns(settings.dnsMode, settings.dnsResolverId)}
+          control={
+            <SegmentedControl
+              label="DNS"
+              options={DNS_MODES}
+              value={settings.dnsMode}
+              onChange={(dnsMode) => updateSettings({ dnsMode })}
+            />
+          }
         />
         {settings.dnsMode === 'encrypted' && (
-          <div className="mt-3">
-            <Subheading>Who answers</Subheading>
-            <ChoiceGroup
-              options={DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }))}
-              selected={settings.dnsResolverId}
-              onSelect={(dnsResolverId) => updateSettings({ dnsResolverId })}
-              layout="grid"
-            />
-            <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
-              {resolverFor(settings.dnsResolverId)?.detail}
-            </p>
-          </div>
+          <SettingRow
+            label="Provider"
+            help={resolverFor(settings.dnsResolverId)?.detail}
+            control={
+              <SegmentedControl
+                label="DNS provider"
+                options={PROVIDERS}
+                value={settings.dnsResolverId}
+                onChange={(dnsResolverId) => updateSettings({ dnsResolverId })}
+              />
+            }
+          />
         )}
-      </Section>
+      </SettingGroup>
 
-      <Section title="Zoom">
-        <Note>
-          Zooming a site with <span className="font-mono">Cmd/Ctrl +</span> and <span className="font-mono">-</span>{' '}
-          is remembered for that site, so you only set it once.
-        </Note>
-        <ZoomList levels={settings.zoomLevels} />
-      </Section>
+      <PermissionGroup decisions={settings.permissionDecisions} />
     </>
   );
 }
 
-function AllowlistedSites({ sites }: { sites: string[] }) {
+function AllowlistGroup({ sites }: { sites: string[] }) {
   if (sites.length === 0) {
     return null;
   }
-
   return (
-    <div className="mt-4">
-      <Subheading>Trackers allowed on</Subheading>
-      <RowList>
-        {sites.map((site) => (
-          <li key={site} className="flex items-center gap-3 px-3 py-2">
-            <RowValue>{site}</RowValue>
-            <RowAction
-              label="Block again"
+    <SettingGroup title="Sites allowed to show trackers">
+      {sites.map((site) => (
+        <SettingRow
+          key={site}
+          label={site}
+          control={
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => updateSettings({ blockerAllowlist: sites.filter((entry) => entry !== site) })}
-            />
-          </li>
-        ))}
-      </RowList>
-    </div>
-  );
-}
-
-function ZoomList({ levels }: { levels: Record<string, number> }) {
-  const entries = Object.entries(levels);
-  if (entries.length === 0) {
-    return <p className="text-[12px] text-ink-faint">No site is zoomed away from the default yet.</p>;
-  }
-
-  return (
-    <RowList>
-      {entries.map(([origin, level]) => (
-        <li key={origin} className="flex items-center gap-3 px-3 py-2">
-          <RowValue>{origin}</RowValue>
-          <span className="shrink-0 font-mono text-[11.5px] text-ink-faint">{Math.round(level * 100)}%</span>
-          <RowAction label="Reset" onClick={() => updateSettings({ zoomLevels: withoutOrigin(levels, origin) })} />
-        </li>
+            >
+              Block again
+            </Button>
+          }
+        />
       ))}
-    </RowList>
+    </SettingGroup>
   );
 }
 
-function withoutOrigin(levels: Record<string, number>, origin: string): Record<string, number> {
-  const next = { ...levels };
-  delete next[origin];
-  return next;
-}
-
-function PermissionList({ decisions }: { decisions: Record<string, 'allow' | 'deny'> }) {
-  const entries = Object.entries(decisions);
-  if (entries.length === 0) {
-    return null;
-  }
+function PermissionGroup({ decisions }: { decisions: Record<string, PermissionDecision> }) {
+  const entries = Object.entries(decisions)
+    .map(([key, decision]) => {
+      const [origin = '', kind = ''] = key.split('|');
+      return { key, origin, kind, decision };
+    })
+    .filter((entry): entry is typeof entry & { kind: PermissionKind } => entry.kind in PERMISSION_LABELS);
 
   return (
-    <div className="mt-4">
-      <Subheading>Site permissions</Subheading>
-      <RowList>
-        {entries.map(([key, decision]) => {
-          const [origin = '', kind = ''] = key.split('|');
-          const permissionKind = kind as PermissionKind;
-          return (
-            <li key={key} className="flex items-center gap-3 px-3 py-2">
-              <RowValue>{origin}</RowValue>
-              <span className="shrink-0 text-[11.5px] text-ink-faint">
-                {PERMISSION_LABELS[permissionKind] ?? kind}
-              </span>
-              <span className={cn('label shrink-0', decision === 'allow' ? 'text-clear' : 'text-alert')}>
-                {decision === 'allow' ? 'Allowed' : 'Blocked'}
-              </span>
-              <RowAction
-                label="Reset"
-                onClick={() => send((api) => api.permissions.forget(origin, permissionKind))}
-              />
-            </li>
-          );
-        })}
-      </RowList>
-    </div>
+    <SettingGroup title="Site permissions">
+      {entries.length === 0 ? (
+        <SettingRow label="No site has been allowed or blocked yet" help="Sites ask when they need something." />
+      ) : (
+        entries.map((entry) => (
+          <SettingRow
+            key={entry.key}
+            label={entry.origin.replace(/^https?:\/\//, '')}
+            help={PERMISSION_LABELS[entry.kind]}
+            control={
+              <>
+                <StatusPill status={entry.decision === 'allow' ? 'secure' : 'danger'}>
+                  {entry.decision === 'allow' ? 'Allowed' : 'Blocked'}
+                </StatusPill>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => send((api) => api.permissions.forget(entry.origin, entry.kind))}
+                >
+                  Reset
+                </Button>
+              </>
+            }
+          />
+        ))
+      )}
+    </SettingGroup>
   );
 }

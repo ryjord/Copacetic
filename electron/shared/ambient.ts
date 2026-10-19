@@ -29,6 +29,21 @@ export const AMBIENT_FAR: Record<string, string> = {
   moss: '#1d3a2b',
 };
 
+/** The same four, for the light appearance: the same hues, lifted so the clock stays readable on them. */
+export const AMBIENT_NEAR_LIGHT: Record<string, string> = {
+  deep: '#d4e5f0',
+  slate: '#dfe5ea',
+  ember: '#f2e0da',
+  moss: '#d9ebe2',
+};
+
+export const AMBIENT_FAR_LIGHT: Record<string, string> = {
+  deep: '#dadff0',
+  slate: '#e3e7ed',
+  ember: '#f2e6da',
+  moss: '#dfebe0',
+};
+
 export function hexToHsl(hex: string): Hsl | null {
   const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!match?.[1]) {
@@ -101,6 +116,16 @@ export function ambientStopsFor(theme: string, hue: number): { near: string; far
   return {
     near: near ? hslToHex({ ...near, h: near.h + hue }) : '#123043',
     far: far ? hslToHex({ ...far, h: far.h + hue }) : '#1b2a4a',
+  };
+}
+
+/** The light appearance's stops, turned by the same amount, so one shade setting means one colour in both. */
+export function ambientLightStopsFor(theme: string, hue: number): { near: string; far: string } {
+  const near = hexToHsl(AMBIENT_NEAR_LIGHT[theme] ?? AMBIENT_NEAR_LIGHT.deep ?? '#d4e5f0');
+  const far = hexToHsl(AMBIENT_FAR_LIGHT[theme] ?? AMBIENT_FAR_LIGHT.deep ?? '#dadff0');
+  return {
+    near: near ? hslToHex({ ...near, h: near.h + hue }) : '#d4e5f0',
+    far: far ? hslToHex({ ...far, h: far.h + hue }) : '#dadff0',
   };
 }
 

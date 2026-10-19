@@ -1,15 +1,13 @@
+'use client';
+
 // Libs
 import { useCallback, useEffect, useState } from 'react';
 
 // Components
-import {
-  Note,
-  OutlineButton,
-  RowAction,
-  RowList,
-  RowValue,
-  Section,
-} from '@/components/views/settings/shared/controls';
+import { Button } from '@/components/ui/Button/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
+import { Select } from '@/components/ui/Select/Select';
+import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 
 // Utils
 import { ask, send } from '@/lib/bridge';
@@ -18,131 +16,140 @@ import { ask, send } from '@/lib/bridge';
 import type { ClearRange, ExportKind } from '@shared/types';
 import { KEPT_KINDS, type KeptAboutSites, describeKept } from '@shared/forgetting';
 
-const CLEAR_RANGES: { range: ClearRange; label: string }[] = [
-  { range: 'hour', label: 'Last hour' },
-  { range: 'day', label: 'Last 24 hours' },
-  { range: 'week', label: 'Last 7 days' },
-  { range: 'all', label: 'Everything' },
+const RANGES: readonly { id: ClearRange; label: string }[] = [
+  { id: 'hour', label: 'Last hour' },
+  { id: 'day', label: 'Last 24 hours' },
+  { id: 'week', label: 'Last 7 days' },
+  { id: 'all', label: 'All time' },
 ];
 
-const EXPORTS: { kind: ExportKind; label: string }[] = [
-  { kind: 'bookmarks', label: 'Export bookmarks' },
-  { kind: 'history', label: 'Export history' },
-];
+/** What a clear removes, said before it happens. A time range touches history only; all time reaches every session. */
+const CLEARS: Record<ClearRange, string> = {
+  hour: 'History from the last hour is removed.',
+  day: 'History from the last 24 hours is removed.',
+  week: 'History from the last 7 days is removed.',
+  all: 'All history, cookies, site data and the cache are removed, including those of groups that keep their own. You will be signed out of sites.',
+};
 
 export function DataPane() {
   const [kept, setKept] = useState<KeptAboutSites | null>(null);
+  const [range, setRange] = useState<ClearRange>('hour');
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [message, setMessage] = useState('');
 
   const reload = useCallback(() => {
     void ask((api) => api.data.kept(), null).then(setKept);
   }, []);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
-
-  return (
-    <>
-      <Section title="Browsing data">
-        <Note>
-          History older than 90 days is dropped automatically. Clearing everything also empties cookies, site storage
-          and the cache.
-        </Note>
-        <div className="flex flex-wrap gap-2">
-          {CLEAR_RANGES.map((option) => (
-            <OutlineButton
-              key={option.range}
-              tone={option.range === 'all' ? 'alert' : 'neutral'}
-              onClick={() => send((api) => api.history.clear(option.range))}
-            >
-              Clear {option.label.toLowerCase()}
-            </OutlineButton>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="What clearing does not touch">
-        <Note>
-          Decisions you made about particular sites are kept, because you made them on purpose and a browser that
-          threw them away while tidying up would be losing your work rather than protecting you. They do name those
-          sites, so they are listed here rather than left for you to find.
-        </Note>
-        <RowList>
-          {KEPT_KINDS.filter((entry) => (kept?.[entry.id] ?? 0) > 0).map((entry) => (
-            <li key={entry.id} className="flex items-center gap-3 px-2.5 py-1.5">
-              <RowValue>{describeKept(entry.id, kept?.[entry.id] ?? 0)}</RowValue>
-              <RowAction
-                label="Clear"
-                onClick={() => {
-                  send((api) => api.data.clearKept(entry.id));
-                  reload();
-                }}
-              />
-            </li>
-          ))}
-        </RowList>
-        <Note>
-          Open tabs are not touched by any of this. They are on your screen, and closing them to tidy up would be
-          doing something nobody asked for.
-        </Note>
-      </Section>
-
-      <Section title="Your data">
-        <ExportPanel />
-      </Section>
-
-      <Section title="Bringing data in">
-        <Note>
-          Reads the bookmarks file any browser exports — Chrome, Firefox, Safari, Edge. Only ordinary web addresses
-          are imported: a bookmarklet or a path on this machine is refused and counted, because an exported file is
-          one you were given rather than one you wrote.
-        </Note>
-        <ImportPanel />
-      </Section>
-    </>
-  );
-}
-
-function ExportPanel() {
-  const [message, setMessage] = useState('');
+  useEffect(reload, [reload]);
 
   const exportData = (kind: ExportKind) => {
     setMessage('');
     void ask((api) => api.data.export(kind), '').then(setMessage);
   };
 
-  return (
-    <div className="space-y-3">
-      <p className="text-[12px] leading-relaxed text-ink-faint">
-        Bookmarks are written in the standard format every browser imports. History is plain JSON, readable in any
-        text editor. Nothing leaves this machine unless you put it somewhere else.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {EXPORTS.map((option) => (
-          <OutlineButton key={option.kind} onClick={() => exportData(option.kind)}>
-            {option.label}
-          </OutlineButton>
-        ))}
-      </div>
-      {message && <p className="text-[12px] text-alert">{message}</p>}
-    </div>
-  );
-}
-
-function ImportPanel() {
-  const [message, setMessage] = useState('');
+  const keptKinds = KEPT_KINDS.filter((entry) => (kept?.[entry.id] ?? 0) > 0);
 
   return (
-    <div className="space-y-3">
-      <OutlineButton
-        onClick={() => {
-          setMessage('');
-          void ask((api) => api.data.importBookmarks(), '').then(setMessage);
+    <>
+      <SettingGroup title="Browsing data">
+        <SettingRow
+          label="Clear browsing data"
+          help="History older than 90 days is removed automatically."
+          control={
+            <>
+              <Select label="Time range" options={RANGES} value={range} onChange={setRange} />
+              <Button size="sm" variant="danger" onClick={() => setIsConfirming(true)}>
+                Clear…
+              </Button>
+            </>
+          }
+        />
+      </SettingGroup>
+
+      <SettingGroup title="Kept when you clear">
+        {keptKinds.length === 0 ? (
+          <SettingRow label="Nothing is kept about particular sites" />
+        ) : (
+          keptKinds.map((entry) => (
+            <SettingRow
+              key={entry.id}
+              label={describeKept(entry.id, kept?.[entry.id] ?? 0)}
+              control={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    send((api) => api.data.clearKept(entry.id));
+                    reload();
+                  }}
+                >
+                  Clear
+                </Button>
+              }
+            />
+          ))
+        )}
+      </SettingGroup>
+
+      <SettingGroup title="Export">
+        <SettingRow
+          label="Bookmarks"
+          help="An HTML file every browser can import."
+          control={
+            <Button size="sm" onClick={() => exportData('bookmarks')}>
+              Export
+            </Button>
+          }
+        />
+        <SettingRow
+          label="History"
+          help="A JSON file you can read in any text editor."
+          control={
+            <Button size="sm" onClick={() => exportData('history')}>
+              Export
+            </Button>
+          }
+        />
+      </SettingGroup>
+
+      <SettingGroup title="Import">
+        <SettingRow
+          label="Bookmarks"
+          help="From the HTML file Chrome, Firefox, Safari or Edge exports."
+          control={
+            <Button
+              size="sm"
+              onClick={() => {
+                setMessage('');
+                void ask((api) => api.data.importBookmarks(), '').then(setMessage);
+              }}
+            >
+              Import
+            </Button>
+          }
+        />
+      </SettingGroup>
+
+      {message && (
+        <p className="px-0.5 text-body-sm text-ink-dim" role="status">
+          {message}
+        </p>
+      )}
+
+      <ConfirmDialog
+        open={isConfirming}
+        onOpenChange={setIsConfirming}
+        title={`Clear browsing data from ${RANGES.find((option) => option.id === range)?.label.toLowerCase()}?`}
+        confirmLabel="Clear"
+        isDestructive
+        onConfirm={() => {
+          send((api) => api.history.clear(range));
+          reload();
         }}
       >
-        Import bookmarks
-      </OutlineButton>
-      {message && <p className="text-[12px] text-ink-dim">{message}</p>}
-    </div>
+        {CLEARS[range]} Open tabs stay open.
+      </ConfirmDialog>
+    </>
   );
 }

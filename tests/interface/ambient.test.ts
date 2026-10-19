@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   AMBIENT_FAR,
+  AMBIENT_FAR_LIGHT,
   AMBIENT_NEAR,
+  AMBIENT_NEAR_LIGHT,
   ambientHexFor,
   ambientStopsFor,
   hexToHsl,
@@ -93,25 +95,26 @@ describe('the conversion itself', () => {
   });
 });
 
-/**
- * These colours are written down twice: once in the stylesheet the browser
- * paints from, and once here so a preview can paint the same thing. Two copies
- * of one fact drift, so this is what notices.
- */
-describe('the atmospheres match the stylesheet', () => {
+/** The colours live in one place, for both appearances, and the stylesheet reads them. */
+describe('the stylesheet and the colours', () => {
   const css = readFileSync('src/app/globals.css', 'utf8');
 
-  const declared = (theme: string, variable: string): string | null => {
-    const block =
-      theme === 'deep'
-        ? css.slice(css.indexOf(':root {'), css.indexOf("[data-density='compact']"))
-        : css.slice(css.indexOf(`[data-theme='${theme}']`));
-    return new RegExp(`--ambient-${variable}:\\s*(#[0-9a-f]{6})`, 'i').exec(block)?.[1]?.toLowerCase() ?? null;
-  };
+  // One source: the stylesheet only reads what the chrome sets, so the two cannot drift.
+  it('takes both appearances from the variables the chrome sets', () => {
+    expect(css).toContain('var(--ambient-near-dark');
+    expect(css).toContain('var(--ambient-near-light');
+  });
 
-  it.each(Object.keys(AMBIENT_NEAR))('%s is the colour the stylesheet uses', (theme) => {
-    expect(declared(theme, 'near')).toBe(AMBIENT_NEAR[theme]?.toLowerCase());
-    expect(declared(theme, 'far')).toBe(AMBIENT_FAR[theme]?.toLowerCase());
+  it('has a light colour for every dark one', () => {
+    expect(Object.keys(AMBIENT_NEAR_LIGHT).sort()).toEqual(Object.keys(AMBIENT_NEAR).sort());
+    expect(Object.keys(AMBIENT_FAR_LIGHT).sort()).toEqual(Object.keys(AMBIENT_FAR).sort());
+  });
+
+  // A light start page is still a background behind dark text.
+  it('keeps every light colour light', () => {
+    for (const hex of [...Object.values(AMBIENT_NEAR_LIGHT), ...Object.values(AMBIENT_FAR_LIGHT)]) {
+      expect(hexToHsl(hex)?.l ?? 0).toBeGreaterThan(0.8);
+    }
   });
 });
 

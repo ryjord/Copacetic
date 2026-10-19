@@ -71,7 +71,6 @@ export function HistorySurface() {
   return (
     <SurfaceShell
       title="History"
-      subtitle="Kept on this machine for 90 days, then dropped automatically."
       actions={
         <div className="flex items-center gap-2">
           <input
