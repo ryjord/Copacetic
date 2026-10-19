@@ -1429,13 +1429,14 @@ const MAX_SCREENSHOT_HEIGHT = 16_384;
 /** A PNG of the whole page, or why there is none. Through the page's own debugger, which DevTools may already hold. */
 async function captureWholePage(contents: WebContents): Promise<Buffer | string> {
   const debuggerSession = contents.debugger;
-  if (debuggerSession.isAttached()) {
-    return t('main.dialogs.screenshot.devToolsOpen');
-  }
-  try {
-    debuggerSession.attach('1.3');
-  } catch {
-    return t('main.dialogs.screenshot.devToolsOpen');
+  // Usually already attached, by describeTab, and left that way: detaching would drop the tab's identity.
+  const isOurs = !debuggerSession.isAttached();
+  if (isOurs) {
+    try {
+      debuggerSession.attach('1.3');
+    } catch {
+      return t('main.dialogs.screenshot.devToolsOpen');
+    }
   }
   try {
     const metrics: unknown = await debuggerSession.sendCommand('Page.getLayoutMetrics');
@@ -1455,6 +1456,8 @@ async function captureWholePage(contents: WebContents): Promise<Buffer | string>
   } catch (error) {
     return error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten');
   } finally {
-    debuggerSession.detach();
+    if (isOurs) {
+      debuggerSession.detach();
+    }
   }
 }
