@@ -11,6 +11,7 @@
   "private": true,
   "main": "dist/electron/main/index.js",
   "scripts": {
+    "prepare": "husky",
     "predev": "node scripts/build-licences.mjs",
     "dev": "cross-env NODE_ENV=development concurrently -k -n next,main,preload,electron -c cyan,magenta,yellow,green \"next dev --port 3000\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"npm run build:preload -- --watch\" \"wait-on http://localhost:3000 dist/electron/main/index.js dist/electron/preload/index.js && electron .\"",
     "dev:renderer": "next dev --port 3000",
@@ -44,6 +45,8 @@
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@tailwindcss/postcss": "^4.2.1",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.3",
@@ -61,7 +64,9 @@
     "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "^16.3.3",
+    "husky": "^9.1.7",
     "jsdom": "^30.0.1",
+    "lint-staged": "^17.6.0",
     "lucide-react": "^0.577.0",
     "next": "16.3.2",
     "playwright": "^1.62.1",
@@ -186,5 +191,12 @@
         ]
       }
     ]
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,yml,yaml}": "prettier --write"
   }
 }
