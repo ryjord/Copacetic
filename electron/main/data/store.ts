@@ -38,6 +38,7 @@ export { DEFAULT_SETTINGS, normaliseSettings };
 import { CertificatesStore } from './certificates-store';
 import { FaviconsStore } from './favicons-store';
 import { type SavedSession, SessionStore, type SessionSnapshot } from './session-store';
+import type { ImportedVisit } from '../import/chromium-history';
 
 export type { SavedSession, SessionSnapshot };
 
@@ -150,6 +151,10 @@ export class BrowserStore {
   /** Everything matching, for the export, which must never be a partial one. */
   allHistory(): HistoryEntry[] {
     return this.history.allHistory();
+  }
+
+  importHistory(visits: readonly ImportedVisit[]): { added: number; alreadyHad: number } {
+    return this.history.importVisits(visits);
   }
 
   removeHistory(id: string): void {

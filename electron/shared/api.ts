@@ -10,6 +10,7 @@ import type {
   DefaultBrowserStatus,
   Bookmark,
   BookmarkEditResult,
+  ImportSource,
   BrowserState,
   ClearRange,
   ConnectionEntry,
@@ -262,6 +263,10 @@ export interface CopaceticApi {
     export(kind: ExportKind): Promise<string>;
     /** Reads the bookmark file any browser exports. Resolves with a summary. */
     importBookmarks(): Promise<string>;
+    /** Other browsers' profiles on this computer that can be imported from. */
+    importSources(): Promise<ImportSource[]>;
+    /** Brings in one profile's bookmarks and recent history. Resolves with a summary. */
+    importFromBrowser(sourceId: string): Promise<string>;
   };
   auth: {
     /** Answer a challenge. Credentials go straight to the request, unstored. */

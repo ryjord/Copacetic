@@ -1,10 +1,18 @@
 import type { BrowserWindow } from 'electron';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import path from 'node:path';
 import { bookmarksFromHtml } from '../../shared/bookmark-import';
 import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
-import type { ExportKind } from '../../shared/types';
+import type { ExportKind, ImportSource } from '../../shared/types';
 import { fileStamp, readChosenFile, writeChosenFile } from '../system/file-dialogs';
 import type { VaultSession } from '../vault/vault-session';
 import { bookmarksToHtml, historyToJson } from '../data/export';
+import { MAX_HISTORY_AGE_MS, MAX_HISTORY_ENTRIES } from '../data/history-store';
+import { bookmarksFromChromium } from '../import/chromium-bookmarks';
+import { readChromiumHistory } from '../import/chromium-history';
+import { type Machine, findChromiumProfiles } from '../import/chromium-profiles';
+import { describeError, log } from '../system/diagnostics';
 import type { BrowserStore } from '../data/store';
 import type { BookmarkCommands } from './bookmarks';
 
@@ -15,6 +23,8 @@ interface DataTransferDeps {
   bookmarks: BookmarkCommands;
   changed: () => void;
 }
+
+const THIS_MACHINE = (): Machine => ({ platform: process.platform, home: homedir(), env: process.env });
 
 /** Everything that goes to or comes from a file the person chooses. */
 export class DataTransfer {
@@ -51,11 +61,7 @@ export class DataTransfer {
       : '';
   }
 
-  /**
-   * Reads the bookmark file every browser exports. Reading a live Chrome or
-   * Firefox database would mean shipping a SQLite dependency inside the app for
-   * a once-ever operation; this needs nothing and works for all of them.
-   */
+  /** Reads the bookmark file every browser exports, for the ones whose profiles are not read directly. */
   async importBookmarks(): Promise<string> {
     const chosen = await readChosenFile(this.deps.window, {
       title: 'Import bookmarks',
@@ -87,6 +93,54 @@ export class DataTransfer {
       parts.push(`${skipped} refused for not being web addresses`);
     }
     return `Imported: ${parts.join(', ')}.`;
+  }
+
+  /** The renderer is told names and ids only; where each profile lives stays here. */
+  importSources(): ImportSource[] {
+    return findChromiumProfiles(THIS_MACHINE()).map((profile) => ({ id: profile.id, label: profile.label }));
+  }
+
+  /** Bookmarks and the history this browser keeps, from another browser's profile. Passwords stay where they are. */
+  importFromBrowser(sourceId: string): string {
+    const source = findChromiumProfiles(THIS_MACHINE()).find((profile) => profile.id === sourceId);
+    if (!source) {
+      return 'That browser is no longer on this computer.';
+    }
+
+    const parts: string[] = [];
+    const bookmarksFile = path.join(source.directory, 'Bookmarks');
+    if (existsSync(bookmarksFile)) {
+      try {
+        const { bookmarks } = bookmarksFromChromium(JSON.parse(readFileSync(bookmarksFile, 'utf8')));
+        const { added, alreadyHad } = this.deps.store.addBookmarks(bookmarks);
+        const counted = `${added} ${added === 1 ? 'bookmark' : 'bookmarks'}`;
+        parts.push(alreadyHad > 0 ? `${counted} (${alreadyHad} you already had)` : counted);
+      } catch (error) {
+        log.warn('could not read bookmarks to import', describeError(error));
+        parts.push('no bookmarks, as its bookmarks file could not be read');
+      }
+    }
+
+    const historyFile = path.join(source.directory, 'History');
+    if (existsSync(historyFile)) {
+      try {
+        const visits = readChromiumHistory(historyFile, {
+          since: Date.now() - MAX_HISTORY_AGE_MS,
+          limit: MAX_HISTORY_ENTRIES,
+        });
+        const { added } = this.deps.store.importHistory(visits);
+        parts.push(`${added} ${added === 1 ? 'page' : 'pages'} of history`);
+      } catch (error) {
+        log.warn('could not read history to import', describeError(error));
+        parts.push('no history, as its history could not be read');
+      }
+    }
+
+    this.deps.bookmarks.changed();
+    this.deps.changed();
+    return parts.length > 0
+      ? `From ${source.label}: ${parts.join(', and ')}.`
+      : `${source.label} had nothing to import.`;
   }
 
   async importPasswords(): Promise<string> {

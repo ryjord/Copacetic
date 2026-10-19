@@ -332,6 +332,10 @@ export function registerIpcHandlers(profile: Profile): void {
     browser.transfer.exportData(asString(kind) === 'history' ? 'history' : 'bookmarks'),
   );
   handle('data.importBookmarks', (browser) => browser.transfer.importBookmarks());
+  handle('data.importSources', (browser) => browser.transfer.importSources());
+  handle('data.importFromBrowser', (browser, _event, sourceId) =>
+    browser.transfer.importFromBrowser(asString(sourceId)),
+  );
 
   // ------------------------------------------------------------------- auth
 

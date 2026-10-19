@@ -129,7 +129,16 @@ export const SETTINGS_PANES = [
     label: 'Your data',
     icon: Database,
     Component: DataPane,
-    terms: ['Clear browsing data', 'History', 'Cookies', 'Cache', 'Export', 'Import bookmarks'],
+    terms: [
+      'Clear browsing data',
+      'History',
+      'Cookies',
+      'Cache',
+      'Export',
+      'Import bookmarks',
+      'Import from Chrome',
+      'Import history',
+    ],
   },
   {
     id: 'shortcuts',

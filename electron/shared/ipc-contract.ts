@@ -167,6 +167,8 @@ export const CHANNELS = {
 
   'data.export': 'data:export',
   'data.importBookmarks': 'data:import-bookmarks',
+  'data.importSources': 'data:import-sources',
+  'data.importFromBrowser': 'data:import-from-browser',
   'data.kept': 'data:kept',
   'data.clearKept': 'data:clear-kept',
 

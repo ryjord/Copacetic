@@ -1,11 +1,13 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
 import { hostOf, originOf } from '../../shared/url';
+import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
+import type { ImportedVisit } from '../import/chromium-history';
 import { asNumber, asString, isRecord, newId } from './persistence';
 
-const MAX_HISTORY_ENTRIES = 10_000;
-const MAX_HISTORY_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+export const MAX_HISTORY_ENTRIES = 10_000;
+export const MAX_HISTORY_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 // Below three characters a trigram index has nothing to match, so those searches scan instead.
 const MIN_INDEXED_QUERY = 3;
 const LEGACY_FILE = 'history.json';
@@ -59,6 +61,24 @@ export class HistoryStore {
     this.database
       .prepare('UPDATE history SET title = ?, last_visited_at = ?, visit_count = visit_count + ? WHERE url = ?')
       .run(title || String(existing.title), now, isRepeatVisit ? 1 : 0, url);
+  }
+
+  /** Another browser's history, merged so each page keeps the later visit and the higher count of the two. */
+  importVisits(visits: readonly ImportedVisit[]): { added: number; alreadyHad: number } {
+    const known = this.database.prepare('SELECT 1 FROM history WHERE url = ?');
+    const alreadyHad = visits.filter((visit) => known.get(visit.url) !== undefined).length;
+    const merge = this.database.prepare(
+      `INSERT INTO history (id, url, title, last_visited_at, visit_count) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (url) DO UPDATE SET
+         title = CASE WHEN excluded.last_visited_at > last_visited_at AND excluded.title != '' THEN excluded.title ELSE title END,
+         last_visited_at = max(last_visited_at, excluded.last_visited_at),
+         visit_count = max(visit_count, excluded.visit_count)`,
+    );
+    inTransaction(this.database, () =>
+      visits.forEach((visit) => merge.run(newId(), visit.url, visit.title, visit.lastVisitedAt, visit.visitCount)),
+    );
+    this.pruneHistory();
+    return { added: visits.length - alreadyHad, alreadyHad };
   }
 
   // A page of history, and how many entries there are in total.

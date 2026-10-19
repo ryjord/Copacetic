@@ -14,7 +14,7 @@ import { ask, send } from '@/lib/bridge';
 import { CLEAR_RANGES, WHAT_CLEARING_REMOVES, clearTitle } from '@/lib/clearing';
 
 // Types
-import type { ClearRange, ExportKind } from '@shared/types';
+import type { ClearRange, ExportKind, ImportSource } from '@shared/types';
 import { KEPT_KINDS, type KeptAboutSites, describeKept } from '@shared/forgetting';
 
 export function DataPane() {
@@ -22,12 +22,20 @@ export function DataPane() {
   const [range, setRange] = useState<ClearRange>('hour');
   const [isConfirming, setIsConfirming] = useState(false);
   const [message, setMessage] = useState('');
+  const [sources, setSources] = useState<ImportSource[]>([]);
+  const [chosenSourceId, setChosenSourceId] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     void ask((api) => api.data.kept(), null).then(setKept);
   }, []);
 
   useEffect(reload, [reload]);
+
+  useEffect(() => {
+    void ask((api) => api.data.importSources(), []).then(setSources);
+  }, []);
+
+  const chosenSource = sources.find((source) => source.id === chosenSourceId) ?? sources[0];
 
   const exportData = (kind: ExportKind) => {
     setMessage('');
@@ -113,6 +121,35 @@ export function DataPane() {
             >
               Import
             </Button>
+          }
+        />
+        <SettingRow
+          label="From another browser"
+          help={
+            chosenSource
+              ? 'Bookmarks, and the last 90 days of history. Passwords are left where they are.'
+              : 'No Chrome, Brave, Edge, Vivaldi or Arc profile was found on this computer.'
+          }
+          control={
+            chosenSource && (
+              <>
+                <Select
+                  label="Browser to import from"
+                  options={sources}
+                  value={chosenSource.id}
+                  onChange={setChosenSourceId}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setMessage('');
+                    void ask((api) => api.data.importFromBrowser(chosenSource.id), '').then(setMessage);
+                  }}
+                >
+                  Import
+                </Button>
+              </>
+            )
           }
         />
       </SettingGroup>

@@ -163,6 +163,12 @@ export interface Bookmark {
   folderId: string | null;
 }
 
+/** Another browser's profile on this computer that bookmarks and history can be brought in from. */
+export interface ImportSource {
+  id: string;
+  label: string;
+}
+
 /** What came of editing a bookmark, so the form can say why it was not saved. */
 export type BookmarkEditResult = 'saved' | 'not-an-address' | 'already-saved' | 'missing';
 

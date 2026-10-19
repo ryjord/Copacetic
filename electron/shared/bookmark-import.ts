@@ -17,7 +17,7 @@ export interface ImportedBookmarks {
   skipped: number;
 }
 
-const MAX_TITLE = 200;
+export const MAX_IMPORTED_TITLE = 200;
 
 const ENTITIES: Record<string, string> = {
   amp: '&',
@@ -58,7 +58,7 @@ function attribute(tag: string, name: string): string {
  * bookmarklets and `file:` paths, and importing those would put something
  * dangerous one click away in a list that looks like everything else.
  */
-function isImportable(url: string): boolean {
+export function isImportable(url: string): boolean {
   try {
     const scheme = new URL(url).protocol;
     return scheme === 'http:' || scheme === 'https:';
@@ -88,7 +88,7 @@ export function bookmarksFromHtml(html: string): ImportedBookmarks {
 
     const inner = anchor.replace(/<a\b[^>]*>/i, '').replace(/<\/a>/i, '');
     // Tags inside a title are markup from a file we did not write.
-    const title = sanitiseChromeText(decodeEntities(inner.replace(/<[^>]*>/g, '')), MAX_TITLE);
+    const title = sanitiseChromeText(decodeEntities(inner.replace(/<[^>]*>/g, '')), MAX_IMPORTED_TITLE);
     const added = Number.parseInt(attribute(openingTag, 'add_date'), 10);
 
     bookmarks.push({

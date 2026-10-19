@@ -278,3 +278,50 @@ describe('what forgetting leaves on disk', () => {
     expect(onDisk()).not.toContain('one-off');
   });
 });
+
+describe("bringing in another browser's history", () => {
+  const day = 24 * 60 * 60 * 1000;
+  const visit = (url: string, daysAgo: number, visitCount = 1, title = url) => ({
+    url,
+    title,
+    lastVisitedAt: Date.now() - daysAgo * day,
+    visitCount,
+  });
+
+  it('adds pages it did not have, and they survive a restart', () => {
+    const result = openStore().importVisits([visit('https://new.example/', 2, 5, 'New')]);
+    expect(result).toEqual({ added: 1, alreadyHad: 0 });
+    const entry = openStore()
+      .allHistory()
+      .find((candidate) => candidate.url === 'https://new.example/');
+    expect(entry?.title).toBe('New');
+    expect(entry?.visitCount).toBe(5);
+  });
+
+  // Importing twice, or a page both browsers saw, must not add the counts together.
+  it('keeps the later visit and the higher count for a page it already had', () => {
+    const store = openStore();
+    store.recordVisit('https://both.example/', 'Here');
+    expect(store.importVisits([visit('https://both.example/', 10, 40, 'There')])).toEqual({
+      added: 0,
+      alreadyHad: 1,
+    });
+    store.importVisits([visit('https://both.example/', 10, 40, 'There')]);
+    const entry = store.allHistory().find((candidate) => candidate.url === 'https://both.example/');
+    expect(entry?.visitCount).toBe(40);
+    expect(entry?.title).toBe('Here');
+    expect(Date.now() - (entry?.lastVisitedAt ?? 0)).toBeLessThan(day);
+  });
+
+  it('is searchable straight away', () => {
+    const store = openStore();
+    store.importVisits([visit('https://findable.example/', 1, 1, 'Something findable')]);
+    expect(store.searchHistory('findable', 5).map((entry) => entry.url)).toEqual(['https://findable.example/']);
+  });
+
+  it('keeps to the same age limit as its own history', () => {
+    const store = openStore();
+    store.importVisits([visit('https://ancient.example/', 400)]);
+    expect(store.allHistory().some((entry) => entry.url === 'https://ancient.example/')).toBe(false);
+  });
+});

@@ -16,8 +16,11 @@ import path from 'node:path';
 /** Set for the checks that need the app in front - who holds the keyboard, fullscreen - so they never take the screen by default. */
 export const IS_FOREGROUND_RUN = process.env.COPACETIC_SMOKE_FOREGROUND === '1';
 
-const launchEnvironment = (): Record<string, string> => {
-  const environment: Record<string, string> = { ...process.env, NODE_ENV: 'production' } as Record<string, string>;
+const launchEnvironment = (extra: Record<string, string> = {}): Record<string, string> => {
+  const environment: Record<string, string> = { ...process.env, NODE_ENV: 'production', ...extra } as Record<
+    string,
+    string
+  >;
   delete environment.ELECTRON_RUN_AS_NODE;
   // Launched without taking the screen, unless a run asks for the focus checks, which need the app in front.
   if (!IS_FOREGROUND_RUN) {
@@ -71,9 +74,12 @@ export class SmokeApp {
   /**
    * `profile` reopens one a previous launch left with `keepProfile`, to see what
    * a restart does to it. `args` are extra Chromium switches, such as resolver
-   * rules that point a public-looking name at a local server.
+   * rules that point a public-looking name at a local server. `env` adds to
+   * the app's environment, such as a home folder holding another browser.
    */
-  static async launch(options: { profile?: string; args?: string[] } = {}): Promise<SmokeApp> {
+  static async launch(
+    options: { profile?: string; args?: string[]; env?: Record<string, string> } = {},
+  ): Promise<SmokeApp> {
     // A throwaway profile, so a smoke run never reads or writes real browsing.
     const profile = options.profile ?? realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-smoke-')));
     // Reclaimed even when the run does not finish. `close` handles the ordinary
@@ -84,7 +90,7 @@ export class SmokeApp {
     const app = await electron.launch({
       args: ['.', `--user-data-dir=${profile}`, ...(options.args ?? [])],
       cwd: process.cwd(),
-      env: launchEnvironment(),
+      env: launchEnvironment(options.env),
       // Playwright emulates a light colour scheme by default, which pinned the
       // chrome to light whatever Appearance said and made dark mode untestable.
       colorScheme: null,
