@@ -138,10 +138,16 @@ export const CHROME_OBJECT_SCRIPT = `(() => {
  * A site claiming to be Electron invites bespoke, often broken code paths.
  * Presenting as plain Chrome is both better for compatibility and one less
  * signal that fingerprints this user as unusual.
+ *
+ * The whole token goes, whatever follows the slash: matching digits alone left
+ * `-beta.1` of a prerelease's version behind, a user agent no other browser sends.
+ * The Chrome version is cut to its major number, as Chrome's own is, so the build
+ * Chromium happens to be on is not one more thing that tells people apart.
  */
 export function stripElectronFromUserAgent(userAgent: string): string {
   return userAgent
-    .replace(/ Electron\/[\d.]+/, '')
-    .replace(/ Copacetic\/[\d.]+/, '')
+    .replace(/ Electron\/\S+/gi, '')
+    .replace(/ Copacetic\/\S+/gi, '')
+    .replace(/Chrome\/(\d+)[\d.]*/, 'Chrome/$1.0.0.0')
     .trim();
 }

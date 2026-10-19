@@ -147,6 +147,19 @@ describe('what the browser tells sites it is', () => {
     expect(stripped).toMatch(/Chrome\/120/);
   });
 
+  it('takes the whole of a prerelease token, not just its digits', () => {
+    const beta =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Copacetic/2.0.0-beta.2 Chrome/150.0.7871.224 Electron/43.4.1 Safari/537.36';
+    expect(stripElectronFromUserAgent(beta)).toBe(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+    );
+  });
+
+  it('says only the major version of Chrome, as Chrome does', () => {
+    expect(stripElectronFromUserAgent(CHROME_MAC)).toContain('Chrome/150.0.0.0 ');
+    expect(clientHintsFor(stripElectronFromUserAgent(CHROME_MAC), 'darwin')?.fullVersion).toBe('150.0.0.0');
+  });
+
   it('leaves a user agent without Electron alone', () => {
     const plain = 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36';
     expect(stripElectronFromUserAgent(plain)).toBe(plain);

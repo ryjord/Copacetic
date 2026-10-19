@@ -46,6 +46,13 @@ describe('a tab describes itself consistently', () => {
     expect(seen.userAgent).toContain(`Chrome/${seen.uaFullVersion}`);
   });
 
+  // A beta's version once left `-beta.1` in the string: a user agent nobody else sends.
+  it('says Chrome and nothing else, and only its major version', async () => {
+    const seen = await copacetic.inPage<{ userAgent: string }>('https://example.com/', REPORT);
+    expect(seen.userAgent).not.toMatch(/copacetic|electron|beta/i);
+    expect(seen.userAgent).toMatch(/Chrome\/\d+\.0\.0\.0 /);
+  });
+
   // The correction is made in the main process, so page content still runs
   // nothing of ours and has nothing of ours to reach.
   it('still has no way into the app', async () => {
