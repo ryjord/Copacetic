@@ -81,8 +81,13 @@ describe('everything a Hush tab writes', () => {
    */
   it('but an ordinary tab is written down', async () => {
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com/ordinary-visit'));
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    expect(copacetic.historyOnDisk().some((entry) => entry.url.includes('example.com'))).toBe(true);
+    // Polled: a slow runner can take longer than a fixed pause to load the page and write the visit.
+    const deadline = Date.now() + 30_000;
+    let isWritten = false;
+    while (!isWritten && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      isWritten = copacetic.historyOnDisk().some((entry) => entry.url.includes('example.com'));
+    }
+    expect(isWritten).toBe(true);
   }, 120_000);
 });

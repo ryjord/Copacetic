@@ -1,4 +1,5 @@
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
@@ -445,9 +446,16 @@ export class SmokeApp {
    */
   /** Ends the app with no warning at all, as a crash would, and leaves the profile for the next launch. */
   async crash(): Promise<void> {
-    const ended = new Promise<void>((resolve) => this.app.process().once('exit', () => resolve()));
-    this.app.process().kill('SIGKILL');
+    const main = this.app.process();
+    const ended = new Promise<void>((resolve) => main.once('exit', () => resolve()));
+    // Windows leaves the GPU and renderer processes holding the single-instance lock, so the whole tree goes.
+    if (process.platform === 'win32' && main.pid !== undefined) {
+      execFileSync('taskkill', ['/PID', String(main.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      main.kill('SIGKILL');
+    }
     await ended;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   async close(options: { keepProfile?: boolean } = {}): Promise<void> {

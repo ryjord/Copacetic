@@ -50,8 +50,12 @@ describe('choosing encrypted DNS', () => {
 
   // The point of secure mode: an unreachable resolver means no answer, not a plaintext one.
   it('fails rather than falling back when the resolver cannot be reached', async () => {
-    await copacetic.main(({ app }) => {
+    // Nothing cached or still connected from the last test may answer for the resolver.
+    await copacetic.main(async ({ app, session }) => {
       app.configureHostResolver({ secureDnsMode: 'secure', secureDnsServers: ['https://127.0.0.1:9/dns-query'] });
+      const web = session.fromPartition('persist:copacetic-web');
+      await web.clearHostResolverCache();
+      await web.closeAllConnections();
     });
     expect(await loads('https://example.org/never-resolved')).toBe('failed');
 

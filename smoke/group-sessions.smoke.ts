@@ -6,7 +6,9 @@ import { SmokeApp } from './support/harness';
 let copacetic: SmokeApp;
 let groupId: string;
 
-const partitionDirectory = (profile: string, id: string) => path.join(profile, 'Partitions', `copacetic-group-${id}`);
+// Electron writes a partition's folder in lower case; group ids are mixed case.
+const partitionDirectory = (profile: string, id: string) =>
+  path.join(profile, 'Partitions', `copacetic-group-${id}`.toLowerCase());
 
 /** The cookies a group's own session holds, read from the real session in the main process. */
 const groupCookies = (id: string) =>

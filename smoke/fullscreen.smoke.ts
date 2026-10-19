@@ -49,7 +49,9 @@ describe.skipIf(!IS_FOREGROUND_RUN)('a page that goes fullscreen', () => {
     expect(
       await until(async () => {
         const now = await geometry();
-        return now.isFullScreen && now.view?.y === 0 && now.view.height === now.height;
+        // xvfb has no window manager to grant a fullscreen window; the page's own rectangle is what Copacetic decides.
+        const isWindowFullScreen = now.isFullScreen || process.platform === 'linux';
+        return isWindowFullScreen && now.view?.y === 0 && now.view.height === now.height;
       }),
     ).toBe(true);
   }, 60_000);

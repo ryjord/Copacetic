@@ -167,9 +167,10 @@ describe('permissions a page asks for', () => {
     expect(delegated.asked).toHaveLength(0);
   });
 
+  // Notifications rather than location, which is refused outright on Linux and tested on its own below.
   it('asks about the ones a person can judge', async () => {
-    expect(await ask(fake.captured, 'geolocation')).toBe(true);
-    expect(delegated.asked).toEqual([{ origin: 'https://example.com', kind: 'geolocation' }]);
+    expect(await ask(fake.captured, 'notifications')).toBe(true);
+    expect(delegated.asked).toEqual([{ origin: 'https://example.com', kind: 'notifications' }]);
   });
 
   it('honours a refusal', async () => {
@@ -192,7 +193,7 @@ describe('permissions a page asks for', () => {
   it('keeps nothing for a Hush tab, even when remembering was ticked', async () => {
     delegated.answerWith('allow', true);
     const hushSession = { isPersistent: () => false };
-    expect(await ask(fake.captured, 'geolocation', 'https://example.com/page', hushSession)).toBe(true);
+    expect(await ask(fake.captured, 'notifications', 'https://example.com/page', hushSession)).toBe(true);
     expect(delegated.remembered).toEqual({});
   });
 
@@ -270,12 +271,12 @@ describe('sharing the screen', () => {
 describe('the synchronous permission check', () => {
   it('never prompts, and answers only from what was already decided', () => {
     const fake = fakeSession();
-    const delegated = fakeDelegate({ 'https://example.com|geolocation': 'allow' });
+    const delegated = fakeDelegate({ 'https://example.com|notifications': 'allow' });
     hardenWebSession(fake.session as never, delegated.delegate as never);
 
     const check = fake.captured.check as unknown as (c: unknown, p: string, o: string) => boolean;
-    expect(check(null, 'geolocation', 'https://example.com')).toBe(true);
-    expect(check(null, 'geolocation', 'https://other.com')).toBe(false);
+    expect(check(null, 'notifications', 'https://example.com')).toBe(true);
+    expect(check(null, 'notifications', 'https://other.com')).toBe(false);
     expect(check(null, 'serial', 'https://example.com')).toBe(false);
     expect(check(null, 'fullscreen', 'https://example.com')).toBe(true);
     expect(delegated.asked).toHaveLength(0);
