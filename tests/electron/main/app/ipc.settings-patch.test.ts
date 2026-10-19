@@ -37,6 +37,7 @@ describe('every setting can actually be changed', () => {
     webRtcPolicy: 'proxiedOnly',
     blockThirdPartyCookies: false,
     cleanLinks: false,
+    hideCookieBanners: false,
     askWhereToSave: true,
     sleepTabsAfterMinutes: 15,
   };

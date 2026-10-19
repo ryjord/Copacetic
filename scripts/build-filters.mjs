@@ -27,7 +27,7 @@ if (!existsSync(manifestPath)) {
 }
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-const texts = manifest.lists.map((list) => {
+const textOf = (list) => {
   const file = path.join(FILTERS, `${list.name}.txt`);
   const text = readFileSync(file, 'utf8');
   const sha256 = createHash('sha256').update(text).digest('hex');
@@ -37,7 +37,10 @@ const texts = manifest.lists.map((list) => {
     throw new Error(`${list.name}.txt does not match the manifest - run npm run filters:update`);
   }
   return text;
-});
+};
+const isCookieList = (list) => list.purpose === 'cookie-banners';
+const texts = manifest.lists.filter((list) => !isCookieList(list)).map(textOf);
+const cookieTexts = manifest.lists.filter(isCookieList).map(textOf);
 
 const started = Date.now();
 const engine = FiltersEngine.parse(texts.join('\n'));
@@ -45,6 +48,24 @@ const bytes = engine.serialize();
 
 mkdirSync(OUT, { recursive: true });
 writeFileSync(path.join(OUT, 'engine.bin'), bytes);
+// Hiding rules only: the banner goes, and the site's own consent scripts still run as the site expects.
+if (cookieTexts.length > 0) {
+  const cookieEngine = FiltersEngine.parse(cookieTexts.join('\n'), { loadNetworkFilters: false });
+  writeFileSync(path.join(OUT, 'cookie-engine.bin'), cookieEngine.serialize());
+  // Same pattern as cookieTokensOf in blocker.ts, which does this for a list fetched at runtime.
+  const ids = new Set();
+  const classes = new Set();
+  cookieTexts
+    .join('\n')
+    .split('\n')
+    .forEach((line) => {
+      const match = /^##([#.])([A-Za-z0-9_-]+)/.exec(line.trim());
+      if (match) {
+        (match[1] === '#' ? ids : classes).add(match[2]);
+      }
+    });
+  writeFileSync(path.join(OUT, 'cookie-tokens.json'), JSON.stringify({ ids: [...ids], classes: [...classes] }));
+}
 writeFileSync(path.join(OUT, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
 const rules = manifest.lists.reduce((total, list) => total + list.rules, 0);

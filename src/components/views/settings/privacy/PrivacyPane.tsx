@@ -168,6 +168,17 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
           }
         />
         <SettingRow
+          label={t('settings.privacy.banners.label')}
+          help={t('settings.privacy.banners.help')}
+          control={
+            <Switch
+              label={t('settings.privacy.banners.label')}
+              checked={settings.hideCookieBanners}
+              onChange={(hideCookieBanners) => updateSettings({ hideCookieBanners })}
+            />
+          }
+        />
+        <SettingRow
           label={t('settings.privacy.links.label')}
           help={t('settings.privacy.links.help')}
           control={

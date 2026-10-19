@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   webRtcPolicy: 'publicOnly',
   blockThirdPartyCookies: true,
   cleanLinks: true,
+  hideCookieBanners: true,
   downloadDirectory: null,
   askWhereToSave: false,
   sleepTabsAfterMinutes: 60,

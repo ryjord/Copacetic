@@ -302,6 +302,10 @@ export const settings = {
       provider: 'Provider',
       providerGroup: 'DNS provider',
     },
+    banners: {
+      label: 'Hide cookie banners',
+      help: 'Consent pop-ups are hidden from view. Nothing is accepted or refused for you.',
+    },
     links: {
       label: 'Clean tracking from links',
       help: 'Parameters that only say where a click came from, such as utm_source and fbclid, are removed before the page loads.',

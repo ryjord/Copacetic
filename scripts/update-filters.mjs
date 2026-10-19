@@ -26,6 +26,13 @@ const SOURCES = [
     url: 'https://easylist.to/easylist/easyprivacy.txt',
     describe: 'Tracking and analytics, separate from advertising.',
   },
+  // Built on its own and only its hiding rules are used: blocking consent scripts outright is what breaks sites.
+  {
+    name: 'easylist-cookie',
+    url: 'https://secure.fanboy.co.nz/fanboy-cookiemonster.txt',
+    describe: 'Cookie consent banners, hidden rather than answered.',
+    purpose: 'cookie-banners',
+  },
 ];
 
 const OUT = path.join(process.cwd(), 'electron', 'main', 'security', 'filters');
@@ -59,6 +66,7 @@ async function main() {
       name: source.name,
       url: source.url,
       describe: source.describe,
+      ...(source.purpose ? { purpose: source.purpose } : {}),
       bytes: text.length,
       rules: text.split('\n').filter((line) => line && !line.startsWith('!')).length,
       sha256: createHash('sha256').update(text).digest('hex'),

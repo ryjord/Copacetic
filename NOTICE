@@ -44,6 +44,24 @@ EasyPrivacy
 Tracking and analytics filters, maintained separately from advertising.
 
 
+EasyList Cookie List
+--------------------
+
+    Files:    electron/main/security/filters/easylist-cookie.txt
+              and the compiled engine built from its hiding rules at
+              package time
+    Source:   https://secure.fanboy.co.nz/fanboy-cookiemonster.txt
+    Home:     https://easylist.to
+    Licence:  Creative Commons Attribution 3.0 Unported, as the list's own
+              header states.
+              https://creativecommons.org/licenses/by/3.0/
+    Credit:   The EasyList authors (https://easylist.to/).
+
+Cookie consent banners. Only the list's hiding rules are used, so a banner is
+hidden while the site's own scripts still run; nothing is accepted or refused
+on the person's behalf.
+
+
 Everything else
 ---------------
 

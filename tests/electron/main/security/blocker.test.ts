@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ContentBlocker } from '../../../../electron/main/security/blocker';
+import { ContentBlocker, cookieTokensOf } from '../../../../electron/main/security/blocker';
 import { BlockingPolicy } from '../../../../electron/main/security/blocking-policy';
 
 interface CapturedRequest {
@@ -408,5 +408,82 @@ describe('updating the filter lists', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
     const outcome = await blocker.fetchNewerLists(directory, async () => realList(500));
     expect(outcome.ok).toBe(false);
+  });
+});
+
+describe('hiding cookie banners', () => {
+  const padding = '! padding\n'.repeat(12_000);
+  const adList = `[Adblock Plus 2.0]\n${Array.from({ length: 500 }, (_unused, index) => `||tracker${index}.example^`).join('\n')}\n${padding}`;
+  const cookieList = `[Adblock Plus 2.0]\n##.cookie-notice\n###onetrust-banner-sdk\nquiet.example#@##onetrust-banner-sdk\n${padding}`;
+
+  const loadedBlocker = async () => {
+    const blocker = new ContentBlocker();
+    (blocker as unknown as { lists: unknown[] }).lists = [
+      { name: 'easylist', url: 'https://lists.example/ads.txt', describe: 'Ads', rules: 1, lastModified: 'old' },
+      {
+        name: 'easylist-cookie',
+        url: 'https://lists.example/cookies.txt',
+        describe: 'Banners',
+        rules: 1,
+        lastModified: 'old',
+        purpose: 'cookie-banners',
+      },
+    ];
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-banners-'));
+    const outcome = await blocker.fetchNewerLists(directory, async (url) =>
+      url.endsWith('cookies.txt') ? cookieList : adList,
+    );
+    expect(outcome.ok).toBe(true);
+    const fake = fakeSession();
+    blocker.attach(fake.session as never, new BlockingPolicy(true));
+    return { blocker, session: fake.session as never, directory };
+  };
+
+  it('names the ids and classes a list hides everywhere, and nothing scoped to one site', () => {
+    const tokens = cookieTokensOf('###banner\n##.notice\nsite.example##.only-here\n! ##.comment');
+    expect(tokens).toEqual({ ids: ['banner'], classes: ['notice'] });
+  });
+
+  it('hides a known banner when asked to, and not otherwise', async () => {
+    const { blocker, session } = await loadedBlocker();
+    expect(blocker.cosmeticStylesFor('https://news.example/', session, true)).toContain('#onetrust-banner-sdk');
+    expect(blocker.cosmeticStylesFor('https://news.example/', session, false)).not.toContain('#onetrust-banner-sdk');
+  });
+
+  it("keeps a site's own exception", async () => {
+    const { blocker, session } = await loadedBlocker();
+    expect(blocker.cosmeticStylesFor('https://quiet.example/', session, true)).not.toContain('#onetrust-banner-sdk');
+  });
+
+  it('writes what a later start needs to hide banners the same way', async () => {
+    const { directory } = await loadedBlocker();
+    const restarted = new ContentBlocker();
+    restarted.loadShippedLists(path.join(directory, 'filters'));
+    const fake = fakeSession();
+    restarted.attach(fake.session as never, new BlockingPolicy(true));
+    expect(restarted.cosmeticStylesFor('https://news.example/', fake.session as never, true)).toContain(
+      '#onetrust-banner-sdk',
+    );
+  });
+
+  it('takes the cookie list from what shipped when the fetched lists predate it', async () => {
+    const { directory: shipped } = await loadedBlocker();
+    const fetchedBefore = mkdtempSync(path.join(tmpdir(), 'copacetic-banners-'));
+    const older = new ContentBlocker();
+    (older as unknown as { lists: unknown[] }).lists = [
+      { name: 'easylist', url: 'https://lists.example/ads.txt', describe: 'Ads', rules: 1, lastModified: 'old' },
+    ];
+    expect((await older.fetchNewerLists(fetchedBefore, async () => adList)).ok).toBe(true);
+
+    const restarted = new ContentBlocker();
+    restarted.loadShippedLists(path.join(fetchedBefore, 'filters'));
+    restarted.adoptListsMissingFrom(path.join(shipped, 'filters'));
+    const fake = fakeSession();
+    restarted.attach(fake.session as never, new BlockingPolicy(true));
+
+    expect(restarted.cosmeticStylesFor('https://news.example/', fake.session as never, true)).toContain(
+      '#onetrust-banner-sdk',
+    );
+    expect(restarted.loadedLists().map((list) => list.name)).toEqual(['easylist', 'easylist-cookie']);
   });
 });

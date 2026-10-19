@@ -51,7 +51,9 @@ export class Profiles {
     );
     hardenChromeSession(electronSession.defaultSession);
     // A list fetched on request is preferred to the one that shipped, and the shipped one is the floor.
-    if (!this.blocker.loadShippedLists(path.join(appData, 'filters'))) {
+    if (this.blocker.loadShippedLists(path.join(appData, 'filters'))) {
+      this.blocker.adoptListsMissingFrom(filtersRoot());
+    } else {
       this.blocker.loadShippedLists(filtersRoot());
     }
     this.updates = new UpdateManager(() => this.scheduleStatePush());

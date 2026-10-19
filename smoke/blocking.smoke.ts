@@ -145,3 +145,27 @@ describe('hiding what blocking leaves behind', () => {
     expect(found.copaceticGlobals).toEqual([]);
   }, 90_000);
 });
+
+// Hidden by the same user-origin stylesheet, so nothing in the page answers the banner or runs on its behalf.
+describe('hiding cookie banners', () => {
+  const bannerDisplay = `
+    (() => {
+      const banner = document.createElement('div');
+      banner.id = 'onetrust-banner-sdk';
+      document.body.appendChild(banner);
+      return getComputedStyle(banner).display;
+    })()
+  `;
+
+  it('hides a consent banner the cookie list names, and shows it once switched off', async () => {
+    const hidden = await copacetic.inPage<string>('https://example.com/?banners=on', bannerDisplay);
+
+    await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ hideCookieBanners: false }));
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const shown = await copacetic.inPage<string>('https://example.com/?banners=off', bannerDisplay);
+    await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ hideCookieBanners: true }));
+
+    expect(hidden).toBe('none');
+    expect(shown).toBe('block');
+  }, 120_000);
+});

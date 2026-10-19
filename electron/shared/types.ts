@@ -521,6 +521,8 @@ export interface Settings {
   blockThirdPartyCookies: boolean;
   /** Tracking parameters are taken off an address before the page is asked for. */
   cleanLinks: boolean;
+  /** Cookie consent banners are hidden by a stylesheet; nothing is answered on the person's behalf. */
+  hideCookieBanners: boolean;
   /** Where files go; null for the system's own Downloads folder. Chosen in a dialog, never typed. */
   downloadDirectory: string | null;
   /** Each download asks where to save it rather than going to the folder above. */

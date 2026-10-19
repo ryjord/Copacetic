@@ -553,6 +553,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.cleanLinks === 'boolean') {
     patch.cleanLinks = value.cleanLinks;
   }
+  if (typeof value.hideCookieBanners === 'boolean') {
+    patch.hideCookieBanners = value.hideCookieBanners;
+  }
   if (typeof value.blockTrackers === 'boolean') {
     patch.blockTrackers = value.blockTrackers;
   }

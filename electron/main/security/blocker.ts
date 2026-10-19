@@ -1,5 +1,5 @@
 // Libs
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
 
@@ -20,7 +20,45 @@ export interface FilterListInfo {
   describe: string;
   rules: number;
   lastModified: string | null;
+  /** Set for a list built on its own for one purpose; the rest make up the blocking engine. */
+  purpose?: 'cookie-banners';
 }
+
+const isCookieList = (list: FilterListInfo) => list.purpose === 'cookie-banners';
+
+interface CookieTokens {
+  ids: string[];
+  classes: string[];
+}
+
+// Handed to the engine in place of the page's own ids and classes, which only a script in the page could read.
+export function cookieTokensOf(text: string): CookieTokens {
+  const ids = new Set<string>();
+  const classes = new Set<string>();
+  text.split('\n').forEach((line) => {
+    const match = /^##([#.])([A-Za-z0-9_-]+)/.exec(line.trim());
+    if (match?.[2]) {
+      (match[1] === '#' ? ids : classes).add(match[2]);
+    }
+  });
+  return { ids: [...ids], classes: [...classes] };
+}
+
+const isStringList = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+function readCookieTokens(file: string): CookieTokens {
+  const parsed: unknown = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+  if (typeof parsed === 'object' && parsed !== null && 'ids' in parsed && 'classes' in parsed) {
+    const { ids, classes } = parsed;
+    if (isStringList(ids) && isStringList(classes)) {
+      return { ids, classes };
+    }
+  }
+  return { ids: [], classes: [] };
+}
+
+const MOST_CACHED_BANNER_STYLES = 256;
 
 // A small, curated list of domains that exist only to track people across sites.
 const TRACKER_DOMAINS: readonly string[] = [
@@ -172,6 +210,10 @@ export class ContentBlocker {
    * all.
    */
   private engine: FiltersEngine | null = null;
+  /** Only hiding rules, from the cookie banner list, so a banner can go without the site's scripts being blocked. */
+  private cookieEngine: FiltersEngine | null = null;
+  private cookieTokens: CookieTokens = { ids: [], classes: [] };
+  private readonly bannerStyles = new Map<string, string>();
   private listedRules = 0;
   private lists: FilterListInfo[] = [];
   /** Per-tab counters, keyed by the webContents id of the tab's view. */
@@ -202,12 +244,40 @@ export class ContentBlocker {
         lists?: FilterListInfo[];
       };
       this.engine = FiltersEngine.deserialize(blob);
+      const cookieFile = path.join(directory, 'cookie-engine.bin');
+      this.cookieEngine = existsSync(cookieFile) ? FiltersEngine.deserialize(readFileSync(cookieFile)) : null;
+      this.cookieTokens = readCookieTokens(path.join(directory, 'cookie-tokens.json'));
+      this.bannerStyles.clear();
       this.lists = manifest.lists ?? [];
       this.listedRules = this.lists.reduce((total, list) => total + (list.rules ?? 0), 0);
       return { rules: this.listedRules, lists: this.lists };
     } catch {
       this.engine = null;
       return null;
+    }
+  }
+
+  /** Lists a release added since the lists were last fetched, taken from what shipped until the next fetch brings them. */
+  adoptListsMissingFrom(shippedDirectory: string): void {
+    try {
+      const manifest = JSON.parse(readFileSync(path.join(shippedDirectory, 'manifest.json'), 'utf8')) as {
+        lists?: FilterListInfo[];
+      };
+      const known = new Set(this.lists.map((list) => list.name));
+      const missing = (manifest.lists ?? []).filter((list) => !known.has(list.name));
+      if (missing.length === 0) {
+        return;
+      }
+      const cookieFile = path.join(shippedDirectory, 'cookie-engine.bin');
+      if (!this.cookieEngine && missing.some(isCookieList) && existsSync(cookieFile)) {
+        this.cookieEngine = FiltersEngine.deserialize(readFileSync(cookieFile));
+        this.cookieTokens = readCookieTokens(path.join(shippedDirectory, 'cookie-tokens.json'));
+        this.bannerStyles.clear();
+      }
+      this.lists = [...this.lists, ...missing];
+      this.listedRules = this.lists.reduce((total, list) => total + (list.rules ?? 0), 0);
+    } catch {
+      // The fetched lists are already running; a shipped manifest that cannot be read changes nothing.
     }
   }
 
@@ -255,7 +325,17 @@ export class ContentBlocker {
       });
     }
 
-    const engine = FiltersEngine.parse(fetched.map((entry) => entry.text).join('\n'));
+    const engine = FiltersEngine.parse(
+      fetched
+        .filter((entry) => !isCookieList(entry.list))
+        .map((entry) => entry.text)
+        .join('\n'),
+    );
+    const cookieTexts = fetched.filter((entry) => isCookieList(entry.list)).map((entry) => entry.text);
+    const cookieText = cookieTexts.join('\n');
+    const cookieEngine =
+      cookieTexts.length > 0 ? FiltersEngine.parse(cookieText, { loadNetworkFilters: false }) : null;
+    const cookieTokens = cookieTokensOf(cookieText);
     const lists = fetched.map((entry) => entry.list);
     const directory = path.join(userDataDirectory, 'filters');
 
@@ -269,6 +349,12 @@ export class ContentBlocker {
       const manifestTemp = path.join(directory, 'manifest.json.new');
       writeFileSync(engineTemp, engine.serialize());
       writeFileSync(manifestTemp, JSON.stringify({ lists }, null, 2));
+      if (cookieEngine) {
+        const cookieTemp = path.join(directory, 'cookie-engine.bin.new');
+        writeFileSync(cookieTemp, cookieEngine.serialize());
+        renameSync(cookieTemp, path.join(directory, 'cookie-engine.bin'));
+        writeFileSync(path.join(directory, 'cookie-tokens.json'), JSON.stringify(cookieTokens));
+      }
       renameSync(engineTemp, path.join(directory, 'engine.bin'));
       renameSync(manifestTemp, path.join(directory, 'manifest.json'));
     } catch {
@@ -276,6 +362,11 @@ export class ContentBlocker {
     }
 
     this.engine = engine;
+    if (cookieEngine) {
+      this.cookieEngine = cookieEngine;
+      this.cookieTokens = cookieTokens;
+      this.bannerStyles.clear();
+    }
     this.lists = lists;
     this.listedRules = lists.reduce((total, list) => total + list.rules, 0);
     return { ok: true, rules: this.listedRules, lists };
@@ -294,25 +385,46 @@ export class ContentBlocker {
    * it needs no preload and runs no script of ours in the page, which is a
    * promise this browser has already made and has not spent.
    */
-  cosmeticStylesFor(url: string, session: Session): string {
+  cosmeticStylesFor(url: string, session: Session, hidesCookieBanners: boolean): string {
     const policy = this.policies.get(session);
-    if (!this.engine || !policy?.isEnabled()) {
+    if (!policy) {
       return '';
     }
     try {
       const { hostname } = new URL(url);
-      if (policy.isAllowedOn(registrableDomainOf(hostname) ?? hostname)) {
+      const domain = registrableDomainOf(hostname) ?? hostname;
+      // A site someone let show trackers is one they found broken, so nothing is hidden on it either.
+      if (policy.isAllowedOn(domain)) {
         return '';
       }
-      const { styles } = this.engine.getCosmeticsFilters({
-        url,
-        hostname,
-        domain: registrableDomainOf(hostname) ?? hostname,
-      });
-      return styles ?? '';
+      const request = { url, hostname, domain };
+      const blocking =
+        policy.isEnabled() && this.engine ? (this.engine.getCosmeticsFilters(request).styles ?? '') : '';
+      const banners = hidesCookieBanners ? this.bannerStylesFor(request) : '';
+      return [blocking, banners].filter(Boolean).join('\n');
     } catch {
       return '';
     }
+  }
+
+  private bannerStylesFor(request: { url: string; hostname: string; domain: string }): string {
+    if (!this.cookieEngine) {
+      return '';
+    }
+    const cached = this.bannerStyles.get(request.hostname);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const { styles } = this.cookieEngine.getCosmeticsFilters({
+      ...request,
+      ...this.cookieTokens,
+      getRulesFromDOM: true,
+    });
+    if (this.bannerStyles.size >= MOST_CACHED_BANNER_STYLES) {
+      this.bannerStyles.clear();
+    }
+    this.bannerStyles.set(request.hostname, styles ?? '');
+    return styles ?? '';
   }
 
   /** Told on navigation, so a request can be judged against the page it is for. */
