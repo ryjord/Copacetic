@@ -58,8 +58,11 @@ describe("a Chromium profile's history", () => {
 
   it("leaves the other browser's file as it was, and no copy behind", () => {
     const before = readdirSync(directory);
+    const copies = () => readdirSync(tmpdir()).filter((name) => name.startsWith('copacetic-import-'));
+    // Compared with what was there already, so another test reading at the same time is not counted.
+    const copiesBefore = new Set(copies());
     read();
     expect(readdirSync(directory)).toEqual(before);
-    expect(readdirSync(tmpdir()).filter((name) => name.startsWith('copacetic-import-'))).toEqual([]);
+    expect(copies().filter((name) => !copiesBefore.has(name))).toEqual([]);
   });
 });

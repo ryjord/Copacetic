@@ -25,7 +25,7 @@ const FOLDER = 2;
 
 /** Read from a copy, write-ahead log and all: Firefox may be running and holding its own file. */
 function withCopyOf<T>(file: string, read: (database: DatabaseSync) => T): T {
-  const scratch = mkdtempSync(path.join(tmpdir(), 'copacetic-import-'));
+  const scratch = mkdtempSync(path.join(tmpdir(), 'copacetic-firefox-import-'));
   try {
     const copy = path.join(scratch, 'places.sqlite');
     copyFileSync(file, copy);
