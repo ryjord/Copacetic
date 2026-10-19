@@ -5,9 +5,10 @@ const showOpenDialog = vi.fn();
 const showSaveDialog = vi.fn();
 const readFile = vi.fn();
 const writeFile = vi.fn();
+const chmod = vi.fn();
 
 vi.mock('electron', () => ({ dialog: { showOpenDialog, showSaveDialog } }));
-vi.mock('node:fs/promises', () => ({ readFile, writeFile, default: { readFile, writeFile } }));
+vi.mock('node:fs/promises', () => ({ readFile, writeFile, chmod, default: { readFile, writeFile, chmod } }));
 
 const { readChosenFile, writeChosenFile, fileStamp } = await import('../../../../electron/main/system/file-dialogs');
 
@@ -67,7 +68,7 @@ describe('choosing where to write a file', () => {
     writeFile.mockResolvedValue(undefined);
 
     expect(await writeChosenFile(window, saveOptions, () => 'body')).toEqual({ value: true, message: '' });
-    expect(writeFile).toHaveBeenCalledWith('/tmp/out.csv', 'body', 'utf8');
+    expect(writeFile).toHaveBeenCalledWith('/tmp/out.csv', 'body', { encoding: 'utf8', mode: 0o600 });
   });
 
   it('says nothing when the dialog is cancelled', async () => {
@@ -109,4 +110,19 @@ describe('the date a file carries in its name', () => {
   it('is the day, without the time', () => {
     expect(fileStamp(Date.UTC(2026, 7, 21, 15, 4, 5))).toBe('2026-08-21');
   });
+});
+
+// A password export is the vault in plain text; on a shared machine 0644 hands it to every account.
+describe('the file an export writes', () => {
+  it.skipIf(process.platform === 'win32')(
+    'is readable by its owner alone, even when it replaces another',
+    async () => {
+      showSaveDialog.mockResolvedValue({ canceled: false, filePath: '/tmp/out.csv' });
+      writeFile.mockResolvedValue(undefined);
+      chmod.mockResolvedValue(undefined);
+
+      await writeChosenFile(window, saveOptions, () => 'body');
+      expect(chmod).toHaveBeenCalledWith('/tmp/out.csv', 0o600);
+    },
+  );
 });

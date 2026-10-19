@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 
 const { EMPTY_VAULT_FILE, Vault, reviveVaultFile } = await import('../../../../electron/main/vault/vault');
+const { credentialsFromCsv, credentialsToCsv } = await import('../../../../electron/shared/credential-csv');
 type VaultFile = import('../../../../electron/main/vault/vault').VaultFile;
 type SecretStore = import('../../../../electron/main/vault/vault').SecretStore;
 
@@ -318,6 +319,24 @@ describe('taking it all with you', () => {
     const exported = new Vault(keychain({ unreadable: new Set(['sealed:first']) }), store, now).exportAll();
     expect(exported.credentials).toEqual([]);
     expect(exported.unreadable).toBe(1);
+  });
+
+  // The file is only an exit if it comes back in: every awkward character, through the CSV, into a fresh vault.
+  it('round trips through the CSV it writes into an empty vault', () => {
+    const original = new Vault(keychain(), storage(), now);
+    const awkward = [
+      { origin: 'https://a.test', username: 'one', password: 'comma, "quote" and\nline' },
+      { origin: 'https://b.test:8443', username: '', password: 'no username' },
+      { origin: 'https://c.test', username: 'tab\there', password: '  leading and trailing  ' },
+    ];
+    awkward.forEach((credential) => original.add(credential));
+
+    const csv = credentialsToCsv(original.exportAll().credentials);
+    const { credentials, skipped } = credentialsFromCsv(csv);
+    const restored = new Vault(keychain(), storage(), now);
+    expect(skipped).toBe(0);
+    expect(restored.importMany(credentials).added).toBe(awkward.length);
+    expect(restored.exportAll().credentials).toEqual(original.exportAll().credentials);
   });
 
   it('exports nothing rather than failing when there is no keychain', () => {

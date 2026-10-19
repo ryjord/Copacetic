@@ -1,5 +1,5 @@
 import { type BrowserWindow, type FileFilter, dialog } from 'electron';
-import { readFile, writeFile } from 'node:fs/promises';
+import { chmod, readFile, writeFile } from 'node:fs/promises';
 
 /**
  * What came of putting a file dialog in front of someone. Cancelling is not a
@@ -50,7 +50,11 @@ export async function writeChosenFile(
   }
 
   try {
-    await writeFile(filePath, contents(), 'utf8');
+    // Exports are passwords, history and bookmarks; the mode only applies when the file is created, hence the chmod.
+    await writeFile(filePath, contents(), { encoding: 'utf8', mode: 0o600 });
+    if (process.platform !== 'win32') {
+      await chmod(filePath, 0o600);
+    }
     return { value: true, message: '' };
   } catch (error) {
     return { value: null, message: reasonFor(error, 'The file could not be written.') };
