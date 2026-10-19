@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 // Types
 import type { Suggestion, TabId, TabState } from '@shared/types';
 import { splitUrlForDisplay } from '@shared/url';
+import { formatZoom, isZoomedFrom } from '@shared/zoom';
 
 const PLACEHOLDER = 'Search or enter address';
 // One empty list, so not editing is the same value on every render and the overlay is told once.
@@ -215,6 +216,7 @@ export function Omnibox({ tab }: OmniboxProps) {
           </button>
         )}
 
+        {tab && !tab.isStartPage && <ZoomChip tab={tab} />}
         {tab && !tab.isStartPage && <BookmarkStar tab={tab} />}
       </div>
 
@@ -252,6 +254,26 @@ function AddressDisplay({ url }: { url: string }) {
       <span className="text-ink">{parts.registrableDomain}</span>
       {parts.path && <span className="truncate text-ink-dim">{parts.path}</span>}
     </span>
+  );
+}
+
+/** Shown only while the page is off your default zoom, so the one click that undoes it is where you look. */
+function ZoomChip({ tab }: { tab: TabState }) {
+  const defaultZoomFactor = useBrowserStore((state) => state.settings.defaultZoomFactor);
+  if (!isZoomedFrom(tab.zoomFactor, defaultZoomFactor)) {
+    return null;
+  }
+  const shown = formatZoom(tab.zoomFactor);
+  return (
+    <button
+      type="button"
+      aria-label={`Zoom ${shown}, reset to ${formatZoom(defaultZoomFactor)}`}
+      title="Reset zoom"
+      onClick={() => send((api) => api.tabs.setZoom(tab.id, defaultZoomFactor))}
+      className="flex h-6 shrink-0 items-center rounded-sm bg-hover px-2 text-body-sm tabular-nums text-ink-dim hover:text-ink"
+    >
+      {shown}
+    </button>
   );
 }
 

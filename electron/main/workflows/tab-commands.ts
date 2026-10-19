@@ -1,14 +1,15 @@
 import { PUSH } from '../../shared/channels';
 import type { TabId } from '../../shared/types';
 import { START_PAGE_URL, buildSearchUrl, isNavigableUrl } from '../../shared/url';
+import { nextZoomStep } from '../../shared/zoom';
 import type { BrowserStore } from '../data/store';
+import type { NoticeCentre } from '../notices/notice-centre';
 import type { TabManager } from '../tabs/tabs';
-
-const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
 
 interface TabCommandsDeps {
   store: BrowserStore;
   tabs: TabManager;
+  notices: NoticeCentre;
   changed: () => void;
   push: (channel: string, payload?: unknown) => void;
 }
@@ -80,9 +81,7 @@ export class TabCommands {
         this.deps.tabs.setZoom(tabId, this.deps.store.getSettings().defaultZoomFactor);
         return;
       }
-      const currentIndex = nearestZoomIndex(tab.zoomFactor);
-      const nextIndex = Math.min(ZOOM_STEPS.length - 1, Math.max(0, currentIndex + (direction === 'in' ? 1 : -1)));
-      this.deps.tabs.setZoom(tabId, ZOOM_STEPS[nextIndex] ?? 1);
+      this.deps.tabs.setZoom(tabId, nextZoomStep(tab.zoomFactor, direction));
     });
   }
 
@@ -101,7 +100,18 @@ export class TabCommands {
   }
 
   printActiveTab(): void {
-    this.withActiveTab((tabId) => this.deps.tabs.print(tabId));
+    this.withActiveTab((tabId) => this.print(tabId));
+  }
+
+  print(tabId: TabId): void {
+    this.deps.tabs.print(tabId, (reason) =>
+      this.deps.notices.notify({
+        id: `print-failed-${tabId}`,
+        tone: 'info',
+        key: 'print-failed',
+        message: `The page did not print: ${reason}`,
+      }),
+    );
   }
 
   /**
@@ -131,17 +141,4 @@ export class TabCommands {
   searchUrlFor(query: string): string {
     return buildSearchUrl(query, this.deps.store.getSettings().searchEngine);
   }
-}
-
-function nearestZoomIndex(zoomFactor: number): number {
-  let bestIndex = ZOOM_STEPS.indexOf(1);
-  let bestDistance = Number.POSITIVE_INFINITY;
-  ZOOM_STEPS.forEach((step, index) => {
-    const distance = Math.abs(step - zoomFactor);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  });
-  return bestIndex;
 }

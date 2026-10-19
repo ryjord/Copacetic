@@ -159,7 +159,7 @@ export class Browser {
       changed,
     });
     this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession });
-    this.commands = new TabCommands({ store: this.store, tabs: this.tabs, changed, push });
+    this.commands = new TabCommands({ store: this.store, tabs: this.tabs, notices: this.notices, changed, push });
 
     this.window.on('closed', () => this.dispose());
     // A chrome that loaded again, after a crash or a reload, has nothing yet.

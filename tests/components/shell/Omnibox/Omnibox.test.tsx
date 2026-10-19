@@ -94,3 +94,21 @@ describe('Omnibox render stability', () => {
     expect(after.textContent).toContain('other.com');
   });
 });
+
+describe('Omnibox zoom chip', () => {
+  it('stays hidden at the default zoom', () => {
+    render(<Omnibox tab={tab('a', 'https://example.com/')} />);
+    expect(screen.queryByTitle('Reset zoom')).toBeNull();
+  });
+
+  it('shows the zoom once the page is off the default', () => {
+    render(<Omnibox tab={{ ...tab('a', 'https://example.com/'), zoomFactor: 1.25 }} />);
+    expect(screen.getByTitle('Reset zoom').textContent).toBe('125%');
+    expect(screen.getByLabelText('Zoom 125%, reset to 100%')).toBeTruthy();
+  });
+
+  it('is not shown on the start page', () => {
+    render(<Omnibox tab={{ ...tab('a', 'copacetic://start'), zoomFactor: 1.5, isStartPage: true }} />);
+    expect(screen.queryByTitle('Reset zoom')).toBeNull();
+  });
+});

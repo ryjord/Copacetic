@@ -426,11 +426,12 @@ export class TabManager {
     }
   }
 
-  print(id: TabId): void {
+  print(id: TabId, onFailed: (reason: string) => void): void {
     this.contentsFor(id)?.print({}, (isPrinted, failureReason) => {
       // Cancelling the dialog is an answer, not a failure.
       if (!isPrinted && failureReason && !/cancel/i.test(failureReason)) {
         log.warn('a page did not print', { reason: failureReason });
+        onFailed(failureReason);
       }
     });
   }

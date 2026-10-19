@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 
 // Types
 import { clampZoom } from '@shared/types';
+import { nextZoomStep } from '@shared/zoom';
 
 interface Command {
   id: string;
@@ -34,7 +35,6 @@ interface Command {
 }
 
 const GROUP_ORDER: readonly Command['group'][] = ['Tabs', 'Page', 'Go to', 'Appearance', 'Open tabs'];
-const ZOOM_STEP = 0.1;
 
 /** One keystroke to reach anything, and a place to learn the shortcut for it. */
 export function CommandPalette() {
@@ -45,6 +45,7 @@ export function CommandPalette() {
   const activeTab = useBrowserStore((state) => state.activeTab);
   const hasClosedTabs = useBrowserStore((state) => state.hasClosedTabs);
   const appearance = useBrowserStore((state) => state.settings.appearance);
+  const defaultZoomFactor = useBrowserStore((state) => state.settings.defaultZoomFactor);
 
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
@@ -154,14 +155,14 @@ export function CommandPalette() {
             label: 'Zoom in',
             accelerator: 'CmdOrCtrl+Plus',
             group: 'Page',
-            run: zoomTo(activeTab.zoomFactor + ZOOM_STEP),
+            run: zoomTo(nextZoomStep(activeTab.zoomFactor, 'in')),
           },
           {
             id: 'zoom-out',
             label: 'Zoom out',
             accelerator: 'CmdOrCtrl+-',
             group: 'Page',
-            run: zoomTo(activeTab.zoomFactor - ZOOM_STEP),
+            run: zoomTo(nextZoomStep(activeTab.zoomFactor, 'out')),
           },
           {
             id: 'zoom-reset',
@@ -169,7 +170,7 @@ export function CommandPalette() {
             accelerator: 'CmdOrCtrl+0',
             group: 'Page',
             keywords: 'reset zoom',
-            run: zoomTo(1),
+            run: zoomTo(defaultZoomFactor),
           },
         );
       }
@@ -235,7 +236,7 @@ export function CommandPalette() {
     }
 
     return list;
-  }, [activeTab, appearance, hasClosedTabs, requestOmniboxFocus, setSurface, tabs, toggleSurface]);
+  }, [activeTab, appearance, defaultZoomFactor, hasClosedTabs, requestOmniboxFocus, setSurface, tabs, toggleSurface]);
 
   // Ranked by how well each matches, then laid out in group order, so headings never repeat.
   const ranked = rankByMatch(commands, query, (command) => `${command.label} ${command.keywords ?? ''}`);
