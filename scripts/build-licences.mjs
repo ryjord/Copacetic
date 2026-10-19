@@ -99,13 +99,14 @@ const visit = (name, fromDirectory) => {
 };
 roots.forEach((name) => visit(name, root));
 
-// The electron package is only the downloader; what ships is the runtime, with its own licence beside it.
+// The electron package is only the downloader; what ships is the runtime, under the same licence.
 const electronManifest = readJson(path.join(root, 'node_modules', 'electron', 'package.json'));
 found.set('electron-runtime', {
   name: 'Electron',
   version: electronManifest.version,
   licence: 'MIT',
-  text: readFileSync(path.join(root, 'node_modules', 'electron', 'dist', 'LICENSE'), 'utf8').trim(),
+  // The package carries the runtime's licence too, and is there before the runtime is downloaded.
+  text: readFileSync(path.join(root, 'node_modules', 'electron', 'LICENSE'), 'utf8').trim(),
 });
 
 const packages = [...found.values()]

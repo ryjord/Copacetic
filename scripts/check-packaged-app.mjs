@@ -162,6 +162,13 @@ if (process.platform === 'darwin') {
     process.exit(1);
   }
   console.log('Info.plist says why each device is asked for.');
+
+  // electron-builder drops the page on macOS; the build puts it in Resources for the Licences screen.
+  if (!existsSync(path.join(shippedTree, 'Contents', 'Resources', 'LICENSES.chromium.html'))) {
+    console.error("\nThe packaged app is missing Chromium's licences, which it must carry.");
+    process.exit(1);
+  }
+  console.log("The packaged app carries Chromium's licences.");
 }
 
 // `ELECTRON_RUN_AS_NODE` is set by some editors' terminals and makes the binary

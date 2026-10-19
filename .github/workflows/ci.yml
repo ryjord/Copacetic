@@ -92,6 +92,10 @@ jobs:
         env:
           COPACETIC_SMOKE_FOREGROUND: '1'
 
+      # A no-op once the smoke tests have fetched it; the macOS build copies Chromium's licences out of it.
+      - name: Fetch Electron for the licences it carries
+        run: node node_modules/electron/install.js
+
       - name: Check the packaged tree assembles
         run: npx electron-builder --dir --publish never
 

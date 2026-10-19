@@ -178,6 +178,13 @@ jobs:
           test -s build/keyring/copacetic-archive-keyring.gpg
           test -s build/keyring/copacetic-apt-source
 
+      # electron-builder leaves Chromium's licences out of the macOS app, and the
+      # build puts them back from Electron's own download, which is otherwise
+      # fetched only the first time Electron runs - and nothing here runs it.
+      - name: Fetch Electron for the licences it carries
+        if: matrix.os == 'macos-latest'
+        run: node node_modules/electron/install.js
+
       - name: Build and publish
         shell: bash
         run: |
