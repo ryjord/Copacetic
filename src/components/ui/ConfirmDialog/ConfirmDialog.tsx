@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertDialog } from 'radix-ui';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Button } from '@/components/ui/Button/Button';
 import { t } from '@shared/i18n/translate';
 
@@ -12,7 +12,8 @@ interface ConfirmDialogProps {
   /** What will happen, in a sentence or a short list. */
   children: ReactNode;
   confirmLabel: string;
-  onConfirm: () => void;
+  /** Given the click, so a dialog that must stay open (an answer still being checked) can prevent closing. */
+  onConfirm: (event: MouseEvent<HTMLButtonElement>) => void;
   /** Destructive confirmations are red; everything else is the accent. */
   isDestructive?: boolean;
   /** For a choice made inside the dialog that is not yet complete. */

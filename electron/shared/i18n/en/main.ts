@@ -153,6 +153,7 @@ export const main = {
       certificates: { one: '{count} accepted certificate', other: '{count} accepted certificates' },
       cookies: { one: '{count} cookie', other: '{count} cookies' },
       openRules: { one: '{count} rule for where it opens', other: '{count} rules for where it opens' },
+      startTiles: { one: '{count} start page tile', other: '{count} start page tiles' },
     },
     nothingKept: 'Nothing is kept about this site.',
     single: '{part}.',
@@ -330,6 +331,9 @@ export const main = {
     },
   },
   startPage: {
+    chooseIcon: 'Choose an icon',
+    iconTooLarge: 'Choose a smaller picture. An icon can be up to 256 KB.',
+    notAnAddress: 'That is not a web address.',
     widgets: {
       clock: {
         label: 'Clock',
@@ -616,6 +620,8 @@ export const main = {
   },
   files: {
     readFailed: 'The file could not be read.',
+    images: 'Images',
+    notAnImage: 'That is not a picture Copacetic can show.',
     writeFailed: 'The file could not be written.',
   },
   wallpaper: {

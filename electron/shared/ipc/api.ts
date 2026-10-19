@@ -35,6 +35,13 @@ import type {
 } from '../types';
 import type { TabMemory } from '../tabs/tab-memory';
 
+/** A shortcut as typed: the address may be bare, like `example.com`, and is resolved in the main process. */
+export interface StartShortcutInput {
+  address: string;
+  title: string;
+  icon: string | null;
+}
+
 export interface ContentInsetsInput {
   top: number;
   left: number;
@@ -90,6 +97,14 @@ export interface CopaceticApi {
     openContextMenu(id: TabId): Promise<void>;
     /** The menu behind the caret beside the new-tab button. */
     openNewTabMenu(): Promise<void>;
+  };
+  startPage: {
+    /** Makes or changes a shortcut; answers with a problem to show, or nothing. */
+    saveShortcut(previousUrl: string | null, shortcut: StartShortcutInput): Promise<string>;
+    /** Deletes a shortcut, or stops suggesting a site visited often. */
+    removeTile(url: string): Promise<void>;
+    /** A picture chosen in a dialog, as a data URL; a problem to show, or nothing when cancelled. */
+    chooseIcon(): Promise<{ icon: string | null; problem: string }>;
   };
   translation: {
     /** Translated on this machine; the first use of a direction downloads its model from Mozilla. */

@@ -187,6 +187,10 @@ export interface TopSite {
   title: string;
   visitCount: number;
   faviconDataUrl: string | null;
+  /** What the tile says under its icon: a shortcut's own name, or the site's host. */
+  label: string;
+  /** One someone made or changed, rather than a site visited often. */
+  isShortcut: boolean;
 }
 
 export type SuggestionKind = 'url' | 'search' | 'history' | 'bookmark';

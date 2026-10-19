@@ -1,5 +1,6 @@
 import { type BrowserWindow, type FileFilter, dialog } from 'electron';
 import { chmod, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { t } from '../../shared/i18n/translate';
 
 /**
@@ -38,6 +39,44 @@ export async function readChosenFile(
     return { value: null, message: reasonFor(error, t('main.files.readFailed')) };
   }
 }
+
+/** Asks for a picture and reads it as a data URL, refusing one larger than `maxBytes`. */
+export async function readChosenImage(
+  window: BrowserWindow,
+  options: { title: string; maxBytes: number; tooLarge: string },
+): Promise<FileResult<string>> {
+  const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+    title: options.title,
+    properties: ['openFile'],
+    filters: [{ name: t('main.files.images'), extensions: Object.keys(IMAGE_TYPES) }],
+  });
+  const source = filePaths[0];
+  if (canceled || !source) {
+    return CANCELLED;
+  }
+  const type = IMAGE_TYPES[path.extname(source).slice(1).toLowerCase()];
+  if (!type) {
+    return { value: null, message: t('main.files.notAnImage') };
+  }
+  try {
+    const bytes = await readFile(source);
+    if (bytes.length > options.maxBytes) {
+      return { value: null, message: options.tooLarge };
+    }
+    return { value: `data:${type};base64,${bytes.toString('base64')}`, message: '' };
+  } catch (error) {
+    return { value: null, message: reasonFor(error, t('main.files.readFailed')) };
+  }
+}
+
+const IMAGE_TYPES: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+};
 
 /** Asks where to put a file and writes it. The contents are produced only once somewhere has been chosen. */
 export async function writeChosenFile(

@@ -6,9 +6,12 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 // Components
 import { Button } from '@/components/ui/Button/Button';
 import { Favicon } from '@/components/ui/Favicon/Favicon';
+import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { Menu } from '@/components/ui/Menu/Menu';
+import { ShortcutDialog } from '@/components/views/start/ShortcutDialog';
 
 // Icons
-import { EyeOff, Search } from 'lucide-react';
+import { Ellipsis, EyeOff, Plus, Search } from 'lucide-react';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -19,6 +22,7 @@ import { ask, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { formatClockTime, formatLongDate, timeOfDay } from '@/lib/text/format';
 import { t } from '@shared/i18n/translate';
+import { MAX_SHORTCUTS } from '@shared/data/start-tiles';
 
 // Types
 import type { Bookmark, TopSite } from '@shared/types';
@@ -28,11 +32,14 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   const settings = useBrowserStore((state) => state.settings);
   const [query, setQuery] = useState('');
   const [topSites, setTopSites] = useState<TopSite[]>([]);
+  const [tilesVersion, setTilesVersion] = useState(0);
+  // Back from a panel is when clearing history, or forgetting a site, has just happened.
+  const isUncovered = useBrowserStore((state) => state.surface === 'none');
   const [fetched, setFetched] = useState<string | null>(null);
   const minute = useMinuteTick();
 
   useEffect(() => {
-    if (!settings.startPageWidgets.includes('topSites') || isHush) {
+    if (!settings.startPageWidgets.includes('topSites') || isHush || !isUncovered) {
       return;
     }
     let isCurrent = true;
@@ -44,7 +51,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
     return () => {
       isCurrent = false;
     };
-  }, [settings.startPageWidgets, isHush]);
+  }, [settings.startPageWidgets, isHush, isUncovered, tilesVersion]);
 
   // Fetched rather than pushed: the image is measured in megabytes and has no business in every state update.
   useEffect(() => {
@@ -115,7 +122,9 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
               </form>
             )}
 
-            {widget === 'topSites' && <TopSites sites={topSites} tabId={tabId} />}
+            {widget === 'topSites' && (
+              <TopSites sites={topSites} tabId={tabId} onChanged={() => setTilesVersion((version) => version + 1)} />
+            )}
             {widget === 'bookmarks' && <BookmarkStrip tabId={tabId} />}
           </div>
         ))}
@@ -154,30 +163,72 @@ function useMinuteTick(): number | null {
   );
 }
 
-function TopSites({ sites, tabId }: { sites: TopSite[]; tabId: string }) {
-  if (sites.length === 0) {
-    return <p className="text-body text-ink-dim">{t('views.start.topSitesEmpty')}</p>;
-  }
+function TopSites({ sites, tabId, onChanged }: { sites: TopSite[]; tabId: string; onChanged: () => void }) {
+  // Undefined when closed, null for a new shortcut, a tile when one is being changed.
+  const [editing, setEditing] = useState<TopSite | null | undefined>(undefined);
+  const canAdd = sites.filter((site) => site.isShortcut).length < MAX_SHORTCUTS;
+
+  const remove = async (site: TopSite) => {
+    await ask((api) => api.startPage.removeTile(site.url), undefined);
+    onChanged();
+  };
+
   return (
-    <ul className="grid w-full grid-cols-6 gap-4">
-      {sites.map((site) => (
-        <li key={site.host}>
-          <button
-            type="button"
-            onClick={() => send((api) => api.tabs.navigate(tabId, site.url))}
-            title={site.url}
-            className="flex w-full flex-col items-center gap-2.5 rounded-md px-1.5 py-3.5 transition-colors hover:bg-inset"
-          >
-            <span className="grid size-16 place-items-center rounded-lg bg-inset shadow-[0_0_0_1px_var(--color-line)]">
-              <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={28} />
-            </span>
-            <span className="w-full truncate text-center text-body-sm text-ink-dim">
-              {site.host.replace(/^www\./, '')}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
+    <>
+      {sites.length === 0 && <p className="text-body text-ink-dim">{t('views.start.topSitesEmpty')}</p>}
+      <ul className="grid w-full grid-cols-6 gap-4">
+        {sites.map((site) => (
+          <li key={site.url} className="group relative">
+            <button
+              type="button"
+              onClick={() => send((api) => api.tabs.navigate(tabId, site.url))}
+              title={site.url}
+              className="flex w-full flex-col items-center gap-2.5 rounded-md px-1.5 py-3.5 transition-colors hover:bg-inset"
+            >
+              <span className="grid size-16 place-items-center rounded-lg bg-inset shadow-[0_0_0_1px_var(--color-line)]">
+                <Favicon dataUrl={site.faviconDataUrl} seed={site.host} size={28} />
+              </span>
+              <span className="w-full truncate text-center text-body-sm text-ink-dim">{site.label}</span>
+            </button>
+            {/* After the tile, so it paints over it by order alone. */}
+            <div className="absolute right-0.5 top-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+              <Menu
+                trigger={
+                  <IconButton label={t('views.start.shortcut.menu', { name: site.label })} size="sm">
+                    <Ellipsis size={14} strokeWidth={1.75} />
+                  </IconButton>
+                }
+                items={[
+                  { label: t('views.start.shortcut.edit'), onSelect: () => setEditing(site) },
+                  {
+                    label: site.isShortcut ? t('views.start.shortcut.delete') : t('views.start.shortcut.hide'),
+                    onSelect: () => void remove(site),
+                    isDestructive: true,
+                  },
+                ]}
+              />
+            </div>
+          </li>
+        ))}
+        {canAdd && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              className="flex w-full flex-col items-center gap-2.5 rounded-md px-1.5 py-3.5 text-ink-faint transition-colors hover:bg-inset hover:text-ink-dim"
+            >
+              <span className="grid size-16 place-items-center rounded-lg border border-dashed border-line-strong">
+                <Plus size={22} strokeWidth={1.5} />
+              </span>
+              <span className="w-full truncate text-center text-body-sm">{t('views.start.shortcut.add')}</span>
+            </button>
+          </li>
+        )}
+      </ul>
+      {editing !== undefined && (
+        <ShortcutDialog tile={editing} onClose={() => setEditing(undefined)} onSaved={onChanged} />
+      )}
+    </>
   );
 }
 

@@ -19,11 +19,13 @@ import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
 import { readClearChoice } from '../../shared/data/clearing';
 import { openChromiumLicences } from '../system/chromium-licences';
 import { conflictFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
-import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/browsing/url';
+import { SEARCH_ENGINES, hostOf, isPageNavigableUrl, resolveOmniboxInput } from '../../shared/browsing/url';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
 import { routeFor } from '../../shared/translation/languages';
+import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start-tiles';
+import { readChosenImage } from '../system/file-dialogs';
 import { t } from '../../shared/i18n/translate';
 import { siteOf as siteOfAddress } from '../../shared/data/forgetting';
 import {
@@ -101,6 +103,34 @@ export function registerIpcHandlers(profiles: Profiles): void {
     browser.tabs.setSplitRatio(typeof ratio === 'number' ? ratio : Number.NaN),
   );
   handle('tabs.sleep', (browser, _event, id) => browser.tabs.sleep(asString(id)));
+  handle('startPage.saveShortcut', (browser, _event, previousUrl, shortcut) => {
+    const input = isRecord(shortcut) ? shortcut : {};
+    const address = typeof input.address === 'string' ? input.address.slice(0, MAX_SITE_LENGTH * 4) : '';
+    const resolved = resolveOmniboxInput(address, browser.store.getSettings().searchEngine);
+    if (resolved?.type !== 'url' || !isPageNavigableUrl(resolved.target)) {
+      return t('main.startPage.notAnAddress');
+    }
+    const title = typeof input.title === 'string' ? input.title : '';
+    browser.store.saveStartShortcut(typeof previousUrl === 'string' ? previousUrl : null, {
+      url: resolved.target,
+      title: title.trim() || hostOf(resolved.target),
+      icon: isShortcutIcon(input.icon) ? input.icon : null,
+    });
+    browser.profile.scheduleStatePush();
+    return '';
+  });
+  handle('startPage.removeTile', (browser, _event, url) => {
+    browser.store.removeStartTile(asString(url));
+    browser.profile.scheduleStatePush();
+  });
+  handle('startPage.chooseIcon', async (browser) => {
+    const chosen = await readChosenImage(browser.window, {
+      title: t('main.startPage.chooseIcon'),
+      maxBytes: MAX_SHORTCUT_ICON_BYTES,
+      tooLarge: t('main.startPage.iconTooLarge'),
+    });
+    return { icon: chosen.value, problem: chosen.message };
+  });
   handle('translation.translate', async (browser, _event, from, to, texts) => {
     const request = readTranslation(from, to, texts);
     if (!request) {

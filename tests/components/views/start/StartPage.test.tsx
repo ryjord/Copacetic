@@ -13,14 +13,25 @@ import type { Settings } from '@shared/types';
 
 vi.mock('@/lib/bridge/bridge', () => ({
   send: vi.fn(),
-  ask: async () => [{ url: 'https://github.com/', host: 'github.com', title: 'GitHub', faviconDataUrl: null }],
+  ask: async () => [
+    {
+      url: 'https://github.com/',
+      host: 'github.com',
+      title: 'GitHub',
+      faviconDataUrl: null,
+      visitCount: 3,
+      label: 'github.com',
+      isShortcut: false,
+    },
+  ],
   getBridge: () => null,
   isRunningInShell: () => false,
 }));
 
 let settings: Settings = { ...DEFAULT_SETTINGS_SHAPE, startPageWidgets: ['clock', 'search', 'topSites'] };
 vi.mock('@/store/useBrowserStore', () => ({
-  useBrowserStore: (select: (state: { settings: unknown }) => unknown) => select({ settings }),
+  useBrowserStore: (select: (state: { settings: unknown; surface: string }) => unknown) =>
+    select({ settings, surface: 'none' }),
 }));
 
 const updateSettings = vi.fn();

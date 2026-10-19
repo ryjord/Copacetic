@@ -151,6 +151,21 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 9,
+    sql: `
+      CREATE TABLE start_shortcuts (
+        url TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        icon TEXT,
+        position INTEGER NOT NULL
+      );
+      -- Sites the start page was asked to stop suggesting, by site.
+      CREATE TABLE start_hidden (
+        site TEXT PRIMARY KEY
+      );
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];

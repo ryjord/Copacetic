@@ -80,6 +80,8 @@ export interface SiteTraces {
   cookies: number;
   /** A rule that the site always opens in Hush or a group. */
   openRules: number;
+  /** A start page shortcut to it, or a note not to suggest it there. */
+  startTiles: number;
 }
 
 export const NOTHING: SiteTraces = {
@@ -91,6 +93,7 @@ export const NOTHING: SiteTraces = {
   certificates: 0,
   cookies: 0,
   openRules: 0,
+  startTiles: 0,
 };
 
 /** Whether two addresses belong to the same site, by registrable domain. */
@@ -178,6 +181,7 @@ export function describeTraces(traces: SiteTraces): string {
   add(traces.certificates, 'main.forgetting.traces.certificates');
   add(traces.cookies, 'main.forgetting.traces.cookies');
   add(traces.openRules, 'main.forgetting.traces.openRules');
+  add(traces.startTiles, 'main.forgetting.traces.startTiles');
 
   if (parts.length === 0) {
     return t('main.forgetting.nothingKept');

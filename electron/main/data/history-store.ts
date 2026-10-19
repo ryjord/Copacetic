@@ -179,6 +179,8 @@ export class HistoryStore {
         title: entry.title || host,
         visitCount: entry.visitCount,
         faviconDataUrl: faviconFor(entry.url),
+        label: host.replace(/^www\./, ''),
+        isShortcut: false,
       });
     }
     return [...byHost.values()].sort((aSite, bSite) => bSite.visitCount - aSite.visitCount).slice(0, limit);

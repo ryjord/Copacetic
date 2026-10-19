@@ -16,6 +16,7 @@ import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput }
 import { BookmarksStore } from './bookmarks-store';
 import { BookmarkFoldersStore } from './bookmark-folders-store';
 import { NamedSessionsStore } from './named-sessions-store';
+import { StartTilesStore } from './start-tiles-store';
 import { withoutGroup } from '../../shared/tabs/open-rules';
 import { afterDeleting, type BookmarkFolder } from '../../shared/data/bookmark-folders';
 import { GroupsStore } from './groups-store';
@@ -42,6 +43,7 @@ import type { RememberedCertificate } from '../../shared/browsing/certificate-ch
 import type { ImportedBookmark } from '../../shared/data/bookmark-import';
 import type { DatabaseSync } from 'node:sqlite';
 import type { NamedSessionSummary, NamedSessionTab } from '../../shared/data/named-sessions';
+import type { StartShortcut } from '../../shared/data/start-tiles';
 
 export { HISTORY_PAGE_SIZE };
 export type { HistoryPage };
@@ -68,6 +70,7 @@ export class BrowserStore {
   readonly downloadsTable: DownloadsTable;
   private readonly session: SessionStore;
   private readonly namedSessions: NamedSessionsStore;
+  private readonly startTiles: StartTilesStore;
   private readonly certificatesStore: CertificatesStore;
   /** Parsed host and lowercased forms per history entry, keyed by entry id. */
   private readonly scoreFieldCache = new Map<string, ScoreFields>();
@@ -91,6 +94,7 @@ export class BrowserStore {
     this.downloadsTable = new DownloadsTable(this.database, directory);
     this.session = new SessionStore(directory);
     this.namedSessions = new NamedSessionsStore(this.database);
+    this.startTiles = new StartTilesStore(this.database);
     this.certificatesStore = new CertificatesStore(directory);
     forgetLegacyCopies(directory, { isClearingEverything: false, now: Date.now() });
   }
@@ -242,6 +246,7 @@ export class BrowserStore {
       blockingOff: settings.blockerAllowlist.filter((entry) => sameSite(entry, site)).length,
       certificates: this.certificatesStore.origins().filter((origin) => sameSite(origin, site)).length,
       openRules: Object.keys(settings.openRules).filter((key) => sameSite(key, site)).length,
+      startTiles: this.startTiles.countForSite(site),
       // The store does not own the sessions, so it cannot see cookies. The
       // browser adds that count before either sentence is said.
       cookies: 0,
@@ -281,6 +286,7 @@ export class BrowserStore {
 
     this.history.forgetSite(site);
     this.favicons.forgetSite(site);
+    this.startTiles.forgetSite(site);
     this.certificatesStore.forgetSite(site);
 
     const settings = this.settings.getSettings();
@@ -354,8 +360,43 @@ export class BrowserStore {
     this.favicons.forgetAll();
   }
 
+  /** The shortcuts someone made, then the sites visited most, less any they asked to stop seeing. */
   topSites(limit = 8): TopSite[] {
-    return this.history.topSites((url) => this.favicons.get(url), limit);
+    const shortcuts = this.startTiles.shortcuts().map((shortcut): TopSite => ({
+      url: shortcut.url,
+      host: hostOf(shortcut.url).replace(/^www\./, ''),
+      title: shortcut.title,
+      visitCount: 0,
+      faviconDataUrl: shortcut.icon ?? this.favicons.get(shortcut.url),
+      label: shortcut.title,
+      isShortcut: true,
+    }));
+    const hidden = this.startTiles.hiddenSites();
+    const visited = this.history
+      .topSites((url) => this.favicons.get(url), limit + hidden.length + shortcuts.length)
+      .filter(
+        (site) =>
+          !hidden.some((entry) => sameSite(site.url, entry)) &&
+          !shortcuts.some((shortcut) => hostOf(shortcut.url) === hostOf(site.url)),
+      );
+    return [...shortcuts, ...visited].slice(0, Math.max(limit, shortcuts.length));
+  }
+
+  saveStartShortcut(previousUrl: string | null, shortcut: StartShortcut): void {
+    this.startTiles.saveShortcut(previousUrl, shortcut);
+  }
+
+  /** A shortcut is deleted; a site visited often is not shown again. */
+  removeStartTile(url: string): void {
+    const isShortcut = this.startTiles.shortcuts().some((shortcut) => shortcut.url === url);
+    if (isShortcut) {
+      this.startTiles.removeShortcut(url);
+      return;
+    }
+    const site = siteOf(url);
+    if (site) {
+      this.startTiles.hideSite(site);
+    }
   }
 
   // ---------------------------------------------------------- saved sessions
