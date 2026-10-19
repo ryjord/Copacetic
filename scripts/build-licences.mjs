@@ -11,8 +11,10 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(new URL('..', import.meta.url).pathname);
+// fileURLToPath, not .pathname: on Windows the latter is /D:/..., which is no path at all.
+const root = fileURLToPath(new URL('..', import.meta.url));
 const output = path.join(root, 'public', 'licences.json');
 const LICENCE_FILE = /^(licen[cs]e|copying|notice)(\.(md|txt|markdown))?$/i;
 
