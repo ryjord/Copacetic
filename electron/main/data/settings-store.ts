@@ -1,4 +1,4 @@
-import { isAppearanceId, isThemeId } from '../../shared/types';
+import { isAppearanceId, isThemeId, isWebRtcPolicy } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS: Settings = {
   blockerAllowlist: [],
   hasWallpaper: false,
   defaultZoomFactor: 1,
+  spellcheck: true,
+  webRtcPolicy: 'publicOnly',
 };
 
 /** The per-site keys, which live in the database and are only ever empty in the JSON file. */
@@ -152,6 +154,7 @@ function reviveSettings(raw: unknown): Settings | null {
   const theme = asString(raw.theme, DEFAULT_SETTINGS.theme);
   const appearance = asString(raw.appearance, DEFAULT_SETTINGS.appearance);
   const density = asString(raw.density, DEFAULT_SETTINGS.density);
+  const webRtcPolicy = asString(raw.webRtcPolicy);
 
   return normaliseSettings({
     searchEngine: engine in SEARCH_ENGINES ? (engine as Settings['searchEngine']) : DEFAULT_SETTINGS.searchEngine,
@@ -177,6 +180,8 @@ function reviveSettings(raw: unknown): Settings | null {
       ? raw.blockerAllowlist.filter((site): site is string => typeof site === 'string' && site.length > 0)
       : [],
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
+    spellcheck: asBoolean(raw.spellcheck, DEFAULT_SETTINGS.spellcheck),
+    webRtcPolicy: isWebRtcPolicy(webRtcPolicy) ? webRtcPolicy : DEFAULT_SETTINGS.webRtcPolicy,
   });
 }
 

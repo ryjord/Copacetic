@@ -105,6 +105,7 @@ export class Profile {
       blocker: this.blocker,
       downloads: this.downloads,
       groups: () => this.store.listGroups(),
+      isSpellcheckOn: () => this.store.getSettings().spellcheck,
     });
     // Web and Hush exist from launch; a group that keeps its own browsing is prepared when a tab first asks.
     this.sessions.prepare(WEB_PARTITION);
@@ -230,6 +231,12 @@ export class Profile {
     }
     if (patch.checkForUpdates !== undefined) {
       this.updates.start(patch.checkForUpdates);
+    }
+    if (patch.spellcheck !== undefined) {
+      this.sessions.setSpellcheck(next.spellcheck);
+    }
+    if (patch.webRtcPolicy !== undefined) {
+      this.windows.forEach((window) => window.tabs.setWebRtcPolicy(next.webRtcPolicy));
     }
     this.scheduleStatePush();
     return next;

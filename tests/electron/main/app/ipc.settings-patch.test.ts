@@ -31,6 +31,8 @@ describe('every setting can actually be changed', () => {
     zoomLevels: { 'https://example.com': 1.5 },
     blockerAllowlist: ['example.com'],
     defaultZoomFactor: 1.25,
+    spellcheck: false,
+    webRtcPolicy: 'proxiedOnly',
   };
 
   it.each(Object.keys(DEFAULT_SETTINGS).filter((key) => !SETTINGS_NOT_PATCHABLE.includes(key)))(
@@ -80,6 +82,11 @@ describe('but only settings, and only sane ones', () => {
  * corrected it - a setting that fixes itself overnight and nobody can explain.
  */
 describe('what the settings patch refuses', () => {
+  // An unknown policy stored would reach Chromium as nothing it recognises.
+  it('drops a WebRTC policy that does not exist', () => {
+    expect(asSettingsPatch({ webRtcPolicy: 'leakEverything' })).not.toHaveProperty('webRtcPolicy');
+  });
+
   it('takes a theme that exists', () => {
     expect(asSettingsPatch({ theme: 'ember' }).theme).toBe('ember');
   });

@@ -19,11 +19,27 @@ import { ask } from '@/lib/bridge';
 // Types
 import { DNS_RESOLVERS, describeDns, resolverFor } from '@shared/dns';
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
+import type { WebRtcPolicy } from '@shared/types';
 
 const DNS_MODES = [
   { id: 'system', label: 'System' },
   { id: 'encrypted', label: 'Encrypted' },
 ] as const;
+
+const WEB_RTC_OPTIONS = [
+  { id: 'publicOnly', label: 'Public only' },
+  { id: 'default', label: 'All' },
+  { id: 'proxiedOnly', label: 'Proxied only' },
+] as const satisfies readonly { id: WebRtcPolicy; label: string }[];
+
+/** What each choice lets a page learn, said where the choice is made. */
+const WEB_RTC_HELP: Record<WebRtcPolicy, string> = {
+  publicOnly:
+    'Calls and video work, and a page can learn your public address but not the one on your home or office network.',
+  default: 'A page can learn your local network address as well. Only for a call that will not connect otherwise.',
+  proxiedOnly:
+    'Calls go through your proxy or not at all, so nothing is revealed that the proxy does not already show.',
+};
 
 const PROVIDERS = DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }));
 
@@ -128,6 +144,21 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
             }
           />
         )}
+      </SettingGroup>
+
+      <SettingGroup title="Calls and video">
+        <SettingRow
+          label="Addresses WebRTC may reveal"
+          help={WEB_RTC_HELP[settings.webRtcPolicy]}
+          control={
+            <SegmentedControl
+              label="Addresses WebRTC may reveal"
+              options={WEB_RTC_OPTIONS}
+              value={settings.webRtcPolicy}
+              onChange={(webRtcPolicy) => updateSettings({ webRtcPolicy })}
+            />
+          }
+        />
       </SettingGroup>
 
       <SettingGroup title="Sites">

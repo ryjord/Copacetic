@@ -11,6 +11,7 @@ interface SessionRegistryDeps {
   downloads: DownloadManager;
   /** Read each time, because groups come and go while the browser runs. */
   groups: () => readonly TabGroup[];
+  isSpellcheckOn: () => boolean;
 }
 
 /**
@@ -30,7 +31,8 @@ interface SessionRegistryDeps {
  */
 export class SessionRegistry {
   /** Partitions already hardened, so the work happens once per session. */
-  private readonly prepared = new Set<string>();
+  /** Every session made so far, by partition, so a setting can reach each without asking for it again. */
+  private readonly prepared = new Map<string, Session>();
 
   constructor(private readonly deps: SessionRegistryDeps) {}
 
@@ -39,7 +41,7 @@ export class SessionRegistry {
     if (this.prepared.has(partition)) {
       return session;
     }
-    this.prepared.add(partition);
+    this.prepared.set(partition, session);
 
     hardenWebSession(session, this.deps.securityDelegate);
     this.deps.blocker.attach(session);
@@ -47,7 +49,13 @@ export class SessionRegistry {
     // chain and time are browsing, and the tab's whole claim is that none of
     // that is written down.
     this.deps.downloads.attach(session, remembersDownloads(partition));
+    session.setSpellCheckerEnabled(this.deps.isSpellcheckOn());
     return session;
+  }
+
+  /** Told to every session already made; one made later reads the setting as it is prepared. */
+  setSpellcheck(isOn: boolean): void {
+    this.prepared.forEach((session) => session.setSpellCheckerEnabled(isOn));
   }
 
   /**
@@ -55,7 +63,7 @@ export class SessionRegistry {
    * and every group's own whether or not a tab of it has been opened yet.
    */
   siteDataSessions(): Session[] {
-    const partitions = new Set([WEB_PARTITION, ...this.prepared]);
+    const partitions = new Set([WEB_PARTITION, ...this.prepared.keys()]);
     for (const group of this.deps.groups()) {
       if (group.ownSession) {
         partitions.add(groupPartition(group.id));

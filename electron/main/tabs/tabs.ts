@@ -7,7 +7,7 @@ import {
 } from 'electron';
 import { focusContents } from '../system/launch-mode';
 import { randomUUID } from 'node:crypto';
-import type { FindState, TabId, TabState } from '../../shared/types';
+import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
 import {
   START_PAGE_URL,
   fallbackTitleFor,
@@ -44,6 +44,7 @@ import { log } from '../system/diagnostics';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
+import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
 import type { TabRecord } from './tab-record';
 import { certificateFor } from '../security/certificates';
@@ -628,6 +629,8 @@ export class TabManager {
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
     });
     guardTabWebContents(view.webContents, this.securityDelegate);
+    // Before the first navigation, so no page gets a moment to ask for the local address.
+    applyWebRtcPolicy(view.webContents, settings.webRtcPolicy);
     view.webContents.on('focus', () => this.pageFocusHandler?.());
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
@@ -766,6 +769,10 @@ export class TabManager {
   }
 
   /** Behind every page before it paints, so a new tab never flashes the other theme's colour. */
+  setWebRtcPolicy(policy: WebRtcPolicy): void {
+    this.tabs.forEach((tab) => applyWebRtcPolicy(tab.view.webContents, policy));
+  }
+
   setBackgroundColor(colour: string): void {
     for (const tab of this.tabs.values()) {
       if (!tab.view.webContents.isDestroyed()) {

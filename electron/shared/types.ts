@@ -268,6 +268,19 @@ export function isAppearanceId(value: string): value is AppearanceId {
   return (APPEARANCES as readonly string[]).includes(value);
 }
 
+/**
+ * What WebRTC may reveal of this machine's addresses. A page can learn the
+ * local network address through it without asking, so the public one alone
+ * is the default; the others are for a call that will not connect.
+ */
+export const WEB_RTC_POLICIES = ['publicOnly', 'default', 'proxiedOnly'] as const;
+
+export type WebRtcPolicy = (typeof WEB_RTC_POLICIES)[number];
+
+export function isWebRtcPolicy(value: string): value is WebRtcPolicy {
+  return (WEB_RTC_POLICIES as readonly string[]).includes(value);
+}
+
 export type ThemeId = (typeof THEME_IDS)[number];
 
 export function isThemeId(value: string): value is ThemeId {
@@ -398,6 +411,9 @@ export interface Settings {
   // Whether a start-page wallpaper is set.
   hasWallpaper: boolean;
   defaultZoomFactor: number;
+  /** Underlines misspelt words in what is typed into pages. */
+  spellcheck: boolean;
+  webRtcPolicy: WebRtcPolicy;
   /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
   showBookmarksBar: boolean;
 }

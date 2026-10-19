@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc-contract';
 import { resolverFor } from '../../shared/dns';
 import { DEFAULT_RECIPE, generatePassword } from '../../shared/password-generator';
-import { clampZoom, isAppearanceId, isThemeId } from '../../shared/types';
+import { clampZoom, isAppearanceId, isThemeId, isWebRtcPolicy } from '../../shared/types';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES } from '../../shared/url';
 import type { Browser } from './browser';
@@ -420,6 +420,12 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.appearance === 'string' && isAppearanceId(value.appearance)) {
     patch.appearance = value.appearance;
+  }
+  if (typeof value.spellcheck === 'boolean') {
+    patch.spellcheck = value.spellcheck;
+  }
+  if (typeof value.webRtcPolicy === 'string' && isWebRtcPolicy(value.webRtcPolicy)) {
+    patch.webRtcPolicy = value.webRtcPolicy;
   }
   if (typeof value.theme === 'string' && isThemeId(value.theme)) {
     patch.theme = value.theme;

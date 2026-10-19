@@ -50,6 +50,20 @@ export function GeneralPane() {
         />
       </SettingGroup>
 
+      <SettingGroup title="Typing">
+        <SettingRow
+          label="Check spelling"
+          help="Underlines misspelt words in what you type into pages. Checked on this machine."
+          control={
+            <Switch
+              label="Check spelling"
+              checked={settings.spellcheck}
+              onChange={(spellcheck) => updateSettings({ spellcheck })}
+            />
+          }
+        />
+      </SettingGroup>
+
       <SettingGroup title="Bookmarks">
         <SettingRow
           label="Show the bookmarks bar"

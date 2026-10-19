@@ -21,4 +21,6 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   blockerAllowlist: [],
   hasWallpaper: false,
   defaultZoomFactor: 1,
+  spellcheck: true,
+  webRtcPolicy: 'publicOnly',
 };
