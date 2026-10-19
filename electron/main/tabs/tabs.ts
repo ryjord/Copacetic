@@ -646,6 +646,8 @@ export class TabManager {
         partition,
         spellcheck: true,
         safeDialogs: true,
+        // Only Chromium's own PDF viewer is a plugin here; without it a PDF downloads instead of opening.
+        plugins: true,
       },
     });
     // Matches the chrome's surface so a slow first paint does not flash white.
