@@ -6,6 +6,9 @@ import { useEffect, useState } from 'react';
 // Components
 import { SettingGroup } from '@/components/ui/SettingRow/SettingRow';
 
+// Types
+import { t } from '@shared/i18n/translate';
+
 interface LicenceEntry {
   name: string;
   version: string;
@@ -57,23 +60,23 @@ export function LicencesList() {
     return null;
   }
   if (file === 'missing') {
-    return (
-      <p className="px-0.5 text-body-sm text-ink-dim">
-        The list is written when Copacetic is built, and this copy does not have it.
-      </p>
-    );
+    return <p className="px-0.5 text-body-sm text-ink-dim">{t('about.licences.missing')}</p>;
   }
 
   return (
-    <SettingGroup title={`Open-source packages (${file.packages.length})`}>
-      <Licence title="Copacetic" subtitle="MIT" text={file.own} />
-      <Licence title="EasyList and EasyPrivacy" subtitle="GPLv3 or CC BY-SA 3.0" text={file.notice} />
+    <SettingGroup title={t('about.licences.heading', { count: file.packages.length })}>
+      <Licence title="Copacetic" subtitle={t('about.licences.ownSubtitle')} text={file.own} />
+      <Licence
+        title={t('about.licences.filterLists')}
+        subtitle={t('about.licences.filterListsSubtitle')}
+        text={file.notice}
+      />
       {file.packages.map((entry) => (
         <Licence
           key={`${entry.name}@${entry.version}`}
           title={entry.name}
           subtitle={`${entry.version} · ${entry.licence}`}
-          text={entry.text || `This package ships no licence file; it declares itself ${entry.licence}.`}
+          text={entry.text || t('about.licences.noFile', { licence: entry.licence })}
         />
       ))}
     </SettingGroup>

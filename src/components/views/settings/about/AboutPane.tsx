@@ -13,6 +13,7 @@ import { ask, send } from '@/lib/bridge';
 
 // Types
 import type { SettingsPaneProps } from '@/components/views/settings/shared/types';
+import { t } from '@shared/i18n/translate';
 
 const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 
@@ -27,45 +28,45 @@ export function AboutPane({ info, openPane }: SettingsPaneProps) {
         <SettingRow label="Chromium" control={<Version value={info?.chromeVersion} />} />
         <SettingRow label="Electron" control={<Version value={info?.electronVersion} />} />
         <SettingRow
-          label="Platform"
+          label={t('about.platform')}
           control={<Version value={info ? (PLATFORMS[info.platform] ?? info.platform) : undefined} />}
         />
       </SettingGroup>
 
       <SettingGroup>
         <SettingRow
-          label="What Copacetic sends and keeps"
-          help="Every request it makes, everything it stores, and what it does not do."
+          label={t('about.transparency.label')}
+          help={t('about.transparency.help')}
           control={
             <Button size="sm" onClick={() => openPane('transparency')}>
-              Read
+              {t('about.transparency.action')}
             </Button>
           }
         />
         <SettingRow
-          label="Diagnostics log"
-          help="A record of what Copacetic did, never of the pages you visited. It stays on this machine."
+          label={t('about.diagnostics.label')}
+          help={t('about.diagnostics.help')}
           control={
             <Button size="sm" onClick={() => send((api) => api.app.revealDiagnostics())}>
-              Show
+              {t('about.diagnostics.action')}
             </Button>
           }
         />
         <SettingRow
-          label="Licences"
-          help="Copacetic is MIT licensed. The packages it is built on, and the filter lists, keep their own terms."
+          label={t('about.licences.label')}
+          help={t('about.licences.help')}
           control={
             <Button size="sm" onClick={() => setIsShowingLicences(!isShowingLicences)}>
-              {isShowingLicences ? 'Hide' : 'Show'}
+              {isShowingLicences ? t('about.licences.hide') : t('about.licences.show')}
             </Button>
           }
         />
         <SettingRow
-          label="Chromium's licences"
-          help={message || 'The engine underneath, and everything it includes, as one long page.'}
+          label={t('about.chromiumLicences.label')}
+          help={message || t('about.chromiumLicences.help')}
           control={
             <Button size="sm" onClick={() => void ask((api) => api.app.openChromiumLicences(), '').then(setMessage)}>
-              Open
+              {t('about.chromiumLicences.action')}
             </Button>
           }
         />
