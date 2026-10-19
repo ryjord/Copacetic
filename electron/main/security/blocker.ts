@@ -6,6 +6,7 @@ import { FiltersEngine, Request } from '@ghostery/adblocker';
 // Utils
 import { registrableDomainOf } from '../../shared/url';
 import { t } from '../../shared/i18n/translate';
+import { describeError, log } from '../system/diagnostics';
 
 // Types
 import type { Session } from 'electron';
@@ -356,60 +357,72 @@ export class ContentBlocker {
   attach(session: Session, policy: BlockingPolicy): void {
     this.policies.set(session, policy);
     session.webRequest.onBeforeRequest((details, callback) => {
-      const redirectURL = policy.redirectFor(details);
-      if (redirectURL) {
-        callback({ redirectURL });
-        return;
-      }
-
-      let hostname: string;
+      // Chromium waits on this answer, so a throw would hang the request; a failure lets it through and is logged.
+      let response: Electron.CallbackResponse;
       try {
-        hostname = new URL(details.url).hostname.toLowerCase();
-      } catch {
-        callback({ cancel: false });
-        return;
+        response = this.decide(details, policy);
+      } catch (error) {
+        log.warn('the blocker could not judge a request and let it through', describeError(error));
+        response = { cancel: false };
       }
-
-      // Top-level navigation is never blocked, so a tracker domain stays
-      // visitable on purpose.
-      // Two judgements, and either is enough. The curated hostnames are a floor
-      // no list can lower; the lists catch what a hostname cannot - a path, a
-      // resource type, a first-party script that only ever serves adverts.
-      const caughtByHost = this.matches(hostname);
-      const caughtByRule = caughtByHost ? null : this.ruleFor(details);
-      const isTracker = caughtByHost || caughtByRule !== null;
-      const id = details.webContentsId;
-      // An exception applies to the site being browsed, not the host being
-      // requested: "allow trackers on this site", not "trust this tracker".
-      const pageSite = typeof id === 'number' ? (this.pageHosts.get(id) ?? '') : '';
-      const exempt = pageSite !== '' && policy.isAllowedOn(pageSite);
-
-      const shouldBlock =
-        policy.isEnabled() && isTracker && !exempt && !ALWAYS_ALLOWED_RESOURCES.has(details.resourceType);
-
-      // Recorded whether or not it was blocked, and whether or not blocking is
-      // even switched on. The count of what was stopped is only half the truth;
-      // the other half is everything that was allowed through, which no
-      // mainstream browser shows without opening developer tools.
-      if (typeof id === 'number') {
-        // The rule is recorded, not only the fact. Which of the two caught
-        // something is how a false positive is told from a site that is simply
-        // broken, and it is the question you have when a page is wrong.
-        this.record(id, hostname, isTracker, shouldBlock, caughtByRule);
-      }
-
-      if (!shouldBlock) {
-        callback({ cancel: false });
-        return;
-      }
-
-      if (typeof id === 'number') {
-        const next = (this.counts.get(id) ?? 0) + 1;
-        this.counts.set(id, next);
-        this.countListeners.forEach((listener) => listener(id, next));
-      }
-      callback({ cancel: true });
+      callback(response);
     });
+  }
+
+  private decide(
+    details: Electron.OnBeforeRequestListenerDetails,
+    policy: BlockingPolicy,
+  ): Electron.CallbackResponse {
+    const redirectURL = policy.redirectFor(details);
+    if (redirectURL) {
+      return { redirectURL };
+    }
+
+    let hostname: string;
+    try {
+      hostname = new URL(details.url).hostname.toLowerCase();
+    } catch {
+      return { cancel: false };
+    }
+
+    // Top-level navigation is never blocked, so a tracker domain stays
+    // visitable on purpose.
+    // Two judgements, and either is enough. The curated hostnames are a floor
+    // no list can lower; the lists catch what a hostname cannot - a path, a
+    // resource type, a first-party script that only ever serves adverts.
+    const caughtByHost = this.matches(hostname);
+    const caughtByRule = caughtByHost ? null : this.ruleFor(details);
+    const isTracker = caughtByHost || caughtByRule !== null;
+    const id = details.webContentsId;
+    // An exception applies to the site being browsed, not the host being
+    // requested: "allow trackers on this site", not "trust this tracker".
+    const pageSite = typeof id === 'number' ? (this.pageHosts.get(id) ?? '') : '';
+    const exempt = pageSite !== '' && policy.isAllowedOn(pageSite);
+
+    const shouldBlock =
+      policy.isEnabled() && isTracker && !exempt && !ALWAYS_ALLOWED_RESOURCES.has(details.resourceType);
+
+    // Recorded whether or not it was blocked, and whether or not blocking is
+    // even switched on. The count of what was stopped is only half the truth;
+    // the other half is everything that was allowed through, which no
+    // mainstream browser shows without opening developer tools.
+    if (typeof id === 'number') {
+      // The rule is recorded, not only the fact. Which of the two caught
+      // something is how a false positive is told from a site that is simply
+      // broken, and it is the question you have when a page is wrong.
+      this.record(id, hostname, isTracker, shouldBlock, caughtByRule);
+    }
+
+    if (!shouldBlock) {
+      return { cancel: false };
+    }
+
+    if (typeof id === 'number') {
+      const next = (this.counts.get(id) ?? 0) + 1;
+      this.counts.set(id, next);
+      this.countListeners.forEach((listener) => listener(id, next));
+    }
+    return { cancel: true };
   }
 
   /** Bounded so a page making requests to endless subdomains cannot grow it. */
