@@ -18,7 +18,15 @@ import { t } from '@shared/i18n/translate';
 
 // Types
 import type { TabState } from '@shared/types';
-import { claimOf, colourOf, describeClaim, groupForDrop, segmentByGroup, type TabGroup } from '@shared/tab-groups';
+import {
+  claimOf,
+  colourOf,
+  tintOf,
+  describeClaim,
+  groupForDrop,
+  segmentByGroup,
+  type TabGroup,
+} from '@shared/tab-groups';
 
 interface TabStripProps {
   tabs: TabState[];
@@ -50,10 +58,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   // starts falls out of the run lengths - the strip does not need scanning
   // again for every run.
   const runs = segmentByGroup(tabs);
-  const runStarts = runs.reduce<number[]>(
-    (starts, run, index) => [...starts, (starts[index - 1] ?? 0) + (runs[index - 1]?.tabs.length ?? 0)],
-    [],
-  );
+  const runStarts = startsOf(runs);
 
   return (
     <div className="flex h-full min-w-0 flex-1 items-end gap-0.5">
@@ -162,6 +167,16 @@ interface TabProps {
   onDragEnd: () => void;
   onDragOver: () => void;
   onDrop: () => void;
+}
+
+// One pass: rebuilding the list with a spread at every run made this grow with the square of the tabs.
+function startsOf(runs: readonly { tabs: readonly unknown[] }[]): number[] {
+  const starts: number[] = [];
+  runs.reduce((start, run) => {
+    starts.push(start);
+    return start + run.tabs.length;
+  }, 0);
+  return starts;
 }
 
 function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd, onDragOver, onDrop }: TabProps) {
@@ -314,6 +329,7 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
 
   const claim = claimOf(group, holdsHush);
   const colour = colourOf(group.colour);
+  const tint = tintOf(group.colour);
 
   // No wrapper around the tabs: as direct children of the strip they shrink alongside every other tab.
   return (
@@ -329,7 +345,7 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
         {isRenaming ? (
           <div
             className="flex h-6 shrink-0 items-center rounded-full px-2.5"
-            style={{ color: colour, background: `${colour}26` }}
+            style={{ color: colour, background: tint }}
           >
             <InlineRenameField
               value={group.name}
@@ -350,7 +366,7 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
             // would make renaming the thing you cannot see.
             onClick={() => setIsRenaming(true)}
             className="flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-caption font-medium transition-[filter] hover:brightness-110"
-            style={{ color: colour, background: `${colour}26` }}
+            style={{ color: colour, background: tint }}
           >
             <span className="max-w-[14ch] truncate">{group.name}</span>
             {claim === 'separate' && <Lock size={11} aria-label={t('shell.tabStrip.keepsOwnBrowsing')} />}
