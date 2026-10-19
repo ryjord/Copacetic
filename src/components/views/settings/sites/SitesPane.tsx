@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { SearchField } from '@/components/ui/TextField/TextField';
 import { Select } from '@/components/ui/Select/Select';
+import { AddSiteRule } from '@/components/views/settings/sites/AddSiteRule';
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 
 // Store
@@ -51,6 +52,7 @@ export function SitesPane() {
     return (
       <>
         <PermissionDefaults sites={sites} onShowSites={setKindShown} />
+        <AddSiteRule settings={settings} />
         <SettingGroup title="Sites">
           <SettingRow
             label="Nothing is kept about any site yet"
@@ -64,6 +66,7 @@ export function SitesPane() {
   return (
     <>
       <PermissionDefaults sites={sites} onShowSites={setKindShown} />
+      <AddSiteRule settings={settings} />
       <SearchField value={query} onChange={setQuery} label="Search sites" />
       {kindShown && (
         <SettingRow

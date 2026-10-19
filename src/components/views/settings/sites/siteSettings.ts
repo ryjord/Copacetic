@@ -31,6 +31,20 @@ export const PERMISSION_NAMES: Record<PermissionKind, string> = {
   openExternal: 'Opening other apps',
 };
 
+/** What someone typed as a site, as the origin decisions are kept under; null when it is not a web address. */
+export function originFromInput(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+    return (url.protocol === 'https:' || url.protocol === 'http:') && url.hostname.includes('.') ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The site an origin belongs to, so a subdomain is listed with the site rather than as a stranger. */
 export function siteOf(origin: string): string {
   const host = hostOf(origin);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sitesFrom, summaryOf, withoutSite } from '@/components/views/settings/sites/siteSettings';
+import { sitesFrom, summaryOf, withoutSite, originFromInput } from '@/components/views/settings/sites/siteSettings';
 
 const kept = {
   permissionDecisions: {
@@ -52,4 +52,21 @@ describe('resetting one site', () => {
   it('forgets a tracker exception when that is all there was', () => {
     expect(withoutSite(kept, 'shop.example.net').blockerAllowlist).toEqual([]);
   });
+});
+
+describe('reading a site someone typed', () => {
+  it.each([
+    ['example.com', 'https://example.com'],
+    ['  mail.example.com/inbox ', 'https://mail.example.com'],
+    ['http://intranet.example.org:8080/x', 'http://intranet.example.org:8080'],
+  ])('%s is kept as %s', (input, origin) => {
+    expect(originFromInput(input)).toBe(origin);
+  });
+
+  it.each(['', 'not a site', 'localhost', 'javascript:alert(1)', 'file:///etc/hosts'])(
+    '%s is not a site',
+    (input) => {
+      expect(originFromInput(input)).toBeNull();
+    },
+  );
 });

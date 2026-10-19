@@ -105,4 +105,23 @@ describe('the site settings pane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show every site' }));
     expect(screen.getByText('example.net')).toBeTruthy();
   });
+
+  it('decides for a site before it has asked', () => {
+    settings = { ...DEFAULT_SETTINGS_SHAPE };
+    render(<SitesPane />);
+    fireEvent.change(screen.getByLabelText('Site address'), { target: { value: 'news.example.org' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(updateSettings).toHaveBeenCalledWith({
+      permissionDecisions: { 'https://news.example.org|notifications': 'deny' },
+    });
+  });
+
+  it('says so when the address is not a site', () => {
+    settings = { ...DEFAULT_SETTINGS_SHAPE };
+    render(<SitesPane />);
+    fireEvent.change(screen.getByLabelText('Site address'), { target: { value: 'nonsense' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(screen.getByText(/not a web address/)).toBeTruthy();
+  });
 });
