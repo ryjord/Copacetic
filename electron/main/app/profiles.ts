@@ -196,9 +196,9 @@ export class Profiles {
   }
 
   /**
-   * Removes a profile and everything it kept. Its windows close first; its
-   * sessions are emptied now and their folders deleted at the next launch,
-   * once Chromium has let go of them.
+   * Removes a profile and everything it kept. Its windows close first; an open
+   * profile's sessions are emptied now and their folders deleted at the next
+   * launch, once Chromium has let go of them. An unopened one goes at once.
    */
   async remove(id: string): Promise<boolean> {
     if (id === FIRST_PROFILE_ID || !this.list.find(id)) {
@@ -217,6 +217,13 @@ export class Profiles {
       }
     }
     this.list.remove(id);
+    // Nothing holds an unopened profile's folders, so they go now rather than at the next launch.
+    if (!removing) {
+      sweepRemovedProfiles(
+        app.getPath('userData'),
+        this.list.list().map((profile) => profile.id),
+      );
+    }
     this.listChanged();
     return true;
   }
