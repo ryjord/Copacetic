@@ -68,6 +68,7 @@ export class TabManager {
   private readonly closedTabs = new ClosedTabs();
   private stored: BrowsingRecord | null = null;
   private readonly sleepTimer: NodeJS.Timeout;
+  private readonly stopCounting: () => void;
   private find: FindState = CLOSED_FIND;
   private isDisposed = false;
   /** What has already been added to history per tab, so only the difference is. */
@@ -97,7 +98,7 @@ export class TabManager {
     this.sleepTimer = setInterval(() => this.sleepIdleTabs(), 60_000);
     this.sleepTimer.unref?.();
     this.window.on('resize', () => this.applyBounds());
-    this.blocker.onCount((webContentsId, count) => {
+    this.stopCounting = this.blocker.onCount((webContentsId, count) => {
       const tab = this.findByWebContentsId(webContentsId);
       if (!tab) {
         return;
@@ -1216,6 +1217,7 @@ export class TabManager {
   dispose(): void {
     this.isDisposed = true;
     clearInterval(this.sleepTimer);
+    this.stopCounting();
     for (const tab of this.tabs.values()) {
       this.destroyTab(tab);
     }

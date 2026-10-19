@@ -100,6 +100,22 @@ describe('ContentBlocker', () => {
       expect(listener).toHaveBeenLastCalledWith(7, 0);
     });
 
+    // One per window: a second window's tabs used to take the count from the first's.
+    it('tells every listener, and stops telling one that unsubscribed', () => {
+      const firstWindow = vi.fn();
+      const secondWindow = vi.fn();
+      const stopFirst = blocker.onCount(firstWindow);
+      blocker.onCount(secondWindow);
+      ask('https://www.google-analytics.com/collect', 'script', 7);
+      expect(firstWindow).toHaveBeenLastCalledWith(7, 1);
+      expect(secondWindow).toHaveBeenLastCalledWith(7, 1);
+
+      stopFirst();
+      ask('https://www.google-analytics.com/collect', 'script', 7);
+      expect(firstWindow).toHaveBeenCalledTimes(1);
+      expect(secondWindow).toHaveBeenLastCalledWith(7, 2);
+    });
+
     it('forgets a tab entirely when it closes', () => {
       ask('https://www.google-analytics.com/collect', 'script', 7);
       blocker.forget(7);

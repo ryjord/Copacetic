@@ -175,7 +175,8 @@ export class ContentBlocker {
   private readonly pageHosts = new Map<number, string>();
   /** Sites the user has chosen to stop blocking on, by registrable domain. */
   private allowed = new Set<string>();
-  private onCountChanged: ((webContentsId: number, count: number) => void) | null = null;
+  /** One per window's tabs: each finds its own tabs in what it is told. */
+  private readonly countListeners = new Set<(webContentsId: number, count: number) => void>();
   private redirect: ((details: Electron.OnBeforeRequestListenerDetails) => string | null) | null = null;
 
   constructor(enabled: boolean) {
@@ -341,8 +342,9 @@ export class ContentBlocker {
     return this.blocked.size;
   }
 
-  onCount(listener: (webContentsId: number, count: number) => void): void {
-    this.onCountChanged = listener;
+  onCount(listener: (webContentsId: number, count: number) => void): () => void {
+    this.countListeners.add(listener);
+    return () => this.countListeners.delete(listener);
   }
 
   countFor(webContentsId: number): number {
@@ -355,7 +357,7 @@ export class ContentBlocker {
     this.hosts.delete(webContentsId);
     if (this.counts.get(webContentsId)) {
       this.counts.set(webContentsId, 0);
-      this.onCountChanged?.(webContentsId, 0);
+      this.countListeners.forEach((listener) => listener(webContentsId, 0));
     }
   }
 
@@ -424,7 +426,7 @@ export class ContentBlocker {
       if (typeof id === 'number') {
         const next = (this.counts.get(id) ?? 0) + 1;
         this.counts.set(id, next);
-        this.onCountChanged?.(id, next);
+        this.countListeners.forEach((listener) => listener(id, next));
       }
       callback({ cancel: true });
     });
