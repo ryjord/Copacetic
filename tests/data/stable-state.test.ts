@@ -38,6 +38,7 @@ const state = (over: Partial<BrowserState> = {}): BrowserState => ({
   tabs: [tab('one'), tab('two')],
   tabOrder: ['one', 'two'],
   activeTabId: 'one',
+  siteInfo: null,
   downloads: [],
   find: { isOpen: false, query: '', activeMatch: 0, totalMatches: 0, matchCase: false },
   permissionPrompts: [],

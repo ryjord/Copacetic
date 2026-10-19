@@ -14,7 +14,6 @@ import { ambientLightStopsFor, ambientStopsFor } from '@shared/ambient';
 import { useBrowserStore } from '@/store/useBrowserStore';
 import { reachedForAnotherTab } from '@shared/surfaces';
 import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
-import { ConnectionPanel } from '@/components/overlay/SiteInfo/ConnectionPanel';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
 import { Toolbar } from '@/components/shell/Toolbar/Toolbar';
@@ -37,8 +36,6 @@ export function Chrome() {
   const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
   const showBookmarksBar = useBrowserStore((state) => state.settings.showBookmarksBar);
-  const isConnectionPanelOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
-  const closeConnectionPanel = useBrowserStore((state) => state.closeConnectionPanel);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -113,7 +110,7 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [surface, isConnectionPanelOpen, showBookmarksBar]);
+  }, [surface, showBookmarksBar]);
 
   /*
    * Reaching for a tab is asking to see it. The first state arriving is not.
@@ -135,9 +132,9 @@ export function Chrome() {
     if (!reachedForAnotherTab(previous, activeTabId)) {
       return;
     }
-    closeConnectionPanel();
+    send((api) => api.chrome.closeSiteInfo());
     setSurface('none');
-  }, [activeTabId, closeConnectionPanel, setSurface]);
+  }, [activeTabId, setSurface]);
 
   // A surface covers the whole content area, so the tab's view has to step
   // aside — a native view always paints above the renderer's HTML.
@@ -182,8 +179,6 @@ export function Chrome() {
       {showBookmarksBar && <BookmarksBar />}
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />
-
-      {isConnectionPanelOpen && <ConnectionPanel tab={activeTab} />}
 
       <LiveAnnouncer />
 

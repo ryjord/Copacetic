@@ -142,6 +142,8 @@ export function registerIpcHandlers(browser: Browser): void {
     showMainMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
   handle('chrome.focusOverlay', (event) => browser.focusOverlay(event.senderFrame));
+  handle('chrome.toggleSiteInfo', () => browser.toggleSiteInfo());
+  handle('chrome.closeSiteInfo', () => browser.closeSiteInfo());
   handle('chrome.setOverlaySize', (event, width, height) =>
     browser.setOverlaySize(event.senderFrame, asNumber(width, 0), asNumber(height, 0)),
   );

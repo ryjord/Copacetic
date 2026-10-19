@@ -17,6 +17,7 @@ import type {
   PermissionDecision,
   PermissionKind,
   Settings,
+  SiteInfoState,
   TabId,
 } from '../../shared/types';
 import { START_PAGE_URL } from '../../shared/url';
@@ -177,6 +178,8 @@ export class Browser {
       trailing: new OverlayLayer(this.window, 'trailing'),
     };
     this.eachOverlay((overlay) => overlay.setContentBounds(this.tabs.contentBounds()));
+    // Clicking back into the page is done with the card, as it is with any popover.
+    this.tabs.onPageFocus(() => this.closeSiteInfo());
 
     const changed = () => this.scheduleStatePush();
     const push = (channel: string, payload?: unknown) => this.pushToChrome(channel, payload);
@@ -274,6 +277,7 @@ export class Browser {
       settings: { ...this.store.getSettings(), hasWallpaper: hasWallpaper() },
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
+      siteInfo: this.siteInfo,
     };
   }
 
@@ -445,6 +449,30 @@ export class Browser {
     const overlay = this.overlayFor(frame);
     overlay?.setContentBounds(this.tabs.contentBounds());
     overlay?.setSize(width, height);
+  }
+
+  private siteInfo: SiteInfoState | null = null;
+
+  /** Opens site information for the active tab, or closes it if it is already open. */
+  toggleSiteInfo(): void {
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    const activeTab = tabs.find((tab) => tab.id === activeTabId);
+    if (this.siteInfo || !activeTab || activeTab.isStartPage) {
+      this.closeSiteInfo();
+      return;
+    }
+    this.siteInfo = { tabId: activeTab.id, openedAt: Date.now() };
+    this.overlays.leading.takeFocus();
+    this.scheduleStatePush();
+  }
+
+  closeSiteInfo(): void {
+    if (!this.siteInfo) {
+      return;
+    }
+    this.siteInfo = null;
+    this.tabs.focusActive();
+    this.scheduleStatePush();
   }
 
   /** Hands the keyboard to the overlay asking for it; a frame that is not an overlay gets nothing. */

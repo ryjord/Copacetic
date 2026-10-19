@@ -1,7 +1,25 @@
 'use client';
 
-import { Ban, BadgeCheck, CalendarClock, FileText, HelpCircle, Lock, ShieldOff, Timer, X } from 'lucide-react';
+// Libs
 import { useEffect, useState } from 'react';
+
+// Components
+import { Button } from '@/components/ui/Button/Button';
+import { IconButton } from '@/components/ui/IconButton/IconButton';
+
+// Icons
+import { Ban, BadgeCheck, CalendarClock, FileText, HelpCircle, Lock, ShieldOff, Timer, X } from 'lucide-react';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
+import { ask, send } from '@/lib/bridge';
+import { useDismissLayer } from '@/lib/dismissLayer';
+import { formatDuration } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+// Types
 import {
   PERMISSION_LABELS,
   type CertificateSummary,
@@ -11,12 +29,6 @@ import {
   type TabState,
 } from '@shared/types';
 import { hostOf, originOf, registrableDomainOf } from '@shared/url';
-import { IconButton } from '@/components/ui/IconButton/IconButton';
-import { ask, send } from '@/lib/bridge';
-import { useDismissLayer } from '@/lib/dismissLayer';
-import { formatDuration } from '@/lib/format';
-import { cn } from '@/lib/utils';
-import { useBrowserStore } from '@/store/useBrowserStore';
 
 const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string; word: string }> = {
   secure: { icon: Lock, className: 'text-clear', word: 'Encrypted' },
@@ -25,18 +37,12 @@ const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string
   unknown: { icon: HelpCircle, className: 'text-ink-faint', word: 'Unknown' },
 };
 
-/** Everything Copacetic can honestly say about the current connection. */
-export function ConnectionPanel({ tab }: { tab: TabState | null }) {
-  const closePanel = useBrowserStore((state) => state.closeConnectionPanel);
-  // Stamped by the action that opened the panel. Reading the clock is a side
-  // effect, so it happens in the click that caused it, never during render.
-  const openedAt = useBrowserStore((state) => state.connectionPanelOpenedAt);
+const close = () => send((api) => api.chrome.closeSiteInfo());
 
-  useDismissLayer(true, closePanel);
-
-  if (!tab) {
-    return null;
-  }
+/** Everything Copacetic can honestly say about the current connection, over the page's top-left corner. */
+export function SiteInfoCard({ tab }: { tab: TabState }) {
+  const openedAt = useBrowserStore((state) => state.siteInfo?.openedAt ?? null);
+  useDismissLayer(true, close);
 
   const style = LEVEL_STYLES[tab.security.level];
   const Icon = style.icon;
@@ -44,53 +50,40 @@ export function ConnectionPanel({ tab }: { tab: TabState | null }) {
 
   return (
     <section
-      id="connection-panel"
-      className="animate-fade shrink-0 border-b border-line bg-raised px-3 py-3"
       aria-label="Connection details"
+      className="animate-pop flex max-h-140 w-100 flex-col overflow-y-auto rounded-lg border border-line bg-raised shadow-popover"
     >
-      <div className="mx-auto w-full max-w-3xl">
-        <div className="flex items-start gap-2">
-          <Icon size={14} className={cn('mt-0.5 shrink-0', style.className)} />
-          <div className="min-w-0 flex-1">
-            <p className={cn('text-[13px] font-medium', style.className)}>{style.word}</p>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-ink-dim">{tab.security.detail}</p>
-          </div>
-          <IconButton label="Close connection details" onClick={closePanel}>
-            <X size={14} />
-          </IconButton>
+      <div className="flex items-start gap-3 p-4 pb-3">
+        <Icon size={18} strokeWidth={1.75} className={cn('mt-px shrink-0', style.className)} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className={cn('text-body font-medium', style.className)}>{style.word}</p>
+          <p className="mt-0.5 text-body-sm text-ink-dim">{tab.security.detail}</p>
         </div>
-
-        <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1.5 border-t border-line pt-3 sm:grid-cols-2">
-          <Row label="Host" value={tab.security.host || '—'} mono />
-          {tab.loadMs !== null && (
-            <Row label="Load time" value={formatDuration(tab.loadMs)} mono icon={<Timer size={11} />} />
-          )}
-          <Row
-            label="Trackers blocked"
-            value={String(tab.blockedCount)}
-            mono
-            icon={<Ban size={11} />}
-            emphasise={tab.blockedCount > 0}
-          />
-          {certificate && <CertificateRows certificate={certificate} now={openedAt} />}
-        </dl>
-
-        {tab?.security.certificateChange && <CertificateChangeNotice detail={tab.security.certificateChange} />}
-
-        {/*
-          Keyed by tab so a switch produces a fresh instance rather than
-          briefly showing one tab's hosts under another tab's heading. Cheaper
-          to reason about than resetting state on a change.
-        */}
-        {/* A blocking exception is kept by site, in a list Settings shows by
-            name. Offering one here would be offering to write down a site
-            opened in a tab whose whole claim is that nothing is written. */}
-        {!tab.isHush && <TrackerException url={tab.url} blockedCount={tab.blockedCount} />}
-
-        <SitePermissions url={tab.url} />
-
-        <ConnectionLog key={tab.id} tabId={tab.id} />
+        <IconButton label="Close connection details" size="sm" onClick={close}>
+          <X size={14} strokeWidth={1.75} />
+        </IconButton>
       </div>
+
+      <dl className="flex flex-col gap-1.5 border-t border-line px-4 py-3">
+        <Row label="Host" value={tab.security.host || 'None'} isMono />
+        {tab.loadMs !== null && (
+          <Row label="Load time" value={formatDuration(tab.loadMs)} icon={<Timer size={12} aria-hidden />} />
+        )}
+        <Row
+          label="Trackers blocked"
+          value={String(tab.blockedCount)}
+          icon={<Ban size={12} aria-hidden />}
+          isEmphasised={tab.blockedCount > 0}
+        />
+        {certificate && <CertificateRows certificate={certificate} now={openedAt} />}
+      </dl>
+
+      {tab.security.certificateChange && <CertificateChangeNotice detail={tab.security.certificateChange} />}
+      {/* An exception is kept by site, which would be writing down a site opened in a tab that promises to keep nothing. */}
+      {!tab.isHush && <TrackerException url={tab.url} blockedCount={tab.blockedCount} />}
+      <SitePermissions url={tab.url} />
+      {/* Keyed by tab, so a switch never shows one tab's hosts under another's heading. */}
+      <ConnectionLog key={tab.id} tabId={tab.id} />
     </section>
   );
 }
@@ -103,36 +96,32 @@ function TrackerException({ url, blockedCount }: { url: string; blockedCount: nu
     return null;
   }
 
-  const allowed = settings.blockerAllowlist.includes(site);
+  const isAllowed = settings.blockerAllowlist.includes(site);
   const toggle = () => {
-    const next = allowed
+    const next = isAllowed
       ? settings.blockerAllowlist.filter((entry) => entry !== site)
       : [...settings.blockerAllowlist, site];
     send((api) => api.settings.update({ blockerAllowlist: next }));
   };
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line pt-3">
-      <p className="min-w-0 flex-1 text-[12px] text-ink-dim">
-        {allowed ? (
+    <div className="flex items-center gap-3 border-t border-line px-4 py-3">
+      <p className="min-w-0 flex-1 text-body-sm text-ink-dim">
+        {isAllowed ? (
           <>
             Trackers are <span className="text-caution">allowed</span> on{' '}
-            <span className="font-mono text-ink">{site}</span>.
+            <span className="font-medium text-ink">{site}</span>.
           </>
         ) : (
           <>
-            Trackers are blocked on <span className="font-mono text-ink">{site}</span>
-            {blockedCount > 0 && <span className="text-ink-faint"> — {blockedCount} stopped on this page</span>}.
+            Trackers are blocked on <span className="font-medium text-ink">{site}</span>
+            {blockedCount > 0 && <span className="text-ink-faint">, {blockedCount} stopped on this page</span>}.
           </>
         )}
       </p>
-      <button
-        type="button"
-        onClick={toggle}
-        className="shrink-0 rounded-field border border-line px-2.5 py-1 text-[11.5px] text-ink-dim transition-colors hover:bg-hover hover:text-ink"
-      >
-        {allowed ? 'Block again' : 'Allow on this site'}
-      </button>
+      <Button size="sm" onClick={toggle}>
+        {isAllowed ? 'Block again' : 'Allow on this site'}
+      </Button>
     </div>
   );
 }
@@ -154,31 +143,33 @@ function SitePermissions({ url }: { url: string }) {
 
   if (granted.length === 0) {
     return (
-      <p className="mt-3 border-t border-line pt-3 text-[12px] text-ink-faint">
+      <p className="border-t border-line px-4 py-3 text-body-sm text-ink-faint">
         This site has not asked for anything that needed your permission.
       </p>
     );
   }
 
   return (
-    <div className="mt-3 border-t border-line pt-3">
+    <div className="border-t border-line px-4 py-3">
       <h2 className="label mb-2">This site can</h2>
-      <ul className="divide-y divide-line rounded-field border border-line">
+      <ul className="flex flex-col">
         {granted.map((entry) => (
-          <li key={entry.kind} className="flex items-center gap-3 px-2.5 py-1.5">
-            <span className="min-w-0 flex-1 truncate text-[11.5px] text-ink-dim">
+          <li key={entry.kind} className="flex h-8 items-center gap-3">
+            <span className="min-w-0 flex-1 truncate text-body-sm text-ink">
               {PERMISSION_LABELS[entry.kind] ?? entry.kind}
             </span>
-            <span className={cn('label shrink-0', entry.decision === 'allow' ? 'text-clear' : 'text-ink-faint')}>
+            <span
+              className={cn('shrink-0 text-body-sm', entry.decision === 'allow' ? 'text-clear' : 'text-ink-faint')}
+            >
               {entry.decision === 'allow' ? 'Allowed' : 'Blocked'}
             </span>
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => send((api) => api.permissions.forget(origin, entry.kind))}
-              className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-ink-faint transition-colors hover:bg-hover hover:text-ink"
             >
               Reset
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -189,17 +180,17 @@ function SitePermissions({ url }: { url: string }) {
 // Every host the page has actually talked to.
 function ConnectionLog({ tabId }: { tabId: string }) {
   const [entries, setEntries] = useState<ConnectionEntry[] | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
+    let isCurrent = true;
     void ask((api) => api.connections.list(tabId), []).then((result) => {
-      if (!cancelled) {
+      if (isCurrent) {
         setEntries(result);
       }
     });
     return () => {
-      cancelled = true;
+      isCurrent = false;
     };
   }, [tabId]);
 
@@ -209,115 +200,93 @@ function ConnectionLog({ tabId }: { tabId: string }) {
 
   if (entries.length === 0) {
     return (
-      <p className="mt-3 border-t border-line pt-3 text-[12px] text-ink-faint">
+      <p className="border-t border-line px-4 py-3 text-body-sm text-ink-faint">
         No requests recorded for this page yet.
       </p>
     );
   }
 
-  const blockedHosts = entries.reduce((total, entry) => total + (entry.blocked > 0 ? 1 : 0), 0);
-  const visible = expanded ? entries : entries.slice(0, 6);
+  const blockedHosts = entries.filter((entry) => entry.blocked > 0).length;
+  const visible = isExpanded ? entries : entries.slice(0, 6);
 
   return (
-    <div className="mt-3 border-t border-line pt-3">
+    <div className="border-t border-line px-4 py-3">
       <div className="mb-2 flex items-baseline justify-between gap-4">
         <h2 className="label">Hosts contacted</h2>
-        <p className="text-[11px] text-ink-faint">
+        <p className="text-caption text-ink-faint">
           {entries.length} host{entries.length === 1 ? '' : 's'}
           {blockedHosts > 0 && <span className="text-caution"> · {blockedHosts} blocked</span>}
         </p>
       </div>
-
-      <ul className="max-h-56 divide-y divide-line overflow-y-auto rounded-field border border-line">
+      <ul className="flex flex-col gap-1">
         {visible.map((entry) => (
-          <li key={entry.host} className="flex flex-col gap-0.5 px-2.5 py-1.5">
+          <li key={entry.host} className="flex flex-col">
             <div className="flex items-center gap-3">
-              <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-dim">{entry.host}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-body-sm text-ink-dim select-text">
+                {entry.host}
+              </span>
               {entry.blocked > 0 ? (
-                <span className="label shrink-0 text-caution">Blocked {entry.blocked}</span>
+                <span className="shrink-0 text-caption text-caution">Blocked {entry.blocked}</span>
               ) : (
-                entry.isTracker && <span className="label shrink-0 text-ink-faint">Allowed</span>
+                entry.isTracker && <span className="shrink-0 text-caption text-ink-faint">Allowed</span>
               )}
-              <span className="shrink-0 font-mono text-[11px] text-ink-faint">{entry.requests}</span>
+              <span className="w-6 shrink-0 text-right text-caption text-ink-faint tabular-nums">
+                {entry.requests}
+              </span>
             </div>
-
-            {/*
-             * Which of the two stopped it. A hostname Copacetic keeps itself and
-             * a rule from a filter list fail differently, and when a page is
-             * broken that is the first thing worth knowing: a rule can be wrong
-             * about one URL, a hostname is wrong about a whole company.
-             */}
+            {/* Which of the two stopped it: a rule can be wrong about one URL, a hostname about a whole company. */}
             {entry.blocked > 0 && (
-              <span className="truncate font-mono text-[10.5px] text-ink-faint" title={entry.rule ?? undefined}>
+              <span className="truncate font-mono text-caption text-ink-faint" title={entry.rule ?? undefined}>
                 {entry.rule ? `by rule ${entry.rule}` : 'by hostname'}
               </span>
             )}
           </li>
         ))}
       </ul>
-
       {entries.length > visible.length && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="mt-2 text-[11.5px] text-ink-faint transition-colors hover:text-ink"
-        >
+        <Button size="sm" variant="ghost" className="mt-2 -ml-2.5" onClick={() => setIsExpanded(true)}>
           Show all {entries.length}
-        </button>
+        </Button>
       )}
     </div>
   );
 }
 
-// What Chromium validated, reported rather than re-derived.
-/**
- * Copacetic already recorded every certificate it saw; remembering them is what
- * lets it say a site is presenting a different one. Shown below the details
- * rather than as an interruption — the change is worth reading, and the page
- * has already loaded either way.
- */
+/** Copacetic remembers every certificate it saw, which is what lets it say a site is presenting a different one. */
 function CertificateChangeNotice({ detail }: { detail: string }) {
   return (
-    <div className="mt-3 rounded-field border border-caution/40 px-3 py-2" role="status">
-      <h3 className="label mb-1 text-caution">This certificate has changed</h3>
-      <p className="text-[12px] leading-relaxed text-ink-dim">{detail}</p>
+    <div className="mx-4 mb-3 rounded-md border border-caution/40 px-3 py-2" role="status">
+      <h3 className="mb-1 text-body-sm font-medium text-caution">This certificate has changed</h3>
+      <p className="text-body-sm text-ink-dim">{detail}</p>
     </div>
   );
 }
 
 function CertificateRows({ certificate, now }: { certificate: CertificateSummary; now: number | null }) {
   const daysLeft = now === null ? null : Math.floor((certificate.validTo - now) / 86_400_000);
-  const expiringSoon = daysLeft !== null && daysLeft <= 14;
+  const isExpiringSoon = daysLeft !== null && daysLeft <= 14;
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4">
-        <dt className="flex items-center gap-1.5 text-[11px] text-ink-faint">
-          <BadgeCheck size={11} />
-          Issued by
-        </dt>
-        <dd
-          className={cn('truncate text-[11.5px]', certificate.isIssuedByKnownRoot ? 'text-ink-dim' : 'text-caution')}
-        >
-          {certificate.issuer}
-        </dd>
-      </div>
+      <Row
+        label="Issued by"
+        value={certificate.issuer}
+        icon={<BadgeCheck size={12} aria-hidden />}
+        isWarning={!certificate.isIssuedByKnownRoot}
+      />
       {!certificate.isIssuedByKnownRoot && (
-        <p className="text-[11.5px] leading-relaxed text-caution sm:col-span-2">
+        <p className="text-body-sm text-caution">
           This certificate chains to a root installed on this machine, not one your system shipped with. Something
-          local — a company proxy, antivirus, or a debugging tool — is reading this connection.
+          local, such as a company proxy, antivirus or a debugging tool, is reading this connection.
         </p>
       )}
-      {certificate.subject && <Row label="Issued to" value={certificate.subject} mono />}
-      <div className="flex items-center justify-between gap-4">
-        <dt className="flex items-center gap-1.5 text-[11px] text-ink-faint">
-          <CalendarClock size={11} />
-          Expires
-        </dt>
-        <dd className={cn('truncate text-[11.5px]', expiringSoon ? 'text-caution' : 'text-ink-dim')}>
-          {formatExpiry(certificate.validTo, daysLeft)}
-        </dd>
-      </div>
+      {certificate.subject && <Row label="Issued to" value={certificate.subject} isMono />}
+      <Row
+        label="Expires"
+        value={formatExpiry(certificate.validTo, daysLeft)}
+        icon={<CalendarClock size={12} aria-hidden />}
+        isWarning={isExpiringSoon}
+      />
     </>
   );
 }
@@ -331,37 +300,40 @@ export function formatExpiry(validTo: number, daysLeft: number | null): string {
     return date;
   }
   if (daysLeft < 0) {
-    return `${date} — expired`;
+    return `${date}, expired`;
   }
   if (daysLeft === 0) {
-    return `${date} — today`;
+    return `${date}, today`;
   }
   if (daysLeft <= 90) {
-    return `${date} — ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+    return `${date}, in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
   }
   return date;
 }
 
-function Row({
-  label,
-  value,
-  mono,
-  icon,
-  emphasise,
-}: {
+interface RowProps {
   label: string;
   value: string;
-  mono?: boolean;
   icon?: React.ReactNode;
-  emphasise?: boolean;
-}) {
+  isMono?: boolean;
+  isEmphasised?: boolean;
+  isWarning?: boolean;
+}
+
+function Row({ label, value, icon, isMono, isEmphasised, isWarning }: RowProps) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <dt className="flex items-center gap-1.5 text-[11px] text-ink-faint">
+      <dt className="flex shrink-0 items-center gap-1.5 text-body-sm text-ink-faint">
         {icon}
         {label}
       </dt>
-      <dd className={cn('truncate text-[11.5px]', mono && 'font-mono', emphasise ? 'text-clear' : 'text-ink-dim')}>
+      <dd
+        className={cn(
+          'min-w-0 truncate text-body-sm select-text',
+          isMono && 'font-mono',
+          isWarning ? 'text-caution' : isEmphasised ? 'text-clear' : 'text-ink-dim',
+        )}
+      >
         {value}
       </dd>
     </div>

@@ -18,18 +18,12 @@ interface BrowserStoreState extends BrowserState {
   surface: ChromeSurface;
   /** Incremented to ask the omnibox to take focus and select its contents. */
   omniboxFocusToken: number;
-  // Whether the connection panel is open.
-  isConnectionPanelOpen: boolean;
-  // When the panel was opened, so it can say how long a certificate has left without reading the clock during render.
-  connectionPanelOpenedAt: number | null;
 
   /** The whole state on first load, then only the parts that changed. */
   applyState(next: BrowserStatePatch): void;
   setSurface(surface: ChromeSurface): void;
   toggleSurface(surface: Exclude<ChromeSurface, 'none'>): void;
   requestOmniboxFocus(): void;
-  toggleConnectionPanel(): void;
-  closeConnectionPanel(): void;
 }
 
 const EMPTY_STATE: BrowserState = {
@@ -43,6 +37,7 @@ const EMPTY_STATE: BrowserState = {
   authPrompts: [],
   settings: DEFAULT_SETTINGS_SHAPE,
   hasClosedTabs: false,
+  siteInfo: null,
   update: {
     status: { state: 'idle' },
     delivery: 'unsupported',
@@ -59,8 +54,6 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   activeTab: null,
   surface: 'none',
   omniboxFocusToken: 0,
-  isConnectionPanelOpen: false,
-  connectionPanelOpenedAt: null,
 
   applyState: (incoming) => {
     const current = get();
@@ -92,15 +85,6 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   toggleSurface: (surface) => set({ surface: get().surface === surface ? 'none' : surface }),
 
   requestOmniboxFocus: () => set({ omniboxFocusToken: get().omniboxFocusToken + 1 }),
-
-  toggleConnectionPanel: () =>
-    set({ isConnectionPanelOpen: !get().isConnectionPanelOpen, connectionPanelOpenedAt: Date.now() }),
-
-  closeConnectionPanel: () => {
-    if (get().isConnectionPanelOpen) {
-      set({ isConnectionPanelOpen: false });
-    }
-  },
 }));
 
 export function selectSettings(state: BrowserStoreState): Settings {

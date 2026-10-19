@@ -8,6 +8,7 @@ import { FindBar } from '@/components/overlay/FindBar/FindBar';
 import { NoticeStrip } from '@/components/overlay/Notices/NoticeStrip';
 import { PermissionCard } from '@/components/overlay/PermissionPrompt/PermissionCard';
 import { SignInCard } from '@/components/overlay/AuthPrompt/SignInCard';
+import { SiteInfoCard } from '@/components/overlay/SiteInfo/SiteInfoCard';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -87,6 +88,8 @@ export default function OverlayPage() {
 /** What a site is asking, held to the corner nearest the address it came from. */
 function LeadingRegion() {
   const activeTabId = useBrowserStore((state) => state.activeTabId);
+  const activeTab = useBrowserStore((state) => state.activeTab);
+  const siteInfoTabId = useBrowserStore((state) => state.siteInfo?.tabId ?? null);
   const permissionPrompts = useBrowserStore((state) => state.permissionPrompts);
   const authPrompts = useBrowserStore((state) => state.authPrompts);
   const prompt = permissionPrompts.find((candidate) => candidate.tabId === activeTabId);
@@ -94,6 +97,7 @@ function LeadingRegion() {
   const authPrompt = authPrompts.find((candidate) => candidate.tabId === activeTabId || candidate.isProxy);
   return (
     <>
+      {activeTab && siteInfoTabId === activeTab.id && <SiteInfoCard tab={activeTab} />}
       {authPrompt && <SignInCard key={authPrompt.id} prompt={authPrompt} />}
       {prompt && <PermissionCard key={prompt.id} prompt={prompt} />}
     </>

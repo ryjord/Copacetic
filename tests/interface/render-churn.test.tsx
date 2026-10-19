@@ -62,6 +62,7 @@ const state = (downloads: DownloadState[]): BrowserState => ({
   tabs: [tab('one'), tab('two'), tab('three')],
   tabOrder: ['one', 'two', 'three'],
   activeTabId: 'one',
+  siteInfo: null,
   downloads,
   find: { isOpen: false, query: '', activeMatch: 0, totalMatches: 0, matchCase: false },
   permissionPrompts: [],

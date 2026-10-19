@@ -13,13 +13,12 @@ vi.mock('@/lib/bridge', () => ({
 vi.mock('@/store/useBrowserStore', () => ({
   useBrowserStore: (selector: (state: unknown) => unknown) =>
     selector({
-      closeConnectionPanel: () => {},
-      connectionPanelOpenedAt: 1_700_000_000_000,
+      siteInfo: { tabId: 'a', openedAt: 1_700_000_000_000 },
       settings: DEFAULT_SETTINGS_SHAPE,
     }),
 }));
 
-const { ConnectionPanel } = await import('@/components/overlay/SiteInfo/ConnectionPanel');
+const { SiteInfoCard } = await import('@/components/overlay/SiteInfo/SiteInfoCard');
 
 afterEach(cleanup);
 
@@ -54,17 +53,17 @@ const tab = (certificateChange = ''): TabState =>
 
 /**
  * The comparison was tested on its own; this is the half that says the panel
- * actually shows it. A warning nobody sees is not a warning — and this is the
+ * actually shows it. A warning nobody sees is not a warning, and this is the
  * one Copacetic gives that other browsers do not.
  */
 describe('the certificate change notice', () => {
   it('is absent when there is nothing to say', () => {
-    render(<ConnectionPanel tab={tab()} />);
+    render(<SiteInfoCard tab={tab()} />);
     expect(screen.queryByText('This certificate has changed')).toBeNull();
   });
 
   it('appears when there is', () => {
-    render(<ConnectionPanel tab={tab('Something is reading this connection.')} />);
+    render(<SiteInfoCard tab={tab('Something is reading this connection.')} />);
     expect(screen.getByText('This certificate has changed')).toBeTruthy();
     expect(document.body.textContent).toContain('Something is reading this connection.');
   });
@@ -72,7 +71,7 @@ describe('the certificate change notice', () => {
   // Announced, because someone using a screen reader has no other way to know
   // the panel gained a warning.
   it('is announced rather than only shown', () => {
-    render(<ConnectionPanel tab={tab('Something is reading this connection.')} />);
+    render(<SiteInfoCard tab={tab('Something is reading this connection.')} />);
     const statuses = document.querySelectorAll('[role="status"]');
     expect([...statuses].some((node) => node.textContent?.includes('reading this connection'))).toBe(true);
   });

@@ -416,6 +416,14 @@ export interface BrowserState {
   settings: Settings;
   hasClosedTabs: boolean;
   update: UpdateState;
+  /** The site information card, open for one tab, or null. */
+  siteInfo: SiteInfoState | null;
+}
+
+export interface SiteInfoState {
+  tabId: TabId;
+  /** When it opened, so how long a certificate has left is measured once rather than on every render. */
+  openedAt: number;
 }
 
 /** Where an update comes from on this build. */

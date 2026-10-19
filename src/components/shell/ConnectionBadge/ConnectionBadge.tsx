@@ -2,6 +2,7 @@
 
 import { FileText, HelpCircle, Lock, Search, ShieldOff } from 'lucide-react';
 import type { SecurityLevel, TabState } from '@shared/types';
+import { send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
@@ -14,8 +15,7 @@ const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string
 
 /** The one badge in the chrome that is allowed to be coloured, because it is the only one reporting something the user cannot otherwise see. */
 export function ConnectionBadge({ tab }: { tab: TabState | null }) {
-  const isOpen = useBrowserStore((state) => state.isConnectionPanelOpen);
-  const togglePanel = useBrowserStore((state) => state.toggleConnectionPanel);
+  const openTabId = useBrowserStore((state) => state.siteInfo?.tabId ?? null);
 
   if (!tab || tab.isStartPage) {
     // Nothing has been loaded yet, so there is no connection to vouch for.
@@ -28,10 +28,9 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
   return (
     <button
       type="button"
-      onClick={togglePanel}
+      onClick={() => send((api) => api.chrome.toggleSiteInfo())}
       aria-label={`Connection: ${style.word}. Show details`}
-      aria-expanded={isOpen}
-      aria-controls="connection-panel"
+      aria-expanded={openTabId === tab.id}
       className={cn(
         'flex shrink-0 items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-line-strong',
         style.className,

@@ -61,6 +61,7 @@ export class TabManager {
   /** What has already been added to history per tab, so only the difference is. */
   private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
+  private pageFocusHandler: (() => void) | null = null;
   private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
   private windowIsEnteringFullscreen = false;
 
@@ -634,6 +635,7 @@ export class TabManager {
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
     });
     guardTabWebContents(view.webContents, this.securityDelegate);
+    view.webContents.on('focus', () => this.pageFocusHandler?.());
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
     // A view with no document yet answers no DevTools command at all, so it is
@@ -1042,6 +1044,11 @@ export class TabManager {
 
   onPageContextMenu(handler: (tabId: TabId, params: ContextMenuParams) => void): void {
     this.contextMenuHandler = handler;
+  }
+
+  /** A page took the keyboard, which is someone going back to it. */
+  onPageFocus(handler: () => void): void {
+    this.pageFocusHandler = handler;
   }
 
   // Fetch the favicon in the web session and hand the chrome a data URL.

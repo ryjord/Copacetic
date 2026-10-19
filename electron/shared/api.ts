@@ -71,6 +71,8 @@ export interface CopaceticApi {
     setOverlaySize(width: number, height: number): Promise<void>;
     /** The overlay asking for the keyboard, for something that cannot be answered without it. */
     focusOverlay(): Promise<void>;
+    toggleSiteInfo(): Promise<void>;
+    closeSiteInfo(): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;
