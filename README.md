@@ -74,10 +74,26 @@ than turning blocking off everywhere.
 ranked from your own history and bookmarks, in the main process. No keystroke is
 sent anywhere to fetch remote suggestions.
 
-**Downloads with real controls.** Pause, resume, cancel, open, reveal in the
-file manager. Live throughput and time remaining. Filenames are sanitised
-against directory traversal and against right-to-left override tricks that
-disguise an `.exe` as a `.jpg`.
+**Downloads with real controls.** Pause, resume, cancel, try again, open,
+reveal in the file manager. Live throughput and time remaining. Choose where
+files go, or be asked each time. Anything that runs when opened - an installer,
+a script, a disk image - is held until you say to keep it. Filenames are
+sanitised against directory traversal and against right-to-left override tricks
+that disguise an `.exe` as a `.jpg`.
+
+**Profiles that keep people apart.** Each profile has its own history,
+bookmarks, passwords, cookies and settings, in a folder and a set of sessions of
+its own. Open any profile in its own window; the toolbar says which one a window
+is once there is more than one.
+
+**Windows, pinned tabs and sleeping tabs.** As many windows as you like, each
+restored where you left it. Pin a tab to the start of the strip. Tabs left alone
+can be put to sleep to give back their memory, and come back at the same place
+in their history when you return.
+
+**Bring your browsing with you.** Bookmarks and the last 90 days of history from
+Chrome, Brave, Edge, Vivaldi, Chromium or Arc, read from a copy of the other
+browser's files on this machine. Passwords stay where they are.
 
 **Sites that ask you to sign in.** HTTP authentication - the challenge
 intranets, routers, NAS boxes and plenty of dev servers use - is answered
@@ -102,11 +118,17 @@ says so in the tab rather than leaving you to assume otherwise.
 need larger arrives larger every visit. Settings lists everywhere you changed
 it, with a reset each.
 
+**Third-party cookies blocked, and nothing revealed by calls.** A cookie from
+another site does not ride along with what a page loads from it, unless you have
+let that site's trackers through. WebRTC is limited so a page cannot learn your
+local address. Spellcheck runs on this machine, or not at all.
+
 **The rest of what a browser needs.** Tab drag-reorder, middle-click close,
 audio indicators and per-tab mute, find-in-page with match counts, per-tab zoom,
-session restore, a command palette (`Cmd/Ctrl+K`), native context menus, and a
-full application menu so copy/paste and every shortcut behave the way the
-platform expects.
+PDFs in the built-in viewer, site settings in one place, editing bookmarks in
+place, an offer to reopen your tabs after a crash, a command palette
+(`Cmd/Ctrl+K`), native context menus, and a full application menu so copy/paste
+and every shortcut behave the way the platform expects.
 
 ## Security
 
@@ -387,10 +409,17 @@ address bar, tracker matching, and download filename sanitising.
 
 ## Where your data lives
 
-Plain JSON in Electron's `userData` directory, written atomically:
-`settings.json`, `history.json`, `bookmarks.json`, `downloads.json`,
-`favicons.json`, `session.json`, `window.json`. History older than 90 days is
-dropped on launch. A corrupt file is moved aside rather than blocking startup.
+In Electron's `userData` directory. History, bookmarks and their folders,
+site icons, downloads and per-site settings are in one SQLite database,
+`copacetic.db`; settings, the open session and the password vault are JSON files
+beside it, written atomically. History older than 90 days is dropped. A corrupt
+file is moved aside rather than blocking startup. Each extra profile keeps the
+same set of files in `profiles/<id>/`.
+
+**Upgrading from 1.x is one way.** The first 2.0 launch moves the old JSON
+stores into the database, and 1.x cannot read it. Before it does, Copacetic
+copies the files it is about to change into `before-2.0/`; to go back, quit,
+copy them back over the originals and delete `copacetic.db`.
 
 - macOS: `~/Library/Application Support/Copacetic`
 - Linux: `~/.config/Copacetic`

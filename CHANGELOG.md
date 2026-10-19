@@ -2,7 +2,64 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.4.2 - unreleased
+## 2.0.0-beta.1 - 19 October 2026
+
+A beta of 2.0: the browser rebuilt on a new data layer, with the features a
+browser needs to be someone's only one. Published as a prerelease, so it does
+not reach anyone through automatic updates.
+
+**Before you install it:** the first launch moves your history, bookmarks,
+site icons, downloads and site settings from the 1.x files into one database,
+and 1.x cannot read it. Copacetic copies the files it changes into a
+`before-2.0` folder in its data directory first; to go back, quit, copy them
+back and delete `copacetic.db`.
+
+### New
+
+- **Several windows.** Open as many as you like; every one is restored, the one
+  in front last. A tab can move to a new window from its menu.
+- **Profiles.** Each has its own history, bookmarks, passwords, cookies,
+  settings and wallpaper, in a folder and sessions of its own. Add, rename,
+  recolour and remove them in Settings; the toolbar shows which profile a window
+  is once there is more than one.
+- **Pinned tabs**, kept pinned across restarts.
+- **Sleeping tabs.** A tab left alone gives back its memory after a time you
+  choose, or when you ask from its menu, and wakes where it was.
+- **Import from another browser.** Bookmarks and the last 90 days of history
+  from Chrome, Brave, Edge, Vivaldi, Chromium or Arc.
+- **Site settings** in one place: permissions, zoom and tracker exceptions for
+  every site that has one.
+- **Downloads that ask.** Choose the folder or be asked each time, try a failed
+  file again, and anything that runs when opened is held until you keep it.
+- **Edit a bookmark's title and address** where it is listed.
+- **Third-party cookies blocked**, except on sites whose trackers you allowed.
+- **WebRTC limited** so a page cannot learn your local address, and spellcheck
+  you can turn off.
+- **PDFs open in the built-in viewer** instead of downloading.
+- **An offer to reopen your tabs after a crash**, even with reopening turned
+  off.
+- **Light and dark** following the system, a new interface built on one set of
+  tokens and components, settings you can search, and a page that lists what
+  Copacetic sends and keeps.
+
+### Changed
+
+- History, bookmarks, folders, site icons, downloads and per-site settings now
+  live in one SQLite database, with a search index that finds part of a word or
+  an address. Forgetting a site removes it from the index and the log too.
+- Every feature that looked finished but did nothing now does what it says:
+  HTTPS-first upgrades every page, default zoom applies, encrypted DNS takes
+  effect at once, a certificate error can be understood and, for one site and
+  one session, continued past.
+
+### Fixed
+
+- Blocked-request counts stopped updating in every window but the newest.
+- A sleeping tab could break its window's state.
+
+## 1.4.2 - never released
+
+The fixes below shipped as part of 2.0.0-beta.1.
 
 ### Fixed
 

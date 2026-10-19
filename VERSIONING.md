@@ -61,6 +61,14 @@ Valid private forms, in order:
 The tag is the publish action. Nothing reaches a user until it exists, so a
 merge to `main` is safe and reversible in a way a tag is not.
 
+### Betas of a major
+
+A major is built on its own branch (2.0 on `revamp`) and its betas are tagged
+there, before anything merges: `v2.0.0-beta.1` on `revamp`. The release workflow
+publishes any tag with a prerelease part as a prerelease and leaves the apt
+`stable` suite alone, so a beta reaches only people who download it. The
+release itself is tagged on `main` after the branch merges, as above.
+
 ## Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) -

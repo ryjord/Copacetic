@@ -4,6 +4,8 @@ on:
   push:
     branches: [main, development]
   pull_request:
+  # A release branch is checked on demand before a beta is tagged from it.
+  workflow_dispatch:
 
 # Read-only, stated rather than inherited. Without a block here a workflow gets
 # whatever the repository's default is, which is a write token in a repository
