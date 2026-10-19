@@ -41,7 +41,9 @@ const until = async (condition: () => Promise<boolean>, timeoutMs = 15_000) => {
  * the whole window, and give it back afterwards.
  */
 // A fullscreen window takes a Space of its own on macOS, so this runs only when asked to take the screen.
-describe.skipIf(!IS_FOREGROUND_RUN)('a page that goes fullscreen', () => {
+// CI's Linux display has no window manager to grant fullscreen, so Linux proves this on a desktop.
+const hasNoWindowManager = process.platform === 'linux' && process.env.CI === 'true';
+describe.skipIf(!IS_FOREGROUND_RUN || hasNoWindowManager)('a page that goes fullscreen', () => {
   it('takes the whole window', async () => {
     await copacetic.inOpenPage(PAGE, 'document.documentElement.requestFullscreen().then(() => true)', {
       userGesture: true,
@@ -49,9 +51,7 @@ describe.skipIf(!IS_FOREGROUND_RUN)('a page that goes fullscreen', () => {
     expect(
       await until(async () => {
         const now = await geometry();
-        // xvfb has no window manager to grant a fullscreen window; the page's own rectangle is what Copacetic decides.
-        const isWindowFullScreen = now.isFullScreen || process.platform === 'linux';
-        return isWindowFullScreen && now.view?.y === 0 && now.view.height === now.height;
+        return now.isFullScreen && now.view?.y === 0 && now.view.height === now.height;
       }),
     ).toBe(true);
   }, 60_000);

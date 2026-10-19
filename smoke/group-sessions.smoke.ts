@@ -43,10 +43,23 @@ describe('a group with its own session', () => {
       }, 30_000),
     ).toBe(true);
 
-    const inGroupSession = await copacetic.main(({ session, webContents }, partition) => {
-      const page = webContents.getAllWebContents().find((contents) => contents.getURL().includes('/grouped'));
-      return page?.session === session.fromPartition(partition);
-    }, `persist:copacetic-group-${groupId}`);
+    // The tab moves by getting a new page, so the old one may still be closing when this first looks.
+    const isInGroupSession = () =>
+      copacetic.main(({ session, webContents }, partition) => {
+        const group = session.fromPartition(partition);
+        return webContents
+          .getAllWebContents()
+          .some(
+            (contents) =>
+              !contents.isDestroyed() && contents.getURL().includes('/grouped') && contents.session === group,
+          );
+      }, `persist:copacetic-group-${groupId}`);
+    const deadline = Date.now() + 15_000;
+    let inGroupSession = await isInGroupSession();
+    while (!inGroupSession && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      inGroupSession = await isInGroupSession();
+    }
     expect(inGroupSession).toBe(true);
     // The directory name the startup sweep relies on.
     expect(existsSync(partitionDirectory(copacetic.profile, groupId))).toBe(true);

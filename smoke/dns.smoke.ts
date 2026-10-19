@@ -9,16 +9,22 @@ beforeAll(async () => {
 });
 afterAll(async () => copacetic?.close());
 
+// Followed by id: the last tab in the strip may still be the previous test's, already settled.
 const loads = async (url: string): Promise<'loaded' | 'failed'> => {
-  await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
-  const settled = await copacetic.waitForChrome(async () => {
-    const state = await window.copacetic.chrome.getState();
-    const tab = state.tabs.at(-1);
-    return Boolean(tab && !tab.isLoading && (tab.error || tab.title));
-  }, 40_000);
-  expect(settled).toBe(true);
-  const last = await copacetic.chrome.evaluate(async () => (await window.copacetic.chrome.getState()).tabs.at(-1));
-  return last?.error ? 'failed' : 'loaded';
+  const tabId = await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
+  const settledTab = () =>
+    copacetic.chrome.evaluate(async (id) => {
+      const tab = (await window.copacetic.chrome.getState()).tabs.find((candidate) => candidate.id === id);
+      return tab && !tab.isLoading && (tab.error || tab.title) ? tab : null;
+    }, tabId);
+  const deadline = Date.now() + 40_000;
+  let tab = await settledTab();
+  while (!tab && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    tab = await settledTab();
+  }
+  expect(tab).not.toBeNull();
+  return tab?.error ? 'failed' : 'loaded';
 };
 
 /**
