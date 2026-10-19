@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -65,5 +65,25 @@ describe('opening the database', () => {
       database.prepare('SELECT same_site(?, ?) AS result').get(url, site)?.result;
     expect(same('https://mail.example.com/inbox', 'example.com')).toBe(1);
     expect(same('https://example.com.evil.test/', 'example.com')).toBe(0);
+  });
+});
+
+// A file SQLite cannot read used to stop the app opening at all, with nothing on screen to say why.
+describe('a database that cannot be read', () => {
+  it('is kept aside, never deleted, and a fresh one is opened', () => {
+    writeFileSync(file, 'this was never a database, and is long enough to look like one to nobody');
+    const setAside: string[] = [];
+    const database = openDatabase(file, MIGRATIONS, (aside) => setAside.push(aside));
+
+    expect(versionOf(database)).toBe(MIGRATIONS.at(-1)?.version);
+    expect(setAside).toHaveLength(1);
+    expect(readFileSync(setAside[0]!, 'utf8')).toContain('never a database');
+  });
+
+  it('is not set aside when it opens', () => {
+    openDatabase(file).close();
+    const setAside: string[] = [];
+    openDatabase(file, MIGRATIONS, (aside) => setAside.push(aside));
+    expect(setAside).toEqual([]);
   });
 });

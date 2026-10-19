@@ -1,7 +1,7 @@
 import { existsSync, renameSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { sameSite } from '../../shared/forgetting';
-import { log } from '../system/diagnostics';
+import { describeError, log } from '../system/diagnostics';
 
 /** One step in the database's shape, applied once, in order, and recorded in `PRAGMA user_version`. */
 export interface Migration {
@@ -162,11 +162,29 @@ function open(filePath: string): DatabaseSync {
  * newer JSON file is: guessing at a future shape and writing to it would
  * destroy whatever the newer build kept there.
  */
-export function openDatabase(filePath: string, migrations: readonly Migration[] = MIGRATIONS): DatabaseSync {
+export function openDatabase(
+  filePath: string,
+  migrations: readonly Migration[] = MIGRATIONS,
+  onSetAside: (asidePath: string) => void = () => {},
+): DatabaseSync {
   const latest = migrations.at(-1)?.version ?? 0;
-  let database = open(filePath);
+  let database: DatabaseSync;
+  let found: number;
+  try {
+    database = open(filePath);
+    found = userVersion(database);
+  } catch (error) {
+    // A file SQLite cannot read would stop the app opening at all; it is kept aside, never deleted, and a fresh one made.
+    const aside = `${filePath}.unreadable-${Date.now()}`;
+    log.warn('the database could not be opened and was kept aside', { ...describeError(error) });
+    SIDE_FILES.filter((suffix) => existsSync(`${filePath}${suffix}`)).forEach((suffix) =>
+      renameSync(`${filePath}${suffix}`, `${aside}${suffix}`),
+    );
+    onSetAside(aside);
+    database = open(filePath);
+    found = userVersion(database);
+  }
 
-  const found = userVersion(database);
   if (found > latest) {
     database.close();
     log.warn('the database came from a newer version and was kept aside', { found, latest });

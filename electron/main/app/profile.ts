@@ -190,7 +190,25 @@ export class Profile {
     window.window.on('closed', () => this.windowClosed(window));
     await window.start(options);
     this.host.windowsChanged();
+    this.tellAboutSetAsideDatabase(window);
     return window;
+  }
+
+  // Said once, in the first window: nothing was lost, and where it is.
+  private hasToldAboutSetAside = false;
+
+  private tellAboutSetAsideDatabase(window: Browser): void {
+    const aside = this.store.setAsideDatabase;
+    if (!aside || this.hasToldAboutSetAside) {
+      return;
+    }
+    this.hasToldAboutSetAside = true;
+    window.notices.notify({
+      id: 'database-set-aside',
+      key: 'database-set-aside',
+      tone: 'info',
+      message: `Copacetic could not read its database, so it kept it aside and started a new one. Nothing was deleted: it is at ${aside}.`,
+    });
   }
 
   lastInFrontAt(): number {

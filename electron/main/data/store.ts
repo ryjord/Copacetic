@@ -29,7 +29,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDatabase } from './database';
-import { backUpBeforeMigrating } from './legacy-import';
+import { backUpBeforeMigrating, forgetLegacyCopies } from './legacy-import';
 import { DownloadsTable } from './downloads-table';
 import { SiteSettingsStore } from './site-settings-store';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
@@ -67,7 +67,10 @@ export class BrowserStore {
     mkdirSync(directory, { recursive: true });
     // Before the database exists, which is what marks a profile as not yet migrated.
     backUpBeforeMigrating(directory);
-    this.database = openDatabase(path.join(directory, 'copacetic.db'));
+    this.directory = directory;
+    this.database = openDatabase(path.join(directory, 'copacetic.db'), undefined, (aside) => {
+      this.setAsideDatabase = aside;
+    });
     this.settings = new SettingsStore(new SiteSettingsStore(this.database), directory);
     this.history = new HistoryStore(this.database, directory);
     this.bookmarks = new BookmarksStore(this.database, directory);
@@ -77,7 +80,12 @@ export class BrowserStore {
     this.downloadsTable = new DownloadsTable(this.database, directory);
     this.session = new SessionStore(directory);
     this.certificatesStore = new CertificatesStore(directory);
+    forgetLegacyCopies(directory, { isClearingEverything: false, now: Date.now() });
   }
+
+  /** Where a database that could not be opened was put, this launch; null when it opened. */
+  setAsideDatabase: string | null = null;
+  private readonly directory: string;
 
   /** Everything written, then the database closed; nothing can be read or written after this. */
   close(): void {
@@ -311,6 +319,9 @@ export class BrowserStore {
 
   clearHistory(range: ClearRange): void {
     this.history.clearHistory(range);
+    if (range === 'all') {
+      forgetLegacyCopies(this.directory, { isClearingEverything: true, now: Date.now() });
+    }
     // The icons go with it. Nobody chose to keep one, and a per-origin cache
     // left behind after clearing history is a readable list of where someone
     // has been - which is the thing they just asked to be rid of.
