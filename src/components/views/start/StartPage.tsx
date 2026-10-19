@@ -104,11 +104,6 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
 
             {widget === 'search' && (
               <form onSubmit={submit} className="relative w-full">
-                <Search
-                  size={18}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint"
-                  aria-hidden
-                />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -117,6 +112,12 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
                   spellCheck={false}
                   autoComplete="off"
                   className="h-12 w-full rounded-full border border-line-strong bg-raised/80 pl-11 pr-5 text-title text-ink shadow-popover outline-none backdrop-blur-xl placeholder:text-ink-faint focus:border-ink-faint"
+                />
+                {/* After the input, so it paints over the field's backdrop rather than under it. */}
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint"
+                  aria-hidden
                 />
               </form>
             )}
