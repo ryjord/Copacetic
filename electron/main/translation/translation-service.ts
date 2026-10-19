@@ -38,7 +38,11 @@ async function readCapped(response: Response, maxBytes: number): Promise<Buffer>
 // The same way the update check and filter lists are fetched, with no cookies sent or kept.
 const mozillaFetch: ModelFetch = {
   bytes: async (url, maxBytes) =>
-    readCapped(await net.fetch(url, { credentials: 'omit', redirect: 'error' }), maxBytes),
+    readCapped(
+      // Remote Settings answers 406 to a request that does not say it takes JSON.
+      await net.fetch(url, { credentials: 'omit', redirect: 'error', headers: { Accept: 'application/json, */*' } }),
+      maxBytes,
+    ),
 };
 
 /** One translator for the whole app, started the first time someone translates and not before. */
