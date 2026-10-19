@@ -53,7 +53,7 @@ import { attachTabEvents } from './tab-events';
 import { ClosedTabs } from './closed-tabs';
 import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
-import type { TabRecord } from './tab-record';
+import { type TabRecord, pageOf } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
 import { type SecurityDelegate, guardTabWebContents } from '../security/security';
@@ -179,8 +179,8 @@ export class TabManager {
   }
 
   private toState(tab: TabRecord): TabState {
-    const contents = tab.view.webContents;
-    const alive = !contents.isDestroyed();
+    const contents = pageOf(tab);
+    const alive = contents !== null;
     return {
       id: tab.id,
       url: tab.isStartPage ? START_PAGE_URL : tab.url,
@@ -188,9 +188,14 @@ export class TabManager {
       title: tab.title || fallbackTitleFor(tab.url),
       faviconDataUrl: tab.faviconDataUrl,
       isLoading: tab.isLoading,
-      canGoBack: alive && !tab.isStartPage && contents.navigationHistory.canGoBack(),
-      canGoForward: alive && !tab.isStartPage && contents.navigationHistory.canGoForward(),
-      isAudible: alive ? contents.isCurrentlyAudible() : false,
+      // A sleeping tab keeps its history to restore, so it can still go back once it wakes.
+      canGoBack: alive
+        ? !tab.isStartPage && contents.navigationHistory.canGoBack()
+        : (tab.sleptHistory?.index ?? 0) > 0,
+      canGoForward: alive
+        ? !tab.isStartPage && contents.navigationHistory.canGoForward()
+        : (tab.sleptHistory?.index ?? 0) < (tab.sleptHistory?.entries.length ?? 0) - 1,
+      isAudible: contents?.isCurrentlyAudible() ?? false,
       isMuted: tab.isMuted,
       security: describeSecurity(
         tab.isStartPage ? START_PAGE_URL : tab.url,
@@ -326,7 +331,7 @@ export class TabManager {
 
   private findByWebContentsId(webContentsId: number): TabRecord | null {
     for (const tab of this.tabs.values()) {
-      if (!tab.view.webContents.isDestroyed() && tab.view.webContents.id === webContentsId) {
+      if (pageOf(tab)?.id === webContentsId) {
         return tab;
       }
     }
@@ -517,7 +522,7 @@ export class TabManager {
     this.onContentBounds(bounds);
 
     const active = this.activeId ? this.tabs.get(this.activeId) : null;
-    if (!active || active.view.webContents.isDestroyed()) {
+    if (!active || pageOf(active) === null) {
       return;
     }
     active.view.setBounds(bounds);
@@ -528,7 +533,7 @@ export class TabManager {
       return;
     }
     for (const [id, tab] of this.tabs) {
-      if (tab.view.webContents.isDestroyed()) {
+      if (pageOf(tab) === null) {
         continue;
       }
       const isVisible = shouldTabBeVisible(
@@ -706,16 +711,13 @@ export class TabManager {
   /** Whether a tab has a page that could be closed to save memory; the one in front never does. */
   canSleep(id: TabId): boolean {
     const tab = this.tabs.get(id);
-    const contents = tab?.view.webContents;
-    return Boolean(
-      tab && contents && !contents.isDestroyed() && !tab.isAsleep && !tab.isStartPage && id !== this.activeId,
-    );
+    return Boolean(tab && pageOf(tab) && !tab.isStartPage && id !== this.activeId);
   }
 
   /** Closes a tab's page to give back its memory, keeping its address, title and history. */
   sleep(id: TabId): void {
     const tab = this.tabs.get(id);
-    const contents = tab?.view.webContents;
+    const contents = tab ? pageOf(tab) : null;
     if (!tab || !contents || !this.canSleep(id)) {
       return;
     }
@@ -734,20 +736,26 @@ export class TabManager {
     if (!tab.isAsleep) {
       return;
     }
-    tab.view = this.makeView(tab.partition);
-    tab.isAsleep = false;
     const history = tab.sleptHistory;
-    tab.sleptHistory = null;
-    void this.wireView(tab).then(() => {
-      if (this.tabs.get(tab.id) !== tab || tab.view.webContents.isDestroyed()) {
+    void this.givePageBack(tab).then(() => {
+      const page = pageOf(tab);
+      if (this.tabs.get(tab.id) !== tab || !page) {
         return;
       }
       if (history && history.entries.length > 0) {
-        void tab.view.webContents.navigationHistory.restore(history).catch(() => this.loadUrl(tab, tab.url));
+        void page.navigationHistory.restore(history).catch(() => this.loadUrl(tab, tab.url));
         return;
       }
       void this.loadUrl(tab, tab.url);
     });
+  }
+
+  /** A new page for a sleeping tab, there at once; resolves when it can be navigated. */
+  private givePageBack(tab: TabRecord): Promise<unknown> {
+    tab.view = this.makeView(tab.partition);
+    tab.isAsleep = false;
+    tab.sleptHistory = null;
+    return this.wireView(tab);
   }
 
   private sleepIdleTabs(): void {
@@ -757,7 +765,7 @@ export class TabManager {
       isActive: tab.id === this.activeId,
       isStartPage: tab.isStartPage,
       isAsleep: tab.isAsleep,
-      isAudible: !tab.view.webContents.isDestroyed() && tab.view.webContents.isCurrentlyAudible(),
+      isAudible: pageOf(tab)?.isCurrentlyAudible() ?? false,
       lastActiveAt: tab.lastActiveAt,
     }));
     tabsToSleep(candidates, Date.now(), afterMinutes).forEach((id) => this.sleep(id));
@@ -812,8 +820,8 @@ export class TabManager {
   }
 
   private destroyTab(tab: TabRecord): void {
-    const contents = tab.view.webContents;
-    if (!contents.isDestroyed()) {
+    const contents = pageOf(tab);
+    if (contents) {
       this.blocker.forget(contents.id);
       this.httpsFirst.forget(contents.id);
       forgetRefusedCertificate(contents.id);
@@ -824,9 +832,7 @@ export class TabManager {
     if (!this.window.isDestroyed() && !tab.isAsleep) {
       this.window.contentView.removeChildView(tab.view);
     }
-    if (!contents.isDestroyed()) {
-      contents.close();
-    }
+    contents?.close();
   }
 
   reopenClosed(): void {
@@ -852,7 +858,8 @@ export class TabManager {
   acceptCertificate(id: TabId): void {
     const tab = this.tabs.get(id);
     const failedUrl = tab?.error?.url;
-    if (tab && failedUrl && acceptRefused(tab.view.webContents.id, failedUrl)) {
+    const page = tab ? pageOf(tab) : null;
+    if (tab && page && failedUrl && acceptRefused(page.id, failedUrl)) {
       void this.loadUrl(tab, failedUrl);
     }
   }
@@ -862,22 +869,29 @@ export class TabManager {
     if (!tab || tab.isStartPage) {
       return;
     }
-    // As its opener, so a copy of a Hush tab is Hush and a copy of a grouped tab stays in the group.
+    // Named outright rather than through its page, which a sleeping tab does not have.
     this.create(tab.url, {
       index: this.order.indexOf(id) + 1,
       activate: true,
-      openerWebContentsId: tab.view.webContents.id,
+      hush: tab.isHush,
+      groupId: tab.groupId,
     });
   }
 
   /** Behind every page before it paints, so a new tab never flashes the other theme's colour. */
   setWebRtcPolicy(policy: WebRtcPolicy): void {
-    this.tabs.forEach((tab) => applyWebRtcPolicy(tab.view.webContents, policy));
+    // A sleeping tab is given the setting as it stands when it wakes.
+    this.tabs.forEach((tab) => {
+      const page = pageOf(tab);
+      if (page) {
+        applyWebRtcPolicy(page, policy);
+      }
+    });
   }
 
   setBackgroundColor(colour: string): void {
     for (const tab of this.tabs.values()) {
-      if (!tab.view.webContents.isDestroyed()) {
+      if (pageOf(tab)) {
         tab.view.setBackgroundColor(colour);
       }
     }
@@ -923,7 +937,10 @@ export class TabManager {
       }
       return;
     }
-    focusContents(tab.view.webContents);
+    const page = pageOf(tab);
+    if (page) {
+      focusContents(page);
+    }
   }
 
   move(id: TabId, toIndex: number): void {
@@ -974,9 +991,9 @@ export class TabManager {
       tab.error = null;
       tab.faviconDataUrl = null;
       tab.isLoading = false;
-      if (!tab.view.webContents.isDestroyed()) {
-        tab.view.webContents.loadURL('about:blank').catch(() => {});
-      }
+      pageOf(tab)
+        ?.loadURL('about:blank')
+        .catch(() => {});
       this.applyVisibility();
       this.onChanged();
       return;
@@ -987,16 +1004,19 @@ export class TabManager {
     if (!resolution) {
       return;
     }
+    // Woken without its old history, which would otherwise be restored over the address just asked for.
+    const ready = tab.isAsleep ? this.givePageBack(tab) : Promise.resolve();
+    const page = pageOf(tab);
     const target =
-      resolution.type === 'url'
-        ? this.httpsFirst.typed(tab.view.webContents.id, input, resolution.target)
+      resolution.type === 'url' && page
+        ? this.httpsFirst.typed(page.id, input, resolution.target)
         : resolution.target;
-    void this.loadUrl(tab, target);
+    void ready.then(() => this.loadUrl(tab, target));
   }
 
   private async loadUrl(tab: TabRecord, url: string): Promise<void> {
-    const contents = tab.view.webContents;
-    if (contents.isDestroyed()) {
+    const contents = pageOf(tab);
+    if (!contents) {
       return;
     }
 
@@ -1044,8 +1064,8 @@ export class TabManager {
       this.onChanged();
       return;
     }
-    const contents = tab.view.webContents;
-    if (contents.isDestroyed()) {
+    const contents = pageOf(tab);
+    if (!contents) {
       return;
     }
     tab.error = null;
@@ -1103,10 +1123,7 @@ export class TabManager {
     if (tab?.isAsleep) {
       this.wake(tab);
     }
-    if (!tab || tab.view.webContents.isDestroyed()) {
-      return null;
-    }
-    return tab.view.webContents;
+    return tab ? pageOf(tab) : null;
   }
 
   // ------------------------------------------------------------------ find

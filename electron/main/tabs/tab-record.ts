@@ -1,4 +1,4 @@
-import type { WebContentsView } from 'electron';
+import type { WebContents, WebContentsView } from 'electron';
 import type { PageError, TabId } from '../../shared/types';
 import type { BrowsingRecord } from './browsing-record';
 
@@ -34,4 +34,16 @@ export interface TabRecord {
   lastActiveAt: number;
   /** The back and forward list it had when it went to sleep, restored when it wakes. */
   sleptHistory: { entries: Electron.NavigationEntry[]; index: number } | null;
+}
+
+/**
+ * The tab's page, or null while it sleeps or once it has closed.
+ *
+ * Electron clears a view's webContents once the page is closed, whatever its
+ * type says, so asking a sleeping tab's view anything throws: the first push
+ * after a tab went to sleep took the whole window's state down with it.
+ */
+export function pageOf(tab: TabRecord): WebContents | null {
+  const contents: WebContents | undefined = tab.view.webContents;
+  return tab.isAsleep || !contents || contents.isDestroyed() ? null : contents;
 }
