@@ -53,12 +53,16 @@ describe('more than one window', () => {
     copacetic = await SmokeApp.launch({ profile });
     await copacetic.waitForReady();
     expect(await until(async () => (await windowCount()) === 2)).toBe(true);
-    const everything = await copacetic.main(({ webContents }) =>
-      webContents.getAllWebContents().map((contents) => contents.getURL()),
-    );
-    expect(everything).toEqual(
-      expect.arrayContaining(['https://example.com/first-window', 'https://example.com/second-window']),
-    );
+    // A restored tab is a page before it has an address, so this waits for both to arrive.
+    const everything = () =>
+      copacetic.main(({ webContents }) => webContents.getAllWebContents().map((contents) => contents.getURL()));
+    const isBothBack = async () => {
+      const urls = await everything();
+      return ['https://example.com/first-window', 'https://example.com/second-window'].every((url) =>
+        urls.includes(url),
+      );
+    };
+    expect(await until(isBothBack), JSON.stringify(await everything())).toBe(true);
   }, 120_000);
 
   // Closing one window is not quitting: the other stays, and downloads and the store go on.
