@@ -111,3 +111,16 @@ export function selectActiveDownloadCount(state: BrowserStoreState): number {
   return state.downloads.filter((download) => download.status === 'progressing' || download.status === 'paused')
     .length;
 }
+
+/** How far the unfinished downloads have got together, or null while any of them has no known size. */
+export function selectDownloadProgress(state: BrowserStoreState): number | null {
+  const active = state.downloads.filter(
+    (download) => download.status === 'progressing' || download.status === 'paused',
+  );
+  if (active.length === 0 || active.some((download) => download.totalBytes <= 0)) {
+    return null;
+  }
+  const received = active.reduce((sum, download) => sum + download.receivedBytes, 0);
+  const total = active.reduce((sum, download) => sum + download.totalBytes, 0);
+  return Math.min(1, received / total);
+}

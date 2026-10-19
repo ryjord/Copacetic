@@ -72,6 +72,8 @@ export interface CopaceticApi {
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;
+    /** Native, so it can open over the page; anchored at a point in the window. */
+    openMainMenu(x: number, y: number): Promise<void>;
   };
   omnibox: {
     suggest(query: string): Promise<Suggestion[]>;

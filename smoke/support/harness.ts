@@ -187,6 +187,20 @@ export class SmokeApp {
     return this.app.evaluate(run, arg);
   }
 
+  /** Chooses an application menu item by label, the same as a click on it in the menu bar. */
+  async chooseMenuItem(label: string): Promise<void> {
+    const isChosen = await this.main(({ Menu, BrowserWindow }, target) => {
+      const flatten = (items: Electron.MenuItem[]): Electron.MenuItem[] =>
+        items.flatMap((item) => [item, ...flatten(item.submenu?.items ?? [])]);
+      const found = flatten(Menu.getApplicationMenu()?.items ?? []).find((item) => item.label === target);
+      found?.click(undefined, BrowserWindow.getAllWindows()[0], undefined);
+      return found !== undefined;
+    }, label);
+    if (!isChosen) {
+      throw new Error(`no menu item labelled ${label}`);
+    }
+  }
+
   /** Polls until `condition` holds, for the things the app does on its own schedule. */
   private async until(condition: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;

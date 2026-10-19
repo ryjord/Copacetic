@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, HelpCircle, Lock, ShieldOff } from 'lucide-react';
+import { FileText, HelpCircle, Lock, Search, ShieldOff } from 'lucide-react';
 import type { SecurityLevel, TabState } from '@shared/types';
 import { cn } from '@/lib/utils';
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -18,7 +18,8 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
   const togglePanel = useBrowserStore((state) => state.toggleConnectionPanel);
 
   if (!tab || tab.isStartPage) {
-    return <Lock size={12} className="shrink-0 text-ink-faint/50" aria-hidden />;
+    // Nothing has been loaded yet, so there is no connection to vouch for.
+    return <Search size={14} strokeWidth={1.75} className="shrink-0 text-ink-faint" aria-hidden />;
   }
 
   const style = LEVEL_STYLES[tab.security.level];

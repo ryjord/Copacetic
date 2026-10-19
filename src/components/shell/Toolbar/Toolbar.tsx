@@ -1,104 +1,106 @@
 'use client';
 
-import { ArrowLeft, ArrowRight, BookMarked, Clock, Download, RotateCw, Settings, Star, X } from 'lucide-react';
-import type { TabState } from '@shared/types';
+// Components
 import { IconButton } from '@/components/ui/IconButton/IconButton';
-import { send } from '@/lib/bridge';
-import { cn } from '@/lib/utils';
-import { selectActiveDownloadCount, useBrowserStore } from '@/store/useBrowserStore';
 import { Omnibox } from '@/components/shell/Omnibox/Omnibox';
 
-export function Toolbar({ tab }: { tab: TabState | null }) {
-  const toggleSurface = useBrowserStore((state) => state.toggleSurface);
-  const surface = useBrowserStore((state) => state.surface);
-  const activeDownloads = useBrowserStore(selectActiveDownloadCount);
+// Icons
+import { ArrowLeft, ArrowRight, Download, Menu, RotateCw, X } from 'lucide-react';
 
-  const canInteract = tab !== null;
+// Store
+import { selectActiveDownloadCount, selectDownloadProgress, useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
+import { send } from '@/lib/bridge';
+
+// Types
+import type { TabState } from '@shared/types';
+
+const ICON = { size: 16, strokeWidth: 1.75 } as const;
+
+export function Toolbar({ tab }: { tab: TabState | null }) {
   const isBusy = tab?.isLoading ?? false;
 
   return (
-    <div className="flex items-center gap-1.5 px-2.5 pb-2">
+    <div className="flex items-center gap-1 px-2.5 pb-2">
       <IconButton
         label="Back"
         disabled={!tab?.canGoBack}
         onClick={() => tab && send((api) => api.tabs.goBack(tab.id))}
       >
-        <ArrowLeft size={15} />
+        <ArrowLeft {...ICON} />
       </IconButton>
-
       <IconButton
         label="Forward"
         disabled={!tab?.canGoForward}
         onClick={() => tab && send((api) => api.tabs.goForward(tab.id))}
       >
-        <ArrowRight size={15} />
+        <ArrowRight {...ICON} />
       </IconButton>
-
       <IconButton
         label={isBusy ? 'Stop loading' : 'Reload'}
-        disabled={!canInteract || tab.isStartPage}
-        onClick={() => {
-          if (!tab) {
-            return;
-          }
-          send((api) => (isBusy ? api.tabs.stop(tab.id) : api.tabs.reload(tab.id)));
+        disabled={!tab || tab.isStartPage}
+        onClick={() => tab && send((api) => (isBusy ? api.tabs.stop(tab.id) : api.tabs.reload(tab.id)))}
+      >
+        {isBusy ? <X {...ICON} /> : <RotateCw {...ICON} />}
+      </IconButton>
+      <div className="mx-1 flex min-w-0 flex-1">
+        <Omnibox tab={tab} />
+      </div>
+      <DownloadsButton />
+      <IconButton
+        label="Menu"
+        onClick={(event) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          send((api) => api.chrome.openMainMenu(Math.round(box.left), Math.round(box.bottom + 4)));
         }}
       >
-        {isBusy ? <X size={15} /> : <RotateCw size={14} />}
-      </IconButton>
-
-      <Omnibox tab={tab} />
-
-      <IconButton
-        label={tab?.isBookmarked ? 'Remove bookmark' : 'Bookmark this page'}
-        disabled={!canInteract || tab.isStartPage}
-        onClick={() => tab && send((api) => api.bookmarks.toggle(tab.url, tab.title))}
-        className={cn(tab?.isBookmarked && 'text-caution hover:text-caution')}
-      >
-        <Star size={15} fill={tab?.isBookmarked ? 'currentColor' : 'none'} />
-      </IconButton>
-
-      <div className="relative">
-        <IconButton
-          label="Downloads"
-          tone={surface === 'downloads' ? 'active' : 'default'}
-          onClick={() => toggleSurface('downloads')}
-        >
-          <Download size={15} />
-        </IconButton>
-        {activeDownloads > 0 && (
-          <span
-            aria-hidden
-            className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-active ring-2 ring-base"
-          />
-        )}
-      </div>
-
-      {/* The star saves this page; this opens what has been saved. Without it
-          the whole surface was reachable only from the menu bar. */}
-      <IconButton
-        label="Bookmarks"
-        tone={surface === 'bookmarks' ? 'active' : 'default'}
-        onClick={() => toggleSurface('bookmarks')}
-      >
-        <BookMarked size={15} />
-      </IconButton>
-
-      <IconButton
-        label="History"
-        tone={surface === 'history' ? 'active' : 'default'}
-        onClick={() => toggleSurface('history')}
-      >
-        <Clock size={15} />
-      </IconButton>
-
-      <IconButton
-        label="Settings"
-        tone={surface === 'settings' ? 'active' : 'default'}
-        onClick={() => toggleSurface('settings')}
-      >
-        <Settings size={15} />
+        <Menu {...ICON} />
       </IconButton>
     </div>
+  );
+}
+
+const RING_RADIUS = 11;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+
+/** The one surface with its own button, because it is the one with something to report while you browse. */
+function DownloadsButton() {
+  const isOpen = useBrowserStore((state) => state.surface === 'downloads');
+  const toggleSurface = useBrowserStore((state) => state.toggleSurface);
+  const activeCount = useBrowserStore(selectActiveDownloadCount);
+  const progress = useBrowserStore(selectDownloadProgress);
+  const label = activeCount > 0 ? `Downloads, ${activeCount} in progress` : 'Downloads';
+
+  return (
+    <IconButton
+      label={label}
+      tone={isOpen ? 'active' : 'default'}
+      className="relative"
+      onClick={() => toggleSurface('downloads')}
+    >
+      <Download {...ICON} />
+      {activeCount > 0 && (
+        <svg viewBox="0 0 28 28" aria-hidden className="pointer-events-none absolute inset-0 size-full -rotate-90">
+          <circle cx="14" cy="14" r={RING_RADIUS} fill="none" strokeWidth="1.5" className="stroke-line-strong" />
+          {/* No known size, so it shows movement rather than a fraction it would have to make up. */}
+          <circle
+            cx="14"
+            cy="14"
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeDasharray={RING_LENGTH}
+            strokeDashoffset={RING_LENGTH * (1 - (progress ?? 0.25))}
+            className={
+              progress === null
+                ? 'origin-center animate-spin stroke-ink'
+                : 'stroke-ink transition-[stroke-dashoffset]'
+            }
+          />
+        </svg>
+      )}
+    </IconButton>
   );
 }

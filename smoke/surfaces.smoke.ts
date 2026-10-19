@@ -32,7 +32,7 @@ const pageVisible = () =>
  */
 describe('a surface when a tab is chosen', () => {
   it('gets out of the way, and the page comes back', async () => {
-    await copacetic.chrome.getByRole('button', { name: 'History' }).click();
+    await copacetic.chooseMenuItem('Show all history');
     expect(
       await copacetic.waitForChrome(() => Boolean(document.querySelector('[role="dialog"][aria-label="History"]'))),
     ).toBe(true);
@@ -63,7 +63,7 @@ describe('a surface when a tab is chosen', () => {
    * search field would shut it.
    */
   it('stays open while it is being used', async () => {
-    await copacetic.chrome.getByRole('button', { name: 'History' }).click();
+    await copacetic.chooseMenuItem('Show all history');
     expect(
       await copacetic.waitForChrome(() => Boolean(document.querySelector('[role="dialog"][aria-label="History"]'))),
     ).toBe(true);

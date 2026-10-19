@@ -57,6 +57,7 @@ export const CHANNELS = {
   'chrome.setOverlayHeight': 'chrome:set-overlay-height',
   'chrome.getState': 'chrome:get-state',
   'chrome.pendingSurface': 'surface:pending',
+  'chrome.openMainMenu': 'chrome:open-main-menu',
 
   'omnibox.suggest': 'omnibox:suggest',
 

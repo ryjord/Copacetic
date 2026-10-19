@@ -29,6 +29,7 @@ import {
   showNewTabMenu,
   showTabContextMenu,
 } from '../menus/context-menu';
+import { showMainMenu } from '../menus/main-menu';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 /**
@@ -137,6 +138,9 @@ export function registerIpcHandlers(browser: Browser): void {
   handle('notices.answer', (_event, id, confirmed) => browser.notices.answer(asString(id), confirmed === true));
   handle('notices.pending', () => browser.notices.pending());
   handle('chrome.pendingSurface', () => browser.pendingSurface());
+  handle('chrome.openMainMenu', (_event, x, y) =>
+    showMainMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
+  );
   handle('chrome.setOverlayHeight', (_event, height) => browser.setOverlayHeight(asNumber(height, 0)));
   handle('favicons.forUrls', (_event, urls) => browser.store.faviconsFor(pickUrls(urls)));
   handle('filters.update', () => browser.updateFilterLists());

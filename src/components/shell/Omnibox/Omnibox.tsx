@@ -1,14 +1,28 @@
 'use client';
 
-import { ArrowRight, Bookmark, Clock, Search } from 'lucide-react';
+// Libs
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SEARCH_ENGINES, splitUrlForDisplay } from '@shared/url';
-import type { Suggestion, TabId, TabState } from '@shared/types';
+
+// Components
 import { Favicon } from '@/components/ui/Favicon/Favicon';
+import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { ConnectionBadge } from '@/components/shell/ConnectionBadge/ConnectionBadge';
+
+// Icons
+import { ArrowRight, Bookmark, Clock, Search, Star } from 'lucide-react';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
+// Utils
 import { ask, send } from '@/lib/bridge';
 import { cn } from '@/lib/utils';
-import { useBrowserStore } from '@/store/useBrowserStore';
-import { ConnectionBadge } from '@/components/shell/ConnectionBadge/ConnectionBadge';
+
+// Types
+import type { Suggestion, TabId, TabState } from '@shared/types';
+import { splitUrlForDisplay } from '@shared/url';
+
+const PLACEHOLDER = 'Search or enter address';
 
 interface OmniboxProps {
   tab: TabState | null;
@@ -16,7 +30,6 @@ interface OmniboxProps {
 
 /** The address bar, and the one place in Copacetic where boldness is spent. */
 export function Omnibox({ tab }: OmniboxProps) {
-  const settings = useBrowserStore((state) => state.settings);
   const focusToken = useBrowserStore((state) => state.omniboxFocusToken);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -26,7 +39,6 @@ export function Omnibox({ tab }: OmniboxProps) {
   const [highlighted, setHighlighted] = useState(0);
 
   const committedUrl = tab?.displayUrl ?? '';
-  const engineName = SEARCH_ENGINES[settings.searchEngine]?.name ?? 'your search engine';
 
   const beginEditing = useCallback(() => {
     setDraft(committedUrl);
@@ -184,8 +196,8 @@ export function Omnibox({ tab }: OmniboxProps) {
             aria-controls="omnibox-suggestions"
             aria-autocomplete="list"
             aria-activedescendant={visibleSuggestions.length > 0 ? `omnibox-suggestion-${highlighted}` : undefined}
-            placeholder={`Search with ${engineName}, or type an address`}
-            className="h-full w-full bg-transparent font-mono text-[12px] tracking-tight text-ink outline-none placeholder:font-sans placeholder:tracking-normal placeholder:text-ink-faint"
+            placeholder={PLACEHOLDER}
+            className="h-full w-full bg-transparent font-mono text-body-sm tracking-tight text-ink outline-none placeholder:font-sans placeholder:tracking-normal placeholder:text-ink-faint"
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={() => {
@@ -201,9 +213,11 @@ export function Omnibox({ tab }: OmniboxProps) {
             className="h-full w-full truncate text-left"
             aria-label="Address and search"
           >
-            <AddressDisplay url={committedUrl} engineName={engineName} />
+            <AddressDisplay url={committedUrl} />
           </button>
         )}
+
+        {tab && !tab.isStartPage && <BookmarkStar tab={tab} />}
       </div>
 
       {visibleSuggestions.length > 0 && (
@@ -220,15 +234,15 @@ export function Omnibox({ tab }: OmniboxProps) {
 }
 
 // The address, rendered as structure rather than as a string.
-function AddressDisplay({ url, engineName }: { url: string; engineName: string }) {
+function AddressDisplay({ url }: { url: string }) {
   const parts = useMemo(() => (url ? splitUrlForDisplay(url) : null), [url]);
 
   if (!parts) {
-    return <span className="text-[12px] text-ink-faint">Search with {engineName}, or type an address</span>;
+    return <span className="text-body-sm text-ink-faint">{PLACEHOLDER}</span>;
   }
 
   return (
-    <span className="flex items-baseline truncate font-mono text-[12px] tracking-tight">
+    <span className="flex items-baseline truncate font-mono text-body-sm tracking-tight">
       {parts.scheme !== 'https' && <span className="mr-1 text-ink-faint">{parts.scheme}://</span>}
       {parts.subdomain && <span className="text-ink-faint">{parts.subdomain}</span>}
       <span className="text-ink">{parts.registrableDomain}</span>
@@ -292,8 +306,8 @@ function SuggestionList({
               ) : (
                 <Icon size={14} className="shrink-0 text-ink-faint" />
               )}
-              <span className="truncate text-[12.5px] text-ink">{suggestion.title}</span>
-              <span className="ml-auto truncate pl-4 font-mono text-[11px] text-ink-faint">
+              <span className="truncate text-body text-ink">{suggestion.title}</span>
+              <span className="ml-auto truncate pl-4 font-mono text-caption text-ink-faint">
                 {suggestion.subtitle}
               </span>
             </button>
@@ -301,5 +315,19 @@ function SuggestionList({
         );
       })}
     </ul>
+  );
+}
+
+/** Saving the page belongs to the page's address, so it sits at the end of it. */
+function BookmarkStar({ tab }: { tab: TabState }) {
+  return (
+    <IconButton
+      label={tab.isBookmarked ? 'Remove bookmark' : 'Bookmark this page'}
+      size="sm"
+      tone={tab.isBookmarked ? 'active' : 'default'}
+      onClick={() => send((api) => api.bookmarks.toggle(tab.url, tab.title))}
+    >
+      <Star size={14} strokeWidth={1.75} fill={tab.isBookmarked ? 'currentColor' : 'none'} />
+    </IconButton>
   );
 }
