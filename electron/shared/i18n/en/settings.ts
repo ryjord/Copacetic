@@ -306,7 +306,7 @@ export const settings = {
       title: 'Cookies',
       thirdParty: {
         label: 'Block third-party cookies',
-        help: 'A site other than the one you are on cannot send or set a cookie with what it loads into the page, which is how most tracking across sites works. A site you let show trackers is let through too. Cookies a third-party frame sets with script are not covered.',
+        help: 'Other sites cannot set cookies through the page you are on, which is how most tracking across sites works.',
       },
     },
     calls: {
@@ -685,6 +685,11 @@ export const settings = {
           'Copacetic blocks {domains} that exist only to follow people between sites, plus the EasyList and EasyPrivacy rules. The count in the address bar is the real number blocked on that page.',
         domains: '{count} domains',
         domainsFallback: 'a list of domains',
+      },
+      thirdPartyCookies: {
+        question: 'What does blocking third-party cookies leave alone?',
+        answer:
+          'A site you let show trackers keeps its third-party cookies too. Cookies a frame from another site sets with script are not covered: stopping those would mean running code inside every frame.',
       },
       cannot: {
         question: 'What can it not block?',

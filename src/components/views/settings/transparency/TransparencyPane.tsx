@@ -6,6 +6,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 // Components
 import { Button } from '@/components/ui/Button/Button';
 
+// Icons
+import { ChevronDown } from 'lucide-react';
+
 // Utils
 import { ask, send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
@@ -114,6 +117,9 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
         <Answer question={t('settings.transparency.blocking.what.question')}>
           {t('settings.transparency.blocking.what.answer', { domains })}
         </Answer>
+        <Answer question={t('settings.transparency.blocking.thirdPartyCookies.question')}>
+          {t('settings.transparency.blocking.thirdPartyCookies.answer')}
+        </Answer>
         <Answer question={t('settings.transparency.blocking.cannot.question')}>
           {t('settings.transparency.blocking.cannot.answer')}
         </Answer>
@@ -149,11 +155,19 @@ function Topic({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** A question that opens to its answer, so the page reads as a list of questions rather than an essay. */
 function Answer({ question, children }: { question: string; children: ReactNode }) {
   return (
-    <div>
-      <h4 className="text-body font-medium text-ink">{question}</h4>
-      <div className="mt-1 text-body text-ink-dim">{children}</div>
-    </div>
+    <details className="group rounded-md bg-inset px-4 py-3">
+      <summary className="flex cursor-default list-none items-center justify-between gap-4 text-reading font-medium text-ink">
+        <h4 className="m-0 text-reading font-medium">{question}</h4>
+        <ChevronDown
+          size={14}
+          className="shrink-0 text-ink-faint transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className="mt-2 text-body text-ink-dim">{children}</div>
+    </details>
   );
 }
