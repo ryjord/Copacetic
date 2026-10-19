@@ -14,6 +14,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   /** Destructive confirmations are red; everything else is the accent. */
   isDestructive?: boolean;
+  /** For a choice made inside the dialog that is not yet complete. */
+  disabled?: boolean;
 }
 
 /**
@@ -30,6 +32,7 @@ export function ConfirmDialog({
   confirmLabel,
   onConfirm,
   isDestructive = false,
+  disabled = false,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
@@ -45,7 +48,7 @@ export function ConfirmDialog({
               <Button variant="ghost">Cancel</Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action asChild>
-              <Button variant={isDestructive ? 'danger' : 'primary'} onClick={onConfirm}>
+              <Button variant={isDestructive ? 'danger' : 'primary'} disabled={disabled} onClick={onConfirm}>
                 {confirmLabel}
               </Button>
             </AlertDialog.Action>

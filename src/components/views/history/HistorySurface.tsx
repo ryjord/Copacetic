@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState/EmptyState';
 import { Favicon } from '@/components/ui/Favicon/Favicon';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
@@ -13,6 +12,7 @@ import { Menu } from '@/components/ui/Menu/Menu';
 import { SearchField } from '@/components/ui/TextField/TextField';
 import { SkeletonRows } from '@/components/ui/Skeleton/Skeleton';
 import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
+import { ClearBrowsingDialog } from '@/components/views/clearing/ClearBrowsingDialog';
 
 // Icons
 import { History, X } from 'lucide-react';
@@ -22,7 +22,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { ask, send } from '@/lib/bridge';
-import { CLEAR_RANGES, WHAT_CLEARING_REMOVES, clearTitle } from '@/lib/clearing';
+import { CLEAR_RANGES } from '@/lib/clearing';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { formatDateHeading, formatTimeOfDay } from '@/lib/format';
 
@@ -169,22 +169,18 @@ export function HistorySurface() {
         )}
       </div>
 
-      <ConfirmDialog
-        open={clearing !== null}
-        onOpenChange={(open) => !open && setClearing(null)}
-        title={clearing ? clearTitle(clearing) : ''}
-        confirmLabel="Clear"
-        isDestructive
-        onConfirm={() => {
-          const range = clearing;
-          setClearing(null);
-          if (range) {
-            void ask((api) => api.history.clear(range), undefined).then(() => refresh(query));
-          }
-        }}
-      >
-        {clearing && WHAT_CLEARING_REMOVES[clearing]} Open tabs stay open.
-      </ConfirmDialog>
+      {clearing && (
+        <ClearBrowsingDialog
+          key={clearing}
+          range={clearing}
+          open
+          onOpenChange={(open) => !open && setClearing(null)}
+          onConfirm={(choice) => {
+            setClearing(null);
+            void ask((api) => api.history.clear(clearing, choice), undefined).then(() => refresh(query));
+          }}
+        />
+      )}
     </SurfaceShell>
   );
 }

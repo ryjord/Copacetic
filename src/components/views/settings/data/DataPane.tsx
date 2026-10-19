@@ -4,14 +4,14 @@
 import { useCallback, useEffect, useState } from 'react';
 
 // Components
+import { ClearBrowsingDialog } from '@/components/views/clearing/ClearBrowsingDialog';
 import { Button } from '@/components/ui/Button/Button';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 
 // Utils
 import { ask, send } from '@/lib/bridge';
-import { CLEAR_RANGES, WHAT_CLEARING_REMOVES, clearTitle } from '@/lib/clearing';
+import { CLEAR_RANGES } from '@/lib/clearing';
 
 // Types
 import type { ClearRange, ExportKind, ImportSource } from '@shared/types';
@@ -160,19 +160,16 @@ export function DataPane() {
         </p>
       )}
 
-      <ConfirmDialog
+      <ClearBrowsingDialog
+        key={range}
+        range={range}
         open={isConfirming}
         onOpenChange={setIsConfirming}
-        title={clearTitle(range)}
-        confirmLabel="Clear"
-        isDestructive
-        onConfirm={() => {
-          send((api) => api.history.clear(range));
+        onConfirm={(choice) => {
+          send((api) => api.history.clear(range, choice));
           reload();
         }}
-      >
-        {WHAT_CLEARING_REMOVES[range]} Open tabs stay open.
-      </ConfirmDialog>
+      />
     </>
   );
 }

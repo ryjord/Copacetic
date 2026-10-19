@@ -7,6 +7,7 @@ import type { SuggestionView } from './suggestion-view';
 import type { GroupColourId } from './tab-groups';
 import type { ProfileSummary } from './profiles';
 import type { SpellcheckChoices } from './spellcheck';
+import type { ClearChoice } from './clearing';
 import type {
   AppInfo,
   DefaultBrowserStatus,
@@ -107,7 +108,8 @@ export interface CopaceticApi {
     /** Requests refused across everything still in history. */
     totalBlocked(): Promise<number>;
     remove(id: string): Promise<void>;
-    clear(range: ClearRange): Promise<void>;
+    /** History in the range; cookies, site data and the cache, if chosen, entirely. */
+    clear(range: ClearRange, choice?: ClearChoice): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;
   };
   favicons: {

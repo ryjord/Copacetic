@@ -1,4 +1,5 @@
 import type { Session } from 'electron';
+import { type ClearChoice, defaultClearChoice } from '../../shared/clearing';
 import {
   type KeptAboutSites,
   type KeptKind,
@@ -179,14 +180,21 @@ export class SiteData {
     this.deps.changed();
   }
 
-  async clearBrowsing(range: ClearRange): Promise<void> {
-    this.deps.store.clearHistory(range);
-    if (range === 'all') {
+  async clearBrowsing(range: ClearRange, choice: ClearChoice = defaultClearChoice(range)): Promise<void> {
+    if (choice.history) {
+      this.deps.store.clearHistory(range);
+    }
+    if (choice.history && range === 'all') {
       // Certificate summaries are browsing data too: they name every host
       // visited this session.
       forgetCertificates();
       forgetCertificateExceptions();
-      await Promise.all(this.deps.sessions.siteDataSessions().map((session) => this.deps.sessions.clear(session)));
+    }
+    if (choice.siteData || choice.cache) {
+      const parts = { siteData: choice.siteData, cache: choice.cache };
+      await Promise.all(
+        this.deps.sessions.siteDataSessions().map((session) => this.deps.sessions.clear(session, parts)),
+      );
     }
     this.deps.changed();
   }

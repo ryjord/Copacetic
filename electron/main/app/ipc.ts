@@ -13,6 +13,7 @@ import {
   readPermissionDefaults,
 } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/spellcheck';
+import { readClearChoice } from '../../shared/clearing';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
 import type { Browser } from './browser';
@@ -123,7 +124,10 @@ export function registerIpcHandlers(profiles: Profiles): void {
     browser.store.removeHistory(asString(id));
     browser.scheduleStatePush();
   });
-  handle('history.clear', (browser, _event, range) => browser.sites.clearBrowsing(asClearRange(range)));
+  handle('history.clear', (browser, _event, range, choice) => {
+    const clearRange = asClearRange(range);
+    return browser.sites.clearBrowsing(clearRange, readClearChoice(choice, clearRange));
+  });
   handle('history.topSites', (browser, _event, limit) => browser.store.topSites(asInteger(limit, 8)));
 
   // -------------------------------------------------------------- bookmarks

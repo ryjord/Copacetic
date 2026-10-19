@@ -111,10 +111,14 @@ export class SessionRegistry {
     return [...partitions].map((partition) => this.prepare(partition));
   }
 
-  async clear(session: Session): Promise<void> {
+  async clear(session: Session, parts = { siteData: true, cache: true }): Promise<void> {
     try {
-      await session.clearStorageData();
-      await session.clearCache();
+      if (parts.siteData) {
+        await session.clearStorageData();
+      }
+      if (parts.cache) {
+        await session.clearCache();
+      }
     } catch (error) {
       log.warn('could not clear a session', describeError(error));
     }
