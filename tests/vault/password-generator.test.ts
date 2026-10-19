@@ -66,7 +66,7 @@ describe('the shape of what comes out', () => {
 /**
  * The bug this file exists to catch. Taking a byte modulo the alphabet size is
  * the usual shortcut, and it makes the first characters of the alphabet come up
- * more often — which weakens every password produced and is invisible in the
+ * more often - which weakens every password produced and is invisible in the
  * output.
  */
 describe('drawing without bias', () => {
@@ -118,7 +118,7 @@ describe('drawing without bias', () => {
    * Without a shuffle the guaranteed characters stay where they were placed, so
    * position 0 is always a lowercase letter, position 1 always uppercase, and
    * so on. The password still looks random and has lost most of its strength.
-   * Checking that the first character varies is not enough — it varies across
+   * Checking that the first character varies is not enough - it varies across
    * twenty-five lowercase letters. The *kind* has to vary.
    */
   it.each([0, 1, 2, 3])('draws every kind of character at position %i', (position) => {

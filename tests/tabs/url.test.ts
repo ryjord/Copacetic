@@ -317,7 +317,7 @@ describe('originOf, which keys every permission decision', () => {
 /**
  * HTTPS-First guards against someone on the path to a public server. A host on
  * your own network has no such path, is usually http by design, and the upgrade
- * has nothing to fall back to — so upgrading it only breaks it.
+ * has nothing to fall back to - so upgrading it only breaks it.
  */
 describe('upgrading http to https', () => {
   const typed = (input: string) => resolveOmniboxInput(input, 'brave', { httpsFirst: true });
@@ -335,7 +335,7 @@ describe('upgrading http to https', () => {
   });
 
   /**
-   * Typed without a scheme, which is how anyone actually types an address —
+   * Typed without a scheme, which is how anyone actually types an address -
    * and a separate branch from the one above. Writing every case with an
    * explicit http:// is why the first version of this fix looked complete and
    * was not.

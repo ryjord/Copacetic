@@ -125,7 +125,7 @@ export class Browser {
     this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
     // Built into the release rather than fetched. Every other blocker asks a
     // server for its lists on a timer, which is a periodic request from your
-    // machine — the shape of the thing being blocked. A failure here is
+    // machine - the shape of the thing being blocked. A failure here is
     // survivable: the curated hostnames are still there, and blocking less is
     // better than not starting.
     // A list fetched on request is preferred to the one that shipped, and the
@@ -416,7 +416,7 @@ export class Browser {
    * Whether a frame asking for something is one of this browser's own.
    *
    * The chrome window and the overlay are both trusted chrome with the same
-   * preload; everything else — every page in every tab — is not, and has no
+   * preload; everything else - every page in every tab - is not, and has no
    * preload to ask with in the first place.
    */
   isOwnFrame(frame: WebFrameMain | null): boolean {
@@ -441,7 +441,7 @@ export class Browser {
     });
 
     const message = outcome.ok
-      ? `Filter lists updated — ${outcome.rules.toLocaleString()} rules, from ${outcome.lists.map((list) => list.name).join(' and ')}.`
+      ? `Filter lists updated: ${outcome.rules.toLocaleString()} rules, from ${outcome.lists.map((list) => list.name).join(' and ')}.`
       : outcome.reason;
 
     this.notices.notify({ id: 'filters-update', tone: outcome.ok ? 'done' : 'info', key: 'filters-update', message });
@@ -538,7 +538,7 @@ export class Browser {
    * Records the tabs that are open.
    *
    * Called whenever they change rather than only at quit. Writing the session
-   * once, on the way out, meant a crash or a kill lost every open tab — the one
+   * once, on the way out, meant a crash or a kill lost every open tab - the one
    * thing someone notices immediately, and the one thing that cannot be
    * reconstructed. The session file flushes on its own longer debounce, so
    * saying so on every change costs a write about once a second at worst.

@@ -13,7 +13,7 @@ const icon = (kilobytes: number, updatedAt: number) => ({
  * The count was bounded and the size was not.
  *
  * A favicon is fetched at up to 200KB, which is about 267KB once it is a data
- * URL, so six hundred of them is roughly 160MB — read from disk, synchronously,
+ * URL, so six hundred of them is roughly 160MB - read from disk, synchronously,
  * before the first window appears. Almost every real favicon is a few
  * kilobytes; this exists for the handful that are not.
  */

@@ -46,7 +46,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   };
 
   // segmentByGroup has already visited every tab in order, so where each run
-  // starts falls out of the run lengths — the strip does not need scanning
+  // starts falls out of the run lengths - the strip does not need scanning
   // again for every run.
   const runs = segmentByGroup(tabs);
   const runStarts = runs.reduce<number[]>(

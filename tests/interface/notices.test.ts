@@ -85,7 +85,7 @@ describe('removing one', () => {
 /**
  * The Hush count is the reason notices exist at all. A Hush tab is not saved,
  * and finding that out by counting the folder afterwards is finding it out too
- * late — the promise is only kept if it is also stated.
+ * late - the promise is only kept if it is also stated.
  */
 describe('what is said about a group saved as a folder', () => {
   it('says nothing about Hush when no Hush tab was there', () => {

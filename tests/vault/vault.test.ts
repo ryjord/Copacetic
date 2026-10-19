@@ -123,7 +123,7 @@ describe('reading one back', () => {
 /**
  * The reason this class exists. On an unsigned build macOS can treat an updated
  * binary as a different application and refuse it the keychain entry, so
- * "nothing saved" and "saved but unreadable" are both real — and reporting the
+ * "nothing saved" and "saved but unreadable" are both real - and reporting the
  * first when the second is true tells someone their passwords are gone.
  */
 describe('telling an empty vault from an unreadable one', () => {
@@ -377,7 +377,7 @@ describe('bringing passwords in', () => {
 
 /**
  * Enforced in the vault rather than the interface. A lock the renderer honours
- * and the vault does not is decoration — anything that can reach IPC walks
+ * and the vault does not is decoration - anything that can reach IPC walks
  * straight past it.
  */
 describe('while the vault is locked', () => {

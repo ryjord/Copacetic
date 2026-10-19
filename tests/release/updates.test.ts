@@ -28,7 +28,7 @@ describe('describeDelivery', () => {
   });
 
   // The .deb registers the signed apt repository when it installs, so the
-  // system genuinely does handle it — while the app itself still must never
+  // system genuinely does handle it - while the app itself still must never
   // write over a file dpkg owns.
   it('hands a Linux package-managed build to the system', () => {
     const result = on('linux', { isAppImage: false });
@@ -64,7 +64,7 @@ describe('describeDelivery', () => {
  * Automatic updates did nothing at all from 1.1.0 until this was found.
  * `electron-updater` is CommonJS, destructuring its namespace gave undefined,
  * and the first property set on it threw inside the try/catch around the
- * check — so it surfaced as a message rather than a crash, and every test
+ * check - so it surfaced as a message rather than a crash, and every test
  * passed because they all covered the platform decision instead of the
  * updater itself.
  */

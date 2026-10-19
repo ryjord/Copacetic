@@ -13,17 +13,17 @@ v1 . 2 . 3 - beta.4
 
 ## The positions
 
-**Major — `2.0.0`.** Reserved. This is the number that says the product changed
+**Major - `2.0.0`.** Reserved. This is the number that says the product changed
 shape, not that it accumulated enough small things. A major is a decision, not
 an arithmetic consequence.
 
-**Minor — `1.2.0`.** A new capability, or something genuinely worth announcing.
+**Minor - `1.2.0`.** A new capability, or something genuinely worth announcing.
 If a user would notice it and care, it belongs here.
 
-**Patch — `1.0.1`.** Bug fixes, hardening, performance, logging, docs, test
+**Patch - `1.0.1`.** Bug fixes, hardening, performance, logging, docs, test
 coverage, dependency bumps. Nothing a user has to learn.
 
-**Private — `1.2.0-beta.1`.** Betas, release candidates and internal builds.
+**Private - `1.2.0-beta.1`.** Betas, release candidates and internal builds.
 Never promoted to a public release under that name; when it is ready, it ships
 as the plain version with the suffix dropped.
 
@@ -32,14 +32,14 @@ as the plain version with the suffix dropped.
 `1.2.3.4` cannot be used. It is not valid semver, and three things in this repo
 reject it outright:
 
-- `package.json#version` — npm refuses to install or publish with it
-- `electron-builder` — derives installer and update metadata from a semver version
-- `electron-updater` — compares versions with semver precedence rules
+- `package.json#version` - npm refuses to install or publish with it
+- `electron-builder` - derives installer and update metadata from a semver version
+- `electron-updater` - compares versions with semver precedence rules
 
 `1.2.3-beta.4` does the same job and is valid everywhere. It also sorts
 _before_ `1.2.3`, which is the correct relationship: a beta precedes the
 release it is a beta of. Auto-update treats prerelease versions as a separate
-channel, so a beta never reaches someone on the stable channel by accident —
+channel, so a beta never reaches someone on the stable channel by accident -
 which is exactly the "we keep it private" behaviour, enforced by the tooling
 rather than by remembering.
 
@@ -63,7 +63,7 @@ merge to `main` is safe and reversible in a way a tag is not.
 
 ## Commit messages
 
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) —
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) -
 `type(scope): summary`. The type is what decides the next version:
 
 | Commit type                            | Moves                           |

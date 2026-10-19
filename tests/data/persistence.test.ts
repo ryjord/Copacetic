@@ -163,7 +163,7 @@ describe('the small coercions everything else is built on', () => {
 /**
  * What is in these files: every address visited, every bookmark, the tabs left
  * open, and the vault's own record of what it holds. Getting the write wrong
- * does not corrupt a preference — it loses browsing, or hands it to another
+ * does not corrupt a preference - it loses browsing, or hands it to another
  * account on the machine.
  */
 describe('how a stored file reaches the disk', () => {
@@ -188,7 +188,7 @@ describe('how a stored file reaches the disk', () => {
 /**
  * Windows refuses to rename over a file another process holds open, and an
  * antivirus scanner or the search indexer opens a file the moment it is
- * written. It is transient, and it lands on the step that publishes the data —
+ * written. It is transient, and it lands on the step that publishes the data -
  * so a scan at the wrong moment used to lose the write outright.
  */
 describe('renaming over a file something else is holding', () => {
@@ -219,8 +219,8 @@ describe('renaming over a file something else is holding', () => {
   });
 
   /*
-   * The counterweight. Retrying a failure that will never clear — a missing
-   * directory, a full disk — turns an error someone can act on into a pause and
+   * The counterweight. Retrying a failure that will never clear - a missing
+   * directory, a full disk - turns an error someone can act on into a pause and
    * then the same error.
    */
   it('does not retry a failure that will not clear', () => {

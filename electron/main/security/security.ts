@@ -9,7 +9,7 @@ import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
 /** Web content lives in its own persistent partition, separate from the session that runs Copacetic's own UI. */
 export const WEB_PARTITION = 'persist:copacetic-web';
 
-/** No `persist:` prefix — that is what keeps the whole session in memory and off the disk. */
+/** No `persist:` prefix - that is what keeps the whole session in memory and off the disk. */
 export const HUSH_PARTITION = 'copacetic-hush';
 
 /**
@@ -17,7 +17,7 @@ export const HUSH_PARTITION = 'copacetic-hush';
  *
  * Everything is, except Hush. A download's address, its redirect chain and the
  * time it happened are browsing, and a Hush tab's whole claim is that none of
- * that reaches the disk — the file itself is on disk because it was asked for.
+ * that reaches the disk - the file itself is on disk because it was asked for.
  *
  * This is the only thing that differs between one session and another, which is
  * why it is a function rather than a branch written out at each call site.
@@ -113,7 +113,7 @@ function chromeContentSecurityPolicy(): string {
   // `'unsafe-inline'` on scripts is not a choice: a statically exported Next
   // app inlines its bootstrap and flight payload, and static export cannot emit
   // a per-request nonce. It is contained by the fact that this document only
-  // ever loads local, build-time assets — `connect-src` and `img-src` below
+  // ever loads local, build-time assets - `connect-src` and `img-src` below
   // make sure the chrome cannot talk to the network at all.
   const scriptSrc = isDevelopment() ? `'self' 'unsafe-inline' 'unsafe-eval'` : `'self' 'unsafe-inline'`;
   const connectSrc = isDevelopment() ? `'self' ws: http://localhost:3000` : `'self'`;
@@ -167,7 +167,7 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   });
 
   // Record what Chromium decided about each certificate, so the connection
-  // badge can say who issued it and when it expires. This observes only — see
+  // badge can say who issued it and when it expires. This observes only - see
   // certificates.ts for why that distinction is load-bearing.
   observeCertificates(session);
 
@@ -314,7 +314,7 @@ function hardenAttachedFrames(contents: WebContents): void {
   });
 }
 
-// Every caller here is reacting to something *page code* did, so this is the strict set — a page cannot reach `file:` even though the user can type it.
+// Every caller here is reacting to something *page code* did, so this is the strict set - a page cannot reach `file:` even though the user can type it.
 function isNavigable(url: string): boolean {
   try {
     const parsed = new URL(url);

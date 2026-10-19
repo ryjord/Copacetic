@@ -287,7 +287,7 @@ describe('per-site exceptions', () => {
 /**
  * Fetching the lists again.
  *
- * The failure that matters is not a fetch that errors — that is loud. It is a
+ * The failure that matters is not a fetch that errors - that is loud. It is a
  * list that arrives short: it parses, it loads, and it silently blocks less
  * than the one it replaced. Nothing downstream can tell, so this refuses the
  * whole update rather than accept part of one.

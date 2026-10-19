@@ -86,7 +86,7 @@ export function describeSecurity(
       host,
       // Not the usual claim, because the usual check did not happen.
       detail:
-        'Encrypted to a server on this machine. Its certificate was not checked against any authority — Copacetic accepts those from loopback so local development works, and this traffic never leaves your machine.',
+        'Encrypted to a server on this machine. Its certificate was not checked against any authority. Copacetic accepts those from loopback so local development works, and this traffic never leaves your machine.',
       certificate: null,
       certificateChange: '',
     };

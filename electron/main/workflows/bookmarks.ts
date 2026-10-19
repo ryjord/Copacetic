@@ -17,7 +17,7 @@ export class BookmarkCommands {
    * Says that the saved things changed.
    *
    * Filing a bookmark or recolouring a folder changes no tab, so the tab
-   * snapshot the chrome already watches says nothing about it — a surface
+   * snapshot the chrome already watches says nothing about it - a surface
    * watching only that shows a stale tree until something unrelated happens.
    */
   changed(): void {

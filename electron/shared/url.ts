@@ -4,7 +4,7 @@ import type { SearchEngine, SearchEngineId } from './types';
 export const INTERNAL_SCHEME = 'copacetic';
 export const START_PAGE_URL = `${INTERNAL_SCHEME}://start`;
 
-/** Schemes a tab is allowed to load when the *user* asks for it — typing an address, restoring a session, opening a bookmark. */
+/** Schemes a tab is allowed to load when the *user* asks for it - typing an address, restoring a session, opening a bookmark. */
 export const NAVIGABLE_SCHEMES = new Set(['http:', 'https:', 'file:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 /** Schemes a *page* is allowed to drive a tab to. */
@@ -142,7 +142,7 @@ export function resolveOmniboxInput(
     return search();
   }
 
-  // A bare host is tried over https — a guess that is free to make and costs
+  // A bare host is tried over https - a guess that is free to make and costs
   // nothing when it is wrong. A host on your own network is the exception, for
   // the same reason it is exempt above: it is usually http by design.
   const scheme = isPrivateHost(bareHost) ? 'http' : 'https';
@@ -282,7 +282,7 @@ export function publicSuffixLabelCount(host: string): number {
   return prevailing || 1;
 }
 
-/** The registrable domain — the public suffix plus the one label a person actually registered. */
+/** The registrable domain - the public suffix plus the one label a person actually registered. */
 export function registrableDomainOf(host: string): string | null {
   const bare = toAsciiHost(host).replace(/\.$/, '');
   if (!bare || bare.startsWith('.') || bare.includes('..')) {
@@ -324,7 +324,7 @@ export function isFetchableFavicon(pageUrl: string, faviconUrl: string): boolean
 
 export interface DisplayUrlParts {
   scheme: string;
-  /** Everything before the registrable domain, e.g. `docs.` — may be empty. */
+  /** Everything before the registrable domain, e.g. `docs.` - may be empty. */
   subdomain: string;
   /** The part a user should actually read to know where they are. */
   registrableDomain: string;
@@ -398,7 +398,7 @@ export function originOf(value: string): string {
   }
 }
 
-/** A short, human label for a URL — used for tab titles before one arrives. */
+/** A short, human label for a URL - used for tab titles before one arrives. */
 export function fallbackTitleFor(value: string): string {
   if (value === START_PAGE_URL) {
     return 'New tab';

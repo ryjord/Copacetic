@@ -174,7 +174,7 @@ describe('a realistic session still reports the truth', () => {
     expect(read().orderedTabs.map((t) => t.id)).toEqual(['one', 'two']);
     expect(read().activeTab?.id).toBe('two');
 
-    // 6. Tabs are reordered — every tab identical, only the order different.
+    // 6. Tabs are reordered - every tab identical, only the order different.
     const reordered = { ...closed, tabOrder: ['two', 'one'] };
     push(reordered);
     expect(read().orderedTabs.map((t) => t.id)).toEqual(['two', 'one']);

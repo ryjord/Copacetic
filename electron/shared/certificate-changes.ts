@@ -28,7 +28,7 @@ const NOTHING: CertificateComparison = { change: 'none', detail: '' };
  * The one that matters is a chain that used to end at a root shipped with the
  * system and now ends at one installed here. That is what a corporate proxy,
  * an antivirus that opens TLS, or an attacker with local access all look like
- * from inside the browser — and it is the only case worth interrupting for.
+ * from inside the browser - and it is the only case worth interrupting for.
  */
 export function compareCertificate(
   remembered: RememberedCertificate | null,
@@ -42,7 +42,7 @@ export function compareCertificate(
     return {
       change: 'now-locally-trusted',
       detail:
-        'This site’s certificate now comes from an authority installed on this machine rather than one shipped with your system. Software on this computer, or the network you are on, is reading this connection. That is how a workplace proxy and an antivirus that inspects traffic both work — and it is also what an attacker would look like.',
+        'This site’s certificate now comes from an authority installed on this machine rather than one shipped with your system. Software on this computer, or the network you are on, is reading this connection. That is how a workplace proxy or an antivirus that inspects traffic works. It is also what an attacker would look like.',
     };
   }
 
@@ -68,7 +68,7 @@ export function rememberCertificate(
     issuer: current.issuer,
     isIssuedByKnownRoot: current.isIssuedByKnownRoot,
     // Carried across a renewal, so "first seen" means the site rather than this
-    // particular certificate — otherwise it resets every few months and stops
+    // particular certificate - otherwise it resets every few months and stops
     // meaning anything.
     firstSeenAt: remembered?.firstSeenAt ?? now,
   };

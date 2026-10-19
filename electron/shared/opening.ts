@@ -6,7 +6,7 @@
  * tab from the first produced an ordinary, recorded one: `target="_blank"`,
  * `window.open`, middle-click, "Open link in new tab", "Open image in new tab",
  * and "Search for …" on a selection. The address landed in history, the icon in
- * the favicon cache, the certificate in certificates.json — the exact record
+ * the favicon cache, the certificate in certificates.json - the exact record
  * the tab exists not to leave, reached by following a link.
  *
  * It was three separate findings and one cause: the flag was passed at tab
@@ -36,7 +36,7 @@ export interface InheritedTab {
  * An explicit request always wins: "New Hush tab" means Hush whatever it was
  * opened from, and a tab dropped into a group names that group. Everything left
  * unsaid comes from the opener, and a tab with no opener is an ordinary tab in
- * no group — which is what someone typing an address into a new window gets.
+ * no group - which is what someone typing an address into a new window gets.
  */
 export function inheritFromOpener(opener: OpenerTab | null, requested: RequestedTab = {}): InheritedTab {
   return {

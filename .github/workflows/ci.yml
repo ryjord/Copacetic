@@ -7,7 +7,7 @@ on:
 
 # Read-only, stated rather than inherited. Without a block here a workflow gets
 # whatever the repository's default is, which is a write token in a repository
-# that has never changed the setting — handed to every action in every job, for
+# that has never changed the setting - handed to every action in every job, for
 # a workflow that only needs to read the code it is checking.
 permissions:
   contents: read
@@ -90,7 +90,7 @@ jobs:
 
       # Assembling it is not the same as it working. Everything above runs
       # `electron .` against the source tree, which proves the code is right and
-      # says nothing about what is shipped — a file left out of `files`, a
+      # says nothing about what is shipped - a file left out of `files`, a
       # dependency pruned that was needed, a preload the packaged app cannot
       # find. All of those reach a release otherwise, and one of them did: the
       # app carried 246MB of build tools it never loaded, and taking them out was
@@ -105,7 +105,7 @@ jobs:
 
       # The installers themselves, on the branches a tag is cut from. `--dir`
       # produces a tree, not a .dmg, .exe or .deb, so anything that only breaks
-      # while building an installer was first seen during a release — which is
+      # while building an installer was first seen during a release - which is
       # how a line-ending change to the filter lists came to fail the Windows
       # build of 1.4.0 and not a single run before it.
       #

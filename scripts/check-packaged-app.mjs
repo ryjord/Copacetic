@@ -4,8 +4,8 @@
  * The smoke suite runs `electron .` against the source tree, which proves the
  * code works and says nothing about what is shipped. The packaged tree was
  * assembled by CI and never started, so anything that breaks only once the app
- * is packaged — a file left out of `files`, a dependency pruned that was needed,
- * a protocol handler that cannot find the renderer — reached a release.
+ * is packaged - a file left out of `files`, a dependency pruned that was needed,
+ * a protocol handler that cannot find the renderer - reached a release.
  *
  * That is not hypothetical: the application was shipping 246MB of build tools
  * inside itself, and moving them out was only safe to do because the packaged
@@ -79,13 +79,13 @@ const until = async (answer, timeoutMs) => {
  *
  * libvips, which arrives inside sharp, is LGPL. Section 4 of that licence wants
  * either dynamic linking with a way to relink, or the object files, plus the
- * licence text and a written offer — none of which a packaged Electron app
+ * licence text and a written offer - none of which a packaged Electron app
  * ships. It was in the tree because `next` depends on sharp and `next` was a
  * runtime dependency; moving the build tools out took it with them.
  *
  * Native modules cannot run from inside an asar, so anything like this is
  * unpacked beside it and a walk of the tree finds it. Checked here so that a
- * dependency change cannot quietly put it back — the obligation is not the kind
+ * dependency change cannot quietly put it back - the obligation is not the kind
  * of thing anyone notices returning.
  */
 const COPYLEFT_NATIVES = ['sharp', 'libvips'];
@@ -187,7 +187,7 @@ try {
   }
 
   // The tab strip exists only once the interface has rendered, and the bridge
-  // only if the preload was found and loaded — the two things packaging is most
+  // only if the preload was found and loaded - the two things packaging is most
   // likely to break.
   const ready = await until(() => chrome.evaluate(() => Boolean(document.querySelector('[role="tablist"]'))), 45_000);
   if (!ready) {

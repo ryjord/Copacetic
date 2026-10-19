@@ -44,7 +44,7 @@ export function NoticeStrip() {
   }, []);
 
   // Each notice times itself out, so one arriving does not restart another's
-  // clock — a steady trickle would otherwise keep the first one on screen for
+  // clock - a steady trickle would otherwise keep the first one on screen for
   // as long as the trickle lasted.
   useEffect(() => {
     const timers = notices

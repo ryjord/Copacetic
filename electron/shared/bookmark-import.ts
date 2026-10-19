@@ -1,5 +1,5 @@
 // The Netscape bookmark format: what Chrome, Firefox, Safari and Edge all
-// export, and what Copacetic already writes. Parsed rather than rendered — this
+// export, and what Copacetic already writes. Parsed rather than rendered - this
 // is a file from somewhere else and none of it is trusted.
 
 import { sanitiseChromeText } from './chrome-text';

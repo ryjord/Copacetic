@@ -12,7 +12,7 @@ export class NoticeCentre {
    * Notices that have been said but not yet taken.
    *
    * The chrome is a page, and a page is listening some time after the window
-   * paints — about 190ms on the machine in the README, and the whole launch is
+   * paints - about 190ms on the machine in the README, and the whole launch is
    * slower than that again on a cold start. Anything said before then reached
    * nobody: a notice pushed during startup was simply lost, which is the whole
    * failure notices exist to fix. They are kept here until the chrome collects
@@ -22,8 +22,8 @@ export class NoticeCentre {
   /**
    * Tells the person something, once.
    *
-   * The main process is where most things finish — a menu click, an import, a
-   * list update — and until now none of them could say so: each ended at a
+   * The main process is where most things finish - a menu click, an import, a
+   * list update - and until now none of them could say so: each ended at a
    * count that nothing read.
    */
   notify(notice: Notice, onConfirm?: () => void): void {
@@ -52,7 +52,7 @@ export class NoticeCentre {
     this.pendingAnswers.delete(id);
     this.outstanding = dismissNotice(this.outstanding, id);
     // The overlay draws notices and keeps its own copy, so an answer given
-    // anywhere else — the API, another window — would leave it on screen with
+    // anywhere else - the API, another window - would leave it on screen with
     // nothing behind it. It has to be told the question is settled.
     this.deps.overlay.send(PUSH.noticeSettled, id);
     if (confirmed) {

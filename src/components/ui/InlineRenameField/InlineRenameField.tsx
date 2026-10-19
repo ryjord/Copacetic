@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
  * offer the field itself; and a field that floats over the page cannot be seen
  * at all, because a WebContentsView paints above the chrome's HTML. What is
  * left is editing the label in place, which both the tab strip and the bookmark
- * tree do — identically, and for the same reasons, so they do it from here.
+ * tree do - identically, and for the same reasons, so they do it from here.
  *
  * The three rules are the whole component:
  *

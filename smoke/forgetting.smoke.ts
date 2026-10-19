@@ -21,7 +21,7 @@ const onDisk = <T>(file: string): T | null => {
 /**
  * Counted as it happens, not when the visit is recorded.
  *
- * A visit is recorded when the title arrives, which is early — most trackers
+ * A visit is recorded when the title arrives, which is early - most trackers
  * have not been refused yet. Sampling then reports almost nothing on every page
  * in the browser, and the number looks plausible enough that nobody checks it.
  */
@@ -54,7 +54,7 @@ describe('what a page refused', () => {
   /*
    * Counted once, and checked against the blocker's own number rather than a
    * bound. The blocker reports a running total per tab, so adding it whole on
-   * every refusal sums 1+2+3 instead of 3 — quadratic, and still small enough
+   * every refusal sums 1+2+3 instead of 3 - quadratic, and still small enough
    * to look plausible. An earlier version of this asserted "fewer than ten" and
    * passed with exactly that bug in place.
    */
@@ -126,7 +126,7 @@ describe('forgetting one site', () => {
 /**
  * What survives a clear, listed rather than left to be found.
  *
- * These are kept on purpose — someone set them — but they name the sites, and
+ * These are kept on purpose - someone set them - but they name the sites, and
  * a list nobody is shown is a list nobody can act on.
  */
 describe('what clearing does not touch', () => {

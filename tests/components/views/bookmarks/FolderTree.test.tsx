@@ -156,7 +156,7 @@ describe('clicking a folder', () => {
     fireEvent.keyDown(field, { key: 'Escape' });
 
     // Asserted on the field itself. Escape unmounts it, so a blur fired after
-    // this lands on a detached node and proves nothing about what was kept —
+    // this lands on a detached node and proves nothing about what was kept -
     // which is all the previous version of this test was checking.
     expect(field.value).toBe('work');
     fireEvent.blur(field);
@@ -166,7 +166,7 @@ describe('clicking a folder', () => {
 
 /**
  * Whether a drag is allowed to land is decided in dragover, before any drop
- * happens — it is what shows the drop as possible or refuses it under the
+ * happens - it is what shows the drop as possible or refuses it under the
  * cursor. Every test below this used to fire `drop` directly, so `accepts`
  * could be stubbed to refuse everything, breaking the feature entirely, and
  * all of them still passed.

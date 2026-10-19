@@ -27,7 +27,7 @@ export const DEFAULT_RECIPE: PasswordRecipe = {
   useSymbols: true,
 };
 
-// `l` `I` `1` `O` `0` are left out on purpose — unreadable-aloud gets written down somewhere worse.
+// `l` `I` `1` `O` `0` are left out on purpose - unreadable-aloud gets written down somewhere worse.
 export function alphabetsFor(recipe: PasswordRecipe): string[] {
   const alphabets: string[] = [];
   if (recipe.useLower) {
@@ -80,7 +80,7 @@ export function clampLength(length: number): number {
   return Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, Math.round(length)));
 }
 
-// One of each chosen kind, the rest mixed, then shuffled — not generate-and-retry, which biases towards whatever the check accepts first.
+// One of each chosen kind, the rest mixed, then shuffled - not generate-and-retry, which biases towards whatever the check accepts first.
 export function generatePassword(recipe: PasswordRecipe, randomBytes: RandomBytes): string {
   const alphabets = alphabetsFor(recipe);
   if (alphabets.length === 0) {

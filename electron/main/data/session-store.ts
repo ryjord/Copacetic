@@ -28,7 +28,7 @@ export const SESSION_PLAN: SchemaPlan = {
         }
         // Already at version 2. Running this step again on its own output read
         // `urls` off a record that no longer has one, took the empty list, and
-        // returned a session with no tabs in it — every saved tab destroyed,
+        // returned a session with no tabs in it - every saved tab destroyed,
         // for anyone whose schema.json went missing.
         if (Array.isArray(raw.tabs)) {
           return raw;

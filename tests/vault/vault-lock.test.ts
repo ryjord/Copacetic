@@ -40,8 +40,8 @@ describe('locking and unlocking', () => {
   });
 
   /**
-   * A clock that jumps backwards — a timezone change, an NTP correction, a
-   * laptop waking — must fail closed. Treating a negative elapsed time as
+   * A clock that jumps backwards - a timezone change, an NTP correction, a
+   * laptop waking - must fail closed. Treating a negative elapsed time as
    * "no time has passed" would leave the vault open indefinitely.
    */
   it('locks rather than unlocking forever when the clock goes backwards', () => {
@@ -114,7 +114,7 @@ describe('what this machine can actually ask', () => {
   /**
    * Observed on a real machine: the prompt asked for the login password rather
    * than a fingerprint. macOS decides which, and on an unsigned build it tends
-   * to decide password — so promising a fingerprint makes the prompt someone
+   * to decide password - so promising a fingerprint makes the prompt someone
    * actually gets look like something has gone wrong.
    */
   it('does not promise a fingerprint specifically', () => {

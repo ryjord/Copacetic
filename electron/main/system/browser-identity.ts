@@ -22,7 +22,7 @@ import { describeError, log } from './diagnostics';
  * The half a server sees: the user agent, the languages offered with it, and
  * the client hints Chrome sends on every secure request. Electron sends no
  * hints at all, which is a plain contradiction with a user agent that says
- * Chrome — visible without a line of script, and enough on its own for a
+ * Chrome - visible without a line of script, and enough on its own for a
  * sign-in page to refuse the browser.
  *
  * Nothing here is new information: the version and platform are already in the
@@ -50,7 +50,7 @@ export function describeSession(session: Session, platform: string, locale: stri
 
 /**
  * The half a page sees, installed through the DevTools protocol rather than a
- * preload — page content still runs no script of Copacetic's, and there is
+ * preload - page content still runs no script of Copacetic's, and there is
  * nothing here for a page to reach even if it knew.
  *
  * Two things were measured rather than assumed: the debugger has to stay

@@ -6,9 +6,9 @@ import type { ChromeSurface } from './channels';
  * A surface is opened by pushing to the chrome renderer, and the chrome is a
  * page: the window paints before anything in it is listening. `npm run measure`
  * puts that gap at about 190ms on the machine in the README. A cold first run
- * does not widen it much — it makes the whole launch slower, around 900ms to a
- * window that answers — and slower hardware moves both. Measured before this existed
- * — Cmd+, or Cmd+Y inside that window pushed to a renderer with no listeners
+ * does not widen it much - it makes the whole launch slower, around 900ms to a
+ * window that answers - and slower hardware moves both. Measured before this existed
+ * - Cmd+, or Cmd+Y inside that window pushed to a renderer with no listeners
  * attached and nothing happened, which is indistinguishable from a menu item
  * that is simply broken. Notices had the same failure and were
  * fixed by holding them in the main process until the chrome collects them;
@@ -27,8 +27,8 @@ export interface SurfaceRequest {
  * How long a request waits before it stops meaning anything.
  *
  * A surface is a thing someone wanted to see *now*. Held without a bound, a
- * chrome that reloads later — which happens while developing, and after a
- * renderer crash — would open a pane nobody is waiting for any more, and the
+ * chrome that reloads later - which happens while developing, and after a
+ * renderer crash - would open a pane nobody is waiting for any more, and the
  * fix for a lost request would have become a spurious one.
  */
 export const STILL_WANTED_MS = 10_000;
@@ -71,7 +71,7 @@ export function stillWanted(request: SurfaceRequest | null, now: number): Chrome
  * a moment earlier.
  *
  * Without this the two are separated only by which of two lines in an effect
- * runs first — measured by swapping them, which silently stopped a collected
+ * runs first - measured by swapping them, which silently stopped a collected
  * surface ever being seen.
  */
 export function reachedForAnotherTab(previous: string | null, next: string | null): boolean {

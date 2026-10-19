@@ -117,7 +117,7 @@ export interface DownloadState {
   /**
    * Started from a Hush tab, so nothing about it is written down.
    *
-   * The file is on disk — it was asked for — but the record of where it came
+   * The file is on disk - it was asked for - but the record of where it came
    * from is browsing, and a Hush tab keeps none. It is listed while Copacetic
    * is open and gone when it closes.
    */
@@ -136,7 +136,7 @@ export interface HistoryEntry {
    * Requests, not adverts: one advert is usually several requests and most of
    * these are trackers, so the number that is easy to inflate is the one to be
    * careful with. Absent on entries written before this was counted, which is
-   * why it is optional rather than zero — nothing was measured then, and zero
+   * why it is optional rather than zero - nothing was measured then, and zero
    * would be a claim.
    */
   blockedCount?: number;
@@ -280,14 +280,14 @@ export function isThemeId(value: string): value is ThemeId {
  * Applied when a tab zooms, and now also when a level is stored: a level
  * arriving through the settings patch was kept exactly as given, so a value of
  * 0.001 or 1000 could be written down and read back later as the zoom for a
- * site — legible only as a page that will not display.
+ * site - legible only as a page that will not display.
  */
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 5;
 
 /**
  * `Math.min` and `Math.max` carry NaN straight through whichever way round they
- * are written, so clamping a NaN produced a NaN — and IPC uses structured
+ * are written, so clamping a NaN produced a NaN - and IPC uses structured
  * clone, not JSON, so a NaN really can arrive from the renderer. It reached a
  * tab's zoom and the interface then had a zoom of NaN per cent to display.
  *
@@ -301,7 +301,7 @@ export function clampZoom(factor: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, factor));
 }
 
-/** How much room the chrome takes. Only sizing — never colour. */
+/** How much room the chrome takes. Only sizing - never colour. */
 export type DensityId = 'comfortable' | 'compact';
 
 /** The pieces the start page can be built from, in the order they appear. */
@@ -359,7 +359,7 @@ export interface VaultState {
   /** What is wrong, in the words shown to the user. Empty when nothing is. */
   detail: string;
   entries: VaultEntry[];
-  /** Entries that exist and cannot be read — never folded into an empty list. */
+  /** Entries that exist and cannot be read - never folded into an empty list. */
   unreadableCount: number;
 }
 

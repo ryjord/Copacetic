@@ -12,7 +12,7 @@ import type { TabRecord } from './tab-record';
 
 /**
  * What the page can tell us about itself. Everything here is reported by the
- * tab's own web contents, so it arrives whenever the page decides — long after
+ * tab's own web contents, so it arrives whenever the page decides - long after
  * the navigation that caused it, and sometimes for a tab already closed.
  */
 export interface TabEventDeps {
@@ -94,12 +94,12 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
    *
    * A stylesheet on purpose. Hiding elements is what other blockers use an
    * injected script for, and page content in this browser gets no script of
-   * ours — a promise made early and not spent since. insertCSS needs no
+   * ours - a promise made early and not spent since. insertCSS needs no
    * preload and adds nothing a page can call.
    *
    * It reaches the top document only. Electron's insertCSS takes a webContents
    * and there is no equivalent on a frame, so collapsing space inside an iframe
-   * would mean running a script in it — which is the promise above. Requests
+   * would mean running a script in it - which is the promise above. Requests
    * made from inside frames are still refused, because webRequest sees every
    * frame; what is left uncollapsed is the space a blocked advert had inside
    * one, and Settings says so rather than pretending otherwise.

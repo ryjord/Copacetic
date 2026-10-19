@@ -79,7 +79,7 @@ export class HistoryStore {
    * Adds to what a page has refused.
    *
    * Counted as it happens rather than when a visit is recorded: a visit is
-   * recorded when the title arrives, which is early — most trackers have not
+   * recorded when the title arrives, which is early - most trackers have not
    * been refused yet, and sampling then would report almost nothing on every
    * page in the browser.
    */

@@ -5,8 +5,8 @@ import { inheritFromOpener } from '../../electron/shared/opening';
 /**
  * Following a link out of a Hush tab used to open an ordinary, recorded one.
  *
- * Three separate findings — `window.open` and `target="_blank"`, "Open link in
- * new tab", and "Search for …" on a selection — with one cause: the flag was
+ * Three separate findings - `window.open` and `target="_blank"`, "Open link in
+ * new tab", and "Search for …" on a selection - with one cause: the flag was
  * passed at creation and never inherited, so every new way of opening a tab had
  * to remember, and none of them did. The address went to history, the icon to
  * the favicon cache and the certificate to certificates.json, all from a tab
@@ -63,7 +63,7 @@ describe('what a tab opened from another tab inherits', () => {
 /**
  * The rule only works if callers say who opened the tab. Every item in the page
  * context menu opens something the page named, so every one of them has an
- * opener — and the three that did not are exactly the three findings.
+ * opener - and the three that did not are exactly the three findings.
  */
 describe('every tab opened from page content names its opener', () => {
   const source = readFileSync('electron/main/menus/context-menu.ts', 'utf8').replace(/\s+/g, ' ');
@@ -72,7 +72,7 @@ describe('every tab opened from page content names its opener', () => {
     // Each call, from `tabs.create(` to the closing brace of its options.
     const calls = [...source.matchAll(/browser\.tabs\.create\([^;]*?\}\)/g)].map((match) => match[0]);
     // Link, background link, image, search selection, and the tab-strip's own
-    // "New tab to the right" — which has no page behind it and takes none.
+    // "New tab to the right" - which has no page behind it and takes none.
     // Exactly five: a looser bound would pass while the regex quietly stopped
     // matching one of them, which is the only way this check can rot.
     expect(calls).toHaveLength(5);

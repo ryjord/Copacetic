@@ -4,7 +4,7 @@ import type { TabState } from '../../electron/shared/types';
 import { Omnibox } from '../../src/components/shell/Omnibox/Omnibox';
 
 // The bridge is absent outside Electron and every call is a no-op, so the
-// component renders for real here — which is the point: these are the render
+// component renders for real here - which is the point: these are the render
 // paths that broke the whole chrome when they failed to converge.
 
 function tab(id: string, url: string): TabState {

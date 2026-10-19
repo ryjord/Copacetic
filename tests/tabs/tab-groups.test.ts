@@ -170,7 +170,7 @@ describe('where a dragged tab lands', () => {
   const strip = (...ids: (string | null)[]) => ids.map((groupId) => ({ groupId }));
 
   it('joins the group when it comes to rest between two of its tabs', () => {
-    // [a, a, x] — dropping x at index 1 puts it between the two a's.
+    // [a, a, x] - dropping x at index 1 puts it between the two a's.
     expect(groupForDrop(strip('a', 'a', null), 2, 1)).toBe('a');
   });
 
@@ -190,12 +190,12 @@ describe('where a dragged tab lands', () => {
    * off-by-one on the rightward path went unnoticed.
    */
   it('joins the group when dragged rightward into it', () => {
-    // [x, a, a] — move() leaves [a, x, a], so x is between the two a's.
+    // [x, a, a] - move() leaves [a, x, a], so x is between the two a's.
     expect(groupForDrop(strip(null, 'a', 'a'), 0, 1)).toBe('a');
   });
 
   it('does not join a group it is dragged rightward past', () => {
-    // [x, a, a, b] — move() leaves [a, a, x, b], so x comes to rest outside.
+    // [x, a, a, b] - move() leaves [a, a, x, b], so x comes to rest outside.
     expect(groupForDrop(strip(null, 'a', 'a', 'b'), 0, 2)).toBeNull();
   });
 
@@ -271,7 +271,7 @@ describe('collapsing a group that holds the active tab', () => {
   /*
    * The tab it moves to has to be one you can see. A group that is already
    * collapsed hides its tabs too, so landing in one moves the problem along the
-   * strip rather than solving it — the window would still be showing a page
+   * strip rather than solving it - the window would still be showing a page
    * with nothing pointing at it.
    */
   it('skips a group that is already collapsed', () => {

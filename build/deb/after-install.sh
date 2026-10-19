@@ -2,9 +2,9 @@
 # Registers Copacetic's apt repository, when there is one to register.
 #
 # Both files below are written by the release workflow, and only when an apt
-# repository is actually configured for it to point at. A build without them —
+# repository is actually configured for it to point at. A build without them -
 # a local `npm run package`, a fork, or a release made while no repository is
-# hosted — installs without touching apt at all. That matters: a source that
+# hosted - installs without touching apt at all. That matters: a source that
 # 404s makes `apt update` fail on every run, which is worse for the user than
 # having no source in the first place.
 set -e

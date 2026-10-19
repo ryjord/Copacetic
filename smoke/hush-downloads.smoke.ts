@@ -31,7 +31,7 @@ const listed = () =>
  * The claim, in the README and on the Hush tab itself: nothing it does reaches
  * the disk, and closing it leaves nothing to delete because nothing was
  * written. A download was writing its address, its redirect chain and its time
- * into downloads.json — measured, not suspected.
+ * into downloads.json - measured, not suspected.
  *
  * The file is on disk because it was asked for. The record of where it came
  * from is browsing, and a Hush tab keeps none of that.

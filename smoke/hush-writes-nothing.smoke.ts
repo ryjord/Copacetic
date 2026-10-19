@@ -9,7 +9,7 @@ let copacetic: SmokeApp;
  * A window of its own, and nothing else in it.
  *
  * The claim is that a site opened in a Hush tab is named nowhere on disk. That
- * only means anything in a profile where nothing else has been near the site —
+ * only means anything in a profile where nothing else has been near the site -
  * an earlier test that downloaded from it, or simply visited it in an ordinary
  * tab, writes the same name for entirely legitimate reasons and the check would
  * be reading its own leftovers.
@@ -24,7 +24,7 @@ afterAll(async () => copacetic?.close());
  * The claim as a whole, rather than one write path at a time.
  *
  * Three separate leaks have been found here by looking: the favicon cache, the
- * download record, and the certificate store — each written automatically, each
+ * download record, and the certificate store - each written automatically, each
  * surviving the tab, each against the same sentence. Rather than add a fourth
  * specific test, this visits a page in a Hush tab and then reads everything the
  * browser keeps, asking whether any of it names the site. A write path added

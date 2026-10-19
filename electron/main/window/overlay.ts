@@ -8,7 +8,7 @@ import type { OverlayRegion } from '../../shared/overlay-regions';
  * The one layer in this window that can be drawn on top of a page.
  *
  * A WebContentsView paints above all of the chrome's HTML, so nothing rendered
- * in the chrome can float over the content — it is painted behind the page and
+ * in the chrome can float over the content - it is painted behind the page and
  * says nothing to anybody. The chrome's answer until now has been to put things
  * in flow and push the page down, which is honest but moves everything for
  * something that may last four seconds.
@@ -53,7 +53,7 @@ export class OverlayLayer {
     // Guarded like the chrome window, and for a sharper reason: this view is
     // trusted by the IPC layer, which checks the frame rather than the URL. A
     // frame that navigated somewhere else would keep every privilege the whole
-    // browser has — bookmarks, settings, the vault — so it is not allowed to.
+    // browser has - bookmarks, settings, the vault - so it is not allowed to.
     guardChromeWebContents(this.view.webContents);
     void this.view.webContents.loadURL(`${chromeEntryUrl()}overlay/?region=${region}`);
   }
@@ -76,7 +76,7 @@ export class OverlayLayer {
    * Says something to the overlay's own page.
    *
    * The overlay is a separate webContents, so anything pushed to the chrome
-   * window reaches everything except this — which is the one renderer that
+   * window reaches everything except this - which is the one renderer that
    * draws it.
    */
   send(channel: string, payload?: unknown): void {
@@ -97,13 +97,13 @@ export class OverlayLayer {
    *
    * The overlay is a view of its own, so focus does not reach it by tabbing
    * from the chrome: a question with a button would be answerable by mouse and
-   * by nothing else. Only for questions — taking focus away from a page to say
+   * by nothing else. Only for questions - taking focus away from a page to say
    * something informative would be worse than saying nothing.
    */
   takeFocus(): void {
     // Remembered rather than done. A question is announced before the overlay
-    // has drawn it — the height that makes the view visible comes back from the
-    // renderer afterwards — and focusing a view that is not visible yet does
+    // has drawn it - the height that makes the view visible comes back from the
+    // renderer afterwards - and focusing a view that is not visible yet does
     // nothing at all, silently.
     this.wantsFocus = true;
     this.apply();
@@ -125,7 +125,7 @@ export class OverlayLayer {
   dispose(): void {
     this.isDisposed = true;
     // The window is already gone by the time `closed` fires, and touching a
-    // destroyed window's contentView throws — which would abort the rest of
+    // destroyed window's contentView throws - which would abort the rest of
     // the browser's teardown, leaving tab views and prompts behind.
     if (!this.window.isDestroyed()) {
       this.window.contentView.removeChildView(this.view);

@@ -14,7 +14,7 @@ afterAll(async () => copacetic?.close());
  *
  * Notices are drawn by the overlay, which is a second view loaded after the
  * chrome, and like the chrome it paints before it is listening. A notice pushed
- * before then reached nobody and was gone — which is exactly the failure
+ * before then reached nobody and was gone - which is exactly the failure
  * notices exist to fix, reproduced one layer up.
  *
  * No figure is quoted for the overlay because there is nothing observable from
@@ -54,7 +54,7 @@ describe('a notice said before anyone was listening', () => {
    * Drawn on top of the page rather than by pushing it out of the way.
    *
    * A WebContentsView paints above all of the chrome's HTML, so a notice
-   * rendered in the chrome cannot float over a page — it can only take space
+   * rendered in the chrome cannot float over a page - it can only take space
    * from it. A view is the one thing that can sit above another view, so the
    * notice lives in one, and the chrome must not move by a pixel when it opens.
    */
@@ -72,7 +72,7 @@ describe('a notice said before anyone was listening', () => {
      *
      * The chrome above `main` moves while a page is loading and while the strip
      * takes its final shape, and this used to read once, do something else, and
-     * read again — so on a machine slower than the one it was written on the
+     * read again - so on a machine slower than the one it was written on the
      * layout finished in between and the two disagreed by nine pixels. That
      * says nothing about whether a notice moves the chrome, which is the claim.
      * Written first as a fixed four-second pause, which is the same wait made
@@ -95,7 +95,7 @@ describe('a notice said before anyone was listening', () => {
 
     /*
      * A second notice, so the measurement brackets the overlay actually
-     * changing. Before this it bracketed a read of the layer bounds — which
+     * changing. Before this it bracketed a read of the layer bounds - which
      * moves nothing, so the assertion held whatever the overlay did and only
      * ever caught the layout settling underneath it.
      */
@@ -164,7 +164,7 @@ describe('a notice said before anyone was listening', () => {
 /**
  * The overlay covers the top of the page whenever it is showing anything, and a
  * transparent view still takes every click that lands on it. With nothing to
- * show it has to get out of the way entirely — otherwise the top of every page
+ * show it has to get out of the way entirely - otherwise the top of every page
  * in the browser silently stops responding, which is the kind of fault someone
  * lives with for a week before working out what is wrong.
  */

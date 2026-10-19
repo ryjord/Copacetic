@@ -400,7 +400,7 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
 
   // Checked rather than cast. A cast satisfies the compiler and stores whatever
   // arrived, so an unknown engine or theme was kept in memory and applied until
-  // the next start, when the store's own reviver quietly corrected it — a
+  // the next start, when the store's own reviver quietly corrected it - a
   // setting that fixes itself overnight and nobody can explain.
   if (typeof value.searchEngine === 'string' && value.searchEngine in SEARCH_ENGINES) {
     patch.searchEngine = value.searchEngine as Settings['searchEngine'];

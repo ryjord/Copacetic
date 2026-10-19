@@ -69,7 +69,7 @@ const itemNamed = (items: Template, label: string) => items.find((item) => item.
 /**
  * A Hush tab was reachable by keyboard shortcut or the macOS menu bar and
  * nothing else. Off macOS the window is frameless, so there is no menu bar to
- * reach for — which left the browser's most distinctive feature undiscoverable
+ * reach for - which left the browser's most distinctive feature undiscoverable
  * to anyone using a mouse.
  */
 describe('opening a Hush tab without a keyboard', () => {
@@ -147,7 +147,7 @@ describe('every item in both menus', () => {
 });
 
 /**
- * A group's menu is where colour, deletion and the conversion to a folder live —
+ * A group's menu is where colour, deletion and the conversion to a folder live -
  * nothing about them is reachable any other way, and the diff that added them
  * asserted only that building the menu did not throw. A rename wired to the
  * delete, or Ungroup wired to Close, would have looked exactly the same.

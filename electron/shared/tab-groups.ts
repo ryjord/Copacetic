@@ -11,7 +11,7 @@
  *
  * The chrome's rule is that colour appears only where it carries state, and
  * each state colour means one thing everywhere. A group colour means "this
- * group", which is different for every person — identity rather than state. So
+ * group", which is different for every person - identity rather than state. So
  * the two palettes are kept apart by chroma: signals are saturated, identities
  * are muted, and a group can never be given a colour that reads as a signal.
  */
@@ -137,7 +137,7 @@ export function segmentByGroup<T extends { groupId: string | null }>(
  * It joins a group only when it comes to rest *between* two tabs of that group.
  * Landing beside one is not joining it: the edge of a group is exactly where
  * someone parks a tab they want next to it and not in it, and a rule that
- * swallowed those would put tabs in a container they never chose — which for a
+ * swallowed those would put tabs in a container they never chose - which for a
  * group that keeps its own browsing decides which session they load in.
  */
 /**
@@ -146,7 +146,7 @@ export function segmentByGroup<T extends { groupId: string | null }>(
  * A collapsed group hides its tabs, and the active tab is one of them: its page
  * stays on screen with nothing in the strip to point at it, so there is no way
  * back to it except expanding the group again. Activation moves out of the
- * group instead — rightward first, because that is where the eye already is
+ * group instead - rightward first, because that is where the eye already is
  * after collapsing, and leftward only if the group ends the strip.
  *
  * Null means every tab is in this group, and there is nowhere to go: the group
@@ -157,7 +157,7 @@ export function tabAfterCollapsing<T extends { groupId: string | null }>(
   tabs: readonly T[],
   activeIndex: number,
   /**
-   * Every group whose tabs are hidden once this collapse happens — the one
+   * Every group whose tabs are hidden once this collapse happens - the one
    * being collapsed, and any already collapsed. Landing in one of those moves
    * the problem along the strip instead of solving it: the window would still
    * be showing a page with nothing pointing at it.
@@ -197,7 +197,7 @@ export function groupForDrop<T extends { groupId: string | null }>(
   const without = tabs.filter((_, index) => index !== fromIndex);
   // Where the tab actually comes to rest. TabManager.move removes it first and
   // then splices it in at the clamped target, so the index is read against the
-  // strip that no longer contains it — the same for both directions of travel.
+  // strip that no longer contains it - the same for both directions of travel.
   const target = Math.min(Math.max(0, toIndex), tabs.length - 1);
   const before = without[target - 1];
   const after = without[target];

@@ -74,7 +74,7 @@ afterEach(() => {
 /**
  * A drop only decides a tab's group because of where it comes to rest. A tab
  * dropped where it already was has not come to rest anywhere new, so nothing
- * about it may be re-decided — otherwise a tab deliberately left ungrouped
+ * about it may be re-decided - otherwise a tab deliberately left ungrouped
  * between two of a group's tabs is swallowed by the smallest twitch of a mouse.
  */
 describe('dropping a tab where it already was', () => {

@@ -5,7 +5,7 @@ import type { PageError, TabId } from '../../shared/types';
 export interface TabRecord {
   id: TabId;
   view: WebContentsView;
-  /** Nothing this tab does is written to disk — see HUSH_PARTITION. */
+  /** Nothing this tab does is written to disk - see HUSH_PARTITION. */
   isHush: boolean;
   /** True while the tab shows Copacetic's own start page instead of a site. */
   isStartPage: boolean;

@@ -20,12 +20,12 @@ function apart(a: number, b: number): number {
 
 /**
  * The slider and the hex field edit one value between them, so what has to hold
- * is that they agree — whichever was touched last.
+ * is that they agree - whichever was touched last.
  *
  * Not to the exact degree, and it cannot be: a hex carries eight bits a
  * channel, so a colour cannot always name the precise angle it came from, and
  * the flatter the theme the less precision there is. Measured across all four
- * and every degree, the worst disagreement is 2° — on slate, which is the least
+ * and every degree, the worst disagreement is 2° - on slate, which is the least
  * saturated of them. That is invisible, and it is the format rather than a bug.
  */
 describe('the two ways of saying the same thing', () => {
@@ -45,7 +45,7 @@ describe('the two ways of saying the same thing', () => {
 
 /**
  * Only the hue is taken from a typed colour. Its lightness and saturation
- * belong to the theme — reading those from whatever someone pasted is how a
+ * belong to the theme - reading those from whatever someone pasted is how a
  * start page ends up too bright to read the clock against.
  */
 describe('what a typed colour is allowed to change', () => {
@@ -124,7 +124,7 @@ describe('the stylesheet and the colours', () => {
  *
  * It used to be a `hue-rotate()` filter, which is a colour matrix rather than a
  * rotation: it moves saturation and lightness too. Measured against a real
- * matrix, the field and the screen disagreed by up to 23 of 255 per channel —
+ * matrix, the field and the screen disagreed by up to 23 of 255 per channel -
  * deep named #121343 and painted #242a4d.
  */
 describe('what is named is what is painted', () => {

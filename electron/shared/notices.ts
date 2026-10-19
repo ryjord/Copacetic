@@ -84,7 +84,7 @@ export function dismiss(current: readonly Notice[], id: string): Notice[] {
  *
  * The Hush count is the reason this exists. A Hush tab is not saved, and
  * finding that out by counting the folder afterwards is finding it out too
- * late — the promise Hush makes is only kept if it is also stated.
+ * late - the promise Hush makes is only kept if it is also stated.
  */
 export function savedGroupMessage(saved: number, skippedHush: number, folderName: string): string {
   const pages = `${saved} ${saved === 1 ? 'page' : 'pages'}`;

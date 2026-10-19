@@ -185,8 +185,8 @@ describe('a persisted file that has changed shape', () => {
 });
 
 /**
- * The record saying how to read every other file was written the plain way —
- * no flush to the disk, no permissions, no retry — while the data it describes
+ * The record saying how to read every other file was written the plain way -
+ * no flush to the disk, no permissions, no retry - while the data it describes
  * had all three. The note was less safe than the files it explains, which is
  * the wrong way round: losing it makes every store look like its first version.
  */

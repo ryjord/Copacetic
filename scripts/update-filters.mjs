@@ -4,7 +4,7 @@
  *
  * Deliberately a script someone runs, not something the app does on a timer.
  * Every other blocker fetches its lists in the background on a schedule, which
- * is a periodic request from your machine to a server — the shape of the thing
+ * is a periodic request from your machine to a server - the shape of the thing
  * being blocked. Copacetic ships the list inside the app, so updating it is a
  * commit someone made and a release someone cut, and the rules that are running
  * can be read in this repository.

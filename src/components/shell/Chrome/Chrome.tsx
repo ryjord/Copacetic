@@ -118,7 +118,7 @@ export function Chrome() {
    * The panel describes one particular tab, so it must not linger over another.
    * A surface is worse than lingering: it covers the whole content area and
    * hides every page view, so clicking a tab switched to it, highlighted it in
-   * the strip, and showed nothing at all — the browser looked like it had
+   * the strip, and showed nothing at all - the browser looked like it had
    * ignored the click.
    *
    * These are chrome rather than pages. There is no address to go back to and
@@ -137,7 +137,7 @@ export function Chrome() {
   }, [activeTabId, setSurface]);
 
   // A surface covers the whole content area, so the tab's view has to step
-  // aside — a native view always paints above the renderer's HTML.
+  // aside - a native view always paints above the renderer's HTML.
   useEffect(() => {
     send((api) => api.chrome.setOverlayVisible(surface !== 'none'));
   }, [surface]);
@@ -186,7 +186,7 @@ export function Chrome() {
         {/*
           Hidden behind a surface, so it must leave the tab order too. Without
           this, Tab walks out of the open panel and into controls nobody can
-          see — nothing looks wrong, focus simply vanishes.
+          see - nothing looks wrong, focus simply vanishes.
         */}
         <div inert={surface !== 'none'} className="contents">
           {!isRunningInShell() && <OutsideShellNotice />}

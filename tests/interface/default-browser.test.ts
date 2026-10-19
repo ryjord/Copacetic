@@ -32,8 +32,8 @@ describe('what can be offered on each platform', () => {
 });
 
 /**
- * These arrive from outside the app entirely — another program's command line,
- * or a system event — so they are checked exactly like a link on a page.
+ * These arrive from outside the app entirely - another program's command line,
+ * or a system event - so they are checked exactly like a link on a page.
  */
 describe('the address another application asks Copacetic to open', () => {
   it('takes a web address from the arguments', () => {

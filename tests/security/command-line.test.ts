@@ -12,7 +12,7 @@ function recorder() {
 }
 
 /**
- * Copacetic contacted nobody on its own before this existed — but only because
+ * Copacetic contacted nobody on its own before this existed - but only because
  * those hooks are absent from an Electron build, not because anything turned
  * them off. An implicit guarantee is one a Chromium bump can revoke quietly
  * while Settings goes on claiming otherwise.

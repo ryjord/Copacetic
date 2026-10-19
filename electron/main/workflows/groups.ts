@@ -34,8 +34,8 @@ export class GroupCommands {
   /**
    * Opens everything in a bookmark folder as one tab group.
    *
-   * A folder is the resting form of a group — the same name, the same palette,
-   * the same set of pages — so the two convert rather than merely resembling
+   * A folder is the resting form of a group - the same name, the same palette,
+   * the same set of pages - so the two convert rather than merely resembling
    * each other. Everything nested inside comes too, which is why anything that
    * offers this names the number it is about to open.
    *
@@ -97,8 +97,8 @@ export class GroupCommands {
    * Saves a tab group as a bookmark folder, which is the same conversion the
    * other way round.
    *
-   * A Hush tab is never saved. Hush makes one promise — that nothing it does
-   * reaches the disk — and a bookmark is a disk. The count of what was left out
+   * A Hush tab is never saved. Hush makes one promise - that nothing it does
+   * reaches the disk - and a bookmark is a disk. The count of what was left out
    * comes back so it can be said plainly rather than discovered later.
    *
    * A page already bookmarked is filed where it is, not saved again. It keeps
@@ -139,7 +139,7 @@ export class GroupCommands {
 
   update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
     // A collapsed group hides its tabs, and one of them may be the tab being
-    // looked at — its page would stay on screen with nothing in the strip
+    // looked at - its page would stay on screen with nothing in the strip
     // pointing at it. Activation steps out of the group first, and the group
     // refuses to collapse at all when there is nowhere for it to step to.
     if (changes.collapsed === true && !this.deps.tabs.leaveCollapsingGroup(id)) {

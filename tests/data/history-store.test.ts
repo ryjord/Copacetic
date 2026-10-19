@@ -65,7 +65,7 @@ describe('what survives a restart', () => {
   /*
    * A file someone edited, or a file from a version that did not have the
    * field, must not become a store that refuses to load. Missing reads as
-   * none — never as a reason to throw away the entry.
+   * none - never as a reason to throw away the entry.
    */
   it('reads an entry written before the count existed', () => {
     writeFileSync(
@@ -81,7 +81,7 @@ describe('what survives a restart', () => {
 
   /*
    * Recent, deliberately. Written first with `lastVisitedAt: 1`, where both
-   * entries were pruned as older than ninety days before anything read them —
+   * entries were pruned as older than ninety days before anything read them -
    * so the store was empty, the total was nought, and the test passed while
    * proving nothing. It only bites on entries that actually survive loading.
    */

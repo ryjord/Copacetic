@@ -35,7 +35,7 @@ describe('what gets handed to Chromium', () => {
 
   /**
    * `secure` rather than `automatic` on purpose. Automatic falls back to
-   * plaintext DNS when the resolver cannot be reached — the setting would stop
+   * plaintext DNS when the resolver cannot be reached - the setting would stop
    * doing anything exactly when the network is interesting.
    */
   it('asks for secure mode, which fails rather than falling back', () => {

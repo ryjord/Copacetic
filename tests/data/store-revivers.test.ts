@@ -13,13 +13,13 @@ const { GROUP_COLOURS } = await import('../../electron/shared/tab-groups');
 /**
  * These files are read off disk at startup and can be edited, corrupted, or
  * written by something else entirely. Every rule here was in the code and none
- * of it was tested, so a rewrite could quietly drop one — which is exactly what
+ * of it was tested, so a rewrite could quietly drop one - which is exactly what
  * happened while splitting the store apart.
  */
 describe('the favicon cache, read back off disk', () => {
   /**
    * Only data URLs are ever cached. A remote URL here would make the chrome
-   * renderer fetch from the network, which it must never do — and the chrome is
+   * renderer fetch from the network, which it must never do - and the chrome is
    * the privileged window, not a page.
    */
   it.each([
@@ -124,7 +124,7 @@ describe('bookmarks, read back off disk', () => {
 
 /**
  * A folder that cannot be read back is a folder full of bookmarks nobody can
- * reach, so every field falls back rather than dropping the folder — except the
+ * reach, so every field falls back rather than dropping the folder - except the
  * id, which is the only thing a bookmark refers to it by.
  */
 describe('bookmark folders, read back off disk', () => {
@@ -182,7 +182,7 @@ describe('bookmark folders, read back off disk', () => {
 
 /**
  * Every bookmark saved before folders existed is filed in none of them, which
- * is what the interface calls Unfiled — not a state anyone has to be told about.
+ * is what the interface calls Unfiled - not a state anyone has to be told about.
  */
 describe('bookmarks written by an older version', () => {
   const migrated = (raw: unknown) => migrate(raw, 1, BOOKMARKS_PLAN);
@@ -236,7 +236,7 @@ describe('a bookmark filed somewhere, read back off disk', () => {
 
 /**
  * A group that cannot be read back is a run of tabs with no name and no colour,
- * and — worse — a session that may have been kept separate losing the fact that
+ * and - worse - a session that may have been kept separate losing the fact that
  * it was. Every field falls back rather than dropping the group, except the id,
  * which is the only thing a tab refers to it by.
  */
@@ -262,7 +262,7 @@ describe('tab groups, read back off disk', () => {
   /*
    * The dangerous direction is only one way round. A group that kept its own
    * browsing and is read back as sharing would put its tabs in the ordinary
-   * session — signing someone into pages they had deliberately kept apart — so
+   * session - signing someone into pages they had deliberately kept apart - so
    * anything but a literal true has to mean false.
    */
   it('treats anything but true as sharing, never the other way round', () => {

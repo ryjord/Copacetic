@@ -140,7 +140,7 @@ export interface CopaceticApi {
     /** `asked` when it was large enough to need a decision first, in which case nothing has opened yet. */
     openAsGroup(id: string): Promise<{ opened: number; asked: boolean }>;
     openContextMenu(id: string): Promise<void>;
-    /** The folder's contents as a native menu, at a point on screen — the only kind that can sit above a page. */
+    /** The folder's contents as a native menu, at a point on screen - the only kind that can sit above a page. */
     openMenu(id: string, x: number, y: number): Promise<void>;
   };
   downloads: {
@@ -274,7 +274,7 @@ export interface CopaceticApi {
     /** A notice was answered or dismissed somewhere else, so stop showing it. */
     noticeSettled(listener: (id: string) => void): Unsubscribe;
 
-    /** Saved bookmarks or folders changed, from anywhere — a menu, another window, an import. */
+    /** Saved bookmarks or folders changed, from anywhere - a menu, another window, an import. */
     bookmarksChanged(listener: () => void): Unsubscribe;
 
     /** The bookmark folder whose label should become editable. */

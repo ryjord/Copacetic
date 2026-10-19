@@ -39,13 +39,13 @@ export class SiteData {
    * Everything this browser knows about one site, including the part that kept
    * you signed in to it.
    *
-   * The store forgets what it wrote down — history, icons, certificates, zoom,
+   * The store forgets what it wrote down - history, icons, certificates, zoom,
    * permissions, blocking exceptions. None of that is the session, and the
    * session is where the sign-in lives: someone told a site had been forgotten
    * could open it and still be logged in, which made the whole sentence a lie.
    *
    * Cookies and site storage go from every session this window has prepared,
-   * which is ordinary browsing, Hush, and each group that keeps its own — a
+   * which is ordinary browsing, Hush, and each group that keeps its own - a
    * group's cookies are still that site's cookies.
    */
   async forget(address: string): Promise<SiteTraces> {
@@ -61,7 +61,7 @@ export class SiteData {
       id: `forget-${siteOf(address)}`,
       tone: 'done',
       key: 'forget-site',
-      message: `Forgot ${siteOf(address)} — ${describeTraces(complete).toLowerCase()}`,
+      message: `Forgot ${siteOf(address)}: ${describeTraces(complete).toLowerCase()}`,
     });
     this.deps.changed();
     return complete;
@@ -138,7 +138,7 @@ export class SiteData {
    *
    * The store counts what it wrote down and cannot see a session, so the cookies
    * are added here. Without them the warning understated what forgetting does by
-   * exactly the thing people care about — and then the sentence afterwards named
+   * exactly the thing people care about - and then the sentence afterwards named
    * a number the sentence before had not mentioned.
    */
   async traces(address: string): Promise<SiteTraces> {

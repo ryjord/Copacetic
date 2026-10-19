@@ -14,7 +14,7 @@ const { HUSH_PARTITION, WEB_PARTITION, remembersDownloads } = await import('../.
 /**
  * The promise a Hush tab makes is that nothing reaches the disk. Most of that
  * is enforced by Chromium via the partition name, and the rest by a handful of
- * `isHush` checks — so these read the source for the checks rather than
+ * `isHush` checks - so these read the source for the checks rather than
  * pretending a unit test can drive Electron's session storage.
  */
 // Whitespace-collapsed, so reformatting the guard does not read as removing it.
@@ -43,7 +43,7 @@ describe('nothing a Hush tab does is written down', () => {
    * the tab left a trace.
    *
    * This used to read the source of `tabs.ts` for the guard, which broke the
-   * moment the rule moved into a function of its own — and would have passed
+   * moment the rule moved into a function of its own - and would have passed
    * just as happily if the guard had been reworded rather than moved. The rule
    * is a function now, so this runs it.
    */
@@ -67,7 +67,7 @@ describe('nothing a Hush tab does is written down', () => {
  * The claim, in the README and on the tab itself: nothing it does reaches the
  * disk, and closing it leaves nothing to delete because nothing was written. A
  * download was writing its address, its redirect chain and its time into
- * downloads.json — the file is on disk because it was asked for, but where it
+ * downloads.json - the file is on disk because it was asked for, but where it
  * came from is browsing, and this tab keeps none of that.
  */
 describe('a Hush download is not written down', () => {
@@ -86,7 +86,7 @@ describe('a Hush download is not written down', () => {
 
 /**
  * The tab that promises the most must not be the one running with the least
- * protection, and the way that went wrong was not a missing guard — it was two
+ * protection, and the way that went wrong was not a missing guard - it was two
  * hand-written copies of the setup and a third kind of session nobody added a
  * third copy for. Group sessions ran with permissions approved by default, no
  * tracker blocking and no download handling.
@@ -113,8 +113,8 @@ describe('every session is hardened in exactly one place', () => {
 
   /*
    * Counting the installers catches a second copy of the setup. It cannot catch
-   * the other direction — a brand-new way of making a session that calls none
-   * of them — so the sessions themselves are counted too. Every one of these is
+   * the other direction - a brand-new way of making a session that calls none
+   * of them - so the sessions themselves are counted too. Every one of these is
    * a partition that has already been through prepareSession; a new call here
    * is a new session, and it has to be justified rather than appear.
    */

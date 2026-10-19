@@ -3,7 +3,7 @@
 A desktop browser that tells you the truth about the page you are on.
 
 Copacetic renders pages with Chromium, through Electron. It is a browser
-_interface_, not a browser _engine_ — the rendering, networking and sandboxing
+_interface_, not a browser _engine_ - the rendering, networking and sandboxing
 belong to Chromium. What Copacetic adds is the part you actually touch: the tab
 strip, the address bar, the permission prompts, and a set of decisions about
 what a browser should and should not do on your behalf.
@@ -29,22 +29,22 @@ place colour appears is the one place worth looking.
 **Addresses you can actually read.** The address bar is not a text field until
 you click it. It renders the URL structurally, with the registrable domain at
 full contrast and everything else dimmed, in a monospace face. So
-`paypal.com.attacker.net/login` reads as **attacker.net** — which is the point.
+`paypal.com.attacker.net/login` reads as **attacker.net** - which is the point.
 Which part counts as the domain comes from the full IANA Public Suffix List, so
 `user.github.io` and `example.pvt.k12.ma.us` are read correctly rather than
 approximated, and two projects sharing a host never look like the same site.
 
 **Honest connection reporting.** Click the badge in the address bar for the real
 scheme, the host, the measured load time, how many tracker requests were blocked
-on this page, and — on an encrypted connection — who issued the certificate and
+on this page, and - on an encrypted connection - who issued the certificate and
 when it expires. An expiry inside a fortnight is the one thing there that turns
 amber, because it is state you cannot see any other way. When Copacetic cannot
 describe a connection, it says so rather than guessing.
 
 **It tells you when something is reading your connection.** If a site's
 certificate chains to a root installed on this machine rather than one your
-system shipped with — a company proxy, antivirus, or a debugging tool
-intercepting TLS — the panel says so. Every mainstream browser shows the same
+system shipped with - a company proxy, antivirus, or a debugging tool
+intercepting TLS - the panel says so. Every mainstream browser shows the same
 padlock in that situation as in any other.
 
 **Every host a page contacted, not just the blocked ones.** The connection panel
@@ -54,7 +54,7 @@ you what was allowed, which is the half no mainstream browser shows without
 opening developer tools.
 
 **Ad and tracker blocking from a list that never phones home.** EasyList and
-EasyPrivacy ship inside the app — 136,716 rules — with a curated list of 122
+EasyPrivacy ship inside the app - 136,716 rules - with a curated list of 122
 domains underneath them as a floor, so a list that fails to load cannot make
 Copacetic block less than it did before it had one. The rules are in the
 repository as text, and the only thing that changes them is a release, or you
@@ -65,7 +65,7 @@ shape of the thing being blocked.
 The count you see is the real number of blocked requests, not an estimate, and
 the connection panel says whether a hostname or a rule stopped each one. Adverts
 served from the page's own address, inserted by the server, or written into a
-feed are not blocked and cannot be — Settings says so rather than counting past
+feed are not blocked and cannot be - Settings says so rather than counting past
 them. Top-level navigation is never blocked, so you can still visit a tracker
 domain deliberately, and if blocking breaks a site you can allow it there rather
 than turning blocking off everywhere.
@@ -79,8 +79,8 @@ file manager. Live throughput and time remaining. Filenames are sanitised
 against directory traversal and against right-to-left override tricks that
 disguise an `.exe` as a `.jpg`.
 
-**Sites that ask you to sign in.** HTTP authentication — the challenge
-intranets, routers, NAS boxes and plenty of dev servers use — is answered
+**Sites that ask you to sign in.** HTTP authentication - the challenge
+intranets, routers, NAS boxes and plenty of dev servers use - is answered
 through a prompt in the chrome. Copacetic only asks when the challenge comes
 from the site the address bar is showing, or from the proxy for your network;
 a subresource on some other origin asking for a password gives you nothing to
@@ -88,13 +88,13 @@ judge. What you type into that prompt is not kept: Passwords holds only what
 you put there yourself, and an HTTP challenge is not one of them.
 
 **A start page you assemble.** A clock, a search box, your most-visited sites
-and your recent bookmarks — pick which of them appear and in what order, and
+and your recent bookmarks - pick which of them appear and in what order, and
 put a wallpaper behind them. It is the one surface where colour is free,
 because nothing on it is reporting state.
 
 **Hush tabs.** `Cmd/Ctrl+Shift+N` opens a tab your machine forgets: no history,
 no cookies, no cache, no favicons, nothing written to disk. It is not called
-incognito or private, because it does not make you anonymous — the sites you
+incognito or private, because it does not make you anonymous - the sites you
 visit and your network see you exactly as they otherwise would, and Copacetic
 says so in the tab rather than leaving you to assume otherwise.
 
@@ -121,18 +121,18 @@ something that gets past them, see [SECURITY.md](SECURITY.md).
 | Page data reaching the chrome        | Web content lives in its own persistent session partition, separate from the session running the interface                                                                                                                                                                |
 | Chrome renderer being navigated away | `will-navigate` is refused for anything that is not the app's own document, so the preload bridge can never be handed to a remote origin                                                                                                                                  |
 | Popups imitating browser chrome      | `setWindowOpenHandler` denies every window. Pages get a tab, never a window                                                                                                                                                                                               |
-| Dangerous URL schemes                | `javascript:`, `data:`, `blob:`, `vbscript:` and `filesystem:` are refused for top-level navigation, from the address bar and from page code alike — and are never handed to another application instead. `file:` is yours to type, but page code cannot send a tab there |
+| Dangerous URL schemes                | `javascript:`, `data:`, `blob:`, `vbscript:` and `filesystem:` are refused for top-level navigation, from the address bar and from page code alike - and are never handed to another application instead. `file:` is yours to type, but page code cannot send a tab there |
 | `<webview>` injection                | Disabled in `webPreferences` _and_ refused in `will-attach-webview`, so the guarantee does not rest on one options object staying correct                                                                                                                                 |
 | Over-broad permissions               | Device access (serial, HID, USB), ambient signals (idle detection, local fonts, window placement) and cross-site storage are denied outright, without a prompt. Only permissions a user can meaningfully evaluate are ever asked about                                    |
 | Favicon requests leaking             | Favicons are fetched by the main process in the web session and handed to the interface as data URLs, so the chrome renderer never makes a network request. A remote page cannot name a loopback or private-network host and have that request made on its behalf         |
 | Chrome document XSS                  | A strict CSP with `default-src 'none'`, `connect-src 'self'`, `object-src 'none'` and `frame-ancestors 'none'`                                                                                                                                                            |
-| Certificates on this machine         | A development server's unsigned certificate is accepted for `localhost`, `127.0.0.1`, `::1` and `.localhost`, and nowhere else — reaching that traffic means already being on the machine. The badge says the certificate was not checked rather than claiming it was     |
+| Certificates on this machine         | A development server's unsigned certificate is accepted for `localhost`, `127.0.0.1`, `::1` and `.localhost`, and nowhere else - reaching that traffic means already being on the machine. The badge says the certificate was not checked rather than claiming it was     |
 | Malicious download filenames         | Path components, control characters and bidirectional overrides are stripped before a file is written                                                                                                                                                                     |
 
 Copacetic presents a plain Chrome user agent rather than advertising Electron:
 better site compatibility, and one less signal that fingerprints you as unusual.
 Chromium's client hints are corrected to match it, because Electron otherwise
-describes the browser as Chromium while the user agent says Chrome — and a
+describes the browser as Chromium while the user agent says Chrome - and a
 browser that disagrees with itself is both a fingerprinting signal and the
 reason some sign-in pages refuse it. The correction is made in the main process
 through the DevTools protocol. One small script does run in every page: it
@@ -150,8 +150,8 @@ things:
 - **Nothing is fetched at build time either.** The interface uses the system's
   own fonts, so building Copacetic needs no network and no third party.
 - **No sync, no accounts, no cloud.** Everything lives in `userData` on this
-  machine, and Settings will write your bookmarks and history back out —
-  bookmarks in the format every browser imports, history as plain JSON — so
+  machine, and Settings will write your bookmarks and history back out -
+  bookmarks in the format every browser imports, history as plain JSON - so
   that is a statement you can check rather than take on trust. The only request
   Copacetic makes on a schedule is the update check, which reads a version
   number from the GitHub releases API and sends nothing about you; it can be
@@ -162,7 +162,7 @@ things:
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
 - **Certificate inspection is Chromium's.** The badge reports the issuer and
   expiry of the certificate Chromium accepted; it does no chain analysis of its
-  own, and a certificate Chromium rejected is never described at all — a failed
+  own, and a certificate Chromium rejected is never described at all - a failed
   connection must not be dressed up as an informative one.
 - **Not audited.** A personal project built to a high standard, not a browser
   that has been through security review.
@@ -172,7 +172,7 @@ things:
 Copacetic declares that it can open `http` and `https`, so the system will offer
 it. Settings has a control that says what your platform will actually allow:
 macOS and Linux can be asked directly, and **Windows 10 and 11 do not let an
-application make itself the default at all** — there the control opens the
+application make itself the default at all** - there the control opens the
 screen where you choose, rather than claiming to have done something it cannot.
 
 Nothing registers itself at startup. An address handed over by another
@@ -182,7 +182,7 @@ application goes through the same check as a link on a page, so a `file:` or
 ## Checking a download is what it claims to be
 
 The builds are not code-signed, so nothing in the installer says who made it.
-What can be answered — and for nothing — is whether the file you downloaded is
+What can be answered - and for nothing - is whether the file you downloaded is
 the one this repository built. Every release is attested by GitHub, and the
 attestation names the commit and the workflow run it came out of:
 
@@ -197,7 +197,7 @@ transit, or served from somewhere that is not this repository, fails the check.
 ## Architecture
 
 Page content is owned by the **main process** as one `WebContentsView` per tab.
-The renderer is pure interface — it never touches page content, and it holds no
+The renderer is pure interface - it never touches page content, and it holds no
 browser state of its own.
 
 ```
@@ -210,7 +210,7 @@ electron/
     blocker.ts        tracker blocking and per-tab counting
     downloads.ts      pause/resume/cancel, filename sanitising
     store.ts          history, bookmarks, settings, session (atomic JSON)
-    menu.ts           application menu — also the keyboard shortcut table
+    menu.ts           application menu - also the keyboard shortcut table
     context-menu.ts   native page and tab menus
     protocol.ts       serves the exported interface over copacetic-app://
     ipc.ts            typed, sender-validated handlers
@@ -223,7 +223,7 @@ Two consequences of `WebContentsView` shape the interface, and both turned out
 to be improvements:
 
 - **A native view always paints above the renderer's HTML.** So the address-bar
-  suggestion list and the find bar are not floating popovers — they are real
+  suggestion list and the find bar are not floating popovers - they are real
   chrome, and the page is pushed down to make room. Full-area panels (settings,
   history, downloads) hide the tab view instead of covering it.
 - **The renderer measures its own layout** and reports the content rectangle to
@@ -269,7 +269,7 @@ gpg --show-keys --with-colons /usr/share/keyrings/copacetic-archive-keyring.gpg 
 
 `Signed-By` in that source file binds the key to this repository alone, so it
 cannot vouch for any other package on your system. Installing the `.deb` by
-hand does the same thing — the package registers the source itself — so this is
+hand does the same thing - the package registers the source itself - so this is
 only needed on a machine that has never had Copacetic on it.
 
 ### Staying up to date
@@ -283,7 +283,7 @@ than pretending:
 | Windows (`Setup.exe`) | Downloads in the background, installs when you quit     |
 | Linux (`.AppImage`)   | Downloads in the background, installs when you quit     |
 | macOS (`.dmg`)        | Tells you a version is available and links the download |
-| Linux (`.deb`)        | Tells you, and links the download — manual for now      |
+| Linux (`.deb`)        | Tells you, and links the download - manual for now      |
 
 macOS is manual because installing an update in place requires a code-signed
 app, and Copacetic is not signed. That is a cost decision, not an oversight,
@@ -291,7 +291,7 @@ and it is stated in Settings rather than hidden behind a button that fails.
 
 The `.deb` never updates itself, because the file belongs to `dpkg`. It
 registers Copacetic's own signed repository instead, so new versions arrive
-with a normal `apt upgrade` — the same way everything else on the machine is
+with a normal `apt upgrade` - the same way everything else on the machine is
 updated. The repository is signed with a key bound to that one source, so it
 cannot vouch for any other package.
 
@@ -302,7 +302,7 @@ updates itself in place.
 
 Measured rather than claimed, with `npm run measure`, which launches the built
 app on a throwaway profile five times and reports the median. The numbers below
-came off one machine and are not a promise about yours — the point is that you
+came off one machine and are not a promise about yours - the point is that you
 can produce your own on the same script. The memory figures need pages, so that
 one measurement opens five on example.com; nothing else in it uses the network.
 
@@ -323,7 +323,7 @@ The gap between a window you can see and a window that answers is about 190ms,
 and it is a real thing rather than a rounding error: a keystroke or a menu item
 inside it used to reach a renderer that was not listening yet. That is fixed by
 holding the request, not by pretending the gap is not there. A cold first launch
-is slower throughout — around 900ms to a window that answers — rather than
+is slower throughout - around 900ms to a window that answers - rather than
 having a wider gap.
 
 The engine is built when the app is packaged and read back on launch, which is
@@ -403,5 +403,5 @@ MIT. See [LICENSE](LICENSE).
 Not everything in here is Copacetic's to license, though. The EasyList and
 EasyPrivacy filter lists are shipped whole, are someone else's work, and carry
 the GPLv3 or CC BY-SA 3.0, whichever is elected. [NOTICE](NOTICE) names what
-they are, where they came from and under what terms — which matters if you fork this, and matters
+they are, where they came from and under what terms - which matters if you fork this, and matters
 more if you sell it.

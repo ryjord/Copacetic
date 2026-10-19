@@ -2,7 +2,7 @@
  * Says which Node this project needs, before anything else fails in its own way.
  *
  * The README states the floor correctly and nobody reads a README because of a
- * stack trace. On Node 20 the suite does not fail — it does not start, and
+ * stack trace. On Node 20 the suite does not fail - it does not start, and
  * prints seventy-three copies of `TypeError: webidl.util.markAsUncloneable is
  * not a function`, which comes from jsdom's undici and names nothing anyone can
  * act on. On a supported Node the same command runs every test in a few seconds.
@@ -11,7 +11,7 @@
  *
  * The audit suggested `engine-strict` in .npmrc instead. Tried, and it is the
  * wrong tool: it applies to every dependency's engines rather than this
- * project's, and jsdom asks for ^24.15.0 — so it refuses to install on Node
+ * project's, and jsdom asks for ^24.15.0 - so it refuses to install on Node
  * 24.14, where the entire suite passes. A check of this project's own floor
  * breaks nobody and says the same thing.
  */
@@ -43,7 +43,7 @@ if (tooOld) {
       '',
       `Copacetic needs Node ${required}. This is Node ${process.versions.node}.`,
       '',
-      'Below that floor the test suite does not fail — it does not start, and says so',
+      'Below that floor the test suite does not fail - it does not start, and says so',
       'seventy-three times in a message about jsdom that names nothing you can act on.',
       '',
       '  nvm use 22    (or any newer)',

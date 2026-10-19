@@ -21,7 +21,7 @@ const manifestPath = path.join(FILTERS, 'manifest.json');
 if (!existsSync(manifestPath)) {
   // Not a failure: a checkout without the lists still builds, and the browser
   // falls back to the curated hostnames it has always had. Saying so is the
-  // point — a blocker that silently blocks nothing is the worst outcome.
+  // point - a blocker that silently blocks nothing is the worst outcome.
   console.log('No filter manifest; skipping. The app will fall back to its curated hosts.');
   process.exit(0);
 }
@@ -34,7 +34,7 @@ const texts = manifest.lists.map((list) => {
   // The manifest records what was fetched. A file that no longer matches it has
   // been edited by hand or damaged, and either way is not what was reviewed.
   if (sha256 !== list.sha256) {
-    throw new Error(`${list.name}.txt does not match the manifest — run npm run filters:update`);
+    throw new Error(`${list.name}.txt does not match the manifest - run npm run filters:update`);
   }
   return text;
 });

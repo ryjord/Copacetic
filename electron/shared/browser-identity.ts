@@ -43,7 +43,7 @@ function architectureFor(arch: string): string {
 
 /**
  * Everything reported is read out of the user agent the session already sends,
- * so the string and the hints cannot drift apart — including when Chromium is
+ * so the string and the hints cannot drift apart - including when Chromium is
  * upgraded and the version changes underneath.
  */
 export function clientHintsFor(userAgent: string, platform: string, arch = 'x64'): ClientHints | null {
@@ -76,7 +76,7 @@ export function clientHintsFor(userAgent: string, platform: string, arch = 'x64'
  *
  * Only the three Chrome sends unprompted. The rest are high-entropy hints a
  * site has to ask for through `Accept-CH`, and that request is never answered
- * — not deferred, never answered. Sending them unasked would be unlike Chrome
+ * - not deferred, never answered. Sending them unasked would be unlike Chrome
  * and more than anyone needs to know; answering when asked would hand over the
  * full version, the architecture, the bitness and the device model, which is a
  * fingerprint, and no sign-in has ever needed one.

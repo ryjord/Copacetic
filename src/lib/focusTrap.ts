@@ -17,7 +17,7 @@ function focusableWithin(container: HTMLElement): HTMLElement[] {
   return [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
     // Deliberately not a layout check. `offsetParent` looks like the obvious
     // way to skip hidden controls, but it is also null for anything
-    // position-fixed — which would quietly drop real, visible controls out of
+    // position-fixed - which would quietly drop real, visible controls out of
     // the trap. These three cover what actually makes something unfocusable.
     (element) =>
       !element.hasAttribute('hidden') &&
@@ -26,7 +26,7 @@ function focusableWithin(container: HTMLElement): HTMLElement[] {
   );
 }
 
-/** Traps Tab within `ref` while `isActive`, and puts focus back where it was on the way out — leaving someone's focus stranded on a panel that no longer exists is its own small failure. */
+/** Traps Tab within `ref` while `isActive`, and puts focus back where it was on the way out - leaving someone's focus stranded on a panel that no longer exists is its own small failure. */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, isActive: boolean): void {
   useEffect(() => {
     const container = ref.current;

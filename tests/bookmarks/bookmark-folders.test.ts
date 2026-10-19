@@ -55,8 +55,8 @@ describe('what is inside a folder', () => {
   });
 
   /*
-   * Nothing in the app can write a cycle — wouldCycle refuses the move that
-   * would — but a file on disk can hold one, whether hand-edited or half
+   * Nothing in the app can write a cycle - wouldCycle refuses the move that
+   * would - but a file on disk can hold one, whether hand-edited or half
    * written. Walking it must end.
    */
   it('terminates on a tree that arrived already holding a cycle', () => {
@@ -157,7 +157,7 @@ describe('drawing the tree', () => {
 });
 
 /**
- * The promise the tab strip already makes with "Ungroup these tabs — tabs stay
+ * The promise the tab strip already makes with "Ungroup these tabs - tabs stay
  * open": deleting a container never deletes what someone put in it.
  */
 describe('deleting a folder', () => {

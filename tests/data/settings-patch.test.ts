@@ -12,7 +12,7 @@ const { DEFAULT_SETTINGS } = await import('../../electron/main/data/store');
 /**
  * A setting the renderer can display but not change is worse than a missing
  * one: the control moves, nothing happens, and it looks like it worked.
- * Exactly that shipped four times — density, the update-check toggle, the zoom
+ * Exactly that shipped four times - density, the update-check toggle, the zoom
  * reset and the tracker allowlist all silently did nothing.
  */
 describe('every setting can actually be changed', () => {
@@ -77,7 +77,7 @@ describe('but only settings, and only sane ones', () => {
  * A patch arrives from the renderer, and the renderer is where a bug lives.
  * Casting a string to a union satisfies the compiler and stores whatever came:
  * the value was then applied until the next start, when the store's own reviver
- * corrected it — a setting that fixes itself overnight and nobody can explain.
+ * corrected it - a setting that fixes itself overnight and nobody can explain.
  */
 describe('what the settings patch refuses', () => {
   it('takes a theme that exists', () => {
@@ -99,7 +99,7 @@ describe('what the settings patch refuses', () => {
 
   /*
    * Zoom was stored exactly as given and applied unclamped, so a level of 1000
-   * could be written down and read back later as that site's zoom — legible
+   * could be written down and read back later as that site's zoom - legible
    * only as a page that will not display.
    */
   it('clamps a zoom level on the way in, not only when it is applied', () => {
@@ -117,7 +117,7 @@ describe('what the settings patch refuses', () => {
    * The default zoom sat beside the per-site levels doing something different:
    * checked for being a number and then stored as given. IPC uses structured
    * clone rather than JSON, so NaN really can arrive from the renderer, and
-   * clamping carried it through — Math.min and Math.max propagate NaN whichever
+   * clamping carried it through - Math.min and Math.max propagate NaN whichever
    * way round they are written. It reached a tab and the interface had a zoom
    * of NaN per cent to show.
    */

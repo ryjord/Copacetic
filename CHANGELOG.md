@@ -2,24 +2,24 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 1.4.2 — unreleased
+## 1.4.2 - unreleased
 
 ### Fixed
 
 - **Running the tests on too old a Node says so, in a sentence.** Below the
-  supported version the suite does not fail — it does not start, and prints
+  supported version the suite does not fail - it does not start, and prints
   seventy-three copies of a message about jsdom's internals that names nothing
   anyone can act on. It now says which Node is needed and which one is running,
   before anything else has a chance to fail in its own way.
 
 - **Renaming a group is checked by waiting for it, not by hoping.** The test
   paused for a moment and then read the file, which passed here and failed on a
-  slower machine — reporting a rename as broken when it had simply not landed
+  slower machine - reporting a rename as broken when it had simply not landed
   yet. It waits for the rename now, and still fails if one never arrives.
 
 - **The application that gets built is now started before it can be released.**
   Everything the tests ran before this used the source tree, which says the code
-  is right and nothing about what is shipped — so a file left out, a dependency
+  is right and nothing about what is shipped - so a file left out, a dependency
   pruned that was needed, or a preload the packaged app cannot find would reach
   a release. The installers themselves are built too, on the branches a release
   is tagged from, because a tree is not a `.dmg` and the difference has already
@@ -27,12 +27,12 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 - **The icon cache has a size, not just a count.** Six hundred icons were kept
   and nothing bounded how big each could be, so the file could reach about
-  160MB — read from the disk, all of it, before the first window appears. It is
+  160MB - read from the disk, all of it, before the first window appears. It is
   held to 8MB now, dropping the least recently seen, and a single enormous icon
   no longer evicts every smaller one behind it.
 - **The downloads list stops asking the disk the same question hundreds of times
   a second.** Whether each saved file is still where you put it was checked
-  every time anything at all changed — a tab title arriving, a page finishing.
+  every time anything at all changed - a tab title arriving, a page finishing.
   The answer is remembered for a few seconds, which is still far more often than
   anyone moves a file.
 
@@ -47,7 +47,7 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   no log line, and an application sitting in the dock doing nothing.
 - **Closing the last window on macOS no longer leaves the app unusable.** macOS
   keeps an application running after its last window closes, and clicking the
-  dock icon is how you ask for it back — that did nothing, so the app stayed in
+  dock icon is how you ask for it back - that did nothing, so the app stayed in
   the dock, alive, with no window and no way to open one.
 - **An address opened while Copacetic is still starting is not lost.** Handing a
   link to a second copy while the first was still starting dropped it: the
@@ -55,7 +55,7 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 - **Settings can be opened from the menu bar on Windows and Linux.** It lived in
   the application menu, which only macOS has, so on the other two there was no
-  menu item for it at all — and the smoke test that presses it had been failing
+  menu item for it at all - and the smoke test that presses it had been failing
   on both for months, read as a flaky test rather than as a missing feature,
   because an item that cannot be found and an item that does not work fail the
   same way. It is in Edit now, on one shortcut that means Cmd on macOS and Ctrl
@@ -63,7 +63,7 @@ Notable changes to Copacetic. Dates are the release date, newest first.
 
 - **A release publishes as one release.** The three platforms published at the
   same time, each asked GitHub whether the release existed, each was told no,
-  and more than one created it — GitHub permits two releases on one tag. 1.4.1
+  and more than one created it - GitHub permits two releases on one tag. 1.4.1
   went out as two objects with the files split between them and neither
   complete, while every job reported success, because every job had uploaded
   everything it built. Platforms publish one at a time now: the first creates
@@ -72,7 +72,7 @@ Notable changes to Copacetic. Dates are the release date, newest first.
   because "assets are missing" describes this badly and "two releases exist"
   describes it exactly.
 
-## 1.4.1 — 2026-09-04
+## 1.4.1 - 2026-09-04
 
 Batch 1 of the September audit.
 
@@ -82,8 +82,8 @@ Batch 1 of the September audit.
   which was about to be wrong: a run of patch releases inside one line would
   have evicted every older line, and someone still on 1.3 would have found 1.3
   gone from apt while three 1.4 patches sat in its place. It now keeps the
-  newest 1.2, 1.3, 1.4 and 1.5 — the versions someone might reasonably still be
-  on — and stays at four however many patches each line collects. The bucket it
+  newest 1.2, 1.3, 1.4 and 1.5 - the versions someone might reasonably still be
+  on - and stays at four however many patches each line collects. The bucket it
   publishes to has limited room and each package is about 150MB, so the pool
   cannot simply grow.
 
@@ -97,8 +97,8 @@ Batch 1 of the September audit.
   where the lists are already named.
 
 - **The download is a third of the size.** The application was shipping every
-  package the interface is built with — React, Next, the whole component
-  library, an icon set, and a native Rust compiler — inside itself, where the
+  package the interface is built with - React, Next, the whole component
+  library, an icon set, and a native Rust compiler - inside itself, where the
   main process never loaded any of them. They are needed to _build_ the
   interface; what the application actually runs is the 1.3MB of HTML and
   JavaScript that build produces. Moving them where they belong takes the
@@ -106,7 +106,7 @@ Batch 1 of the September audit.
   291MB, with nothing removed that anything used.
 
 - **A locked vault no longer lets a password be deleted.** Locked, the pane
-  refused to show a password and offered to remove it in the same row — and
+  refused to show a password and offered to remove it in the same row - and
   removing it is the half that cannot be undone. Removing, changing and
   importing are behind the lock now, for the same reason reading always was.
   Adding a new password still works, because nothing is lost by it, and the
@@ -126,14 +126,14 @@ Batch 1 of the September audit.
   stay where they are; what goes is the record of where they came from.
 - **A zoom that is not a number cannot be stored.** The default zoom was checked
   for being a number and then kept as given, unlike the per-site levels sitting
-  beside it — and clamping carried it through, because the arithmetic that
+  beside it - and clamping carried it through, because the arithmetic that
   clamps propagates a non-number whichever way round it is written. It reached a
   tab, and the interface had a zoom of NaN per cent to display.
 
 - **A damaged line in the certificate file no longer costs you the rest of it.**
   What each site presented last time was asserted to have the right shape rather
   than read, so one malformed entry reached the comparison as a string or a
-  number — and that comparison is the thing that notices a connection which has
+  number - and that comparison is the thing that notices a connection which has
   started being intercepted. Each entry is now read on its own: a bad one loses
   only its own site, which means that site is treated as newly seen, rather than
   taking every remembered certificate with it.
@@ -145,7 +145,7 @@ Batch 1 of the September audit.
   all; it does now.
 - **A setting the interface sends is checked before it is kept.** An unknown
   theme or search engine was stored as given and used until the next start,
-  when the file's own reader quietly corrected it — a setting that fixed itself
+  when the file's own reader quietly corrected it - a setting that fixed itself
   overnight with no explanation. A zoom level was stored exactly as sent, so a
   value far outside anything the controls offer could be written down and read
   back later as that site's zoom.
@@ -153,13 +153,13 @@ Batch 1 of the September audit.
 - **What you had open survives losing power.** Stored files were written and
   renamed into place without waiting for the disk to confirm the write, so a
   machine that lost power in between could make the rename stick and the
-  contents not — publishing an empty file where your bookmarks had been. They
+  contents not - publishing an empty file where your bookmarks had been. They
   are now flushed to the disk before the rename, written readable only by you
   rather than by every account on the machine, and a rename blocked by an
   antivirus scanner or a search indexer is retried instead of dropped.
 - **The tabs you have open are written down as they change.** They were saved
-  once, on the way out, so anything that was not a polite quit — a crash, a
-  power cut, a forced shutdown — lost every one of them.
+  once, on the way out, so anything that was not a polite quit - a crash, a
+  power cut, a forced shutdown - lost every one of them.
 
 - **Notices can be answered with the keyboard again, reliably.** The smoke
   harness fell back to the chrome window whenever the overlay had not appeared
@@ -169,12 +169,12 @@ Batch 1 of the September audit.
 
 - **Forgetting a site now signs you out of it.** It cleared the history, the
   cached icon, the remembered certificate, the zoom, the permissions and the
-  blocking exception, and never touched the session — so the first thing anyone
+  blocking exception, and never touched the session - so the first thing anyone
   would check afterwards, whether they were still logged in, was the one thing
   that had not changed, while the menu item said "Forget example.com" and the
   code said it removed everything known about the site. Cookies and site storage
   now go too, from ordinary browsing, from Hush, and from every group that keeps
-  its own — a group's cookies are still that site's cookies, including the ones
+  its own - a group's cookies are still that site's cookies, including the ones
   scoped across every subdomain, which is the shape a sign-in cookie usually has
   and the shape the first version of this fix quietly skipped. The count is named
   before it happens as well as after, because a warning that leaves out the part
@@ -183,18 +183,18 @@ Batch 1 of the September audit.
 - **Settings and About stop denying a feature that ships.** Filling a password
   from the right-click menu arrived in 1.3.2. For four releases afterwards the
   Passwords pane said "Copacetic does not fill them in yet", and, asked
-  directly, "No, and it will not" — on the surface this browser points at to be
+  directly, "No, and it will not" - on the surface this browser points at to be
   judged. The README still said there was no password manager at all, two
   releases after the vault shipped. All four now describe what happens: one
   short script, run when you ask, gone when it returns. The half that was true
-  is kept and said more plainly — nothing ever offers to save what you type,
+  is kept and said more plainly - nothing ever offers to save what you type,
   because that needs code sitting in every page permanently, and that is the
   guarantee save-on-submit was dropped to keep.
 
 - **Following a link out of a Hush tab no longer leaves a record.** The tab kept
   its promise; nothing opened from it did. `target="_blank"`, `window.open`,
   middle-click, "Open link in new tab", "Open image in new tab" and "Search
-  for …" all opened an ordinary, recorded tab — the address went to history, the
+  for …" all opened an ordinary, recorded tab - the address went to history, the
   icon to the cache and the certificate to disk, reached by following a link
   from the one place that exists not to do that. A new tab now takes Hush, and
   its group, from the tab that opened it unless it is told otherwise, decided
@@ -202,7 +202,7 @@ Batch 1 of the September audit.
   six ways to open one.
 
 - **A group that keeps its own browsing is now protected like everything else.**
-  There are three kinds of session — ordinary, Hush, and a group's own — and
+  There are three kinds of session - ordinary, Hush, and a group's own - and
   only two of them were ever set up, because the setup was written out by hand
   twice and nobody wrote it a third time. Tabs in a group with its own session
   therefore ran with no permission handling at all, which means Electron's
@@ -213,14 +213,14 @@ Batch 1 of the September audit.
   is now prepared in one place, before the tab that uses it exists, and the
   tests count the call sites so a second copy cannot appear.
 - **A lost version record no longer destroys what it was meant to protect.**
-  Migration steps ran again whenever `schema.json` went missing — an interrupted
+  Migration steps ran again whenever `schema.json` went missing - an interrupted
   write, a half-restored backup, a profile copied without it. Running them twice
   was not wasteful but destructive: the session step returned a session with no
   tabs in it, and the bookmarks step un-filed every bookmark from every folder.
   Both now recognise their own output and leave it alone, and every step is
   tested by running it twice.
 
-## 1.4.0 — 2026-09-03
+## 1.4.0 - 2026-09-03
 
 ### Added
 
@@ -239,9 +239,9 @@ Batch 1 of the September audit.
   left on purpose: only the three hints Chrome sends unprompted are sent, so a
   site that asks for the high-entropy ones through `Accept-CH` gets no answer.
   That is itself something a determined site can notice, and it is still the
-  right trade — those hints are the full version, the architecture, the
+  right trade - those hints are the full version, the architecture, the
   bitness and the device model, and nothing needs them to let you sign in.
-  Page content still runs no script of Copacetic's — the fix is entirely in
+  Page content still runs no script of Copacetic's - the fix is entirely in
   the main process.
 - **Development servers open.** A certificate signed by nobody is accepted from
   `localhost`, `127.0.0.1`, `::1` and `.localhost`, and nowhere else; reaching
@@ -252,7 +252,7 @@ Batch 1 of the September audit.
   let an application make itself the default at all, so there it opens the
   screen where you choose.
 - **Appearance shows you the change before you keep it.** A working miniature of
-  the window sits at the top of the pane and follows every choice — density,
+  the window sits at the top of the pane and follows every choice - density,
   atmosphere, widgets, wallpaper. Nothing is saved until Keep these, and Discard
   puts it all back. The atmosphere can be turned with a slider or named as a
   colour, and the two are the same value said two ways.
@@ -268,38 +268,38 @@ Batch 1 of the September audit.
 - **Tab groups.** A run of tabs takes a name, a colour and a place in the strip.
   Click the name to rename it where it sits; right-click for colour, collapse,
   ungroup or close. A group can keep its own cookies and logins, decided when it
-  is made and never after — changing it later would sign you out of pages open in
+  is made and never after - changing it later would sign you out of pages open in
   front of you. A group holding a Hush tab says so rather than claiming to be
   separate, because that would be true of only part of what it names.
 - **Bookmark folders, and they nest.** Drag a bookmark onto a folder to file it,
   or use the bookmark's own menu, which lists every folder by its full path so
-  filing never needs a mouse. Deleting a folder keeps everything inside it — its
+  filing never needs a mouse. Deleting a folder keeps everything inside it - its
   bookmarks and its child folders move up to where it was. A folder cannot be
   dropped inside itself; that is refused while the cursor is still over it,
   because the subtree would detach with nowhere to drag it back from. Counts are
   given both ways, since a tree makes every number ambiguous.
 - **A folder is a tab group at rest.** A folder opens as a tab group carrying its
   name and colour, and a group saves as a folder the same way. The group does not
-  inherit its own session — that is decided when a group is made — and a Hush tab
+  inherit its own session - that is decided when a group is made - and a Hush tab
   is never saved, because a bookmark is written to disk.
 - **A bookmarks bar**, off until switched on in Settings. It carries the top level
   only: a bar that flattened the tree would put something filed three folders deep
   beside something filed nowhere. A folder on it opens as a menu.
-- **Ad and tracker blocking.** EasyList and EasyPrivacy ship inside the app —
-  136,716 rules — with the curated 122 domains underneath as a floor, so a list
+- **Ad and tracker blocking.** EasyList and EasyPrivacy ship inside the app -
+  136,716 rules - with the curated 122 domains underneath as a floor, so a list
   that fails to load cannot make Copacetic block less than it did before it had
   one. The lists are in the repository as text and change only with a release or
   when you press "Check for newer lists"; nothing fetches them on a timer,
   because that is a periodic request from your machine to a server. What a
   blocked advert leaves behind is collapsed with a stylesheet, not an injected
-  script — page content still runs none of Copacetic's. The connection panel
+  script - page content still runs none of Copacetic's. The connection panel
   says whether a hostname or a rule stopped each request, and Settings says
   plainly what blocking cannot do: same-origin adverts, server-inserted adverts
   and sponsored posts inside a feed are not blocked and are not counted.
 - **Notices.** The app can now say what it finished and ask before something
   costly. Saving a group as a folder says how many Hush tabs were left out, which
   is the point: the promise Hush makes is only kept if it is also stated. Opening
-  a folder of more than ten pages asks first — naming the number on a button is
+  a folder of more than ten pages asks first - naming the number on a button is
   not the same as consenting to it. Notices are drawn on top of the page rather
   than pushing it aside, and one said before the window is ready is held until it
   can be read.
@@ -311,21 +311,21 @@ Batch 1 of the September audit.
   is in order and a spirit level's bubble is only centred when it is. The rule
   the interface follows is unchanged and now drawn twice: only the ring and the
   lamp take colour, the marks are white at 22%, and the tile never moves. The
-  marks wash out below roughly 24px, which is deliberate — at tab-strip size
+  marks wash out below roughly 24px, which is deliberate - at tab-strip size
   what is left is the lamp on its own. The interface's own icon was still the
   one Next.js ships with, and is now the mark as well.
 
 - **Building it needs Node 22.22.2 or newer.** The floor said 20.9 and was
   wrong: jsdom dropped Node 20, so on 20 the test suite does not start at all
-  rather than failing a test. Nothing about the packaged application changed —
-  Electron carries its own Node — but the claim was untrue and is now the one
+  rather than failing a test. Nothing about the packaged application changed -
+  Electron carries its own Node - but the claim was untrue and is now the one
   jsdom actually imposes.
 
 - **A Hush tab is no longer easy to overlook.** The tab is outlined rather than
   carrying one small icon among three, the start page atmosphere goes dark, and
   the page shows what Hush does and does not do instead of the usual widgets.
   Once you have read that, the widgets that are a way to get somewhere come
-  back — search, the clock — and the ones that report where you have been do
+  back - search, the clock - and the ones that report where you have been do
   not.
 - **Addresses on your own network are left on http.** Typing
   `dev.internal:3000` upgraded it to https, where nothing was listening, with no
@@ -337,7 +337,7 @@ Batch 1 of the September audit.
 - **The Windows installer builds again.** Git was rewriting the filter lists'
   line endings when they were checked out on Windows, which changed their bytes,
   which made them stop matching the hashes the manifest recorded when they were
-  fetched — and the build refuses to use a list it cannot verify. The lists are
+  fetched - and the build refuses to use a list it cannot verify. The lists are
   now marked as content rather than source, so they arrive byte for byte on
   every platform.
 - **A menu item pressed during start-up now does what it says.** Settings,
@@ -345,13 +345,13 @@ Batch 1 of the September audit.
   interface, and the interface is a page: for a couple of hundred milliseconds
   after the window appears there is nothing there to be told. The request is now
   held and handed over when the interface starts listening, once, and only if it
-  was recent — a pane that opens a minute later because of a keystroke nobody
+  was recent - a pane that opens a minute later because of a keystroke nobody
   remembers is its own bug. Switching tabs still closes whatever is covering
   them; the first state arriving no longer counts as switching, which it was
   doing, and which threw the collected pane away again on its way past.
 - **A Hush tab no longer writes down the certificate of every site it opens.**
   This happened with no action from anyone, on every https page, and the record
-  outlived the tab — the same shape as the favicon cache and the download, and
+  outlived the tab - the same shape as the favicon cache and the download, and
   against the same sentence. The certificate is still compared, so a change
   mid-session is still reported; there is simply nothing kept afterwards.
 - **Zoom, permissions and blocking exceptions set in a Hush tab are no longer
@@ -366,7 +366,7 @@ Batch 1 of the September audit.
   from localhost on different ports.
 - **A download started in a Hush tab is no longer written to disk.** Its address,
   its redirect chain and its time were going into `downloads.json`, which
-  contradicts what Hush says in this README and on the tab itself — that nothing
+  contradicts what Hush says in this README and on the tab itself - that nothing
   it does reaches the disk and closing it leaves nothing to delete. The file is
   still saved, because it was asked for; where it came from is browsing, and a
   Hush tab keeps none of that. It is listed while Copacetic is open, marked as
@@ -390,14 +390,14 @@ Batch 1 of the September audit.
 - Recolouring or renaming a folder from its menu now changes what is on screen.
   It reached the disk and stopped there, because nothing told the open surface.
 
-## 1.3.3 — 2026-08-13
+## 1.3.3 - 2026-08-13
 
 ### Fixed
 
 - **Unlocking no longer promises a fingerprint macOS may not ask for.** The
   panel said "Unlock with Touch ID"; on a real machine macOS asked for the
   login password instead, which made a perfectly normal prompt look like
-  something had gone wrong. macOS decides which it asks for — and on a build
+  something had gone wrong. macOS decides which it asks for - and on a build
   without a code-signing certificate it tends to decide password. Settings now
   says so, says the choice is macOS's rather than Copacetic's, and says
   Copacetic never sees what you type.
@@ -406,7 +406,7 @@ Batch 1 of the September audit.
 
 - Electron 43.4.1, Next 16.3.2, esbuild 0.28.2. Patch level only.
 
-## 1.3.2 — 2026-08-12
+## 1.3.2 - 2026-08-12
 
 ### Added
 
@@ -416,13 +416,13 @@ Batch 1 of the September audit.
   somewhere worse than the vault.
 
   The care is in the drawing. Taking a random byte modulo the alphabet size is
-  the usual shortcut and it makes the earlier characters come up more often —
+  the usual shortcut and it makes the earlier characters come up more often -
   every password produced is weaker and nothing about it looks different. Bytes
   that would land unevenly are discarded and redrawn instead.
 
 - **The vault locks.** After five minutes, or whenever you ask it to. While it
   is locked no password can be read and nothing can be exported, though what is
-  saved stays listed — locked is not the same as gone.
+  saved stays listed - locked is not the same as gone.
 
   On a Mac, unlocking asks Touch ID. **Everywhere else it is a single click,
   and Settings says so**, because Electron gives Copacetic no way to check who
@@ -438,7 +438,7 @@ Batch 1 of the September audit.
   passwords into pages, because doing so means running Copacetic's code inside
   them and this browser ships without any.
 
-## 1.3.2 — 2026-08-13
+## 1.3.2 - 2026-08-13
 
 ### Added
 
@@ -451,7 +451,7 @@ Batch 1 of the September audit.
 
 - **Copacetic can fill a saved password**, from the right-click menu on the page,
   only when you ask. It refuses a page that is not encrypted, and only offers
-  passwords saved for that site — matched so that a lookalike host, or another
+  passwords saved for that site - matched so that a lookalike host, or another
   user of a shared hosting domain, gets nothing.
 
 - **A section saying what the vault does not protect you from**, showing the real
@@ -462,13 +462,13 @@ Batch 1 of the September audit.
   you picked can, which is what the setting says.
 
 - **Copacetic tells you when a site's certificate changes** in a way worth
-  knowing — specifically when the chain starts ending at a root installed on
+  knowing - specifically when the chain starts ending at a root installed on
   this machine, which is what an intercepting proxy looks like from in here. An
   ordinary renewal is not mentioned, because a browser that cries wolf is worse
   than one that says nothing.
 
-- **Downloads record where the file actually came from** — every redirect, not
-  just the last one — and the SHA-256 of what arrived, so you can check it
+- **Downloads record where the file actually came from** - every redirect, not
+  just the last one - and the SHA-256 of what arrived, so you can check it
   against a published checksum.
 
 - **Bookmarks can be imported** from the file any browser exports.
@@ -484,12 +484,12 @@ Batch 1 of the September audit.
 
 - The default search engine is Brave.
 
-## 1.3.1 — 2026-08-12
+## 1.3.1 - 2026-08-12
 
 ### Added
 
 - **Your passwords can leave.** Export writes the format Chrome, Firefox,
-  Bitwarden and 1Password all read, and import reads what they write — any
+  Bitwarden and 1Password all read, and import reads what they write - any
   column order, any casing. "Everything lives on this machine" is honest and,
   on its own, also lock-in; being able to take it elsewhere is what makes the
   claim something you can act on rather than take on trust.
@@ -499,7 +499,7 @@ Batch 1 of the September audit.
   opens rather than hedged afterwards.
 
   Counts are reported rather than implied. A password that cannot be decrypted
-  cannot be written to a file, so the export says how many were left out —
+  cannot be written to a file, so the export says how many were left out -
   leaving them out quietly is how someone believes they took everything with
   them. Import says what it added, what it replaced and what it ignored, and a
   site and username already saved has its password updated rather than
@@ -510,16 +510,16 @@ Batch 1 of the September audit.
 - **A Hush tab can be opened with the mouse.** Right-clicking a tab now offers
   New Hush tab and Reopen closed tab, and a caret beside the new-tab button
   offers both. Until now it was a keyboard shortcut or the macOS menu bar and
-  nothing else — and off macOS the window has no menu bar at all, which left
+  nothing else - and off macOS the window has no menu bar at all, which left
   the feature this browser is named around undiscoverable to anyone using a
   mouse.
 
-## 1.3.0 — 2026-08-12
+## 1.3.0 - 2026-08-12
 
 ### Added
 
 - **A place to keep a password.** Encrypted through the operating system's own
-  keychain — Keychain on macOS, DPAPI on Windows, the secret service on Linux —
+  keychain - Keychain on macOS, DPAPI on Windows, the secret service on Linux -
   one entry at a time, so a secret that cannot be read is not all of them. This
   release is storage only: Copacetic does not look at a page, does not offer to
   save what you type and does not fill anything in. Those come next, and doing
@@ -532,7 +532,7 @@ Batch 1 of the September audit.
   that was never saved and said so.
 
   Passwords are never part of the state the interface receives. Revealing one is
-  a separate request, by name, one at a time — otherwise every password would
+  a separate request, by name, one at a time - otherwise every password would
   sit in the interface's memory for as long as Settings was open.
 
 - **An empty vault and an unreadable one now look different.** They are not the
@@ -549,7 +549,7 @@ Batch 1 of the September audit.
 - Settings has a Passwords section. The About answer that said there was no
   password manager has been corrected, since there now is one.
 
-## 1.2.13 — 2026-08-11
+## 1.2.13 - 2026-08-11
 
 ### Fixed
 
@@ -558,7 +558,7 @@ Batch 1 of the September audit.
   because `electron-updater` is CommonJS with exports that cannot be detected
   statically, that gave `undefined`. The first property set on it threw, inside
   the try/catch around the check, so it surfaced as an error message rather
-  than a crash — and updates did nothing at all from 1.1.0 until now. Every
+  than a crash - and updates did nothing at all from 1.1.0 until now. Every
   test passed because they covered which platform gets which behaviour rather
   than the updater itself.
 
@@ -567,28 +567,28 @@ Batch 1 of the September audit.
 - Electron 41 to 43, which brings Chromium 142 to 150. Chromium currency is a
   security property in a browser: every fix that lands upstream stays
   exploitable here until this moves. Checked by re-running the live proofs on
-  the new version — bad certificates still refused, the Hush partition still
+  the new version - bad certificates still refused, the Hush partition still
   writes nothing, HTTP authentication still reaches its handler.
 - Dependabot raises a weekly pull request for dependencies and a monthly one
   for actions, with Electron and the framework packages kept out of the grouped
   batch so they are read rather than skimmed.
 - CI reports known vulnerabilities as a warning rather than a failure, and
-  keeps the packaged tree when packaging fails — a platform-specific packaging
+  keeps the packaged tree when packaging fails - a platform-specific packaging
   failure otherwise needs that platform to reproduce, which for two of the
   three is not something anyone here has.
 
-## 1.2.12 — 2026-08-11
+## 1.2.12 - 2026-08-11
 
 ### Added
 
 - **Hush tabs.** `Cmd/Ctrl+Shift+N`, or New Hush tab in the menu. Your machine
   forgets one entirely: no history, no cookies, no cache, no favicons, and
-  nothing written to disk at all — not even the list of tabs to reopen, and it
+  nothing written to disk at all - not even the list of tabs to reopen, and it
   cannot be brought back with reopen-closed.
 - It says outright what it does not do. A Hush tab does not make you anonymous:
   the sites you visit, your network, your employer and your internet provider
   see exactly what they would see in any other tab. That sentence is the reason
-  this is worth shipping rather than the thing to bury — believing otherwise is
+  this is worth shipping rather than the thing to bury - believing otherwise is
   the best-known misunderstanding in any browser, and this one cannot repeat it.
 - Not called incognito or private, because both words promise more than any
   browser delivers.
@@ -599,19 +599,19 @@ Batch 1 of the September audit.
 
 - A Hush tab runs in an in-memory session rather than a persisted one that gets
   cleaned up afterwards: a mode that writes and then deletes is one crash away
-  from not having deleted. Verified in Electron — after a cookie and a flush,
+  from not having deleted. Verified in Electron - after a cookie and a flush,
   the persistent partition had written 17 files and the Hush one none.
 - Every guard is installed on the Hush session separately. A separate session
   means the tab promising the most would otherwise run with the least
   protection: no permission handling, no tracker blocking, no certificate
   reporting.
 
-## 1.2.11 — 2026-08-11
+## 1.2.11 - 2026-08-11
 
 ### Fixed
 
 - The build no longer depends on Google being reachable. Fonts were fetched
-  from Google Fonts at build time, so a failed request failed the build — which
+  from Google Fonts at build time, so a failed request failed the build - which
   is how 1.2.10 shipped without its Linux packages, leaving AppImage update
   checks with no file to read. The font files are committed and served from the
   app itself, which is 84KB and removes the last thing in a browser about who
@@ -619,14 +619,14 @@ Batch 1 of the September audit.
 - 1.2.10's Linux installers are published here instead. Its macOS and Windows
   builds were unaffected.
 
-## 1.2.10 — 2026-08-11
+## 1.2.10 - 2026-08-11
 
 ### Internal
 
 - The security model has tests. Permission resolution, the synchronous check
   that must never prompt, the outright refusal of device access, popups being
   turned into tabs, the navigation guard, the webview refusal and the chrome
-  document's own guards were all untested — the parts most expensive to get
+  document's own guards were all untested - the parts most expensive to get
   wrong, and the ones where a regression fails open rather than loudly. The
   code's own comment called the sender check "the belt"; the belt had nothing
   holding it.
@@ -637,13 +637,13 @@ Batch 1 of the September audit.
 - Both were checked by breaking them: making the device handler allow, and
   letting a page navigate anywhere, each fail the suite.
 
-## 1.2.9 — 2026-08-11
+## 1.2.9 - 2026-08-11
 
 ### Accessibility
 
 - A surface keeps the keyboard inside it. Panels cover the page but the page
   kept its place in the tab order, so Tab walked out of the open panel into
-  controls nobody could see — nothing looked wrong, focus simply vanished. The
+  controls nobody could see - nothing looked wrong, focus simply vanished. The
   page behind is now inert as well, and focus returns where it came from when
   the panel closes.
 - The address bar announces itself as a combobox with a list attached, and says
@@ -654,13 +654,13 @@ Batch 1 of the September audit.
   and finishing loading, a site asking for permission, a download completing.
   Politely, so it waits for a gap rather than interrupting.
 
-## 1.2.8 — 2026-08-11
+## 1.2.8 - 2026-08-11
 
 ### Performance
 
 - A state push no longer re-renders the whole interface. The main process sends
   the entire browser state on every change, freshly deserialised, so every part
-  of it was a new object even when nothing about it differed — and selectors
+  of it was a new object even when nothing about it differed - and selectors
   compare by reference. One download's byte counter was re-rendering every tab,
   the settings panel and the connection panel, several times a second, on the
   thread that also handles typing. Each slice is now compared with the one it
@@ -668,14 +668,14 @@ Batch 1 of the September audit.
   slice, so one tab finishing loading re-renders one tab.
 - Download progress is reported on the speed-sample interval rather than every
   time Chromium fires an event. The sample was already throttled; the state
-  push it triggered was not. A status change — pausing, resuming, an
-  interruption — is still reported instantly, because that should never look
+  push it triggered was not. A status change - pausing, resuming, an
+  interruption - is still reported instantly, because that should never look
   like it did nothing.
 - The bookmarks surface draws 200 rows at a time and says how many it is
   showing. It was the one list in the interface with no ceiling: history is
   paged and downloads are capped, but bookmarks only ever grow.
 
-## 1.2.7 — 2026-08-11
+## 1.2.7 - 2026-08-11
 
 ### Added
 
@@ -691,7 +691,7 @@ Batch 1 of the September audit.
   true: the package registers the signed repository and `apt upgrade` carries
   new versions.
 
-## 1.2.6 — 2026-08-11
+## 1.2.6 - 2026-08-11
 
 ### Added
 
@@ -710,7 +710,7 @@ Batch 1 of the September audit.
   `apt upgrade`. The repository is checked before any installer is built, so a
   package can never go out pointing at a source that does not work.
 
-## 1.2.5 — 2026-08-11
+## 1.2.5 - 2026-08-11
 
 Released as one version rather than two: 1.2.4 went out only as a prerelease,
 and the settings fix below is what makes its tracker allowlist work at all.
@@ -719,7 +719,7 @@ and the settings fix below is what makes its tracker allowlist work at all.
 
 - Several settings did nothing. The IPC handler validates an incoming settings
   patch against a whitelist, which is right, but it silently dropped any field
-  not on it — so the control moved, the change was discarded, and it looked
+  not on it - so the control moved, the change was discarded, and it looked
   like it had worked. Compact density, the update-check toggle, the tracker
   allowlist and resetting a site's zoom were all affected. The update-check
   toggle had been inert since 1.1.0.
@@ -729,8 +729,8 @@ and the settings fix below is what makes its tracker allowlist work at all.
 
 ### Added
 
-- Settings is grouped into sections behind a rail — Appearance, Search,
-  Privacy, Behaviour, Your data, Keyboard, Updates and About — rather than one
+- Settings is grouped into sections behind a rail - Appearance, Search,
+  Privacy, Behaviour, Your data, Keyboard, Updates and About - rather than one
   page that grew every release. One pane shows at a time, so looking for one
   thing means reading one pane.
 - An About section that answers what people actually ask: whether Copacetic
@@ -740,11 +740,11 @@ and the settings fix below is what makes its tracker allowlist work at all.
 - A plain disclaimer in the same place: Chromium does the rendering and the
   certificate validation, the project has not been security audited, the builds
   are not code-signed, and there is no warranty. All of it was already true and
-  already written in the README — this puts it where someone might read it.
+  already written in the README - this puts it where someone might read it.
 - Tracker blocking can be switched off for one site, from the connection panel
   where the blocked count already is. Blocking occasionally breaks something
-  real — a login routed through an analytics domain, an embed that will not
-  load — and without a per-site answer the only fix was turning blocking off
+  real - a login routed through an analytics domain, an embed that will not
+  load - and without a per-site answer the only fix was turning blocking off
   everywhere, which is a far worse trade than the one anyone wanted to make.
   Allowed sites are listed in Settings with a way back.
 - What was allowed through is still recorded, so the connection log stays
@@ -761,7 +761,7 @@ and the settings fix below is what makes its tracker allowlist work at all.
   nothing on it reports state, which is exactly why colour is free there and
   fixed everywhere else.
 
-## 1.2.3 — 2026-08-11
+## 1.2.3 - 2026-08-11
 
 Customisation, keyboard access, and two places the interface was quietly
 saying less than it knew.
@@ -773,7 +773,7 @@ saying less than it knew.
   changed it with a reset each. A level put back to the default is forgotten
   rather than stored, so the list stays the sites you actually changed.
 - An interface density, comfortable or compact, in Settings. It changes sizing
-  only — the tab strip, the address bar and the header — because colour in this
+  only - the tab strip, the address bar and the header - because colour in this
   interface means state, so a display option must never touch it.
 
 - A keyboard reference in Settings, listing every shortcut. It reads from the
@@ -793,10 +793,10 @@ saying less than it knew.
   Previously every tab was hard-coded unreachable, so there was no way to
   focus, activate or close one without a mouse.
 - Focus follows the selection when arrowing through tabs, and does not move
-  when a tab is selected by click or by `Cmd/Ctrl+1`–`9` — those should leave
+  when a tab is selected by click or by `Cmd/Ctrl+1`–`9` - those should leave
   focus in the page or the address bar where it was.
 
-## 1.2.1 — 2026-08-11
+## 1.2.1 - 2026-08-11
 
 Two things that were missing rather than broken: sites that ask you to sign in
 could not be used at all, and your own data could not be taken back out.
@@ -804,7 +804,7 @@ could not be used at all, and your own data could not be taken back out.
 ### Added
 
 - HTTP authentication. Basic, Digest and the rest were never answered, so
-  intranets, routers, NAS boxes and many dev servers simply failed to load —
+  intranets, routers, NAS boxes and many dev servers simply failed to load -
   the most concrete "this browser cannot do that" left in the product. The
   prompt appears in the chrome, and credentials go to the request that asked
   for them and are kept nowhere.
@@ -820,7 +820,7 @@ could not be used at all, and your own data could not be taken back out.
   text editor. "Everything lives on this machine" is honest but on its own it
   is also lock-in, and this makes the claim checkable.
 
-## 1.2.0 — 2026-08-11
+## 1.2.0 - 2026-08-11
 
 Four features that all do the same thing: say something true about the page
 that no mainstream browser will tell you without developer tools.
@@ -837,22 +837,22 @@ platforms before anything reached the stable channel.
   of one it rejected would make a failed connection look informative.
 - The panel says when a certificate chains to a root installed on this machine
   rather than one the system shipped with. That is what TLS interception looks
-  like — a company proxy, antivirus, or a debugging tool reading the
-  connection — and every mainstream browser shows the same padlock for it as
+  like - a company proxy, antivirus, or a debugging tool reading the
+  connection - and every mainstream browser shows the same padlock for it as
   for an ordinary connection.
 - The connection panel lists every host the page contacted, how many requests
-  each received, and how many were blocked — including hosts that were allowed
+  each received, and how many were blocked - including hosts that were allowed
   through, and including trackers when blocking is switched off. The blocked
   count says what was stopped; this says what was not.
 - The connection panel lists what the current site has already been allowed or
   refused to do, with a reset for each. Those decisions were always stored and
-  always honoured — they were just listed in Settings, away from the site they
+  always honoured - they were just listed in Settings, away from the site they
   apply to, which is not where anyone looks.
 - The address bar uses the full IANA Public Suffix List instead of a
   hand-written list of about forty suffixes. `user.github.io`,
   `thing.s3.amazonaws.com` and `example.pvt.k12.ma.us` are now read correctly,
   and two projects sharing a host no longer look like the same site. Verified
-  against the conformance suite published with the list — all 78 cases.
+  against the conformance suite published with the list - all 78 cases.
 
 ### Fixed
 
@@ -867,7 +867,7 @@ Certificate reporting closes a gap the README named itself. Its scope is
 unchanged and still honest: Copacetic reports Chromium's judgement rather than
 doing any chain analysis of its own.
 
-## 1.1.1 — 2026-08-10
+## 1.1.1 - 2026-08-10
 
 ### Fixed
 
@@ -880,17 +880,17 @@ doing any chain analysis of its own.
 - The 1.1.0 and 1.1.0-beta.1 `.deb` assets were withdrawn for the same reason.
   Every other installer from those releases is unaffected.
 
-The apt work itself is finished and correct — signing, indexes, the install
-script — and is gated behind an `APT_REPO_URL` variable until the packages have
+The apt work itself is finished and correct - signing, indexes, the install
+script - and is gated behind an `APT_REPO_URL` variable until the packages have
 somewhere to live.
 
-## 1.1.0 — 2026-08-10
+## 1.1.0 - 2026-08-10
 
 Released as `1.1.0-beta.1` first, which exercised the release pipeline on all
 three platforms before anything reached the stable channel.
 
 Adds update checking, and carries the hardening and performance work that was
-staged as 1.0.1 but never released on its own — everything below reaches a user
+staged as 1.0.1 but never released on its own - everything below reaches a user
 in the same build.
 
 ### Added
@@ -916,7 +916,7 @@ in the same build.
 ### Security
 
 - Page code can no longer send a tab to a `file:` URL. Typing a local path in
-  the address bar still works — that is a thing a user can mean — but
+  the address bar still works - that is a thing a user can mean - but
   `window.open('file:///…')`, a `file:` redirect and a `file:` link in the page
   context menu are all refused now.
 - Schemes the security model refuses for navigation are no longer handed to
@@ -936,7 +936,7 @@ in the same build.
   resolves identically to `doubleclick.net` but skipped the entire list.
 - Download filenames are checked against Windows device names (`CON`, `PRN`,
   `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`), and trailing dots and spaces are
-  stripped — Windows drops them silently, so `invoice.pdf.` was written as
+  stripped - Windows drops them silently, so `invoice.pdf.` was written as
   something other than what the download list showed.
 
 ### Fixed
@@ -963,7 +963,7 @@ in the same build.
 
 - The address bar no longer re-parses the whole history on every keystroke.
   Scoring derived each entry's host with `new URL()` on every query, which
-  measured 152ms per keystroke against a ten-thousand-entry profile — running
+  measured 152ms per keystroke against a ten-thousand-entry profile - running
   synchronously in the process that also drives the page. Parsed forms are
   cached per entry and re-derived only when a URL or title actually changes.
   The same profile now measures 1.3ms per keystroke.
@@ -981,6 +981,6 @@ in the same build.
 - Test coverage added for every behaviour above that can be tested without
   booting Electron: 120 tests, up from 66.
 
-## 1.0.0 — 2026-08-01
+## 1.0.0 - 2026-08-01
 
 First release. Installers for macOS, Windows and Linux.

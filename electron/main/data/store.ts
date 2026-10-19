@@ -177,7 +177,7 @@ export class BrowserStore {
    * Removes everything this browser knows about one site.
    *
    * The axis people actually want. Clearing by time is an afternoon; what
-   * someone usually means is a site — and every place it is known, not the one
+   * someone usually means is a site - and every place it is known, not the one
    * place they happened to be looking at.
    */
   /**
@@ -185,7 +185,7 @@ export class BrowserStore {
    * origin rather than by site.
    *
    * Read before anything is deleted: after `forgetSite` there is nothing left
-   * to name them with, and `clearData` matches origins exactly — clearing
+   * to name them with, and `clearData` matches origins exactly - clearing
    * `https://example.com` does not touch `https://app.example.com`.
    */
   originsForSite(address: string): string[] {
@@ -271,7 +271,7 @@ export class BrowserStore {
     this.history.clearHistory(range);
     // The icons go with it. Nobody chose to keep one, and a per-origin cache
     // left behind after clearing history is a readable list of where someone
-    // has been — which is the thing they just asked to be rid of.
+    // has been - which is the thing they just asked to be rid of.
     this.favicons.forgetAll();
   }
 
@@ -341,7 +341,7 @@ export class BrowserStore {
    * Deletes a folder and keeps everything that was in it.
    *
    * Its bookmarks and child folders move up to where it was. That is the
-   * promise the tab strip already makes with "Ungroup these tabs — tabs stay
+   * promise the tab strip already makes with "Ungroup these tabs - tabs stay
    * open", and the counts come back so the confirmation can say what moved
    * rather than leaving someone to find out.
    */

@@ -58,8 +58,8 @@ describe('the tabs that are open', () => {
    */
   /*
    * The same thing on Windows, which has no signals. `process.kill(pid,
-   * 'SIGTERM')` there does not deliver anything for a handler to catch — it
-   * terminates the process outright — so the spec above asserts something
+   * 'SIGTERM')` there does not deliver anything for a handler to catch - it
+   * terminates the process outright - so the spec above asserts something
    * Windows cannot do, and failed on every run rather than finding a bug.
    *
    * What is worth checking on every platform is the flush itself: that asking
@@ -81,7 +81,7 @@ describe('the tabs that are open', () => {
 
   /*
    * Its own app, because the spec above asks this one to prepare for quit and
-   * an app that has prepared for quit stops recording — correctly, and it makes
+   * an app that has prepared for quit stops recording - correctly, and it makes
    * the two impossible to run against one instance. Written sharing an app
    * first, where the second spec then failed for that reason rather than for a
    * reason about durability.

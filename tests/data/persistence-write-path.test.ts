@@ -27,7 +27,7 @@ beforeEach(() => {
  * That a flush takes the durable path, rather than that a durable path exists.
  *
  * `renameOverAnyLock` was exercised through an injected fake, which proves the
- * retry works on its own and says nothing about whether a flush calls it —
+ * retry works on its own and says nothing about whether a flush calls it -
  * reverting the flush to a plain `renameSync` left every test in the suite
  * green. And the flush to disk, which is the point of the whole change, was
  * asserted nowhere: every other test passes identically whether or not it

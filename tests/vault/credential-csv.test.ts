@@ -29,7 +29,7 @@ describe('writing the file', () => {
 /**
  * The failure this file exists to prevent. A password containing a comma, a
  * quote or a newline is perfectly legal and splitting on commas turns one field
- * into two — which does not fail loudly, it stores the wrong password and is
+ * into two - which does not fail loudly, it stores the wrong password and is
  * only discovered next time someone tries to sign in.
  */
 describe('passwords that would break a naive split', () => {
@@ -49,8 +49,8 @@ describe('passwords that would break a naive split', () => {
     expect(back.credentials[0]?.password).toBe(password);
   });
 
-  // A password is opaque bytes. Normalising line endings inside one — which a
-  // CSV reader is otherwise entitled to do between rows — would change it, and
+  // A password is opaque bytes. Normalising line endings inside one - which a
+  // CSV reader is otherwise entitled to do between rows - would change it, and
   // the change would only surface as a failed sign-in.
   it('does not normalise line endings inside a password', () => {
     const back = credentialsFromCsv(credentialsToCsv([one({ password: 'a\r\nb' })]));

@@ -1,4 +1,4 @@
-// The format every other password manager reads and writes — plain text, so the interface says so.
+// The format every other password manager reads and writes - plain text, so the interface says so.
 import { hostOf } from './url';
 
 export interface CsvCredential {

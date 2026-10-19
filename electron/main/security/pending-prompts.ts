@@ -11,9 +11,9 @@ interface PendingPermission {
 }
 
 /**
- * The questions waiting on a person. Each one holds something suspended — a
+ * The questions waiting on a person. Each one holds something suspended - a
  * page's permission promise, or a challenge Chromium has stopped a request for
- * — so every one has to be settled exactly once, including when nobody ever
+ * - so every one has to be settled exactly once, including when nobody ever
  * answers it because the tab that asked has gone.
  */
 export class PendingPrompts {

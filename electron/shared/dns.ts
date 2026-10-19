@@ -1,7 +1,7 @@
 /**
  * Every name you visit is normally resolved in plaintext by whoever runs your
  * network. Encrypting that is one switch. The part nobody does is saying which
- * company now answers those questions instead — turning it on silently would be
+ * company now answers those questions instead - turning it on silently would be
  * the same move it is meant to protect you from.
  */
 

@@ -59,8 +59,8 @@ export function descendantsOf(folders: readonly BookmarkFolder[], id: string): B
 /**
  * Whether moving a folder under a new parent would make it its own ancestor.
  *
- * The move that does this is easy to reach — drag a folder onto something
- * inside it — and the damage is permanent: the subtree detaches from the top
+ * The move that does this is easy to reach - drag a folder onto something
+ * inside it - and the damage is permanent: the subtree detaches from the top
  * level and there is no longer any way to see it, so nothing can be dragged
  * back out. The drop is refused while the cursor is over it rather than
  * accepted and quietly undone.
@@ -75,7 +75,7 @@ export function wouldCycle(folders: readonly BookmarkFolder[], id: string, paren
   return descendantsOf(folders, id).some((folder) => folder.id === parentId);
 }
 
-/** A folder and its ancestors, outermost first — what a breadcrumb reads. */
+/** A folder and its ancestors, outermost first - what a breadcrumb reads. */
 export function pathOf(folders: readonly BookmarkFolder[], id: string): BookmarkFolder[] {
   const byId = new Map(folders.map((folder) => [folder.id, folder]));
   const path: BookmarkFolder[] = [];
@@ -125,7 +125,7 @@ export function visibleTree(
   const rows: { folder: BookmarkFolder; depth: number; hasChildren: boolean }[] = [];
 
   // No cycle guard here, unlike descendantsOf: this walks down from the top, so
-  // a folder in a loop is never reached at all — it has no ancestor that is a
+  // a folder in a loop is never reached at all - it has no ancestor that is a
   // root. The store repairs those on the way in rather than hiding them here.
   const walk = (parentId: string | null, depth: number) => {
     for (const folder of childrenOf(folders, parentId)) {
@@ -146,7 +146,7 @@ export function visibleTree(
  *
  * Nothing is deleted but the folder. Its bookmarks and its child folders move
  * up to where it was, which is the promise the tab strip already makes when it
- * says "Ungroup these tabs — tabs stay open": deleting a container has never
+ * says "Ungroup these tabs - tabs stay open": deleting a container has never
  * deleted what someone put in it, and it should not start here.
  */
 export function afterDeleting(

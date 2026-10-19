@@ -12,7 +12,7 @@ const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate
 
 /**
  * `tabs.ts` owns every view, every navigation and every favicon, and at nine
- * hundred lines had no unit test at all — the only thing exercising it was the
+ * hundred lines had no unit test at all - the only thing exercising it was the
  * smoke suite, through a running application. These are the decisions inside it
  * where being wrong is quiet.
  */
@@ -68,7 +68,7 @@ describe('what is written down to reopen', () => {
   /*
    * The off-by-one the original comment warned about, made into a test. Counted
    * against the order rather than the list being built, a start page to the left
-   * of the active tab shifts the index by one — so tomorrow the wrong site is in
+   * of the active tab shifts the index by one - so tomorrow the wrong site is in
    * front, quietly, and only for people who keep a start page open.
    */
   it('counts the active tab against the list it writes, not the strip', () => {

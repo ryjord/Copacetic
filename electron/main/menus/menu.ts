@@ -57,7 +57,7 @@ export function buildApplicationMenu(browser: Browser): Menu {
       { role: 'selectAll' },
       { type: 'separator' },
       // Settings lives in the application menu on macOS, which does not exist
-      // anywhere else — so on Windows and Linux there was no way to open it
+      // anywhere else - so on Windows and Linux there was no way to open it
       // from the menu bar at all. Edit is where both conventions put it.
       ...(isMac
         ? []

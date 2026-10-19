@@ -1,11 +1,11 @@
 /**
  * NOT WIRED UP, ON PURPOSE. Detecting a submitted login means running code
- * inside the page, and Copacetic ships without any — that guarantee was worth
+ * inside the page, and Copacetic ships without any - that guarantee was worth
  * more than the feature, so save-on-submit was dropped in August 2026. This is
  * kept because the guessing is the hard part and it is fully tested; wiring it
  * in would mean revisiting the no-preload decision first, not just importing it.
  *
- * Every rule here is a guess about markup nobody agreed on — a wrong save loses
+ * Every rule here is a guess about markup nobody agreed on - a wrong save loses
  * a password.
  */
 
@@ -64,7 +64,7 @@ export function classifyForm(fields: readonly FormField[]): FormKind | null {
     return values.size === 1 ? 'registration' : 'password-change';
   }
 
-  // Current, new, confirm — or something stranger. Either way not a sign-in.
+  // Current, new, confirm - or something stranger. Either way not a sign-in.
   return 'password-change';
 }
 
@@ -88,7 +88,7 @@ function passwordFrom(fields: readonly FormField[], kind: FormKind): string {
   return repeated?.value ?? passwords[passwords.length - 1]?.value ?? '';
 }
 
-// An empty username beats a confident wrong one — some sites ask for it on an earlier screen.
+// An empty username beats a confident wrong one - some sites ask for it on an earlier screen.
 export function usernameFrom(fields: readonly FormField[]): string {
   const firstPasswordIndex = fields.findIndex((field) => field.type === 'password' && field.isVisible);
 

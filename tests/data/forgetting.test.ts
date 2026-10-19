@@ -12,7 +12,7 @@ const traces = (over: Partial<SiteTraces> = {}): SiteTraces => ({ ...NOTHING, ..
 
 /**
  * A person forgetting example.com means the whole of it. Matching by origin
- * would leave `app.example.com` behind — the one subdomain they will not think
+ * would leave `app.example.com` behind - the one subdomain they will not think
  * of until it turns up in a list they believed was empty.
  */
 describe('which site an address belongs to', () => {
@@ -28,7 +28,7 @@ describe('which site an address belongs to', () => {
   /*
    * A cookie set with `Domain=example.com` is stored by Chromium as
    * `.example.com`. Read as a host, the leading dot made the registrable-domain
-   * algorithm refuse the whole string, so the site did not match itself — and
+   * algorithm refuse the whole string, so the site did not match itself - and
    * forgetting a site skipped every cookie scoped across its subdomains, which
    * is the kind that keeps you signed in. The fix for cookies was written and
    * then tested with host-only cookies, which never carry the dot.
@@ -59,7 +59,7 @@ describe('which site an address belongs to', () => {
   /*
    * An address is not a domain name. The registrable-domain algorithm keeps the
    * last two labels of anything it does not recognise, which turns every IPv4
-   * address into its last two octets — so forgetting one machine on a network
+   * address into its last two octets - so forgetting one machine on a network
    * would take every other machine whose address happens to end the same way.
    */
   it('keeps two unrelated addresses apart', () => {
@@ -81,7 +81,7 @@ describe('which site an address belongs to', () => {
 
   /*
    * Permission decisions are keyed `origin|kind`, which is not an address. Read
-   * as one, it matches nothing — so forgetting a site silently left every
+   * as one, it matches nothing - so forgetting a site silently left every
    * permission it had been granted exactly where it was.
    */
   it('reads a permission key, which is an origin with a kind stuck on it', () => {

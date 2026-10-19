@@ -74,7 +74,7 @@ describe('a surface keeps the keyboard inside it', () => {
   });
 
   // Without this, Tab walks out of the panel into the page behind it, which is
-  // hidden — focus disappears with no visible cause.
+  // hidden - focus disappears with no visible cause.
   it('moves focus into the panel when it opens', () => {
     render(
       <SurfaceShell title="History">

@@ -392,7 +392,7 @@ export class ContentBlocker {
       // Top-level navigation is never blocked, so a tracker domain stays
       // visitable on purpose.
       // Two judgements, and either is enough. The curated hostnames are a floor
-      // no list can lower; the lists catch what a hostname cannot — a path, a
+      // no list can lower; the lists catch what a hostname cannot - a path, a
       // resource type, a first-party script that only ever serves adverts.
       const caughtByHost = this.matches(hostname);
       const caughtByRule = caughtByHost ? null : this.ruleFor(details);
@@ -448,7 +448,7 @@ export class ContentBlocker {
     }
     try {
       // The page being browsed, not the Referer header. Most of a filter list
-      // is scoped to third-party requests, and the header is routinely absent —
+      // is scoped to third-party requests, and the header is routinely absent -
       // a no-referrer policy, a scheme downgrade, a beacon. With nothing to
       // compare against, the engine calls the request first-party and every
       // third-party rule for it stops applying: blocking that fails open,

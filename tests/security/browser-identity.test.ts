@@ -34,7 +34,7 @@ describe('what the browser says it is', () => {
 
   /**
    * The version is read from the user agent rather than written down anywhere,
-   * so an Electron upgrade cannot leave the two disagreeing — which is the
+   * so an Electron upgrade cannot leave the two disagreeing - which is the
    * exact fault being fixed.
    */
   it('follows the user agent when Chromium is upgraded', () => {
@@ -74,7 +74,7 @@ describe('when it cannot tell', () => {
 /**
  * The headers are what a server sees without running anything. Electron sends
  * none at all, which is a contradiction with the user agent visible before a
- * single script executes — and the reason correcting only the page's API was
+ * single script executes - and the reason correcting only the page's API was
  * not enough.
  */
 describe('what the browser sends on the wire', () => {

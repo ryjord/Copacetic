@@ -212,7 +212,7 @@ export class TabManager {
      *
      * This runs for every https page with no action from anyone, so it was
      * putting the origin of everything opened in a Hush tab into
-     * certificates.json, timestamped, where it stayed after the tab closed —
+     * certificates.json, timestamped, where it stayed after the tab closed -
      * the same shape of leak as the favicon cache and the download record, and
      * against the same sentence: nothing it does reaches the disk.
      *
@@ -547,7 +547,7 @@ export class TabManager {
     const rawUrl = requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) ? requestedUrl : START_PAGE_URL;
 
     // What the opener was, this tab is, unless the caller said otherwise. A
-    // link followed out of a Hush tab used to open an ordinary recorded one —
+    // link followed out of a Hush tab used to open an ordinary recorded one -
     // see shared/opening.ts. Applied here because this is the single place
     // every tab is born, so no caller can forget it.
     const opener =

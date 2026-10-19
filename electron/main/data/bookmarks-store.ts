@@ -4,7 +4,7 @@ import { PersistedFile, asNumber, asString, isRecord, newId } from './persistenc
 
 /**
  * Version 2 files a bookmark in a folder. Version 1 was a flat list, so every
- * bookmark that predates folders belongs to none — which is exactly what the
+ * bookmark that predates folders belongs to none - which is exactly what the
  * interface calls Unfiled, rather than a state needing explaining.
  */
 export const BOOKMARKS_PLAN: SchemaPlan = {
@@ -99,7 +99,7 @@ export class BookmarksStore {
    * Not `toggle`: asked twice about the same address, toggle removes what it
    * added. Anything meaning "make sure this is saved" that reaches for toggle
    * deletes the thing it was asked to keep. An address already saved keeps the
-   * title, the date and the folder it already had — none of which this was
+   * title, the date and the folder it already had - none of which this was
    * asked to change.
    */
   ensure(url: string, title: string): Bookmark {

@@ -31,8 +31,8 @@ export class PersistedFile<T> {
      *
      * A seam, and it exists for one reason: the durability of this write is the
      * whole point of the class, and nothing could check it. Mocking `node:fs`
-     * does not reach this module under the test runner — measured, not assumed
-     * — so a revert to a plain unflushed write would have left every test
+     * does not reach this module under the test runner - measured, not assumed
+     * - so a revert to a plain unflushed write would have left every test
      * green. Production passes nothing and gets the real ones.
      */
     private readonly disk: DiskOperations = REAL_DISK,
@@ -49,7 +49,7 @@ export class PersistedFile<T> {
   /**
    * A file written by a newer build than this one. Reading it would mean
    * guessing at a shape from the future, and writing it back would then destroy
-   * whatever the newer build had put there — so it is kept, untouched and named
+   * whatever the newer build had put there - so it is kept, untouched and named
    * so it can be found, and this build starts fresh.
    */
   private setAsideNewerFile(found: number): void {

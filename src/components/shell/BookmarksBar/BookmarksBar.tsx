@@ -22,7 +22,7 @@ import type { Bookmark } from '@shared/types';
  *
  * Only the top level is here. A bar that flattened the tree would put a
  * bookmark filed three folders deep beside one filed nowhere, and then the
- * folders would mean nothing — so a folder stays a folder, and opens as a menu.
+ * folders would mean nothing - so a folder stays a folder, and opens as a menu.
  *
  * That menu is native, and not as a matter of taste: a WebContentsView paints
  * above the chrome's HTML, so a dropdown drawn here would open behind the page

@@ -33,7 +33,7 @@ describe('a surface asked for before anyone was listening', () => {
 
   /*
    * The bound is the whole reason this is not just a variable. A chrome that
-   * reloads later — while developing, or after a renderer crash — must not open
+   * reloads later - while developing, or after a renderer crash - must not open
    * a pane nobody is waiting for any more, or the fix for a lost request has
    * become a spurious one.
    */
@@ -72,7 +72,7 @@ describe('which requests are worth holding', () => {
 /**
  * Separating these two was worth a rule of its own. Without it, whether a
  * collected surface is ever seen came down to which of two lines in a mount
- * effect ran first — measured by swapping them, which made the surface vanish
+ * effect ran first - measured by swapping them, which made the surface vanish
  * with every test still green.
  */
 describe('whether moving to a tab is someone reaching for it', () => {

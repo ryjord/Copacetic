@@ -50,7 +50,7 @@ describe('omnibox suggestions', () => {
   });
 
   // The parsed forms are cached per entry, so the same query asked twice must
-  // not drift — this is the regression guard on that cache.
+  // not drift - this is the regression guard on that cache.
   it('returns identical results when the same query is repeated', async () => {
     seedHistory([
       entry('a', 'https://github.com/', 'GitHub', 1, 9),

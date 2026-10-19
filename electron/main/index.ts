@@ -78,7 +78,7 @@ async function start(): Promise<void> {
     }
     // Through the same path as every other address, which holds it when there
     // is nowhere to put it yet. Opening a link while this app is still starting
-    // used to drop it silently — the second copy exits, the first has no window
+    // used to drop it silently - the second copy exits, the first has no window
     // yet, and the address is gone.
     if (url) {
       openUrl(url);
@@ -109,7 +109,7 @@ async function start(): Promise<void> {
     }
     // macOS keeps an application running after its last window closes, and
     // clicking the dock icon is how a person asks for it back. Returning early
-    // here left the app alive with no window and no way to open one — running,
+    // here left the app alive with no window and no way to open one - running,
     // in the dock, and unusable until it was force-quit.
     void openWindow().catch((error: unknown) => {
       log.error('could not reopen the window', describeError(error));

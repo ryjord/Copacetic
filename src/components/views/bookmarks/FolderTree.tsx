@@ -41,7 +41,7 @@ export function FolderTree({
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // The native menu cannot hold a text field, so renaming is asked for from
-  // there and answered here — the same arrangement a tab group already uses.
+  // there and answered here - the same arrangement a tab group already uses.
   useEffect(() => {
     const api = getBridge();
     return api?.on.renameBookmarkFolder((id) => setRenamingId(id));
@@ -52,7 +52,7 @@ export function FolderTree({
   /**
    * Whether a row will take what is being dragged over it.
    *
-   * A dragover cannot read what it is carrying — only the kinds it declares —
+   * A dragover cannot read what it is carrying - only the kinds it declares -
    * so a folder move is judged by kind here and refused precisely on drop. A
    * bookmark is always welcome anywhere.
    */
@@ -63,8 +63,8 @@ export function FolderTree({
     if (!event.dataTransfer.types.includes(DRAG_FOLDER)) {
       return false;
     }
-    // What is being dragged cannot be read from the event mid-drag — only the
-    // kinds it declares — so it is remembered when the drag starts. Without it
+    // What is being dragged cannot be read from the event mid-drag - only the
+    // kinds it declares - so it is remembered when the drag starts. Without it
     // a folder dragged onto its own child was shown as an accepted drop and
     // then silently did nothing, which is worse than refusing it.
     if (!draggingId) {

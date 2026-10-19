@@ -17,7 +17,7 @@ import type { SchemaPlan } from '../../electron/main/data/schema';
  * That was destructive rather than wasteful. Measured on the shipped 1.4.0
  * code: the session step re-run on its own output returned a session with no
  * tabs at all, and the bookmarks step un-filed every bookmark from every folder.
- * Neither raised anything — the file was rewritten, cleanly, empty.
+ * Neither raised anything - the file was rewritten, cleanly, empty.
  *
  * So idempotence is the contract, and this is where it is enforced.
  */
@@ -100,7 +100,7 @@ describe('every migration step is idempotent', () => {
 
   /*
    * The check above only says a plan is listed in PLANS. A plan listed there
-   * with no samples produces no `it()` at all — a green run that tested nothing,
+   * with no samples produces no `it()` at all - a green run that tested nothing,
    * which is the failure mode this whole file exists to prevent.
    */
   it('has samples for every plan it covers', () => {

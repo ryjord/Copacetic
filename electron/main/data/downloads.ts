@@ -38,7 +38,7 @@ export class DownloadManager {
    * Downloads from a Hush tab, held here and never written.
    *
    * Hush says, in the README and on the tab itself, that nothing it does
-   * reaches the disk — and a download was writing its address, its redirect
+   * reaches the disk - and a download was writing its address, its redirect
    * chain and its time into downloads.json. The file is on disk because it was
    * asked for; the record of where it came from is browsing, and a Hush tab
    * keeps none of that.
@@ -75,7 +75,7 @@ export class DownloadManager {
    * anything: a tab title arriving, a page finishing, a download ticking. Asking
    * the filesystem about every completed download each time meant hundreds of
    * synchronous stat calls a second on the main thread, for an answer that
-   * changes when someone moves a file — which is not something that happens
+   * changes when someone moves a file - which is not something that happens
    * hundreds of times a second.
    */
   private readonly existsChecked = new Map<string, { exists: boolean; at: number }>();
@@ -153,7 +153,7 @@ export class DownloadManager {
         // one used to push the whole browser state to the renderer. The speed
         // sample was already throttled; the push it caused was not. A byte
         // count nobody can perceive changing is not worth a render, so the
-        // renderer hears about progress on the sample interval — and
+        // renderer hears about progress on the sample interval - and
         // immediately whenever the status itself changes, since pausing should
         // never look like it did nothing.
         const statusChanged = status !== live.lastStatus;
@@ -322,8 +322,8 @@ export class DownloadManager {
     let touched = false;
 
     // A Hush download lives here and nowhere else, so it is patched here too.
-    // Falling through to the file would silently drop every update to it —
-    // progress, completion, the hash — and leave it stuck at nought bytes.
+    // Falling through to the file would silently drop every update to it -
+    // progress, completion, the hash - and leave it stuck at nought bytes.
     if (this.ephemeral.some((entry) => entry.id === id)) {
       this.ephemeral = this.ephemeral.map((entry) => (entry.id === id ? mutate(entry) : entry));
       this.onChanged();

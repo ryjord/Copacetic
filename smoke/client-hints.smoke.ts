@@ -11,7 +11,7 @@ afterAll(async () => copacetic?.close());
 /**
  * Client hints exist only in a secure context, so this has to be a real https
  * page in a real tab. Reading them anywhere else reports them missing and means
- * nothing — which is exactly the mistake that made this look impossible.
+ * nothing - which is exactly the mistake that made this look impossible.
  */
 const REPORT = `(async () => {
   const out = { secure: isSecureContext, present: typeof navigator.userAgentData };

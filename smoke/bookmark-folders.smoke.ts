@@ -84,7 +84,7 @@ describe('deleting a folder', () => {
 
 /**
  * Recolouring a folder happens in a native menu, in the main process, and
- * changes no tab — so the tab snapshot the surface already watches says nothing
+ * changes no tab - so the tab snapshot the surface already watches says nothing
  * about it. Shipped without this, the colour changed on disk and the screen
  * kept showing the old one until something unrelated happened to a tab.
  */

@@ -5,7 +5,7 @@ import type { TabId } from '../../shared/types';
  * The decisions `tabs.ts` makes that do not need a window to make.
  *
  * That file owns every view, every navigation and every favicon, and at nine
- * hundred lines it had no unit test at all — the only thing exercising it was
+ * hundred lines it had no unit test at all - the only thing exercising it was
  * the smoke suite, through a running application. The parts below are the ones
  * where being wrong is quiet: a tab that comes back pointing at the wrong site,
  * or a close that lands you somewhere you did not expect.
@@ -41,12 +41,12 @@ export interface SessionCandidate {
  * Two exclusions, for different reasons. A start page is not a place anyone
  * navigated to, so restoring one is restoring nothing. A Hush tab is left out
  * because the session file is on disk and listing its address there would be
- * the single place that tab left a trace — its group goes with it, since the
+ * the single place that tab left a trace - its group goes with it, since the
  * tab that belonged to the group is never written at all.
  *
  * The index is counted against the list being built rather than against the
  * order it came from. Taken from the original it is off by one for every start
- * page sitting to the left of the active tab, which restores the wrong site —
+ * page sitting to the left of the active tab, which restores the wrong site -
  * quietly, and only for people who keep a start page open.
  */
 export function sessionFrom(tabs: readonly SessionCandidate[], activeId: TabId | null): SessionSnapshot {

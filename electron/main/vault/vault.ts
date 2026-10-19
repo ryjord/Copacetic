@@ -40,7 +40,7 @@ export class Vault {
     private readonly secrets: SecretStore,
     private readonly storage: VaultStorage,
     private readonly now: () => number = Date.now,
-    // Enforced here, not just the interface — a lock the renderer honours and the vault does not is decoration.
+    // Enforced here, not just the interface - a lock the renderer honours and the vault does not is decoration.
     private readonly isUnlocked: () => boolean = () => true,
   ) {}
 
@@ -158,7 +158,7 @@ export class Vault {
    * It was not, and the two together made a strange promise: locked, the pane
    * refused to show you a password and offered to delete it in the same row.
    * Whoever cannot be trusted to read an entry cannot be trusted to destroy one
-   * — and destroying it is the half that cannot be undone.
+   * - and destroying it is the half that cannot be undone.
    *
    * The lock is a soft one and this browser says so plainly elsewhere. That is
    * an argument about how much it is worth, not about which operations it
@@ -267,7 +267,7 @@ export class Vault {
     }
   }
 
-  /** The count alone, without attempting to decrypt anything — cheap enough for a status readout. */
+  /** The count alone, without attempting to decrypt anything - cheap enough for a status readout. */
   count(): number {
     return this.storage.get().entries.length;
   }

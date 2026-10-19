@@ -21,7 +21,7 @@ export function hasWallpaper(): boolean {
   return isWallpaperSet;
 }
 
-/** Read back as a data URL because the chrome's CSP is `img-src 'self' data:` — it cannot load a file from disk, and widening that for a decoration would be a poor trade. */
+/** Read back as a data URL because the chrome's CSP is `img-src 'self' data:` - it cannot load a file from disk, and widening that for a decoration would be a poor trade. */
 export function readWallpaper(): string | null {
   const file = wallpaperPath();
   if (!existsSync(file)) {

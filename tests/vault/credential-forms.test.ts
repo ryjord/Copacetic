@@ -47,7 +47,7 @@ describe('what the form was for', () => {
 
 /**
  * A wrong username files the password under a name the person will not
- * recognise, which is worse than filing it under none — so every rule here
+ * recognise, which is worse than filing it under none - so every rule here
  * prefers giving up to guessing.
  */
 describe('finding the username', () => {

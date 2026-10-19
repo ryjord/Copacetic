@@ -8,8 +8,8 @@ type DismissHandler = () => void;
 const layers: DismissHandler[] = [];
 
 function handleKeyDown(event: KeyboardEvent): void {
-  // A focused control that has already dealt with Escape — the address bar
-  // cancelling an edit — marks the event handled, and keeps its layer open.
+  // A focused control that has already dealt with Escape - the address bar
+  // cancelling an edit - marks the event handled, and keeps its layer open.
   if (event.key !== 'Escape' || event.defaultPrevented) {
     return;
   }

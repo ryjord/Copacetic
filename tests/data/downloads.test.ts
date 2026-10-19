@@ -87,7 +87,7 @@ describe('sanitiseFilename, Windows-specific traps', () => {
  * `list` is built inside every state push, and a state push happens on almost
  * anything: a tab title arriving, a page finishing, a download ticking. Asking
  * the filesystem about every completed download each time meant hundreds of
- * synchronous stat calls a second on the main thread — for an answer that
+ * synchronous stat calls a second on the main thread - for an answer that
  * changes when someone moves a file, which is not something they do hundreds of
  * times a second.
  */

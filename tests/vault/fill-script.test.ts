@@ -16,7 +16,7 @@ function fakePage({ hasPassword = true, hasUsername = true } = {}) {
     form: null as unknown,
     _value: '',
     // The element is what the script reads back from, so it needs the accessor
-    // too — the prototype setter alone is not enough on a plain object.
+    // too - the prototype setter alone is not enough on a plain object.
     get value(): string {
       return this._value;
     },
@@ -77,7 +77,7 @@ function run(script: string, page: ReturnType<typeof fakePage>) {
  * The password is interpolated into a string that becomes code. Anything short
  * of proper escaping turns a password containing a quote into an injection
  * against the very page it is being handed to. Checked by running the script
- * and reading back what it set, rather than by matching strings — a value that
+ * and reading back what it set, rather than by matching strings - a value that
  * needs no escaping looks identical either way, which is how a weaker version
  * of this test passed while proving nothing.
  */
@@ -121,7 +121,7 @@ describe('what it does to the page', () => {
   /**
    * React and its relatives listen for input events rather than watching the
    * value, so a direct assignment leaves the page's own state empty and the
-   * form submits nothing — which reads to the user as a wrong password.
+   * form submits nothing - which reads to the user as a wrong password.
    */
   it('dispatches the events a framework needs to notice', () => {
     const page = fakePage();
@@ -152,7 +152,7 @@ describe('what it leaves behind', () => {
 /**
  * A single-line input silently drops newlines. A password saved with one would
  * arrive shorter than it was stored, and the only symptom is a sign-in that
- * fails for no visible reason — so the script compares and says so.
+ * fails for no visible reason - so the script compares and says so.
  */
 describe('when the page cannot hold the value', () => {
   it('reports an exact fill for an ordinary password', () => {

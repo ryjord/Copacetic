@@ -19,7 +19,7 @@ beforeEach(() => {
  *
  * `toggle` is a true toggle: asked twice about the same address it removes what
  * it added. Anything that means "make sure this is saved" and reaches for it
- * instead deletes the thing it was asked to keep — which is what saving a tab
+ * instead deletes the thing it was asked to keep - which is what saving a tab
  * group as a folder did to every tab in it that was already bookmarked.
  */
 describe('making sure a page is bookmarked', () => {

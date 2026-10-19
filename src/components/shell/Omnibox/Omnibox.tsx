@@ -56,7 +56,7 @@ export function Omnibox({ tab }: OmniboxProps) {
   // Switching tabs by shortcut happens entirely in the main process, so it
   // never blurs this input the way clicking a tab does. Without this, a draft
   // typed against one tab stays on screen and Enter navigates whichever tab is
-  // now active — the wrong one.
+  // now active - the wrong one.
   //
   // This runs before the focus token below on purpose: opening a new tab
   // changes both, and the token must have the last word so Cmd+T still lands

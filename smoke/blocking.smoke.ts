@@ -57,7 +57,7 @@ const tryFetch = (url: string) => `
 describe('what a page is allowed to fetch', () => {
   /*
    * These two hosts are in the curated set as well as the lists, so this passes
-   * with the lists switched off entirely — it is the floor, and it is here to
+   * with the lists switched off entirely - it is the floor, and it is here to
    * say the floor still holds.
    */
   it('refuses an advertising endpoint the curated set names', async () => {
@@ -72,7 +72,7 @@ describe('what a page is allowed to fetch', () => {
   /*
    * This one is the feature. The curated set is 122 hostnames; EasyPrivacy
    * alone carries 47,263 plain host rules, and bat.bing.com is in the second
-   * and not the first — so nothing but the shipped lists can refuse it, and a
+   * and not the first - so nothing but the shipped lists can refuse it, and a
    * release that failed to build or load them fails here and nowhere else.
    */
   it('refuses a tracker only the shipped lists know about', async () => {
@@ -91,7 +91,7 @@ describe('what a page is allowed to fetch', () => {
 
   /*
    * The switch has to switch. A blocker whose setting did nothing would look
-   * identical from the outside — the refusals above would still pass — and the
+   * identical from the outside - the refusals above would still pass - and the
    * only person who would find out is someone who turned it off to fix a broken
    * site and watched it stay broken.
    */

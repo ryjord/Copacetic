@@ -9,7 +9,7 @@ const MAX_FAVICON_ENTRIES = 600;
  *
  * The count was bounded and the size was not. A favicon may be fetched at up to
  * 200KB, which is about 267KB once it is a data URL, so six hundred of them is
- * roughly 160MB — read from disk, synchronously, before the first window
+ * roughly 160MB - read from disk, synchronously, before the first window
  * appears. Almost every real favicon is a few kilobytes; the cap exists for the
  * handful that are not, and for the arithmetic that follows from them.
  *
@@ -104,8 +104,8 @@ export class FaviconsStore {
   /**
    * Forgets every icon.
    *
-   * Called when history is cleared. An icon is a cache — nobody chose to keep
-   * it — and leaving a per-origin cache behind after clearing history leaves a
+   * Called when history is cleared. An icon is a cache - nobody chose to keep
+   * it - and leaving a per-origin cache behind after clearing history leaves a
    * readable list of where someone had been.
    */
   forgetAll(): number {

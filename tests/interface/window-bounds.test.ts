@@ -22,7 +22,7 @@ const saved = (x: number | null, y: number | null) => ({
 
 /**
  * A window restored onto a display that is no longer attached is invisible and
- * cannot be recovered without editing the config file by hand — the user sees
+ * cannot be recovered without editing the config file by hand - the user sees
  * the app start and no window appear.
  */
 describe('restoring a window onto the displays that exist now', () => {

@@ -28,7 +28,7 @@ const FILTERS = path.join(process.cwd(), 'dist', 'electron', 'filters');
  * The environment Electron is launched with.
  *
  * `ELECTRON_RUN_AS_NODE` is set by some editors' integrated terminals, and it
- * makes the Electron binary run as a plain Node process — no window, no app,
+ * makes the Electron binary run as a plain Node process - no window, no app,
  * and a launch failure that says only "Process failed to launch". Inheriting it
  * means these never run from inside an editor, which is exactly where someone
  * would try them first.
@@ -142,7 +142,7 @@ async function measureBlocker() {
   const { FiltersEngine } = await import('@ghostery/adblocker');
   if (!existsSync(path.join(FILTERS, 'engine.bin'))) {
     throw new Error(
-      'No built engine to measure. Run `npm run build` first — `build:main` clears dist/ on its way through.',
+      'No built engine to measure. Run `npm run build` first - `build:main` clears dist/ on its way through.',
     );
   }
   const blob = readFileSync(path.join(FILTERS, 'engine.bin'));
@@ -179,7 +179,7 @@ async function measureBlocker() {
  * What the browser costs to hold open, with nothing in it and with tabs in it.
  *
  * Reported as the sum across every process the app is running, because that is
- * what the machine actually gives up — a per-process figure for a browser with
+ * what the machine actually gives up - a per-process figure for a browser with
  * a process per tab is the number that flatters.
  */
 async function measureMemory() {

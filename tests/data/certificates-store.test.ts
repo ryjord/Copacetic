@@ -25,7 +25,7 @@ const good = {
 
 /**
  * This is the file that lets the browser notice a chain which has started
- * ending at a root installed on the machine — which is what interception looks
+ * ending at a root installed on the machine - which is what interception looks
  * like. It was cast rather than read: the whole record was asserted to have the
  * right shape without anything checking, so one malformed entry reached the
  * comparison as a string or a number.
@@ -54,7 +54,7 @@ describe('reading certificates back', () => {
   /*
    * The important half. Refusing the whole file over one bad line would turn a
    * single damaged entry into a browser that has forgotten every certificate it
-   * ever saw — which is the same feature failing, more quietly and for every
+   * ever saw - which is the same feature failing, more quietly and for every
    * site at once.
    */
   it('loses only the entry that is wrong, not the ones beside it', () => {

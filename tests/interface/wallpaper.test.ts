@@ -14,7 +14,7 @@ let decodesAsImage = true;
  * constant.
  *
  * It was a constant, and the test then asserted that the bytes written equalled
- * that constant — which the code satisfies by writing the encoder's output and
+ * that constant - which the code satisfies by writing the encoder's output and
  * equally by writing the constant for any other reason. Deriving it means the
  * assertion can only pass if the file was decoded from the path that was chosen
  * and encoded at the quality the code asks for.
@@ -105,7 +105,7 @@ describe('choosing one', () => {
     commitStagedWallpaper();
 
     // The file that was chosen is the file that was decoded, and what landed is
-    // what the encoder produced from it — not a constant the test also knows.
+    // what the encoder produced from it - not a constant the test also knows.
     expect(decoded).toContain(source);
     expect(encoded).toHaveLength(1);
     const written = readFileSync(wallpaperFile());

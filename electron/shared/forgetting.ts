@@ -6,7 +6,7 @@ import { registrableDomainOf } from './url';
  * Clearing history clears history. Measured before this existed: afterwards
  * `settings.json` still named every site with a zoom, a permission or a
  * blocking exception, and the favicon cache still held an entry per origin
- * visited — a readable list of where someone had been, sitting on disk after
+ * visited - a readable list of where someone had been, sitting on disk after
  * they asked the browser to forget. The record was gone and the evidence was
  * not.
  *
@@ -15,7 +15,7 @@ import { registrableDomainOf } from './url';
  *
  * - A **cache** is something the browser decided to keep. Nobody chooses a
  *   favicon, so it goes when the history that produced it goes.
- * - A **decision** is something a person made on purpose — a zoom they set, a
+ * - A **decision** is something a person made on purpose - a zoom they set, a
  *   permission they granted, a site where they turned blocking off. Throwing
  *   those away on a clear would be losing someone's work in the name of
  *   protecting them. They are kept, and they are *listed*, because they do name
@@ -43,7 +43,7 @@ export const KEPT_KINDS = [
   { id: 'certificates', one: 'Certificate remembered for 1 site', many: 'Certificates remembered for {n} sites' },
   // The file is on disk because it was asked for; where it came from is
   // browsing. Kept, because someone may need to know where a file they still
-  // have came from — and listed, because clearing history did not touch it and
+  // have came from - and listed, because clearing history did not touch it and
   // nothing said so.
   { id: 'downloads', one: 'Where 1 download came from', many: 'Where {n} downloads came from' },
 ] as const;
@@ -77,7 +77,7 @@ export interface SiteTraces {
    *
    * The one that made the rest of the sentence a lie. Forgetting a site removed
    * its history, its icons, its zoom, its permissions and its certificates, and
-   * left the cookies exactly where they were — so someone who had just been
+   * left the cookies exactly where they were - so someone who had just been
    * told the site was forgotten was still signed in to it.
    */
   cookies: number;
@@ -128,7 +128,7 @@ export function siteOf(address: string): string {
  *
  * An address is not a domain name, and neither is `localhost`. The
  * registrable-domain algorithm keeps the last two labels of anything it does
- * not recognise, which turns every IPv4 address into its last two octets —
+ * not recognise, which turns every IPv4 address into its last two octets -
  * `192.168.1.5` and `10.20.1.5` become the same "site", and forgetting one
  * machine takes the other with it. For those, the host answers for itself, and
  * the port comes too: two things served from localhost on different ports are
@@ -138,7 +138,7 @@ function authorityOf(host: string, port: string): string {
   // A cookie set with `Domain=example.com` is stored by Chromium as
   // `.example.com`, and that leading dot is a marker rather than part of the
   // host. Left on, `registrableDomainOf` refuses the whole string and the site
-  // never matches itself — so forgetting a site skipped every cookie scoped
+  // never matches itself - so forgetting a site skipped every cookie scoped
   // across its subdomains, which is exactly the kind that keeps you signed in.
   const lowered = host.toLowerCase().replace(/^\./, '');
   const isAddress = IPV4.test(lowered) || lowered.startsWith('[') || !lowered.includes('.');

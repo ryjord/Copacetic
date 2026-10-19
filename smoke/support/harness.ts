@@ -7,7 +7,7 @@ import path from 'node:path';
  * The environment Electron is launched with.
  *
  * `ELECTRON_RUN_AS_NODE` is set by some editors' integrated terminals, and it
- * makes the Electron binary run as a plain Node process — no window, no app,
+ * makes the Electron binary run as a plain Node process - no window, no app,
  * and a launch failure that says only "Process failed to launch". Inheriting it
  * means these never run from inside an editor, which is exactly where someone
  * would try them first.
@@ -22,7 +22,7 @@ const launchEnvironment = (): Record<string, string> => {
  * Profiles created but not yet cleaned up.
  *
  * Removed on the way out however the process ends, because the ordinary
- * teardown does not run when a suite is cancelled — and an interrupted smoke
+ * teardown does not run when a suite is cancelled - and an interrupted smoke
  * run is a normal thing to do while developing.
  */
 const abandonedProfiles = new Set<string>();
@@ -45,7 +45,7 @@ for (const ending of ['exit', 'SIGINT', 'SIGTERM'] as const) {
  *
  * Smoke specs talk to the real thing: the packaged main process, the real
  * preload, and the chrome renderer as a person's machine would load them. That
- * is the point — it is the only place the wiring between the three is exercised
+ * is the point - it is the only place the wiring between the three is exercised
  * at all, and the failures it catches (a preload that cannot be found, a window
  * that never shows) are invisible to every other kind of test here.
  */
@@ -70,7 +70,7 @@ export class SmokeApp {
     const profile = options.profile ?? realpathSync(mkdtempSync(path.join(tmpdir(), 'copacetic-smoke-')));
     // Reclaimed even when the run does not finish. `close` handles the ordinary
     // path and never runs when a suite is interrupted, so a cancelled run used
-    // to leave its profile behind — several thousand of them accumulated during
+    // to leave its profile behind - several thousand of them accumulated during
     // one afternoon's work, holding a quarter of a gigabyte.
     abandonedProfiles.add(profile);
     const app = await electron.launch({
@@ -176,7 +176,7 @@ export class SmokeApp {
    * Runs something in the main process, where Electron's own objects live.
    *
    * The function is serialised and evaluated over there, so it closes over
-   * nothing here — anything it needs from the spec has to be passed as `arg`.
+   * nothing here - anything it needs from the spec has to be passed as `arg`.
    */
   main<T, A = undefined>(
     fn: (electronModule: typeof import('electron'), arg: A) => T | Promise<T>,
@@ -273,10 +273,10 @@ export class SmokeApp {
    *
    * `waitForVisible` answers a different question. The window is shown as soon
    * as it can paint; the renderer keeps hydrating for a while after that before
-   * it subscribes to anything the main process pushes — about 190ms on the
+   * it subscribes to anything the main process pushes - about 190ms on the
    * machine in the README, and later still on a cold start, which is slower
    * throughout. A test that acts in that gap sends a push to nobody and then
-   * reports the feature broken —
+   * reports the feature broken -
    * which is exactly what happened to a menu item that turned out to be fine.
    */
   async waitForReady(timeoutMs = 20_000): Promise<boolean> {
@@ -296,7 +296,7 @@ export class SmokeApp {
    * and nothing else.
    *
    * A condition that never becomes true still fails, which is the part worth
-   * keeping — it just takes the deadline to say so instead of guessing early.
+   * keeping - it just takes the deadline to say so instead of guessing early.
    */
   waitForChrome(says: () => boolean | Promise<boolean>, timeoutMs = 15_000): Promise<boolean> {
     return this.until(() => this.chrome.evaluate(says), timeoutMs);
@@ -349,7 +349,7 @@ export class SmokeApp {
    * Shuts the app down, and gives up rather than hanging.
    *
    * `close` waits for the application to end, and an application can decline to
-   * — a window created after Playwright attached is one it is not watching for.
+   * - a window created after Playwright attached is one it is not watching for.
    * On a build machine that turned a working spec into a suite that failed in
    * its teardown with every test passed, which says nothing about the product
    * and takes an hour to read.

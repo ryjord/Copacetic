@@ -27,7 +27,7 @@ const pageVisible = () =>
  *
  * A surface covers the whole content area and hides every page view. Measured
  * before this was fixed: clicking a tab with History open switched to it and
- * highlighted it in the strip, and showed nothing — the browser looked like it
+ * highlighted it in the strip, and showed nothing - the browser looked like it
  * had ignored the click, and the only way out was the close button.
  */
 describe('a surface when a tab is chosen', () => {
@@ -59,7 +59,7 @@ describe('a surface when a tab is chosen', () => {
 
   /*
    * The counterweight. A surface that closed on any state change at all would
-   * pass the test above and be impossible to use — every keystroke in its
+   * pass the test above and be impossible to use - every keystroke in its
    * search field would shut it.
    */
   it('stays open while it is being used', async () => {

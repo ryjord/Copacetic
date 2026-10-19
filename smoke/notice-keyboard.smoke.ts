@@ -18,7 +18,7 @@ beforeAll(async () => {
 afterAll(async () => copacetic?.close());
 
 /**
- * A question has a button, and the overlay is a view of its own — focus does
+ * A question has a button, and the overlay is a view of its own - focus does
  * not reach it by tabbing from the chrome. Without this the only way to answer
  * is a mouse, which is not a way everyone has.
  */
@@ -43,14 +43,14 @@ describe('a question the app asks', () => {
      * within about 300ms and the window then loses focus repeatedly to whatever
      * else is on the desktop, so an overlay that is not focused at the instant
      * of a sample proves nothing. And on a build machine there is often no
-     * desktop handing focus out at all — headless Linux under a virtual
-     * display, a Windows runner with no interactive session — where no
+     * desktop handing focus out at all - headless Linux under a virtual
+     * display, a Windows runner with no interactive session - where no
      * application can take what is not being given.
      *
      * So this looks for one moment when the window holds the keyboard and the
      * overlay is the part of the window holding it. That is the feature. If the
      * window never holds it, the environment cannot answer and says so rather
-     * than failing, which is what it did on two of three platforms for months —
+     * than failing, which is what it did on two of three platforms for months -
      * and reading as flaky is how the missing Settings item beside it went
      * unnoticed for as long as it did.
      */
@@ -79,8 +79,8 @@ describe('a question the app asks', () => {
      *
      * Measured on Linux under a virtual display: the window reports the
      * keyboard and the overlay never becomes the contents holding it, so either
-     * the overlay genuinely does not take focus there — which would mean a
-     * keyboard user cannot answer a question on two of three platforms — or
+     * the overlay genuinely does not take focus there - which would mean a
+     * keyboard user cannot answer a question on two of three platforms - or
      * `isFocused` reports differently for a view outside macOS. The two cannot
      * be told apart from here, because the keypresses below are dispatched to
      * the page directly and arrive whether or not it holds focus.

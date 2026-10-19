@@ -55,7 +55,7 @@ export function describeError(error: unknown): LogFields {
  * A record of what the app did, kept on the machine and nowhere else.
  *
  * Nothing here is sent anywhere. It exists so that when Copacetic misbehaves on
- * a machine nobody here can reach, there is something to read — and something
+ * a machine nobody here can reach, there is something to read - and something
  * the person using it can read first, and decide for themselves whether to pass
  * on.
  */
@@ -150,7 +150,7 @@ export class Diagnostics {
 
 /**
  * The one the app uses. It is a module-level handle because the places worth
- * logging from — an uncaught exception, a file that would not write — are
+ * logging from - an uncaught exception, a file that would not write - are
  * exactly the places that cannot be handed a dependency.
  */
 let current: Diagnostics | null = null;
