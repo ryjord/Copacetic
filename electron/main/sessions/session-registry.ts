@@ -1,4 +1,4 @@
-import { type Session, session as electronSession } from 'electron';
+import { type Session, app, session as electronSession } from 'electron';
 import type { TabGroup } from '../../shared/tab-groups';
 import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/partitions';
 import type { DownloadManager } from '../data/downloads';
@@ -6,6 +6,7 @@ import type { ContentBlocker } from '../security/blocker';
 import type { BlockingPolicy } from '../security/blocking-policy';
 import { type SecurityDelegate, hardenWebSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
+import { type SpellcheckChoices, spellcheckLanguagesFor } from '../../shared/spellcheck';
 
 interface SessionRegistryDeps {
   partitions: ProfilePartitions;
@@ -16,6 +17,7 @@ interface SessionRegistryDeps {
   /** Read each time, because groups come and go while the browser runs. */
   groups: () => readonly TabGroup[];
   isSpellcheckOn: () => boolean;
+  spellcheckLanguages: () => readonly string[];
 }
 
 /**
@@ -54,7 +56,40 @@ export class SessionRegistry {
     // that is written down.
     this.deps.downloads.attach(session, remembersDownloads(partition));
     session.setSpellCheckerEnabled(this.deps.isSpellcheckOn());
+    this.applySpellcheckLanguages(session);
     return session;
+  }
+
+  /** Told to every session already made, so a change applies without a restart. */
+  setSpellcheckLanguages(): void {
+    this.prepared.forEach((session) => this.applySpellcheckLanguages(session));
+  }
+
+  spellcheckChoices(): SpellcheckChoices {
+    const web = this.prepare(this.deps.partitions.web);
+    const canChoose = process.platform !== 'darwin';
+    return {
+      canChoose,
+      available: canChoose ? [...web.availableSpellCheckerLanguages] : [],
+      inUse: web.getSpellCheckerLanguages(),
+    };
+  }
+
+  // macOS checks with the system's own speller, and Electron ignores the call there.
+  private applySpellcheckLanguages(session: Session): void {
+    if (process.platform === 'darwin') {
+      return;
+    }
+    const languages = spellcheckLanguagesFor(
+      this.deps.spellcheckLanguages(),
+      session.availableSpellCheckerLanguages,
+      app.getLocale(),
+    );
+    try {
+      session.setSpellCheckerLanguages(languages);
+    } catch (error) {
+      log.warn('spellcheck languages were not applied', describeError(error));
+    }
   }
 
   /** Told to every session already made; one made later reads the setting as it is prepared. */

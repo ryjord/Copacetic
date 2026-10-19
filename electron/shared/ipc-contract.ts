@@ -136,6 +136,7 @@ export const CHANNELS = {
   'app.openExternal': 'app:open-external',
   'app.revealDiagnostics': 'app:reveal-diagnostics',
   'app.defaultBrowserStatus': 'app:default-browser-status',
+  'app.spellcheckChoices': 'app:spellcheck-choices',
   'app.makeDefaultBrowser': 'app:make-default-browser',
 
   'vault.list': 'vault:list',

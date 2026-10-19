@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   hasWallpaper: false,
   defaultZoomFactor: 1,
   spellcheck: true,
+  spellcheckLanguages: [],
   webRtcPolicy: 'publicOnly',
   blockThirdPartyCookies: true,
   downloadDirectory: null,

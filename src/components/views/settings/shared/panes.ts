@@ -54,6 +54,8 @@ export const SETTINGS_PANES = [
       'Search engine',
       'Spelling',
       'Spellcheck',
+      'Spelling language',
+      'Dictionary',
       'Downloads',
       'Download folder',
       'Ask where to save',

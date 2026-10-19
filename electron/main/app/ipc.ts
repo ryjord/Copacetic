@@ -12,6 +12,7 @@ import {
   isWebRtcPolicy,
   readPermissionDefaults,
 } from '../../shared/types';
+import { readSpellcheckLanguages } from '../../shared/spellcheck';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
 import type { Browser } from './browser';
@@ -261,6 +262,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('app.revealDiagnostics', (browser) => browser.revealDiagnostics());
   handle('app.defaultBrowserStatus', (_browser) => defaultBrowserStatus());
   handle('app.makeDefaultBrowser', (_browser) => makeDefaultBrowser());
+  handle('app.spellcheckChoices', (browser) => browser.profile.sessions.spellcheckChoices());
 
   // ------------------------------------------------------------------ vault
 
@@ -479,6 +481,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.spellcheck === 'boolean') {
     patch.spellcheck = value.spellcheck;
+  }
+  if (Array.isArray(value.spellcheckLanguages)) {
+    patch.spellcheckLanguages = readSpellcheckLanguages(value.spellcheckLanguages);
   }
   if (typeof value.blockThirdPartyCookies === 'boolean') {
     patch.blockThirdPartyCookies = value.blockThirdPartyCookies;

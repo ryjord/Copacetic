@@ -473,6 +473,8 @@ export interface Settings {
   defaultZoomFactor: number;
   /** Underlines misspelt words in what is typed into pages. */
   spellcheck: boolean;
+  /** Chosen dictionaries, outside macOS; empty means the system's language. */
+  spellcheckLanguages: string[];
   webRtcPolicy: WebRtcPolicy;
   /** Cookies sent to or set by a site other than the page's; a site's tracker exception lets them through. */
   blockThirdPartyCookies: boolean;

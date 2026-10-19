@@ -6,6 +6,7 @@ import type { BrowserStatePatch } from './state-slices';
 import type { SuggestionView } from './suggestion-view';
 import type { GroupColourId } from './tab-groups';
 import type { ProfileSummary } from './profiles';
+import type { SpellcheckChoices } from './spellcheck';
 import type {
   AppInfo,
   DefaultBrowserStatus,
@@ -203,6 +204,8 @@ export interface CopaceticApi {
     defaultBrowserStatus(): Promise<DefaultBrowserStatus>;
     /** Empty when it worked or there was nothing to do; otherwise a sentence for the user. */
     makeDefaultBrowser(): Promise<string>;
+    /** Which dictionaries can be chosen here, and which are in use. */
+    spellcheckChoices(): Promise<SpellcheckChoices>;
   };
   vault: {
     /** Fetched when the pane is open rather than pushed: it is not needed to render a page. */

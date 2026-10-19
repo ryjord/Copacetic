@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { DefaultBrowserRow } from '@/components/views/settings/general/DefaultBrowserRow';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
+import { SpellcheckLanguagesRow } from '@/components/views/settings/general/SpellcheckLanguagesRow';
 import { Switch } from '@/components/ui/Switch/Switch';
 
 // Store
@@ -93,6 +94,7 @@ export function GeneralPane() {
             />
           }
         />
+        {settings.spellcheck && <SpellcheckLanguagesRow chosen={settings.spellcheckLanguages} />}
       </SettingGroup>
 
       <SettingGroup title="Downloads">

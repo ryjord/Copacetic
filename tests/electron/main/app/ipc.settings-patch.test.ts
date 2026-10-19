@@ -33,6 +33,7 @@ describe('every setting can actually be changed', () => {
     blockerAllowlist: ['example.com'],
     defaultZoomFactor: 1.25,
     spellcheck: false,
+    spellcheckLanguages: ['en-GB', 'fr'],
     webRtcPolicy: 'proxiedOnly',
     blockThirdPartyCookies: false,
     askWhereToSave: true,

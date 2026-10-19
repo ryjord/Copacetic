@@ -6,6 +6,7 @@ import {
   readPermissionDefaults,
 } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
+import { readSpellcheckLanguages } from '../../shared/spellcheck';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hasWallpaper: false,
   defaultZoomFactor: 1,
   spellcheck: true,
+  spellcheckLanguages: [],
   webRtcPolicy: 'publicOnly',
   blockThirdPartyCookies: true,
   downloadDirectory: null,
@@ -195,6 +197,7 @@ function reviveSettings(raw: unknown): Settings | null {
       : [],
     defaultZoomFactor: asNumber(raw.defaultZoomFactor, DEFAULT_SETTINGS.defaultZoomFactor),
     spellcheck: asBoolean(raw.spellcheck, DEFAULT_SETTINGS.spellcheck),
+    spellcheckLanguages: readSpellcheckLanguages(raw.spellcheckLanguages),
     webRtcPolicy: isWebRtcPolicy(webRtcPolicy) ? webRtcPolicy : DEFAULT_SETTINGS.webRtcPolicy,
     blockThirdPartyCookies: asBoolean(raw.blockThirdPartyCookies, DEFAULT_SETTINGS.blockThirdPartyCookies),
     downloadDirectory: asString(raw.downloadDirectory) || null,
