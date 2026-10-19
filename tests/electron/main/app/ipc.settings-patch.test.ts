@@ -27,7 +27,7 @@ describe('every setting can actually be changed', () => {
     restoreTabsOnLaunch: false,
     startPageWidgets: ['search', 'clock'],
     checkForUpdates: false,
-    permissionDecisions: { 'https://example.com|camera': 'allow' },
+    permissionDecisions: { 'https://example.com|media': 'allow' },
     permissionDefaults: { notifications: 'block', geolocation: 'ask' },
     zoomLevels: { 'https://example.com': 1.5 },
     blockerAllowlist: ['example.com'],
@@ -67,9 +67,18 @@ describe('but only settings, and only sane ones', () => {
   });
 
   it('filters the contents of collections rather than trusting them', () => {
-    expect(asSettingsPatch({ permissionDecisions: { 'a|b': 'maybe', 'c|d': 'allow' } })).toEqual({
-      permissionDecisions: { 'c|d': 'allow' },
-    });
+    expect(
+      asSettingsPatch({
+        permissionDecisions: {
+          'https://a.test|notifications': 'maybe',
+          'https://b.test|notifications': 'allow',
+          'c|d': 'allow',
+          'https://c.test|invented': 'allow',
+          'https://d.test/path|media': 'deny',
+          'javascript:alert(1)|media': 'allow',
+        },
+      }),
+    ).toEqual({ permissionDecisions: { 'https://b.test|notifications': 'allow' } });
     expect(
       asSettingsPatch({
         permissionDefaults: { notifications: 'block', media: 'allow', fullscreen: 'block', bogus: 'ask' },

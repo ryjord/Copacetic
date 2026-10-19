@@ -217,6 +217,22 @@ export type PermissionKind =
 
 export type PermissionDecision = 'allow' | 'deny';
 
+/** A stored decision is keyed `origin|kind`: a web origin exactly as the browser writes it, and a kind it knows. */
+export function isPermissionDecisionKey(key: string): boolean {
+  const separator = key.lastIndexOf('|');
+  const origin = key.slice(0, separator);
+  const kind = key.slice(separator + 1);
+  if (separator <= 0 || !Object.hasOwn(PERMISSION_LABELS, kind)) {
+    return false;
+  }
+  try {
+    const parsed = new URL(origin);
+    return (parsed.protocol === 'https:' || parsed.protocol === 'http:') && parsed.origin === origin;
+  } catch {
+    return false;
+  }
+}
+
 /** The kinds a site has to ask about, in the order settings lists them. */
 export const ASKABLE_PERMISSIONS = [
   'notifications',

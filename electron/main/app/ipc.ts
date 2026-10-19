@@ -9,6 +9,7 @@ import {
   isAppearanceId,
   isSleepAfterMinutes,
   isThemeId,
+  isPermissionDecisionKey,
   isWebRtcPolicy,
   readPermissionDefaults,
 } from '../../shared/types';
@@ -579,7 +580,7 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (isRecord(value.permissionDecisions)) {
     const decisions: Settings['permissionDecisions'] = {};
     for (const [key, decision] of Object.entries(value.permissionDecisions)) {
-      if (decision === 'allow' || decision === 'deny') {
+      if ((decision === 'allow' || decision === 'deny') && isPermissionDecisionKey(key)) {
         decisions[key] = decision;
       }
     }
