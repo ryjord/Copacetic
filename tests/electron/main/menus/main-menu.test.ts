@@ -16,6 +16,7 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
     openSurface: (surface: string) => opened.push(surface),
     profile: {
       id: 'default',
+      settings: () => ({ shortcutOverrides: { find: 'Alt+CmdOrCtrl+F' } }),
       allProfiles: () => [{ id: 'default', name: 'Personal', colour: 'ocean' }],
       openWindowIn: async () => {},
     },
@@ -53,5 +54,11 @@ describe('the main menu', () => {
       mainMenuItems(fakeBrowser({ hasClosedTabs })).find((item) => item.label === 'Reopen closed tab');
     expect(reopen(true)?.enabled).toBe(true);
     expect(reopen(false)?.enabled).toBe(false);
+  });
+
+  it('shows a shortcut where it was moved to', () => {
+    expect(mainMenuItems(fakeBrowser()).find((item) => item.label === 'Find on page…')?.accelerator).toBe(
+      'Alt+CmdOrCtrl+F',
+    );
   });
 });

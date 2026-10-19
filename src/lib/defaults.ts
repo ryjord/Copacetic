@@ -29,4 +29,5 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   downloadDirectory: null,
   askWhereToSave: false,
   sleepTabsAfterMinutes: 60,
+  shortcutOverrides: {},
 };

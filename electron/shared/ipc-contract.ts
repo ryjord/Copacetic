@@ -184,6 +184,7 @@ export const CHANNELS = {
 
   'connections.list': 'connections:list',
 
+  'shortcuts.setRecording': 'shortcuts:set-recording',
   'updates.check': 'updates:check',
   'updates.install': 'updates:install',
   'updates.openReleases': 'updates:open-releases',

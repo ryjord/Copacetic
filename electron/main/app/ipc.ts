@@ -14,6 +14,7 @@ import {
 } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/spellcheck';
 import { readClearChoice } from '../../shared/clearing';
+import { conflictFor, readShortcutOverrides } from '../../shared/shortcuts';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/url';
 import type { Browser } from './browser';
@@ -370,6 +371,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
 
   // ---------------------------------------------------------------- updates
 
+  handle('shortcuts.setRecording', (_browser, _event, isRecording) =>
+    profiles.setRecordingShortcut(isRecording === true),
+  );
   handle('updates.check', (browser) => browser.updates.check());
   handle('updates.install', (browser) => browser.updates.install());
   handle('updates.openReleases', (browser) => browser.updates.openReleasesPage());
@@ -491,6 +495,15 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.askWhereToSave === 'boolean') {
     patch.askWhereToSave = value.askWhereToSave;
+  }
+  if (isRecord(value.shortcutOverrides)) {
+    const overrides = readShortcutOverrides(value.shortcutOverrides);
+    // Two shortcuts on one key leave one of them unreachable, so a colliding entry is dropped.
+    patch.shortcutOverrides = Object.fromEntries(
+      Object.entries(overrides).filter(
+        ([id, accelerator]) => accelerator === '' || conflictFor(id, accelerator, overrides) === null,
+      ),
+    );
   }
   if (isSleepAfterMinutes(value.sleepTabsAfterMinutes)) {
     patch.sleepTabsAfterMinutes = value.sleepTabsAfterMinutes;

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { hostResolverFor } from '../../shared/dns';
 import { FIRST_PROFILE_ID } from '../../shared/partitions';
 import type { AppWideSetting, ProfileSummary } from '../../shared/profiles';
+import type { ShortcutOverrides } from '../../shared/shortcuts';
 import type { GroupColourId } from '../../shared/tab-groups';
 import type { Settings } from '../../shared/types';
 import { profileDirectory, sweepRemovedProfiles } from '../data/profile-folders';
@@ -34,6 +35,8 @@ export class Profiles {
   private isQuitting = false;
   /** Told when a profile is added, renamed or removed, so the application menu can be built again. */
   private onListChanged: () => void = () => {};
+  private onShortcutsChanged: () => void = () => {};
+  private isRecording = false;
 
   constructor() {
     const appData = app.getPath('userData');
@@ -57,6 +60,7 @@ export class Profiles {
           dnsMode: settings.dnsMode,
           dnsResolverId: settings.dnsResolverId,
           checkForUpdates: settings.checkForUpdates,
+          shortcutOverrides: settings.shortcutOverrides,
         };
       },
       updateAppSettings: (patch) => this.updateAppSettings(patch),
@@ -90,6 +94,26 @@ export class Profiles {
     const opened = new Profile(id, profileDirectory(app.getPath('userData'), id), this.host);
     this.open.set(id, opened);
     return opened;
+  }
+
+  /** The menu binds the keys, so it is built again when one moves. */
+  whenShortcutsChange(listener: () => void): void {
+    this.onShortcutsChanged = listener;
+  }
+
+  shortcutOverrides(): ShortcutOverrides {
+    return this.first.store.getSettings().shortcutOverrides;
+  }
+
+  isRecordingShortcut(): boolean {
+    return this.isRecording;
+  }
+
+  setRecordingShortcut(isRecording: boolean): void {
+    if (this.isRecording !== isRecording) {
+      this.isRecording = isRecording;
+      this.onShortcutsChanged();
+    }
   }
 
   whenListChanges(listener: () => void): void {
@@ -206,6 +230,7 @@ export class Profiles {
       ...(patch.dnsMode === undefined ? {} : { dnsMode: patch.dnsMode }),
       ...(patch.dnsResolverId === undefined ? {} : { dnsResolverId: patch.dnsResolverId }),
       ...(patch.checkForUpdates === undefined ? {} : { checkForUpdates: patch.checkForUpdates }),
+      ...(patch.shortcutOverrides === undefined ? {} : { shortcutOverrides: patch.shortcutOverrides }),
     };
     if (Object.keys(changes).length === 0) {
       return;
@@ -219,6 +244,9 @@ export class Profiles {
     }
     if (changes.checkForUpdates !== undefined) {
       this.updates.start(next.checkForUpdates);
+    }
+    if (changes.shortcutOverrides !== undefined) {
+      this.onShortcutsChanged();
     }
     this.scheduleStatePush();
   }

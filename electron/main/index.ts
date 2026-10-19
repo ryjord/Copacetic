@@ -104,6 +104,7 @@ async function start(): Promise<void> {
   installApplicationMenu(profiles);
   // The menu lists the profiles, so it is built again when they change.
   profiles.whenListChanges(() => profiles && installApplicationMenu(profiles));
+  profiles.whenShortcutsChange(() => profiles && installApplicationMenu(profiles));
   profiles.start();
   await profiles.restoreWindows(didLastRunEndBadly);
 

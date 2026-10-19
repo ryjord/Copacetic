@@ -39,7 +39,7 @@ const state = {
     zoomFactor: 1,
   },
   hasClosedTabs: false,
-  settings: { appearance: 'system', defaultZoomFactor: 1 },
+  settings: { appearance: 'system', defaultZoomFactor: 1, shortcutOverrides: { 'new-tab': 'Alt+CmdOrCtrl+T' } },
 };
 
 vi.mock('@/store/useBrowserStore', () => ({
@@ -118,5 +118,12 @@ describe('the command palette', () => {
     fireEvent.change(input(), { target: { value: 'firefox' } });
     fireEvent.click(screen.getByRole('option', { name: /Import bookmarks and history/ }));
     expect(openSettings).toHaveBeenCalledWith('data');
+  });
+
+  it('teaches a shortcut where it has been moved to, not where it started', () => {
+    render(<CommandPalette />);
+    fireEvent.change(input(), { target: { value: 'New tab' } });
+    const option = screen.getAllByRole('option').find((candidate) => candidate.textContent?.startsWith('New tab'));
+    expect(option?.textContent).toMatch(/Alt|⌥/);
   });
 });

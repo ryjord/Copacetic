@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { GROUP_COLOURS } from '@shared/tab-groups';
 import { clampZoom } from '@shared/types';
 import { nextZoomStep } from '@shared/zoom';
+import { acceleratorFor, isRebindable } from '@shared/shortcuts';
 
 interface Command {
   id: string;
@@ -48,6 +49,7 @@ export function CommandPalette() {
   const hasClosedTabs = useBrowserStore((state) => state.hasClosedTabs);
   const appearance = useBrowserStore((state) => state.settings.appearance);
   const defaultZoomFactor = useBrowserStore((state) => state.settings.defaultZoomFactor);
+  const shortcutOverrides = useBrowserStore((state) => state.settings.shortcutOverrides);
 
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
@@ -310,7 +312,10 @@ export function CommandPalette() {
       });
     }
 
-    return list;
+    // Taught as they are bound now, which may not be where they started.
+    return list.map((command) =>
+      isRebindable(command.id) ? { ...command, accelerator: acceleratorFor(command.id, shortcutOverrides) } : command,
+    );
   }, [
     activeTab,
     appearance,
@@ -319,6 +324,7 @@ export function CommandPalette() {
     openSettings,
     requestOmniboxFocus,
     setSurface,
+    shortcutOverrides,
     tabs,
     toggleSurface,
   ]);

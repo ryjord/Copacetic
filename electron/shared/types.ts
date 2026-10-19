@@ -1,3 +1,4 @@
+import type { ShortcutOverrides } from './shortcuts';
 import type { ProfileSummary } from './profiles';
 import type { DnsMode } from './dns';
 import type { TabGroup } from './tab-groups';
@@ -489,6 +490,8 @@ export interface Settings {
   sleepTabsAfterMinutes: SleepAfterMinutes;
   /** A row of the top-level bookmarks under the toolbar. Off until asked for. */
   showBookmarksBar: boolean;
+  /** Shortcuts moved to other keys, by id; the menu is one for the whole app, so this is too. */
+  shortcutOverrides: ShortcutOverrides;
 }
 
 /** The single snapshot the main process pushes to the chrome renderer. */

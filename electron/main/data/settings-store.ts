@@ -7,6 +7,7 @@ import {
 } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/spellcheck';
+import { readShortcutOverrides } from '../../shared/shortcuts';
 import { SEARCH_ENGINES } from '../../shared/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadDirectory: null,
   askWhereToSave: false,
   sleepTabsAfterMinutes: 60,
+  shortcutOverrides: {},
 };
 
 /** The per-site keys, which live in the database and are only ever empty in the JSON file. */
@@ -205,6 +207,7 @@ function reviveSettings(raw: unknown): Settings | null {
     sleepTabsAfterMinutes: isSleepAfterMinutes(raw.sleepTabsAfterMinutes)
       ? raw.sleepTabsAfterMinutes
       : DEFAULT_SETTINGS.sleepTabsAfterMinutes,
+    shortcutOverrides: readShortcutOverrides(raw.shortcutOverrides),
   });
 }
 

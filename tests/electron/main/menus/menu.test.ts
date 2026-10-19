@@ -70,8 +70,10 @@ function everyItem(template: Template): Record<string, unknown>[] {
 }
 
 // Profiles whose window in front records every path a click reaches through it.
-const profileWithWindow = () =>
+const profileWithWindow = (shortcuts: { overrides?: Record<string, string>; isRecording?: boolean } = {}) =>
   ({
+    shortcutOverrides: () => shortcuts.overrides ?? {},
+    isRecordingShortcut: () => shortcuts.isRecording ?? false,
     focused: () => recorder(''),
     focusedOrNew: async () => recorder(''),
     first: recorder('profile'),
@@ -171,5 +173,23 @@ describe('what every platform can reach', () => {
   it.each(['darwin', 'win32', 'linux'])('offers Settings exactly once on %s', async (platform) => {
     const labels = (await menuOn(platform)).map((item) => item.label);
     expect(labels.filter((label) => label === 'Settings…')).toHaveLength(1);
+  });
+});
+
+describe('keys someone moved', () => {
+  const acceleratorOf = (label: string, shortcuts: Parameters<typeof profileWithWindow>[0]) => {
+    buildApplicationMenu(profileWithWindow(shortcuts));
+    return everyItem(captured).find((item) => item.label === label)?.accelerator;
+  };
+
+  it('binds a shortcut where it was moved to, or nowhere when it was taken off', () => {
+    expect(acceleratorOf('New tab', {})).toBe('CmdOrCtrl+T');
+    expect(acceleratorOf('New tab', { overrides: { 'new-tab': 'Alt+CmdOrCtrl+T' } })).toBe('Alt+CmdOrCtrl+T');
+    expect(acceleratorOf('New tab', { overrides: { 'new-tab': '' } })).toBeUndefined();
+  });
+
+  // Otherwise the key being recorded opens a tab instead of reaching the recorder.
+  it('binds nothing while a key is being recorded', () => {
+    expect(acceleratorOf('New tab', { isRecording: true })).toBeUndefined();
   });
 });

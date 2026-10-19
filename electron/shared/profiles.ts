@@ -10,4 +10,4 @@ export interface ProfileSummary {
 export const MAX_PROFILE_NAME = 40;
 
 /** Settings the whole app has one of, whichever profile changes them: each is applied to every window at once. */
-export type AppWideSetting = 'appearance' | 'dnsMode' | 'dnsResolverId' | 'checkForUpdates';
+export type AppWideSetting = 'appearance' | 'dnsMode' | 'dnsResolverId' | 'checkForUpdates' | 'shortcutOverrides';

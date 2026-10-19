@@ -295,6 +295,10 @@ export interface CopaceticApi {
     /** Every host the tab has contacted since its last page load. */
     list(id: TabId): Promise<ConnectionEntry[]>;
   };
+  shortcuts: {
+    /** While a new key is being recorded, the menu lets go of its own so the key reaches the page. */
+    setRecording(isRecording: boolean): Promise<void>;
+  };
   updates: {
     /** Ask now, rather than waiting for the periodic check. */
     check(): Promise<void>;
