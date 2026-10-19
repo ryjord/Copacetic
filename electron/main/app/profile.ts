@@ -22,6 +22,7 @@ import { launchRestore } from './launch-restore';
 import { t } from '../../shared/i18n/translate';
 
 // Types
+import type { TranslationService } from '../translation/translation-service';
 import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } from '../../shared/types';
 import type { ContentBlocker } from '../security/blocker';
 import type { SecurityDelegate } from '../security/security';
@@ -34,6 +35,7 @@ import type { AppWideSetting, ProfileSummary } from '../../shared/data/profiles'
 export interface ProfileHost {
   blocker: ContentBlocker;
   updates: UpdateManager;
+  translation: TranslationService;
   appSettings(): Pick<Settings, AppWideSetting>;
   updateAppSettings(patch: Partial<Pick<Settings, AppWideSetting>>): void;
   /** A window of this profile opened or closed, which decides what the next launch reopens. */
@@ -59,6 +61,7 @@ export class Profile {
   readonly httpsFirst: HttpsFirst;
   readonly downloads: DownloadManager;
   readonly updates: UpdateManager;
+  readonly translation: TranslationService;
   readonly prompts = new PendingPrompts();
   readonly sessions: SessionRegistry;
   readonly securityDelegate: SecurityDelegate;
@@ -88,6 +91,7 @@ export class Profile {
     this.wallpaper = new Wallpaper(directory);
     this.blocker = host.blocker;
     this.updates = host.updates;
+    this.translation = host.translation;
     sweepOrphanedGroupPartitions(
       app.getPath('userData'),
       this.store.listGroups().map((group) => group.id),

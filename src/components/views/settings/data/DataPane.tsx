@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { SavedSessions } from '@/components/views/settings/data/SavedSessions';
+import { TranslationModels } from '@/components/views/settings/data/TranslationModels';
 
 // Utils
 import { ask, send } from '@/lib/bridge/bridge';
@@ -94,6 +95,8 @@ export function DataPane() {
       </SettingGroup>
 
       <SavedSessions />
+
+      <TranslationModels />
 
       <SettingGroup title={t('settings.data.export.title')}>
         <SettingRow

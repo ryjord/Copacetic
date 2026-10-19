@@ -23,6 +23,8 @@ import { SEARCH_ENGINES, resolveOmniboxInput } from '../../shared/browsing/url';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
+import { routeFor } from '../../shared/translation/languages';
+import { t } from '../../shared/i18n/translate';
 import { siteOf as siteOfAddress } from '../../shared/data/forgetting';
 import {
   showBookmarkContextMenu,
@@ -99,6 +101,19 @@ export function registerIpcHandlers(profiles: Profiles): void {
     browser.tabs.setSplitRatio(typeof ratio === 'number' ? ratio : Number.NaN),
   );
   handle('tabs.sleep', (browser, _event, id) => browser.tabs.sleep(asString(id)));
+  handle('translation.translate', async (browser, _event, from, to, texts) => {
+    const request = readTranslation(from, to, texts);
+    if (!request) {
+      return { error: t('main.translation.refused') };
+    }
+    try {
+      return { texts: await browser.profile.translation.translate(request.from, request.to, request.texts) };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : t('main.translation.failed') };
+    }
+  });
+  handle('translation.installedBytes', (browser) => browser.profile.translation.models.installedBytes());
+  handle('translation.removeModels', (browser) => browser.profile.translation.removeModels());
   handle('sessions.save', (browser) => browser.saveTabsAsSession());
   handle('sessions.open', (browser, _event, id) => browser.openNamedSession(asString(id)));
   handle('sessions.rename', (browser, _event, id, name) => browser.renameNamedSession(asString(id), asString(name)));
@@ -651,6 +666,28 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
 
 /** Refused on purpose, so the coverage test has something to check against. */
 export const SETTINGS_NOT_PATCHABLE: readonly string[] = ['hasWallpaper', 'downloadDirectory'];
+
+const MAX_TRANSLATED_TEXTS = 2_000;
+const MAX_TRANSLATED_CHARACTERS = 400_000;
+
+/** Two languages the engine knows and a bounded list of text, or nothing at all. */
+function readTranslation(
+  from: unknown,
+  to: unknown,
+  texts: unknown,
+): { from: string; to: string; texts: string[] } | null {
+  if (
+    typeof from !== 'string' ||
+    typeof to !== 'string' ||
+    routeFor(from, to).length === 0 ||
+    !Array.isArray(texts)
+  ) {
+    return null;
+  }
+  const strings = texts.filter((text): text is string => typeof text === 'string').slice(0, MAX_TRANSLATED_TEXTS);
+  const total = strings.reduce((sum, text) => sum + text.length, 0);
+  return strings.length === texts.length && total <= MAX_TRANSLATED_CHARACTERS ? { from, to, texts: strings } : null;
+}
 
 /** At most a few hundred addresses, each a string: a list on screen, not a dump of history. */
 function pickUrls(value: unknown): string[] {

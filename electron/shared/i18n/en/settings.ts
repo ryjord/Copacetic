@@ -490,6 +490,13 @@ export const settings = {
     },
   },
   data: {
+    translation: {
+      title: 'Translation',
+      label: 'Translation models',
+      kept: '{size} kept on this machine, so translating needs nothing from Mozilla again.',
+      none: 'None downloaded. Translating in reader view fetches the one a language needs.',
+      remove: 'Delete',
+    },
     sessions: {
       title: 'Saved sessions',
       empty: 'No saved sessions',
@@ -630,7 +637,12 @@ export const settings = {
       contact: {
         question: 'What does it contact on its own?',
         answer:
-          "Only the update check, which asks GitHub for the latest version number and sends nothing about you. You can turn it off in Updates. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker.",
+          "Only the update check, which asks GitHub for the latest version number and sends nothing about you. You can turn it off in Updates. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker. Translating an article downloads the model a language needs from Mozilla, once.",
+      },
+      translation: {
+        question: 'What does translation send?',
+        answer:
+          'Nothing you read. The first time you translate from or into a language, Copacetic asks Mozilla which models exist and downloads that one, about 35 MB, with no cookies; each file is checked against the fingerprint Mozilla publishes before it is kept. After that, translating runs entirely on this machine. Delete the models in Your data.',
       },
       addressBar: {
         question: 'Does the address bar send what I type?',

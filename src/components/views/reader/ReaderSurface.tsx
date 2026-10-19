@@ -7,6 +7,7 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { EmptyState } from '@/components/ui/EmptyState/EmptyState';
 import { SkeletonRows } from '@/components/ui/Skeleton/Skeleton';
 import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
+import { TranslateControls } from '@/components/views/reader/TranslateControls';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -16,7 +17,7 @@ import { ask, send } from '@/lib/bridge/bridge';
 import { articleFrom, imagesIn, type Article, type ReaderNode } from '@/lib/reader/article';
 import { t } from '@shared/i18n/translate';
 
-type Reading = { state: 'loading' } | { state: 'none' } | { state: 'ready'; article: Article };
+type Reading = { state: 'loading' } | { state: 'none' } | { state: 'ready'; article: Article; url: string };
 
 /** Data URLs fetched by the main process, keyed by the address the article named. */
 type ImageData = Record<string, string>;
@@ -26,6 +27,8 @@ export function ReaderSurface() {
   const activeTabId = useBrowserStore((state) => state.activeTabId);
   const [reading, setReading] = useState<Reading>({ state: 'loading' });
   const [images, setImages] = useState<ImageData>({});
+  const [translated, setTranslated] = useState<ReaderNode[] | null>(null);
+  const [isShowingOriginal, setIsShowingOriginal] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -35,7 +38,9 @@ export function ReaderSurface() {
       if (!isCurrent) {
         return;
       }
-      setReading(article ? { state: 'ready', article } : { state: 'none' });
+      setReading(article && document ? { state: 'ready', article, url: document.url } : { state: 'none' });
+      setTranslated(null);
+      setIsShowingOriginal(false);
       // The text first, so reading can start while the pictures arrive.
       const wanted = article ? imagesIn(article.body) : [];
       if (activeTabId && wanted.length > 0) {
@@ -53,7 +58,22 @@ export function ReaderSurface() {
   const title = reading.state === 'ready' ? reading.article.title : t('views.reader.title');
 
   return (
-    <SurfaceShell title={title}>
+    <SurfaceShell
+      title={title}
+      actions={
+        reading.state === 'ready' && (
+          <TranslateControls
+            key={reading.url}
+            article={reading.article}
+            url={reading.url}
+            isTranslated={translated !== null}
+            isShowingOriginal={isShowingOriginal}
+            onTranslated={setTranslated}
+            onShowOriginal={setIsShowingOriginal}
+          />
+        )
+      }
+    >
       {reading.state === 'loading' && (
         <div className="mx-auto w-full max-w-[68ch] px-6 py-10" aria-label={t('views.reader.loading')}>
           <SkeletonRows count={6} />
@@ -62,12 +82,18 @@ export function ReaderSurface() {
       {reading.state === 'none' && (
         <EmptyState title={t('views.reader.none.title')} hint={t('views.reader.none.hint')} />
       )}
-      {reading.state === 'ready' && <ArticleView article={reading.article} images={images} />}
+      {reading.state === 'ready' && (
+        <ArticleView
+          article={reading.article}
+          body={translated && !isShowingOriginal ? translated : reading.article.body}
+          images={images}
+        />
+      )}
     </SurfaceShell>
   );
 }
 
-function ArticleView({ article, images }: { article: Article; images: ImageData }) {
+function ArticleView({ article, body, images }: { article: Article; body: ReaderNode[]; images: ImageData }) {
   const details = [article.siteName, article.byline, t('views.reader.minutes', { count: article.minutes })].filter(
     Boolean,
   );
@@ -75,9 +101,7 @@ function ArticleView({ article, images }: { article: Article; images: ImageData 
     <article className="mx-auto w-full max-w-[68ch] px-6 pb-16 pt-10 text-title leading-relaxed text-ink">
       <h1 className="text-display font-semibold leading-tight">{article.title}</h1>
       <p className="mt-3 text-body-sm text-ink-dim">{details.join(' · ')}</p>
-      <div className="mt-8 flex flex-col gap-4">
-        {article.body.map((node, index) => renderNode(node, index, images))}
-      </div>
+      <div className="mt-8 flex flex-col gap-4">{body.map((node, index) => renderNode(node, index, images))}</div>
       <p className="mt-12 border-t border-line pt-4 text-body-sm text-ink-faint">{t('views.reader.imagesFetched')}</p>
     </article>
   );

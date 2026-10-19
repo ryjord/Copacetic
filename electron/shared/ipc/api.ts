@@ -91,6 +91,13 @@ export interface CopaceticApi {
     /** The menu behind the caret beside the new-tab button. */
     openNewTabMenu(): Promise<void>;
   };
+  translation: {
+    /** Translated on this machine; the first use of a direction downloads its model from Mozilla. */
+    translate(from: string, to: string, texts: string[]): Promise<{ texts: string[] } | { error: string }>;
+    /** What the downloaded models take on disk, in bytes. */
+    installedBytes(): Promise<number>;
+    removeModels(): Promise<void>;
+  };
   sessions: {
     /** Keeps this window's tabs, Hush aside, under a name made from the first of them. */
     save(): Promise<void>;

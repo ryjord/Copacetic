@@ -13,7 +13,8 @@ import { hardenChromeSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
 import { UpdateManager } from '../system/updates';
 import { applyAppearance, onAppearanceChange } from '../window/appearance';
-import { filtersRoot } from './env';
+import { filtersRoot, translationEngineRoot } from './env';
+import { TranslationService, translationModelsDirectory } from '../translation/translation-service';
 import { Profile, type ProfileHost } from './profile';
 
 // Types
@@ -33,6 +34,7 @@ import type { Browser } from './browser';
 export class Profiles {
   readonly blocker = new ContentBlocker();
   readonly updates: UpdateManager;
+  readonly translation: TranslationService;
   private readonly list = new ProfilesStore();
   private readonly open = new Map<string, Profile>();
   private readonly host: ProfileHost;
@@ -57,9 +59,11 @@ export class Profiles {
       this.blocker.loadShippedLists(filtersRoot());
     }
     this.updates = new UpdateManager(() => this.scheduleStatePush());
+    this.translation = new TranslationService(translationEngineRoot(), translationModelsDirectory(appData));
     this.host = {
       blocker: this.blocker,
       updates: this.updates,
+      translation: this.translation,
       appSettings: () => {
         const settings = this.first.store.getSettings();
         return {
@@ -288,6 +292,7 @@ export class Profiles {
   dispose(): void {
     this.prepareForQuit();
     this.updates.stop();
+    this.translation.dispose();
     this.stopWatchingAppearance();
   }
 }

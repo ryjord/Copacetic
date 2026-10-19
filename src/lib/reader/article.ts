@@ -1,6 +1,9 @@
 // Libs
 import { Readability } from '@mozilla/readability';
 
+// Utils
+import { languageOf } from '@shared/translation/languages';
+
 /** The tags reader view draws. Anything else is unwrapped, keeping its text. */
 export type ReaderTag =
   | 'p'
@@ -26,6 +29,8 @@ export type ReaderNode =
 
 export interface Article {
   title: string;
+  /** The language the page says it is in, as the translation list names it, when it says. */
+  language: string | null;
   byline: string | null;
   siteName: string | null;
   minutes: number;
@@ -118,6 +123,12 @@ function readerNodesOf(node: Node, base: string): ReaderNode[] {
   return [{ kind: 'element', tag, href: tag === 'a' ? linkFrom(node.getAttribute('href'), base) : null, children }];
 }
 
+/** Markup from a translation, rebuilt under the same rules as the article it came from. */
+export function readerNodesFromHtml(html: string, base: string): ReaderNode[] {
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  return [...parsed.body.childNodes].flatMap((child) => readerNodesOf(child, base));
+}
+
 /** Every image an article names, in order, once each. */
 export function imagesIn(nodes: readonly ReaderNode[]): string[] {
   const found = nodes.flatMap((node): string[] => {
@@ -154,6 +165,7 @@ export function articleFrom(html: string, url: string): Article | null {
   }
   return {
     title: parsed.title?.trim() || new URL(url).hostname,
+    language: languageOf(parsed.lang) ?? languageOf(page.documentElement.getAttribute('lang')),
     byline: parsed.byline?.trim() || null,
     siteName: parsed.siteName?.trim() || null,
     minutes: Math.max(1, Math.round(words / WORDS_PER_MINUTE)),

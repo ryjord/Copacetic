@@ -53,6 +53,9 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
         <Answer question={t('settings.transparency.leaves.contact.question')}>
           {t('settings.transparency.leaves.contact.answer')}
         </Answer>
+        <Answer question={t('settings.transparency.leaves.translation.question')}>
+          {t('settings.transparency.leaves.translation.answer')}
+        </Answer>
         <Answer question={t('settings.transparency.leaves.addressBar.question')}>
           {t('settings.transparency.leaves.addressBar.answer')}
         </Answer>

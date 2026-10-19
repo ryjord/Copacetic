@@ -62,6 +62,22 @@ hidden while the site's own scripts still run; nothing is accepted or refused
 on the person's behalf.
 
 
+Bergamot translator
+-------------------
+
+    Files:    dist/electron/translation/engine/, copied at build time from
+              the npm package @browsermt/bergamot-translator 0.4.9
+    Source:   https://github.com/browsermt/bergamot-translator
+    Licence:  Mozilla Public License 2.0
+              https://www.mozilla.org/MPL/2.0/
+
+The engine that translates in reader view, compiled to WebAssembly and run in a
+worker thread of the main process. Shipped unmodified; the source of every file
+is at the address above. The language models it runs are not shipped: they are
+downloaded from Mozilla when someone first translates a language, under
+Mozilla's own terms.
+
+
 Everything else
 ---------------
 

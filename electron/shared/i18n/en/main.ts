@@ -163,6 +163,10 @@ export const main = {
     fileType: 'Connection report',
     noPage: 'There is no page here to report on.',
   },
+  translation: {
+    refused: 'That is not something Copacetic can translate.',
+    failed: 'The translation did not finish.',
+  },
   sessions: {
     untitled: 'Untitled',
     andMore: '{lead} and {count} more',
