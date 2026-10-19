@@ -2,6 +2,7 @@
 import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
 
 // Utils
+import { cleanUrl } from '../../shared/browsing/link-cleaning';
 import { t } from '../../shared/i18n/translate';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome/chrome-text';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
@@ -48,7 +49,9 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
           openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
         }),
     });
-    push({ label: t('main.menu.context.copyLinkAddress'), click: () => clipboard.writeText(linkUrl) });
+    // The address someone shares is the clean one, when they asked for links to be cleaned.
+    const shareable = browser.profile.settings().cleanLinks ? (cleanUrl(linkUrl) ?? linkUrl) : linkUrl;
+    push({ label: t('main.menu.context.copyLinkAddress'), click: () => clipboard.writeText(shareable) });
     push({ label: t('main.menu.context.downloadLinkedFile'), click: () => browser.commands.downloadUrl(linkUrl) });
     separate();
   }

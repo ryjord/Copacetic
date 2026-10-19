@@ -549,6 +549,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.httpsFirst === 'boolean') {
     patch.httpsFirst = value.httpsFirst;
   }
+  if (typeof value.cleanLinks === 'boolean') {
+    patch.cleanLinks = value.cleanLinks;
+  }
   if (typeof value.blockTrackers === 'boolean') {
     patch.blockTrackers = value.blockTrackers;
   }

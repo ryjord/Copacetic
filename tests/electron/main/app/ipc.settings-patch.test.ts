@@ -36,6 +36,7 @@ describe('every setting can actually be changed', () => {
     spellcheckLanguages: ['en-GB', 'fr'],
     webRtcPolicy: 'proxiedOnly',
     blockThirdPartyCookies: false,
+    cleanLinks: false,
     askWhereToSave: true,
     sleepTabsAfterMinutes: 15,
   };

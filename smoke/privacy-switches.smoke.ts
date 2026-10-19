@@ -68,4 +68,31 @@ describe('the privacy switches', () => {
     expect(prompts).toBe(0);
     await update({ permissionDefaults: {} });
   }, 90_000);
+
+  // The page is asked for at the clean address, so the tracking never reaches the server or the history.
+  it('takes tracking parameters off a link before the page loads, and leaves them when asked to', async () => {
+    const tracked = 'https://example.com/landing?id=7&utm_source=mail&fbclid=abc';
+    const finalUrlOf = async (url: string) => {
+      const tabId = await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
+      expect(
+        await copacetic.until(
+          async () =>
+            copacetic.chrome.evaluate(
+              async (id) =>
+                (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.id === id)?.isLoading === false,
+              tabId,
+            ),
+          30_000,
+        ),
+      ).toBe(true);
+      return copacetic.chrome.evaluate(
+        async (id) => (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.id === id)?.url ?? '',
+        tabId,
+      );
+    };
+    expect(await finalUrlOf(tracked)).toBe('https://example.com/landing?id=7');
+    await update({ cleanLinks: false });
+    expect(await finalUrlOf(tracked)).toBe(tracked);
+    await update({ cleanLinks: true });
+  }, 120_000);
 });

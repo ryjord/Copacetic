@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   spellcheckLanguages: [],
   webRtcPolicy: 'publicOnly',
   blockThirdPartyCookies: true,
+  cleanLinks: true,
   downloadDirectory: null,
   askWhereToSave: false,
   sleepTabsAfterMinutes: 60,
@@ -205,6 +206,7 @@ function reviveSettings(raw: unknown): Settings | null {
     spellcheckLanguages: readSpellcheckLanguages(raw.spellcheckLanguages),
     webRtcPolicy: isWebRtcPolicy(webRtcPolicy) ? webRtcPolicy : DEFAULT_SETTINGS.webRtcPolicy,
     blockThirdPartyCookies: asBoolean(raw.blockThirdPartyCookies, DEFAULT_SETTINGS.blockThirdPartyCookies),
+    cleanLinks: asBoolean(raw.cleanLinks, DEFAULT_SETTINGS.cleanLinks),
     downloadDirectory: asString(raw.downloadDirectory) || null,
     askWhereToSave: asBoolean(raw.askWhereToSave, DEFAULT_SETTINGS.askWhereToSave),
     sleepTabsAfterMinutes: isSleepAfterMinutes(raw.sleepTabsAfterMinutes)

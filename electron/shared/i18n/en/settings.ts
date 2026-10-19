@@ -302,6 +302,10 @@ export const settings = {
       provider: 'Provider',
       providerGroup: 'DNS provider',
     },
+    links: {
+      label: 'Clean tracking from links',
+      help: 'Parameters that only say where a click came from, such as utm_source and fbclid, are removed before the page loads.',
+    },
     cookies: {
       title: 'Cookies',
       thirdParty: {

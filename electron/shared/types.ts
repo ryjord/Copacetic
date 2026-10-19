@@ -519,6 +519,8 @@ export interface Settings {
   webRtcPolicy: WebRtcPolicy;
   /** Cookies sent to or set by a site other than the page's; a site's tracker exception lets them through. */
   blockThirdPartyCookies: boolean;
+  /** Tracking parameters are taken off an address before the page is asked for. */
+  cleanLinks: boolean;
   /** Where files go; null for the system's own Downloads folder. Chosen in a dialog, never typed. */
   downloadDirectory: string | null;
   /** Each download asks where to save it rather than going to the folder above. */

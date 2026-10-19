@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   spellcheckLanguages: [],
   webRtcPolicy: 'publicOnly',
   blockThirdPartyCookies: true,
+  cleanLinks: true,
   downloadDirectory: null,
   askWhereToSave: false,
   sleepTabsAfterMinutes: 60,

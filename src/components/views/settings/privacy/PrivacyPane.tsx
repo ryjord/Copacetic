@@ -167,6 +167,17 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
             />
           }
         />
+        <SettingRow
+          label={t('settings.privacy.links.label')}
+          help={t('settings.privacy.links.help')}
+          control={
+            <Switch
+              label={t('settings.privacy.links.label')}
+              checked={settings.cleanLinks}
+              onChange={(cleanLinks) => updateSettings({ cleanLinks })}
+            />
+          }
+        />
       </SettingGroup>
 
       <SettingGroup title={t('settings.privacy.calls.title')}>

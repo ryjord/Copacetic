@@ -3,6 +3,7 @@ import { BrowserWindow, type WebContents, app, net, safeStorage, shell, systemPr
 import { existsSync } from 'node:fs';
 
 // Utils
+import { cleanUrl } from '../../shared/browsing/link-cleaning';
 import { BlockingPolicy } from '../security/blocking-policy';
 import { HttpsFirst } from '../security/https-first';
 import { type ProfilePartitions, partitionsFor } from '../../shared/data/partitions';
@@ -149,7 +150,7 @@ export class Profile {
     // Web and Hush exist from launch; a group that keeps its own browsing is prepared when a tab first asks.
     this.sessions.prepare(this.partitions.web);
     this.sessions.prepare(this.partitions.hush);
-    this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details));
+    this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details) ?? this.cleanedNavigation(details));
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
   }
@@ -215,6 +216,14 @@ export class Profile {
       tone: 'info',
       message: t('main.notices.databaseAside', { aside }),
     });
+  }
+
+  /** A page's own address without its tracking parameters, asked for in their place; nothing else is touched. */
+  private cleanedNavigation(details: Electron.OnBeforeRequestListenerDetails): string | null {
+    if (!this.store.getSettings().cleanLinks || details.resourceType !== 'mainFrame' || details.method !== 'GET') {
+      return null;
+    }
+    return cleanUrl(details.url);
   }
 
   lastInFrontAt(): number {
