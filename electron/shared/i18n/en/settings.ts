@@ -642,7 +642,7 @@ export const settings = {
       translation: {
         question: 'What does translation send?',
         answer:
-          'Nothing you read. The first time you translate from or into a language, Copacetic asks Mozilla which models exist and downloads that one, about 35 MB, with no cookies; each file is checked against the fingerprint Mozilla publishes before it is kept. After that, translating runs entirely on this machine. Delete the models in Your data.',
+          'Nothing you read. The first time you translate from or into a language, Copacetic asks Mozilla which models exist and downloads that one, about 35 MB, with no cookies, saying it is Copacetic; each file is checked against the fingerprint Mozilla publishes before it is kept. After that, translating runs entirely on this machine. The download does not go through a system proxy. Delete the models in Your data.',
       },
       addressBar: {
         question: 'Does the address bar send what I type?',

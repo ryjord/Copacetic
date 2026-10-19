@@ -1,5 +1,5 @@
 // Libs
-import { net } from 'electron';
+import { app } from 'electron';
 import path from 'node:path';
 
 // Utils
@@ -35,12 +35,19 @@ async function readCapped(response: Response, maxBytes: number): Promise<Buffer>
   }
 }
 
-// The same way the update check and filter lists are fetched, with no cookies sent or kept.
+/*
+ * Node's own fetch rather than Electron's: Mozilla's model CDN refuses a
+ * request that says it is Chrome, and Electron will not let one request say
+ * otherwise. So these say what they are, Copacetic, and carry no cookies.
+ */
 const mozillaFetch: ModelFetch = {
   bytes: async (url, maxBytes) =>
     readCapped(
-      // Remote Settings answers 406 to a request that does not say it takes JSON.
-      await net.fetch(url, { credentials: 'omit', redirect: 'error', headers: { Accept: 'application/json, */*' } }),
+      await fetch(url, {
+        credentials: 'omit',
+        redirect: 'error',
+        headers: { Accept: 'application/json, */*', 'User-Agent': `Copacetic/${app.getVersion()}` },
+      }),
       maxBytes,
     ),
 };
