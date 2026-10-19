@@ -2,7 +2,7 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 2.0.0-beta.2 - unreleased
+## 2.0.0-beta.2 - 19 October 2026
 
 The second beta of 2.0: a new look, and the features from the 2.1 to 2.3
 plans. A prerelease, so it reaches nobody through automatic updates.
