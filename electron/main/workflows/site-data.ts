@@ -56,6 +56,7 @@ export class SiteData {
   async forget(address: string): Promise<SiteTraces> {
     // Read before the store forgets, because afterwards nothing names them.
     const known = this.deps.store.originsForSite(address);
+    this.deps.notices.withdrawUndos();
     const removed = this.deps.store.forgetSite(address);
     const cookies = await this.forgetInSessions(address, known);
     // The allowlist may have lost an entry, and the blocking policy holds its own copy.
@@ -173,6 +174,7 @@ export class SiteData {
   }
 
   clearKept(kind: KeptKind): void {
+    this.deps.notices.withdrawUndos();
     if (kind === 'downloads') {
       // The files stay where they were saved. What goes is the record of where
       // they came from, which is browsing.
@@ -188,6 +190,7 @@ export class SiteData {
   }
 
   async clearBrowsing(range: ClearRange, choice: ClearChoice = defaultClearChoice(range)): Promise<void> {
+    this.deps.notices.withdrawUndos();
     if (choice.history) {
       this.deps.store.clearHistory(range);
     }

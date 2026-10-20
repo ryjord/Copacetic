@@ -464,10 +464,9 @@ export class Browser {
 
   /** Says something was removed, with a few seconds in which to put it back. */
   offerUndo(message: string, restore: () => void): void {
-    this.notices.notify(
-      { id: `undo-${randomUUID()}`, key: `undo-${message}`, tone: 'undo', message, confirm: t('main.undo.action') },
-      restore,
-    );
+    // Keyed by its own id: two removals that read the same are still two things to put back.
+    const id = `undo-${randomUUID()}`;
+    this.notices.notify({ id, key: id, tone: 'undo', message, confirm: t('main.undo.action') }, restore);
   }
 
   openExternal(url: string): Promise<void> {

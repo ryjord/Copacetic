@@ -38,6 +38,14 @@ describe('putting back what was removed', () => {
     });
   });
 
+  it('leaves an entry gone once it is older than history is kept', () => {
+    store.recordVisit('https://old.example/', 'Old');
+    const [entry] = store.listHistory().entries;
+    store.removeHistory(entry?.id ?? '');
+    store.restoreHistory({ ...entry!, lastVisitedAt: store.historyKeptSince() - 1 });
+    expect(store.listHistory().entries).toHaveLength(0);
+  });
+
   it('returns a saved session, and a start page tile or hidden site', () => {
     const saved = store.saveNamedSession('Work', [{ url: 'https://a.example/', title: 'A' }]);
     const tabs = store.namedSessionTabs(saved.id);

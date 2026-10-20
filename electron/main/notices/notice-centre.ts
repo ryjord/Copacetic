@@ -27,10 +27,15 @@ export class NoticeCentre {
    * count that nothing read.
    */
   notify(notice: Notice, onConfirm?: () => void): void {
-    if (onConfirm) {
+    const next = admit(this.outstanding, notice);
+    // Replaced or pushed out, a notice can no longer be answered, so what it was holding goes with it.
+    this.outstanding
+      .filter((shown) => !next.includes(shown))
+      .forEach((dropped) => this.pendingAnswers.delete(dropped.id));
+    this.outstanding = next;
+    if (onConfirm && next.includes(notice)) {
       this.pendingAnswers.set(notice.id, onConfirm);
     }
-    this.outstanding = admit(this.outstanding, notice);
     // A question is answered with a button, and the overlay is a view of its
     // own: without this the keyboard cannot reach it at all.
     if (notice.tone === 'ask') {
@@ -44,6 +49,12 @@ export class NoticeCentre {
   /** What was said before anyone was listening, asked for as the chrome starts. */
   pending(): Notice[] {
     return this.outstanding;
+  }
+
+  /** Takes back every Undo still showing, once something was forgotten or cleared that one of them would restore. */
+  withdrawUndos(): void {
+    const undos = this.outstanding.filter((notice) => notice.tone === 'undo');
+    undos.forEach((notice) => this.answer(notice.id, false));
   }
 
   /** Answers a question a notice asked. Anything but a yes simply drops it. */

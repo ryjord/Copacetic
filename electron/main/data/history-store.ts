@@ -132,8 +132,11 @@ export class HistoryStore {
     return row ? toEntry(row) : null;
   }
 
-  /** Puts a removed entry back as it was, counts and all; a visit since then wins. */
+  /** Puts a removed entry back as it was, counts and all; a visit since then wins, and one past the limit stays gone. */
   restore(entry: HistoryEntry): void {
+    if (entry.lastVisitedAt < this.keptSince()) {
+      return;
+    }
     this.database
       .prepare(
         'INSERT OR IGNORE INTO history (id, url, title, last_visited_at, visit_count, blocked_count) VALUES (?, ?, ?, ?, ?, ?)',
@@ -231,12 +234,15 @@ export class HistoryStore {
 
   prune(): void {
     this.visitsSincePrune = 0;
-    this.database.prepare('DELETE FROM history WHERE last_visited_at < ?').run(this.keptSince());
-    this.database
+    const tooOld = this.database.prepare('DELETE FROM history WHERE last_visited_at < ?').run(this.keptSince());
+    const overLimit = this.database
       .prepare(
         'DELETE FROM history WHERE rowid NOT IN (SELECT rowid FROM history ORDER BY last_visited_at DESC LIMIT ?)',
       )
       .run(MAX_HISTORY_ENTRIES);
+    if (Number(tooOld.changes) + Number(overLimit.changes) > 0) {
+      this.scrub();
+    }
   }
 
   /**

@@ -695,15 +695,15 @@ function asClearRange(value: unknown): ClearRange {
 
 /** Everything the renderer is allowed to change, checked one field at a time. */
 /**
- * How to put back what clearing one kind removed, merged over whatever is kept now. Null for the kinds that do
+ * How to put back what clearing one kind removed, under whatever was set since. Null for the kinds that do
  * not live in settings, which the renderer confirms before clearing instead.
  */
 function keptRestorer(kind: KeptKind, before: Settings): ((now: Settings) => Partial<Settings>) | null {
   switch (kind) {
     case 'zoom':
-      return (now) => ({ zoomLevels: { ...now.zoomLevels, ...before.zoomLevels } });
+      return (now) => ({ zoomLevels: { ...before.zoomLevels, ...now.zoomLevels } });
     case 'permissions':
-      return (now) => ({ permissionDecisions: { ...now.permissionDecisions, ...before.permissionDecisions } });
+      return (now) => ({ permissionDecisions: { ...before.permissionDecisions, ...now.permissionDecisions } });
     case 'blockingOff':
       return (now) => ({ blockerAllowlist: [...new Set([...now.blockerAllowlist, ...before.blockerAllowlist])] });
     case 'certificates':
