@@ -37,6 +37,7 @@ import { describeSecurity } from './tab-security';
 import { inheritFromOpener } from '../../shared/tabs/opening';
 import {
   type SessionCandidate,
+  historyToKeep,
   sessionFrom,
   tabAfterClosing,
   clampToRun,
@@ -310,6 +311,7 @@ export class TabManager {
       activate: this.activeId === tab.id,
       hush: tab.isHush,
       groupId,
+      history: historyToKeep(this.historyOf(tab)) ?? undefined,
     });
     this.setMuted(replacement, tab.isMuted);
     this.close(tab.id, { isReplaced: true });

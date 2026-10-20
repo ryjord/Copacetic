@@ -77,6 +77,12 @@ describe('a group with its own session', () => {
   }, 120_000);
 
   it('leaves nothing on disk once the group is gone and the browser restarts', async () => {
+    // A cookie set again after the clear above, so ungrouping has something of its own to remove.
+    await copacetic.inOpenPage(
+      'https://example.com/grouped',
+      `document.cookie = 'ungrouped=1; max-age=3600; path=/', true`,
+    );
+    expect(await groupCookies(groupId)).toContain('ungrouped');
     await copacetic.chrome.evaluate((id) => window.copacetic.groups.remove(id), groupId);
     // Its tab leaves the group's session for the shared one, so the session is no longer in use.
     expect(
@@ -85,6 +91,12 @@ describe('a group with its own session', () => {
         return state.groups.length === 0;
       }),
     ).toBe(true);
+    // Cleared now, not at the next launch.
+    const deadline = Date.now() + 10_000;
+    while ((await groupCookies(groupId)).length > 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    expect(await groupCookies(groupId)).toEqual([]);
 
     const profile = copacetic.profile;
     await copacetic.close({ keepProfile: true });

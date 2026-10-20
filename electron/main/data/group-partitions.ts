@@ -10,8 +10,9 @@ import { describeError, log } from '../system/diagnostics';
  * Deletes the sessions of groups that no longer exist.
  *
  * Run before any session is opened, because a partition Chromium has open
- * cannot be deleted from under it. A group removed while its tabs stayed open
- * keeps its session until here, so those tabs are not signed out mid-page.
+ * cannot be deleted from under it. Removing or closing a group clears its
+ * session at once; this takes away the folder that is left, and anything a
+ * clear did not finish before the app quit.
  */
 export function sweepOrphanedGroupPartitions(
   appDataDirectory: string,

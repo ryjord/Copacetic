@@ -153,12 +153,20 @@ export class GroupCommands {
     this.deps.changed();
   }
 
-  /** The group goes; its tabs stay open with nothing to belong to. */
+  /**
+   * The group goes; its tabs stay open with nothing to belong to. A group with
+   * its own session has its tabs reopened in ordinary browsing first, so its
+   * cookies and storage can go now rather than at the next launch.
+   */
   remove(id: string): void {
+    const hadOwnSession = this.deps.store.groupFor(id)?.ownSession === true;
     for (const tab of this.deps.tabs.tabsInGroup(id)) {
       this.deps.tabs.setGroup(tab.id, null);
     }
     this.deps.store.removeGroup(id);
+    if (hadOwnSession) {
+      void this.deps.sessions.clearGroup(id);
+    }
     this.deps.changed();
   }
 
