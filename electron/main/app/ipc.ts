@@ -40,7 +40,7 @@ import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
 import { routeFor } from '../../shared/translation/languages';
 import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start-tiles';
 import { readChosenImage } from '../system/file-dialogs';
-import { copySecret, copyText } from '../vault/vault-clipboard';
+import { clearCopiedSecret, copySecret, copyText } from '../vault/vault-clipboard';
 import { t } from '../../shared/i18n/translate';
 import { describeKept, isKeptKind, siteOf as siteOfAddress, type KeptKind } from '../../shared/data/forgetting';
 import { withSiteRestored, withoutSite } from '../../shared/data/site-settings';
@@ -495,7 +495,10 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('vault.importFile', (browser) => browser.transfer.importPasswords());
   handle('vault.lockState', (browser) => browser.vaultSession.lockInfo());
   handle('vault.unlock', (browser) => browser.vaultSession.unlock());
-  handle('vault.lock', (browser) => browser.vaultSession.lock());
+  handle('vault.lock', (browser) => {
+    browser.vaultSession.lock();
+    clearCopiedSecret();
+  });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
   handle('vault.countForTab', (browser, _event, id) => browser.passwords.offerFor(asString(id)).entries.length);
   handle('vault.fillForTab', (browser, _event, id, x, y) =>

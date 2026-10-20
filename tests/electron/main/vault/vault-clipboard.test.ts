@@ -13,7 +13,8 @@ vi.mock('electron', () => ({
   },
 }));
 
-const { CLEAR_SECRET_AFTER_MS, copySecret } = await import('../../../../electron/main/vault/vault-clipboard');
+const { CLEAR_SECRET_AFTER_MS, clearCopiedSecret, copySecret } =
+  await import('../../../../electron/main/vault/vault-clipboard');
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -34,6 +35,19 @@ describe('a password on the clipboard', () => {
     copySecret('hunter2');
     board = 'a note';
     vi.advanceTimersByTime(CLEAR_SECRET_AFTER_MS);
+    expect(board).toBe('a note');
+  });
+
+  it('is cleared at once when the vault locks or the app quits', () => {
+    copySecret('hunter2');
+    clearCopiedSecret();
+    expect(board).toBe('');
+  });
+
+  it('leaves a later copy alone when cleared early too', () => {
+    copySecret('hunter2');
+    board = 'a note';
+    clearCopiedSecret();
     expect(board).toBe('a note');
   });
 });

@@ -12,6 +12,7 @@ import { handleAppProtocol, registerAppProtocolScheme } from './security/protoco
 import { describeError, log, startDiagnostics } from './system/diagnostics';
 import { applyLaunchMode } from './system/launch-mode';
 import { markQuit, markRunning } from './system/exit-marker';
+import { clearCopiedSecret } from './vault/vault-clipboard';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/browsing/url';
@@ -145,6 +146,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   profiles?.prepareForQuit();
+  clearCopiedSecret();
 });
 
 /**
