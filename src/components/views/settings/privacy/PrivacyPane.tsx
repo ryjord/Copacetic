@@ -1,11 +1,12 @@
 'use client';
 
 // Libs
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
+import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { Switch } from '@/components/ui/Switch/Switch';
 
@@ -42,9 +43,23 @@ const WEB_RTC_HELP: Record<WebRtcPolicy, string> = {
 
 const PROVIDERS = DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }));
 
-export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
+export function PrivacyPane({ info }: SettingsPaneProps) {
   const settings = useBrowserStore((state) => state.settings);
   const [isChecking, setIsChecking] = useState(false);
+  const [blockedThisWeek, setBlockedThisWeek] = useState(0);
+
+  // From the counts kept with history; the other protections keep no count, so they claim none.
+  useEffect(() => {
+    let isCurrent = true;
+    void ask((api) => api.history.blockedThisWeek(), 0).then((count) => {
+      if (isCurrent) {
+        setBlockedThisWeek(count);
+      }
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   const lists = info?.filterLists ?? [];
   const listedRules = lists.reduce((total, list) => total + list.rules, 0);
@@ -82,7 +97,18 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
         />
         <SettingRow
           label={t('settings.privacy.browsing.blockTrackers.label')}
-          help={trackerHelp}
+          help={
+            settings.blockTrackers && blockedThisWeek > 0 ? (
+              <>
+                <span className="text-ink">
+                  {t('settings.privacy.browsing.blockTrackers.thisWeek', { count: blockedThisWeek })}
+                </span>{' '}
+                {trackerHelp}
+              </>
+            ) : (
+              trackerHelp
+            )
+          }
           control={
             <Switch
               label={t('settings.privacy.browsing.blockTrackers.label')}
@@ -139,20 +165,23 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
             />
           }
         />
-        {settings.dnsMode === 'encrypted' && (
-          <SettingRow
-            label={t('settings.privacy.dns.provider')}
-            help={resolverFor(settings.dnsResolverId)?.detail}
-            control={
-              <SegmentedControl
-                label={t('settings.privacy.dns.providerGroup')}
-                options={PROVIDERS}
-                value={settings.dnsResolverId}
-                onChange={(dnsResolverId) => updateSettings({ dnsResolverId })}
-              />
-            }
-          />
-        )}
+        {/* Shown before it is switched on, so the choice of who resolves is seen before agreeing to it. */}
+        <SettingRow
+          label={t('settings.privacy.dns.provider')}
+          help={
+            settings.dnsMode === 'encrypted'
+              ? resolverFor(settings.dnsResolverId)?.detail
+              : t('settings.privacy.dns.providerHelpSystem')
+          }
+          control={
+            <Select
+              label={t('settings.privacy.dns.providerGroup')}
+              options={PROVIDERS}
+              value={settings.dnsResolverId}
+              onChange={(dnsResolverId) => updateSettings({ dnsResolverId })}
+            />
+          }
+        />
       </SettingGroup>
 
       <SettingGroup title={t('settings.privacy.cookies.title')}>
@@ -202,18 +231,6 @@ export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
               value={settings.webRtcPolicy}
               onChange={(webRtcPolicy) => updateSettings({ webRtcPolicy })}
             />
-          }
-        />
-      </SettingGroup>
-
-      <SettingGroup title={t('settings.privacy.sites.title')}>
-        <SettingRow
-          label={t('settings.privacy.sites.label')}
-          help={t('settings.privacy.sites.help')}
-          control={
-            <Button size="sm" onClick={() => openPane('sites')}>
-              {t('settings.privacy.sites.action')}
-            </Button>
           }
         />
       </SettingGroup>

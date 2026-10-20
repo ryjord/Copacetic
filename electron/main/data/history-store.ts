@@ -165,6 +165,15 @@ export class HistoryStore {
     );
   }
 
+  /** Requests refused on pages last visited since then; a page visited again counts its earlier refusals too. */
+  blockedSince(since: number): number {
+    return Number(
+      this.database
+        .prepare('SELECT coalesce(sum(blocked_count), 0) AS total FROM history WHERE last_visited_at >= ?')
+        .get(since)?.total ?? 0,
+    );
+  }
+
   clearHistory(range: ClearRange): void {
     if (range === 'all') {
       this.database.exec('DELETE FROM history');

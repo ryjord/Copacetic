@@ -360,6 +360,10 @@ export class BrowserStore {
   }
 
   /** Requests refused across everything still in history. */
+  blockedThisWeek(): number {
+    return this.history.blockedSince(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  }
+
   totalBlocked(): number {
     return this.history.totalBlocked();
   }

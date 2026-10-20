@@ -266,6 +266,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   );
   handle('history.traces', (browser, _event, address) => browser.sites.traces(asString(address)));
   handle('history.totalBlocked', (browser) => browser.store.totalBlocked());
+  handle('history.blockedThisWeek', (browser) => browser.store.blockedThisWeek());
   handle('data.kept', (browser) => browser.sites.kept());
   handle('history.openContextMenu', (browser, _event, address) => showSiteContextMenu(browser, asString(address)));
   handle('data.clearKept', (browser, _event, kind) => browser.sites.clearKept(asString(kind) as KeptKind));

@@ -155,6 +155,8 @@ export interface CopaceticApi {
     openContextMenu(address: string): Promise<void>;
     /** Requests refused across everything still in history. */
     totalBlocked(): Promise<number>;
+    /** Requests refused on pages visited in the last seven days. */
+    blockedThisWeek(): Promise<number>;
     remove(id: string): Promise<void>;
     /** History in the range; cookies, site data and the cache, if chosen, entirely. */
     clear(range: ClearRange, choice?: ClearChoice): Promise<void>;

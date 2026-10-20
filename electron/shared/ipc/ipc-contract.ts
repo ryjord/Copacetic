@@ -95,6 +95,7 @@ export const CHANNELS = {
   'history.traces': 'history:traces',
   'history.forgetSite': 'history:forget-site',
   'history.totalBlocked': 'history:total-blocked',
+  'history.blockedThisWeek': 'history:blocked-this-week',
   'history.openContextMenu': 'history:open-context-menu',
   'history.clear': 'history:clear',
   'history.topSites': 'history:top-sites',

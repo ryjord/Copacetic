@@ -378,6 +378,10 @@ export const settings = {
         helpWithLists: '{rules} rules from EasyList and EasyPrivacy, plus {domains} domains Copacetic blocks itself.',
         helpOwnOnly: 'Blocks {domains} domains that exist to follow you between sites.',
         helpUnknown: 'Blocks domains that exist to follow you between sites.',
+        thisWeek: {
+          one: 'Blocked one request on pages you visited in the last 7 days.',
+          other: 'Blocked {count} requests on pages you visited in the last 7 days.',
+        },
       },
     },
     filterLists: {
@@ -398,6 +402,7 @@ export const settings = {
       system: 'System',
       encrypted: 'Encrypted',
       provider: 'Provider',
+      providerHelpSystem: 'Used once lookups are encrypted.',
       providerGroup: 'DNS provider',
     },
     banners: {
@@ -417,22 +422,16 @@ export const settings = {
     },
     calls: {
       title: 'Calls and video',
-      label: 'Addresses WebRTC may reveal',
-      publicOnly: 'Public only',
-      all: 'All',
-      proxiedOnly: 'Proxied only',
+      label: 'What calls and video can see',
+      publicOnly: 'Your public address',
+      all: 'Public and local',
+      proxiedOnly: 'Only through a proxy',
       publicOnlyHelp:
         'Calls and video work, and a page can learn your public address but not the one on your home or office network.',
       allHelp:
         'A page can learn your local network address as well. Only for a call that will not connect otherwise.',
       proxiedOnlyHelp:
         'Calls go through your proxy or not at all, so nothing is revealed that the proxy does not already show.',
-    },
-    sites: {
-      title: 'Sites',
-      label: 'Site settings',
-      help: 'Permissions, zoom levels and tracker exceptions, for each site.',
-      action: 'Open',
     },
   },
   sites: {
