@@ -7,6 +7,9 @@ export const views = {
     cache: 'Cached images and files, from all time',
     groupsNote: 'Groups that keep their own browsing are cleared too. Open tabs stay open.',
   },
+  lists: {
+    selectionActions: 'Selected items',
+  },
   history: {
     title: 'History',
     search: 'Search history',
@@ -239,6 +242,8 @@ export const views = {
     openOriginal: 'Open original',
     print: 'Print the page',
     style: {
+      // Drawn in the reading typeface, as a sample of what it changes.
+      button: 'Aa',
       label: 'Text',
       size: 'Text size',
       typeface: 'Typeface',

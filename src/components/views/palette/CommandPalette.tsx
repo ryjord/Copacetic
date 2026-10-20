@@ -572,9 +572,18 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     query,
     (command) => `${command.label} ${command.keywords ?? ''}`,
   );
-  const matches = query.trim()
+  const isSearching = query.trim() !== '';
+  const matches = isSearching
     ? ranked
     : GROUP_ORDER.flatMap((group) => ranked.filter((command) => command.group === group));
+  // Searched, the best match leads whatever its group; otherwise each group is listed under its name.
+  const indexed = matches.map((command, index) => ({ command, index }));
+  const sections = isSearching
+    ? [{ group: null, entries: indexed }]
+    : GROUP_ORDER.map((group) => ({
+        group,
+        entries: indexed.filter((entry) => entry.command.group === group),
+      })).filter((section) => section.entries.length > 0);
 
   // Adjusted during render rather than in an effect: the list and its highlight change together.
   const [seenQuery, setSeenQuery] = useState(query);
@@ -582,10 +591,12 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     setSeenQuery(query);
     setHighlighted(0);
   }
+  // The list can shrink without the query changing, as a tab closes, and the highlight must stay on something listed.
+  const shownHighlight = Math.min(highlighted, Math.max(0, matches.length - 1));
 
   useEffect(() => {
-    document.getElementById(`${listId}-${highlighted}`)?.scrollIntoView?.({ block: 'nearest' });
-  }, [highlighted, listId]);
+    document.getElementById(`${listId}-${shownHighlight}`)?.scrollIntoView?.({ block: 'nearest' });
+  }, [shownHighlight, listId]);
 
   const placeholder = scope === 'tabs' ? t('views.palette.searchTabs') : t('views.palette.searchEverything');
 
@@ -596,14 +607,40 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       }
       event.preventDefault();
       const delta = event.key === 'ArrowDown' ? 1 : -1;
-      setHighlighted((current) => (current + delta + matches.length) % matches.length);
+      setHighlighted((shownHighlight + delta + matches.length) % matches.length);
       return;
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      matches[highlighted]?.run();
+      matches[shownHighlight]?.run();
     }
   };
+
+  const renderOption = ({ command, index }: { command: Command; index: number }) => (
+    <div
+      key={command.id}
+      id={`${listId}-${index}`}
+      role="option"
+      aria-selected={index === shownHighlight}
+      onMouseMove={() => setHighlighted(index)}
+      onClick={command.run}
+      className={cn(
+        'flex h-9 items-center gap-3 rounded-sm px-2.5',
+        index === shownHighlight ? 'bg-accent-soft text-ink' : 'text-ink',
+      )}
+    >
+      <span className="min-w-0 flex-1 truncate text-body">{command.label}</span>
+      {command.address && (
+        <span className="max-w-[40%] shrink-0 truncate text-body-sm text-ink-faint">{hostFor(command.address)}</span>
+      )}
+      {command.tabId && memory[command.tabId] && (
+        <span className="shrink-0 text-body-sm tabular-nums text-ink-faint">
+          {formatMemory(memory[command.tabId]?.kilobytes ?? 0)}
+        </span>
+      )}
+      {command.accelerator && <Kbd accelerator={command.accelerator} />}
+    </div>
+  );
 
   return (
     <div
@@ -632,9 +669,9 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
             placeholder={placeholder}
             aria-label={placeholder}
             role="combobox"
-            aria-expanded="true"
+            aria-expanded={matches.length > 0}
             aria-controls={listId}
-            aria-activedescendant={matches.length > 0 ? `${listId}-${highlighted}` : undefined}
+            aria-activedescendant={matches.length > 0 ? `${listId}-${shownHighlight}` : undefined}
             className="h-full min-w-0 flex-1 bg-transparent text-title text-ink outline-none placeholder:text-ink-faint"
           />
         </div>
@@ -644,47 +681,25 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
             {scope === 'tabs' ? t('views.palette.noTabMatches') : t('views.palette.noMatches')}
           </p>
         ) : (
-          <ul
+          <div
             id={listId}
             role="listbox"
             aria-label={t('views.palette.commandsList')}
             className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5"
           >
-            {matches.map((command, index) => {
-              const isNewGroup = !query.trim() && command.group !== matches[index - 1]?.group;
-              return (
-                <li key={command.id} role="presentation">
-                  {isNewGroup && (
-                    <div className="label px-2.5 pb-1 pt-2.5">{t(`views.palette.groups.${command.group}`)}</div>
-                  )}
-                  <div
-                    id={`${listId}-${index}`}
-                    role="option"
-                    aria-selected={index === highlighted}
-                    onMouseMove={() => setHighlighted(index)}
-                    onClick={command.run}
-                    className={cn(
-                      'flex h-9 items-center gap-3 rounded-sm px-2.5',
-                      index === highlighted ? 'bg-accent-soft text-ink' : 'text-ink',
-                    )}
-                  >
-                    <span className="min-w-0 flex-1 truncate text-body">{command.label}</span>
-                    {command.address && (
-                      <span className="max-w-[40%] shrink-0 truncate text-body-sm text-ink-faint">
-                        {hostFor(command.address)}
-                      </span>
-                    )}
-                    {command.tabId && memory[command.tabId] && (
-                      <span className="shrink-0 text-body-sm tabular-nums text-ink-faint">
-                        {formatMemory(memory[command.tabId]?.kilobytes ?? 0)}
-                      </span>
-                    )}
-                    {command.accelerator && <Kbd accelerator={command.accelerator} />}
+            {sections.map((section) =>
+              section.group === null ? (
+                section.entries.map(renderOption)
+              ) : (
+                <div key={section.group} role="group" aria-labelledby={`${listId}-group-${section.group}`}>
+                  <div id={`${listId}-group-${section.group}`} className="label px-2.5 pb-1 pt-2.5">
+                    {t(`views.palette.groups.${section.group}`)}
                   </div>
-                </li>
-              );
-            })}
-          </ul>
+                  {section.entries.map(renderOption)}
+                </div>
+              ),
+            )}
+          </div>
         )}
         {result && (
           <p role="status" className="border-t border-line px-4 py-2.5 text-body-sm text-ink-dim">

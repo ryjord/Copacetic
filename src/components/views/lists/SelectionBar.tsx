@@ -3,6 +3,9 @@
 // Components
 import { Button } from '@/components/ui/Button/Button';
 
+// Utils
+import { t } from '@shared/i18n/translate';
+
 export interface SelectionAction {
   label: string;
   onSelect: () => void;
@@ -22,7 +25,8 @@ export function SelectionBar({ summary, actions, clearLabel, onClear }: Selectio
   return (
     <div
       role="toolbar"
-      aria-label={summary}
+      // Fixed, so the count is read once, by the status inside, and not again as the toolbar's name.
+      aria-label={t('views.lists.selectionActions')}
       className="flex flex-wrap items-center gap-2 rounded-md bg-accent-soft px-3 py-2"
     >
       <span role="status" className="flex-1 text-body font-semibold text-ink">

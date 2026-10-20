@@ -80,6 +80,21 @@ describe('the command palette', () => {
     expect(screen.getAllByText('Go to')).toHaveLength(1);
   });
 
+  // A heading inside an option was read as part of that command's name.
+  it('lists each group as a labelled group of options', () => {
+    render(<CommandPalette />);
+    const tabs = screen.getByRole('group', { name: 'Tabs' });
+    expect(tabs.querySelectorAll('[role="option"]').length).toBeGreaterThan(0);
+    screen.getAllByRole('option').forEach((option) => expect(option.textContent).not.toMatch(/^Tabs/));
+  });
+
+  it('says the list is open only when something is listed', () => {
+    render(<CommandPalette />);
+    expect(input().getAttribute('aria-expanded')).toBe('true');
+    fireEvent.change(input(), { target: { value: 'qqqqzz' } });
+    expect(input().getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('finds an open tab by its address', () => {
     render(<CommandPalette />);
     fireEvent.change(input(), { target: { value: 'rust-lang' } });
