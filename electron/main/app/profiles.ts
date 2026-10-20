@@ -75,6 +75,7 @@ export class Profiles {
           dnsMode: settings.dnsMode,
           dnsResolverId: settings.dnsResolverId,
           checkForUpdates: settings.checkForUpdates,
+          updateChannel: settings.updateChannel,
           shortcutOverrides: settings.shortcutOverrides,
         };
       },
@@ -147,6 +148,7 @@ export class Profiles {
   start(): void {
     const settings = this.first.store.getSettings();
     app.configureHostResolver(hostResolverFor(settings.dnsMode, settings.dnsResolverId));
+    this.updates.setChannel(settings.updateChannel);
     this.updates.start(settings.checkForUpdates);
   }
 
@@ -289,6 +291,7 @@ export class Profiles {
       ...(patch.dnsMode === undefined ? {} : { dnsMode: patch.dnsMode }),
       ...(patch.dnsResolverId === undefined ? {} : { dnsResolverId: patch.dnsResolverId }),
       ...(patch.checkForUpdates === undefined ? {} : { checkForUpdates: patch.checkForUpdates }),
+      ...(patch.updateChannel === undefined ? {} : { updateChannel: patch.updateChannel }),
       ...(patch.shortcutOverrides === undefined ? {} : { shortcutOverrides: patch.shortcutOverrides }),
     };
     if (Object.keys(changes).length === 0) {
@@ -301,7 +304,10 @@ export class Profiles {
     if (changes.dnsMode !== undefined || changes.dnsResolverId !== undefined) {
       app.configureHostResolver(hostResolverFor(next.dnsMode, next.dnsResolverId));
     }
-    if (changes.checkForUpdates !== undefined) {
+    if (changes.updateChannel !== undefined) {
+      this.updates.setChannel(next.updateChannel);
+    }
+    if (changes.checkForUpdates !== undefined || changes.updateChannel !== undefined) {
       this.updates.start(next.checkForUpdates);
     }
     if (changes.shortcutOverrides !== undefined) {

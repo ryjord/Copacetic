@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { Switch } from '@/components/ui/Switch/Switch';
@@ -18,7 +19,12 @@ import { ask, send } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import type { UpdateStatus } from '@shared/types';
+import type { UpdateChannel, UpdateStatus } from '@shared/types';
+
+const CHANNEL_OPTIONS: readonly { id: UpdateChannel; label: string }[] = [
+  { id: 'releases', label: t('settings.updates.channel.releases') },
+  { id: 'betas', label: t('settings.updates.channel.betas') },
+];
 
 const MINUTE_IN_MS = 60_000;
 const MINUTES_PER_HOUR = 60;
@@ -29,7 +35,9 @@ export function UpdatesPane() {
   const update = useBrowserStore((state) => state.update);
   const [isChecking, setIsChecking] = useState(false);
 
-  const { status, delivery, manualReason, lastCheckedAt, releasesUrl } = update;
+  const { status, delivery, manualReason, lastCheckedAt, releasesUrl, releaseNotes, currentVersion } = update;
+  const isBetaBuild = currentVersion.includes('-');
+  const newVersion = status.state === 'available' || status.state === 'ready' ? status.version : null;
 
   const check = () => {
     setIsChecking(true);
@@ -39,6 +47,7 @@ export function UpdatesPane() {
   return (
     <>
       <SettingGroup>
+        {currentVersion && <SettingRow label={t('settings.updates.version', { version: currentVersion })} />}
         <SettingRow
           label={describeStatus(status)}
           help={status.state === 'checking' || isChecking ? undefined : describeLastCheck(lastCheckedAt)}
@@ -51,7 +60,7 @@ export function UpdatesPane() {
                   {t('settings.updates.restart')}
                 </Button>
               )}
-              {status.state === 'available' && delivery === 'manual' && (
+              {status.state === 'available' && delivery === 'manual' && !update.canOpenInstaller && (
                 <Button size="sm" variant="primary" onClick={() => send((api) => api.updates.openReleases())}>
                   {t('settings.updates.download', { version: status.version })}
                 </Button>
@@ -64,6 +73,29 @@ export function UpdatesPane() {
             </>
           }
         />
+        {status.state === 'available' && update.canOpenInstaller && (
+          <SettingRow
+            label={t('settings.updates.download', { version: status.version })}
+            help={t('settings.updates.openInstallerHelp')}
+            control={
+              <>
+                <Button size="sm" variant="ghost" onClick={() => send((api) => api.updates.openReleases())}>
+                  {t('settings.updates.releasePage')}
+                </Button>
+                <Button size="sm" variant="primary" onClick={() => send((api) => api.updates.downloadInstaller())}>
+                  {t('settings.updates.openInstaller')}
+                </Button>
+              </>
+            }
+          />
+        )}
+        {newVersion && releaseNotes && (
+          <SettingRow
+            label={t('settings.updates.notes.title', { version: newVersion })}
+            help={<span className="block max-h-64 overflow-y-auto whitespace-pre-line">{releaseNotes}</span>}
+            isStacked
+          />
+        )}
         {manualReason && <SettingRow label={t('settings.updates.howItUpdates')} help={manualReason} />}
         <SettingRow
           label={t('settings.updates.automatic.label')}
@@ -74,6 +106,21 @@ export function UpdatesPane() {
               checked={settings.checkForUpdates}
               onChange={(checkForUpdates) => updateSettings({ checkForUpdates })}
             />
+          }
+        />
+        <SettingRow
+          label={t('settings.updates.channel.label')}
+          help={isBetaBuild ? t('settings.updates.channel.betaBuild') : t('settings.updates.channel.help')}
+          // A beta build is offered betas whatever is chosen, so there is no choice to show it.
+          control={
+            !isBetaBuild && (
+              <SegmentedControl
+                label={t('settings.updates.channel.label')}
+                options={CHANNEL_OPTIONS}
+                value={settings.updateChannel}
+                onChange={(updateChannel) => updateSettings({ updateChannel })}
+              />
+            )
           }
         />
       </SettingGroup>
@@ -93,6 +140,8 @@ function describeStatus(status: UpdateStatus): string {
       return t('settings.updates.status.downloading', { percent: status.percent });
     case 'ready':
       return t('settings.updates.status.ready', { version: status.version });
+    case 'installerOpened':
+      return t('settings.updates.status.installerOpened', { version: status.version });
     case 'error':
       return t('settings.updates.status.error', { message: status.message });
     default:

@@ -587,6 +587,7 @@ export interface Settings {
   ambientHue: number;
   // Ask GitHub whether a newer release exists, on launch and on a long timer.
   checkForUpdates: boolean;
+  updateChannel: UpdateChannel;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
   /** What a site without a decision gets, by kind. */
@@ -668,7 +669,12 @@ export type UpdateStatus =
   | { state: 'available'; version: string }
   | { state: 'downloading'; percent: number }
   | { state: 'ready'; version: string }
+  /** The macOS installer was saved, checked and opened; the rest is the person's. */
+  | { state: 'installerOpened'; version: string }
   | { state: 'error'; message: string };
+
+/** Which releases a build is offered: finished ones, or betas too. */
+export type UpdateChannel = 'releases' | 'betas';
 
 export interface UpdateState {
   status: UpdateStatus;
@@ -676,8 +682,15 @@ export interface UpdateState {
   /** Why this build cannot install updates itself, when it cannot. */
   manualReason: string | null;
   lastCheckedAt: number | null;
-  /** Where to send someone who has to install it by hand. */
+  /** Where to send someone who has to install it by hand: the release found, or the latest. */
   releasesUrl: string;
+  /** What the release found changes, as plain text; null when it says nothing or none was found. */
+  releaseNotes: string | null;
+  currentVersion: string;
+  /** Betas are offered, by choice or because this build is one. */
+  includesBetas: boolean;
+  /** This build can fetch, check and open its own installer, which is macOS. */
+  canOpenInstaller: boolean;
 }
 
 export interface AppInfo {

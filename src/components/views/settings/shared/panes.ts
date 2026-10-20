@@ -293,7 +293,7 @@ export const PANE_SETTINGS: Partial<Record<PaneId, readonly (keyof Settings)[]>>
     'webRtcPolicy',
   ],
   shortcuts: ['shortcutOverrides'],
-  updates: ['checkForUpdates'],
+  updates: ['checkForUpdates', 'updateChannel'],
 };
 
 /** Whether a row or group is the one a search term was looking for: every word of the term appears in it. */

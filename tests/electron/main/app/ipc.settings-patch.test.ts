@@ -43,6 +43,7 @@ describe('every setting can actually be changed', () => {
     historyRetentionDays: 365,
     startPageWidgets: ['search', 'clock'],
     checkForUpdates: false,
+    updateChannel: 'betas',
     permissionDecisions: { 'https://example.com|media': 'allow' },
     permissionDefaults: { notifications: 'block', geolocation: 'ask' },
     zoomLevels: { 'https://example.com': 1.5 },

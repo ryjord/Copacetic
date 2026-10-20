@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 // decision under test touches none of them.
 vi.mock('electron', () => ({ app: { isPackaged: false, getVersion: () => '1.1.0' }, net: {}, shell: {} }));
 
-const { describeDelivery, pickAutoUpdater } = await import('../../../../electron/main/system/updates');
+const { describeDelivery, newestRelease, pickAutoUpdater } = await import('../../../../electron/main/system/updates');
 
 const on = (platform: NodeJS.Platform, extra: { isPackaged?: boolean; isAppImage?: boolean } = {}) =>
   describeDelivery({ platform, isPackaged: true, isAppImage: false, ...extra });
@@ -93,4 +93,36 @@ describe('loading the updater', () => {
       expect(() => pickAutoUpdater(shape)).toThrow();
     },
   );
+});
+
+describe('the newest release', () => {
+  const release = (tag: string, extra: Record<string, unknown> = {}) => ({
+    tag_name: tag,
+    body: '- Notes',
+    html_url: `https://github.com/ryjord/Copacetic/releases/tag/${tag}`,
+    prerelease: tag.includes('-'),
+    draft: false,
+    ...extra,
+  });
+
+  // The latest-release endpoint leaves betas out, which is how a beta never heard of the next one.
+  it('includes betas only when they are wanted', () => {
+    const list = [release('v1.4.1'), release('v2.0.0-beta.3'), release('v2.0.0-beta.2')];
+    expect(newestRelease(list, true)?.version).toBe('2.0.0-beta.3');
+    expect(newestRelease(list, false)?.version).toBe('1.4.1');
+  });
+
+  it('never offers a draft, and carries its notes and page', () => {
+    const found = newestRelease([release('v2.0.0', { draft: true }), release('v1.4.1')], false);
+    expect(found).toEqual({
+      version: '1.4.1',
+      notes: '· Notes',
+      pageUrl: 'https://github.com/ryjord/Copacetic/releases/tag/v1.4.1',
+    });
+  });
+
+  it('reads the single release the latest endpoint answers with', () => {
+    expect(newestRelease(release('v1.4.1'), false)?.version).toBe('1.4.1');
+    expect(newestRelease({ message: 'Not Found' }, false)).toBeNull();
+  });
 });

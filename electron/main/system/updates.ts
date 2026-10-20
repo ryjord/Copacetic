@@ -1,16 +1,64 @@
 // Libs
 import { app, net, shell } from 'electron';
+import { createHash } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
 
 // Utils
-import { isNewerVersion } from '../../shared/version';
+import { compareVersions, isNewerVersion, parseVersion } from '../../shared/version';
 import { t } from '../../shared/i18n/translate';
+import { installerFor, plainReleaseNotes, readManifestFiles } from './update-manifest';
 
 // Types
-import type { UpdateDelivery, UpdateState, UpdateStatus } from '../../shared/types';
+import type { UpdateChannel, UpdateDelivery, UpdateState, UpdateStatus } from '../../shared/types';
 
 const REPO = 'ryjord/Copacetic';
 const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
 const LATEST_API = `https://api.github.com/repos/${REPO}/releases/latest`;
+// The latest-release endpoint skips prereleases, so a beta build would never hear of the next beta from it.
+const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=20`;
+const releaseApiFor = (version: string) => `https://api.github.com/repos/${REPO}/releases/tags/v${version}`;
+const downloadUrlFor = (version: string, file: string) =>
+  `https://github.com/${REPO}/releases/download/v${version}/${encodeURIComponent(file)}`;
+
+export interface ReleaseFound {
+  version: string;
+  notes: string | null;
+  pageUrl: string;
+}
+
+function readRelease(entry: unknown): (ReleaseFound & { isPrerelease: boolean; isDraft: boolean }) | null {
+  if (typeof entry !== 'object' || entry === null) {
+    return null;
+  }
+  const { tag_name: tag, body, html_url: pageUrl, prerelease, draft } = entry as Record<string, unknown>;
+  if (typeof tag !== 'string' || !parseVersion(tag)) {
+    return null;
+  }
+  return {
+    version: stripV(tag),
+    notes: typeof body === 'string' ? plainReleaseNotes(body) : null,
+    pageUrl: typeof pageUrl === 'string' && pageUrl.startsWith('https://github.com/') ? pageUrl : RELEASES_URL,
+    isPrerelease: prerelease === true,
+    isDraft: draft === true,
+  };
+}
+
+/** The newest release in GitHub's list, a prerelease only when betas are wanted, and never a draft. */
+export function newestRelease(payload: unknown, includesBetas: boolean): ReleaseFound | null {
+  const releases = (Array.isArray(payload) ? payload : [payload])
+    .map(readRelease)
+    .filter((release) => release !== null)
+    .filter((release) => !release.isDraft && (includesBetas || !release.isPrerelease))
+    .toSorted((aRelease, bRelease) => compareVersions(bRelease.version, aRelease.version));
+  const newest = releases[0];
+  return newest ? { version: newest.version, notes: newest.notes, pageUrl: newest.pageUrl } : null;
+}
+
+export function isBetaVersion(version: string): boolean {
+  return (parseVersion(version)?.prerelease.length ?? 0) > 0;
+}
 
 /** Long enough that it is not a heartbeat, short enough to matter. */
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -64,6 +112,9 @@ export class UpdateManager {
   private lastCheckedAt: number | null = null;
   private timer: NodeJS.Timeout | null = null;
   private inFlight = false;
+  private found: ReleaseFound | null = null;
+  // A beta build is always offered newer betas: it was chosen by someone who wanted them.
+  private includesBetas = isBetaVersion(app.getVersion());
 
   private readonly delivery: UpdateDelivery;
   private readonly manualReason: string | null;
@@ -84,8 +135,17 @@ export class UpdateManager {
       delivery: this.delivery,
       manualReason: this.manualReason,
       lastCheckedAt: this.lastCheckedAt,
-      releasesUrl: RELEASES_URL,
+      releasesUrl: this.found?.pageUrl ?? RELEASES_URL,
+      releaseNotes: this.found?.notes ?? null,
+      currentVersion: app.getVersion(),
+      includesBetas: this.includesBetas,
+      canOpenInstaller: this.delivery === 'manual' && process.platform === 'darwin',
     };
+  }
+
+  setChannel(channel: UpdateChannel): void {
+    this.includesBetas = channel === 'betas' || isBetaVersion(app.getVersion());
+    this.onChanged();
   }
 
   /** Called once the window exists, and whenever the setting is turned on. */
@@ -135,23 +195,22 @@ export class UpdateManager {
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const response = await net.fetch(LATEST_API, {
+      const response = await net.fetch(this.includesBetas ? RELEASES_API : LATEST_API, {
         signal: controller.signal,
-        headers: { accept: 'application/vnd.github+json', 'user-agent': `Copacetic/${app.getVersion()}` },
+        headers: GITHUB_HEADERS(),
       });
       if (!response.ok) {
         throw new Error(t('main.updates.githubAnswered', { status: response.status }));
       }
 
-      const payload: unknown = await response.json();
-      const tag = readTag(payload);
-      if (!tag) {
+      const newest = newestRelease(await response.json(), this.includesBetas);
+      if (!newest) {
         throw new Error(t('main.updates.noVersionTag'));
       }
 
-      this.setStatus(
-        isNewerVersion(tag, app.getVersion()) ? { state: 'available', version: stripV(tag) } : { state: 'current' },
-      );
+      const isNewer = isNewerVersion(newest.version, app.getVersion());
+      this.found = isNewer ? newest : null;
+      this.setStatus(isNewer ? { state: 'available', version: newest.version } : { state: 'current' });
     } finally {
       clearTimeout(timeout);
     }
@@ -160,13 +219,14 @@ export class UpdateManager {
   private async checkViaUpdater(): Promise<void> {
     const autoUpdater = await loadAutoUpdater();
     autoUpdater.autoDownload = true;
+    autoUpdater.allowPrerelease = this.includesBetas;
     // Unsigned builds have only TLS and the feed's hash behind them, so nothing installs until someone presses Restart.
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.removeAllListeners();
 
     autoUpdater.on('update-available', (info: { version: string }) => {
       this.setStatus({ state: 'downloading', percent: 0 });
-      void info;
+      void this.fetchNotes(stripV(info.version));
     });
     autoUpdater.on('update-not-available', () => this.setStatus({ state: 'current' }));
     autoUpdater.on('download-progress', (progress: { percent: number }) => {
@@ -191,7 +251,90 @@ export class UpdateManager {
 
   /** The manual path: hand the release page to the system browser. */
   async openReleasesPage(): Promise<void> {
-    await shell.openExternal(RELEASES_URL);
+    await shell.openExternal(this.found?.pageUrl ?? RELEASES_URL);
+  }
+
+  // Best effort: an update with no notes is still an update.
+  private async fetchNotes(version: string): Promise<void> {
+    try {
+      const response = await net.fetch(releaseApiFor(version), { headers: GITHUB_HEADERS() });
+      this.found = response.ok ? newestRelease(await response.json(), true) : null;
+      this.onChanged();
+    } catch {
+      this.found = null;
+    }
+  }
+
+  /**
+   * The macOS installer for the release found, saved to Downloads and opened.
+   * Checked against the SHA-512 in the release's own manifest before it is
+   * opened: the build is not signed, so that hash is all that says the file
+   * is the one that was published.
+   */
+  async downloadInstaller(): Promise<void> {
+    if (this.status.state !== 'available' || !this.getState().canOpenInstaller) {
+      return;
+    }
+    const { version } = this.status;
+    try {
+      const manifest = await net.fetch(downloadUrlFor(version, 'latest-mac.yml'));
+      if (!manifest.ok) {
+        throw new Error(t('main.updates.githubAnswered', { status: manifest.status }));
+      }
+      const installer = installerFor(readManifestFiles(await manifest.text()), process.arch);
+      if (!installer) {
+        throw new Error(t('main.updates.noInstaller'));
+      }
+      const target = path.join(app.getPath('downloads'), path.basename(installer.url));
+      await this.saveVerified(downloadUrlFor(version, installer.url), target, installer.sha512, installer.size);
+      this.setStatus({ state: 'installerOpened', version });
+      const problem = await shell.openPath(target);
+      if (problem) {
+        throw new Error(problem);
+      }
+    } catch (error) {
+      this.setStatus({ state: 'error', message: messageFor(error) });
+    }
+  }
+
+  private async saveVerified(url: string, target: string, sha512: string, size: number): Promise<void> {
+    const response = await net.fetch(url);
+    if (!response.ok || !response.body) {
+      throw new Error(t('main.updates.githubAnswered', { status: response.status }));
+    }
+    const hash = createHash('sha512');
+    const file = createWriteStream(target);
+    const reader = response.body.getReader();
+    let received = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        hash.update(value);
+        received += value.length;
+        if (!file.write(value)) {
+          await new Promise<void>((resolve) => file.once('drain', () => resolve()));
+        }
+        const percent = Math.min(100, Math.round((received / size) * 100));
+        // Once per percent: a status per chunk would push the whole state thousands of times.
+        if (this.status.state !== 'downloading' || this.status.percent !== percent) {
+          this.setStatus({ state: 'downloading', percent });
+        }
+      }
+      await new Promise<void>((resolve, reject) =>
+        file.end((error?: Error | null) => (error ? reject(error) : resolve())),
+      );
+    } catch (error) {
+      file.destroy();
+      await rm(target, { force: true });
+      throw error;
+    }
+    if (hash.digest('base64') !== sha512) {
+      await rm(target, { force: true });
+      throw new Error(t('main.updates.installerMismatch'));
+    }
   }
 
   private setStatus(status: UpdateStatus): void {
@@ -213,6 +356,7 @@ export function pickAutoUpdater(imported: unknown): AutoUpdaterLike {
 /** Only the parts of the updater this file touches. */
 export interface AutoUpdaterLike {
   autoDownload: boolean;
+  allowPrerelease: boolean;
   autoInstallOnAppQuit: boolean;
   removeAllListeners(): void;
   on(event: string, listener: (...args: never[]) => void): unknown;
@@ -224,16 +368,13 @@ async function loadAutoUpdater(): Promise<AutoUpdaterLike> {
   return pickAutoUpdater(await import('electron-updater'));
 }
 
+const GITHUB_HEADERS = () => ({
+  accept: 'application/vnd.github+json',
+  'user-agent': `Copacetic/${app.getVersion()}`,
+});
+
 function stripV(value: string): string {
   return value.replace(/^v/, '');
-}
-
-function readTag(payload: unknown): string | null {
-  if (typeof payload !== 'object' || payload === null) {
-    return null;
-  }
-  const tag = (payload as { tag_name?: unknown }).tag_name;
-  return typeof tag === 'string' && tag.length > 0 ? tag : null;
 }
 
 function messageFor(error: unknown): string {

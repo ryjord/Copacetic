@@ -527,6 +527,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('updates.check', (browser) => browser.updates.check());
   handle('updates.install', (browser) => browser.updates.install());
   handle('updates.openReleases', (browser) => browser.updates.openReleasesPage());
+  handle('updates.downloadInstaller', (browser) => browser.updates.downloadInstaller());
 }
 
 export function removeIpcHandlers(): void {
@@ -742,6 +743,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.checkForUpdates === 'boolean') {
     patch.checkForUpdates = value.checkForUpdates;
+  }
+  if (value.updateChannel === 'releases' || value.updateChannel === 'betas') {
+    patch.updateChannel = value.updateChannel;
   }
   if (typeof value.httpsFirst === 'boolean') {
     patch.httpsFirst = value.httpsFirst;

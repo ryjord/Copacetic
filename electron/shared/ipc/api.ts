@@ -373,6 +373,8 @@ export interface CopaceticApi {
     install(): Promise<void>;
     /** Open the releases page for a build that cannot update itself. */
     openReleases(): Promise<void>;
+    /** On macOS, save the new installer to Downloads, check its hash, and open it. */
+    downloadInstaller(): Promise<void>;
   };
   on: {
     /** Only the parts that changed; the first call to chrome.getState returns the whole. */

@@ -334,8 +334,15 @@ export class Profile {
   // -------------------------------------------------------------- settings
 
   updateSettings(patch: Partial<Settings>): Settings {
-    const { appearance, dnsMode, dnsResolverId, checkForUpdates, shortcutOverrides, ...own } = patch;
-    this.host.updateAppSettings({ appearance, dnsMode, dnsResolverId, checkForUpdates, shortcutOverrides });
+    const { appearance, dnsMode, dnsResolverId, checkForUpdates, updateChannel, shortcutOverrides, ...own } = patch;
+    this.host.updateAppSettings({
+      appearance,
+      dnsMode,
+      dnsResolverId,
+      checkForUpdates,
+      updateChannel,
+      shortcutOverrides,
+    });
     const next = this.store.updateSettings(own);
     if (patch.httpsFirst !== undefined) {
       this.httpsFirst.setEnabled(patch.httpsFirst);

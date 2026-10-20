@@ -57,6 +57,10 @@ const state = (over: Partial<BrowserState> = {}): BrowserState => ({
     manualReason: null,
     lastCheckedAt: null,
     releasesUrl: '',
+    releaseNotes: null,
+    currentVersion: '',
+    includesBetas: false,
+    canOpenInstaller: false,
   },
   ...over,
 });

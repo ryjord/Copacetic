@@ -68,9 +68,11 @@ jobs:
             echo "The release already exists."
             exit 0
           fi
+          # The CHANGELOG section is the notes, which the app shows before it updates; a version without one fails here.
+          node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > release-notes.md
           case "$GITHUB_REF_NAME" in
-            *-*) gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "" --prerelease ;;
-            *)   gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "" ;;
+            *-*) gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file release-notes.md --prerelease ;;
+            *)   gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file release-notes.md ;;
           esac
 
       # The .deb is built with the repository URL baked in, and it is published

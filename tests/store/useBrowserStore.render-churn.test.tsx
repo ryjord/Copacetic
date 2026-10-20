@@ -81,6 +81,10 @@ const state = (downloads: DownloadState[]): BrowserState => ({
     manualReason: null,
     lastCheckedAt: null,
     releasesUrl: '',
+    releaseNotes: null,
+    currentVersion: '',
+    includesBetas: false,
+    canOpenInstaller: false,
   },
 });
 

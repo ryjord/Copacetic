@@ -217,6 +217,7 @@ export const CHANNELS = {
   'updates.check': 'updates:check',
   'updates.install': 'updates:install',
   'updates.openReleases': 'updates:open-releases',
+  'updates.downloadInstaller': 'updates:download-installer',
 } as const satisfies Record<ApiMethod, string>;
 
 export type InvokeChannel = (typeof CHANNELS)[ApiMethod];

@@ -661,6 +661,8 @@ export const main = {
         'Your package manager installs updates for this build. Copacetic adds its own signed apt repository, so new versions arrive with a normal system update.',
     },
     githubAnswered: 'GitHub answered {status}',
+    noInstaller: 'The release has no installer for this Mac.',
+    installerMismatch: 'The installer that arrived is not the one published, so it was deleted rather than opened.',
     noVersionTag: 'That release has no version tag.',
     loadFailed: 'The updater could not be loaded.',
     timedOut: 'The check timed out.',

@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   showBookmarksBar: false,
   ambientHue: 0,
   checkForUpdates: true,
+  updateChannel: 'releases',
   permissionDecisions: {},
   permissionDefaults: {},
   zoomLevels: {},

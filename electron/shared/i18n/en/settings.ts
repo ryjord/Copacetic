@@ -585,6 +585,7 @@ export const settings = {
       available: 'Version {version} is available',
       downloading: 'Downloading the update… {percent}%',
       ready: 'Version {version} is ready to install',
+      installerOpened: 'The installer for {version} is open. Drag Copacetic to Applications to finish.',
       error: 'Could not check: {message}',
       unknown: 'Not checked yet',
     },
@@ -609,6 +610,21 @@ export const settings = {
     },
     restart: 'Restart to update',
     download: 'Download {version}',
+    version: 'Copacetic {version}',
+    openInstaller: 'Download and open',
+    openInstallerHelp:
+      'Saved to Downloads and checked against the release before it opens. Copacetic is not signed by Apple, so macOS asks before opening it the first time.',
+    releasePage: 'Release page',
+    notes: {
+      title: 'What {version} changes',
+    },
+    channel: {
+      label: 'Offer',
+      releases: 'Releases',
+      betas: 'Releases and betas',
+      help: 'Betas arrive sooner and are less finished.',
+      betaBuild: 'This is a beta, so newer betas are offered as well as releases.',
+    },
     checkNow: 'Check now',
     howItUpdates: 'How this build updates',
     automatic: {
