@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
@@ -9,7 +10,13 @@ beforeAll(async () => {
   copacetic = await SmokeApp.launch();
   await copacetic.waitForReady();
   // The folder dialog and the question before adding, answered as a person would.
-  await copacetic.main(({ dialog }, folder) => {
+  await copacetic.main(({ dialog, session }, folder) => {
+    // What the extension's worker says, kept for a failure to report.
+    const said: string[] = [];
+    Reflect.set(globalThis, 'workerSaid', said);
+    const web = session.fromPartition('persist:copacetic-web');
+    web.serviceWorkers.on('console-message', (_event, details) => said.push(`${details.level}: ${details.message}`));
+    web.serviceWorkers.on('running-status-changed', (details) => said.push(`status ${details.runningStatus}`));
     dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [folder] })) as typeof dialog.showOpenDialog;
     dialog.showMessageBox = (async () => ({ response: 0, checkboxChecked: false })) as typeof dialog.showMessageBox;
   }, PROBE);
@@ -38,7 +45,16 @@ describe('an extension', () => {
       async () => (await probe())?.action?.badgeText === String(tabCount),
       30_000,
     );
-    expect(isCounted, `badge ${(await probe())?.action?.badgeText ?? 'none'} for ${tabCount} tabs`).toBe(true);
+    const workerSaid = await copacetic.read(() => (Reflect.get(globalThis, 'workerSaid') as string[]).slice(0, 40));
+    const logged = readFileSync(path.join(copacetic.profile, 'diagnostics.log'), 'utf8')
+      .split('\n')
+      .filter((line) => /extension|preload|worker/i.test(line));
+    expect(
+      isCounted,
+      [`badge ${(await probe())?.action?.badgeText ?? 'none'} for ${tabCount} tabs`, ...workerSaid, ...logged].join(
+        '\n',
+      ),
+    ).toBe(true);
   }, 60_000);
 
   it('never sees a Hush tab', async () => {

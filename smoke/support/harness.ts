@@ -54,7 +54,7 @@ for (const ending of ['exit', 'SIGINT', 'SIGTERM'] as const) {
   process.once(ending, () => {
     for (const profile of abandonedProfiles) {
       try {
-        rmSync(profile, { recursive: true, force: true });
+        rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
       } catch {
         // A profile still held open by a process that is also going away is not
         // worth failing the run over.
@@ -511,7 +511,8 @@ export class SmokeApp {
     if (options.keepProfile) {
       return;
     }
-    rmSync(this.profile, { recursive: true, force: true });
+    // Retried: Chromium can still be writing into the profile for a moment after the app has quit.
+    rmSync(this.profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     abandonedProfiles.delete(this.profile);
   }
 }
