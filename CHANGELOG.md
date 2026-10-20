@@ -2,6 +2,83 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.0.0-beta.3 - Unreleased
+
+The third beta of 2.0: Settings rebuilt pane by pane, filter and sort for the
+three lists, and the everyday gaps a sweep of every view turned up.
+
+On macOS, beta-2 does not hear of this beta, because it asks GitHub only for
+the latest finished release; download it from the release page. From this
+beta on, a Mac beta is told of newer betas too, and a finished build can
+choose to be.
+
+### New
+
+- **Undo** for removing a bookmark, a page of history, a download, a saved
+  session, a start page tile, a site's settings or a selection of any of
+  them, for eight seconds. Clearing what cannot be put back asks first.
+- **Settings, rebuilt.** Panes grouped into Browser, Privacy, You and
+  Copacetic; a search that lands on the setting itself; Reset this page.
+- **Appearance in two halves.** For the browser: light or dark, an accent
+  colour, text size, density, which buttons the toolbar shows, and the
+  bookmarks bar. For the start page: six backgrounds or a photo with dim and
+  blur, previewed before it is kept, and widgets you switch on and drag into
+  order.
+- **Profile pictures.** A photo or initials, always in the toolbar, kept on
+  this machine with the profile.
+- **A bookmarks button** beside the address bar, opening every folder as a
+  menu. The address bar puts bookmarks first and lists only bookmarks after
+  a `*`. The bookmarks bar keeps what does not fit behind ».
+- **The star opens a sheet** to name a bookmark and choose its folder.
+- **What opens at startup**: last time's tabs, the start page or a page you
+  name. The Home button can open a page too, and history can be kept for 30
+  days, 90 days, a year or until you clear it.
+- **Your own search engines**, reached by a keyword: type `w` and a space to
+  search Wikipedia once you add it.
+- **Filter and sort in History, Bookmarks and Downloads**, with a tick per row
+  to open, delete or remove many at once.
+- **A key in the address bar** on sites with a saved password, filling it in
+  one click; nothing watches what you type. Passwords can be searched,
+  sorted, copied (cleared from the clipboard after 30 seconds) and edited.
+- **Translation** of articles in reader view, on this machine, with models
+  downloaded from Mozilla on first use. Reader view also sets its own text
+  size, typeface and line length, and shows an article's images.
+- **Reopen a closed group as a group**, and a Recently closed list in the main
+  menu and beside the new tab button.
+- **A fuller main menu**: zoom, reader view, split view, saved sessions and
+  clearing data, for Windows and Linux where there is no menu bar.
+- **The palette finds bookmarks, history and settings**, and clears or
+  exports directly.
+- **Updates show what the new version changes**, and on macOS Download and
+  open fetches the installer and checks it against the release before opening
+  it.
+- **Start page tiles** you can add, edit and remove, a card when a download
+  finishes, and split view restored after a restart.
+
+### Changed
+
+- Privacy says how many requests tracker blocking stopped this week, and
+  names what calls and video can see rather than WebRTC.
+- Sites shows its defaults as one table and filters its list; default zoom
+  lives there now.
+- Your data starts with import and export, and importing from another browser
+  shows what it found first.
+- Shortcuts can be removed, and a taken key offers to swap.
+- What Copacetic sends opens on a summary and is linked from the site card and
+  Privacy.
+- Error pages offer a way forward that fits: search instead, wait for the
+  connection, or see the certificate.
+- A group's chip folds the group on click; double-click renames it.
+
+### Fixed
+
+- Removing a bookmark from its own menu offered no undo.
+- Dropping a bookmark on All bookmarks silently unfiled it.
+- A Mac beta never heard of the next beta.
+- Translation failed on Windows, and Mozilla's model CDN refused it.
+- New tab to the right opened at the end of the strip.
+- Clearing history left its sites on the start page until a new tab.
+
 ## 2.0.0-beta.2 - 19 October 2026
 
 The second beta of 2.0: a new look, and the features from the 2.1 to 2.3
