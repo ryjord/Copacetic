@@ -5,6 +5,7 @@ import type { ComponentType } from 'react';
 import { AboutPane } from '@/components/views/settings/about/AboutPane';
 import { AppearancePane } from '@/components/views/settings/appearance/AppearancePane';
 import { DataPane } from '@/components/views/settings/data/DataPane';
+import { ExtensionsPane } from '@/components/views/settings/extensions/ExtensionsPane';
 import { GeneralPane } from '@/components/views/settings/general/GeneralPane';
 import { PasswordsPane } from '@/components/views/settings/passwords/PasswordsPane';
 import { PrivacyPane } from '@/components/views/settings/privacy/PrivacyPane';
@@ -25,6 +26,7 @@ import {
   Keyboard,
   type LucideIcon,
   Palette,
+  Puzzle,
   Settings2,
   ShieldCheck,
   Users,
@@ -194,6 +196,18 @@ export const SETTINGS_PANES = [
     ],
   },
   {
+    id: 'extensions',
+    label: t('settings.nav.extensions'),
+    icon: Puzzle,
+    Component: ExtensionsPane,
+    terms: [
+      t('settings.terms.extensions.extensions'),
+      t('settings.terms.extensions.addOns'),
+      t('settings.terms.extensions.chromeWebStore'),
+      t('settings.terms.extensions.plugins'),
+    ],
+  },
+  {
     id: 'updates',
     label: t('settings.nav.updates'),
     icon: Download,
@@ -242,7 +256,7 @@ export type PaneId = (typeof SETTINGS_PANES)[number]['id'];
 
 /** The panes in the order they are shown, under four short headings. */
 export const NAV_GROUPS: readonly { label: string; paneIds: readonly PaneId[] }[] = [
-  { label: t('settings.navGroups.browser'), paneIds: ['general', 'appearance', 'shortcuts'] },
+  { label: t('settings.navGroups.browser'), paneIds: ['general', 'appearance', 'shortcuts', 'extensions'] },
   { label: t('settings.navGroups.privacy'), paneIds: ['privacy', 'sites', 'passwords'] },
   { label: t('settings.navGroups.you'), paneIds: ['profiles', 'data'] },
   { label: t('settings.navGroups.copacetic'), paneIds: ['updates', 'about', 'transparency'] },

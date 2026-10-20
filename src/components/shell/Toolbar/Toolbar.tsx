@@ -2,6 +2,7 @@
 
 // Components
 import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { ExtensionButtons } from '@/components/shell/Toolbar/ExtensionButtons';
 import { Omnibox } from '@/components/shell/Omnibox/Omnibox';
 import { ProfileAvatar } from '@/components/shell/ProfileAvatar/ProfileAvatar';
 
@@ -111,6 +112,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
           <Columns2 {...ICON} />
         </IconButton>
       )}
+      <ExtensionButtons />
       {toolbarItems.includes('profile') && <ProfileButton />}
       {toolbarItems.includes('downloads') && <DownloadsButton />}
       <IconButton

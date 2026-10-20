@@ -132,6 +132,9 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
           {t('settings.transparency.scripts.run.before')} <code className="font-mono">window.chrome</code>{' '}
           {t('settings.transparency.scripts.run.after')}
         </Answer>
+        <Answer question={t('settings.transparency.scripts.extensions.question')}>
+          {t('settings.transparency.scripts.extensions.answer')}
+        </Answer>
       </Topic>
 
       <Topic title={t('settings.transparency.blocking.title')}>

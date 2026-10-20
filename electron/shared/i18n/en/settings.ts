@@ -16,6 +16,7 @@ export const settings = {
     passwords: 'Passwords',
     data: 'Your data',
     shortcuts: 'Shortcuts',
+    extensions: 'Extensions',
     updates: 'Updates',
     about: 'About',
     transparency: 'What it sends',
@@ -132,6 +133,12 @@ export const settings = {
       keyboard: 'Keyboard',
       shortcuts: 'Shortcuts',
       keys: 'Keys',
+    },
+    extensions: {
+      extensions: 'Extensions',
+      addOns: 'Add-ons',
+      chromeWebStore: 'Chrome Web Store',
+      plugins: 'Plugins',
     },
     updates: {
       update: 'Update',
@@ -578,6 +585,45 @@ export const settings = {
     swapHelpNone: '{shortcut} is used for {conflict}, which Swap leaves without a shortcut.',
     fixed: 'Built into how tabs and the keyboard work, so these cannot move.',
   },
+  extensions: {
+    beta: {
+      pill: 'Beta',
+      label: 'Extensions are a beta',
+      help: 'Copacetic supplies the parts of Chrome’s extension API that Electron lacks, and some extensions will not work; none run in Hush.',
+    },
+    add: {
+      title: 'Add from the Chrome Web Store',
+      field: 'Store address or extension id',
+      placeholder: 'https://chromewebstore.google.com/detail/…',
+      action: 'Add',
+      adding: 'Adding',
+      fromFolder: 'Load from a folder',
+      fromFolderHelp:
+        'For an extension you are building: it is read where it is, and reloads when you load it again.',
+    },
+    installed: {
+      title: 'Installed',
+      titleWithCount: 'Installed ({count})',
+      none: 'No extensions yet',
+      enable: 'Turn on {name}',
+      fromFolder: 'From a folder',
+      more: 'More for {name}',
+      options: 'Options',
+      remove: 'Remove…',
+      canDo: 'What it can do',
+      nothing: 'It asks for nothing beyond its own pages.',
+    },
+    remove: {
+      title: 'Remove {name}?',
+      body: 'Its settings and anything it kept go with it.',
+      bodyFolder: 'Its folder is left where it is.',
+      confirm: 'Remove',
+    },
+    compatibility: {
+      label: 'What works',
+      help: 'Extensions that change pages, such as Dark Reader, and those with a toolbar popup, such as password managers. Ad blockers do not, because Electron does not apply their rules; Copacetic blocks trackers itself.',
+    },
+  },
   updates: {
     status: {
       checking: 'Checking for updates…',
@@ -905,6 +951,11 @@ export const settings = {
         after:
           "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it. And a page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing.",
       },
+      extensions: {
+        question: 'What about extensions?',
+        answer:
+          'An extension you add runs its own code, in the pages it asks for, as it would in Chrome; Settings says what each may do before it is added. Once one is added, Copacetic also gives every worker in that profile a script of its own, which supplies the parts of the extension API Electron lacks to an extension and does nothing at all in a website’s worker. None of this reaches a Hush tab.',
+      },
     },
     blocking: {
       title: 'Tracker blocking',
@@ -961,7 +1012,7 @@ export const settings = {
       unsupported: {
         question: 'What does it not support?',
         answer:
-          'Extensions, by design: they need access to pages that the sandbox does not allow. Protected video such as Netflix, because the Widevine component is not included.',
+          'Protected video such as Netflix, because the Widevine component is not included. Extensions are a beta: ad blockers do not work, because Electron does not apply their rules, and some others will not either.',
       },
       report: {
         question: 'Where do I report a problem?',
