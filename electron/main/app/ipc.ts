@@ -489,16 +489,16 @@ export function registerIpcHandlers(profiles: Profiles): void {
     if (!entry?.isReadable) {
       return false;
     }
-    copyText(entry.username);
+    await copyText(entry.username);
     return true;
   });
   handle('vault.exportAll', (browser) => browser.transfer.exportPasswords());
   handle('vault.importFile', (browser) => browser.transfer.importPasswords());
   handle('vault.lockState', (browser) => browser.vaultSession.lockInfo());
   handle('vault.unlock', (browser) => browser.vaultSession.unlock());
-  handle('vault.lock', (browser) => {
+  handle('vault.lock', async (browser) => {
     browser.vaultSession.lock();
-    clearCopiedSecret();
+    await clearCopiedSecret();
   });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
   handle('vault.countForTab', (browser, _event, id) => browser.passwords.offerFor(asString(id)).entries.length);

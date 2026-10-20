@@ -5,8 +5,20 @@ import { clipboard } from 'electron';
 import { writeConcealed } from './concealed-clipboard';
 
 export const CLEAR_SECRET_AFTER_MS = 30_000;
+export const READ_BACK_TIMEOUT_MS = 1_000;
 
 let pending: { secret: string; timer: NodeJS.Timeout } | null = null;
+
+// A clipboard that never answers counts as still holding it: leaving a password behind is the worse mistake.
+async function stillHolds(secret: string): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<string>((resolve) => {
+    timer = setTimeout(() => resolve(secret), READ_BACK_TIMEOUT_MS);
+  });
+  const found = await Promise.race([clipboard.readText(), timedOut]);
+  clearTimeout(timer);
+  return found === secret;
+}
 
 /**
  * A password on the clipboard for half a minute. Cleared only if it is still
@@ -16,29 +28,34 @@ export async function copySecret(secret: string): Promise<void> {
   if (pending) {
     clearTimeout(pending.timer);
   }
-  const copied = { secret, timer: setTimeout(clearCopiedSecret, CLEAR_SECRET_AFTER_MS) };
+  const copied = { secret, timer: setTimeout(() => void clearCopiedSecret(), CLEAR_SECRET_AFTER_MS) };
   pending = copied;
   if (!(await writeConcealed(secret))) {
-    clipboard.writeText(secret);
+    await clipboard.writeText(secret);
   }
   // Locked or quit while it was being written, so it goes as soon as it lands.
-  if (pending !== copied && clipboard.readText() === secret) {
+  if (pending !== copied && (await stillHolds(secret))) {
     clipboard.clear();
   }
+}
+
+export function hasCopiedSecret(): boolean {
+  return pending !== null;
 }
 
 /** Clears a copied password now rather than at the end of its half minute, as the vault locks or the app quits. */
-export function clearCopiedSecret(): void {
+export async function clearCopiedSecret(): Promise<void> {
   if (!pending) {
     return;
   }
-  clearTimeout(pending.timer);
-  if (clipboard.readText() === pending.secret) {
+  const { secret, timer } = pending;
+  clearTimeout(timer);
+  pending = null;
+  if (await stillHolds(secret)) {
     clipboard.clear();
   }
-  pending = null;
 }
 
-export function copyText(text: string): void {
-  clipboard.writeText(text);
+export function copyText(text: string): Promise<void> {
+  return clipboard.writeText(text);
 }

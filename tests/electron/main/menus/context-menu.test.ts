@@ -6,7 +6,7 @@ type Template = Record<string, unknown>[];
 let captured: Template = [];
 
 vi.mock('electron', () => ({
-  clipboard: { writeText: () => {} },
+  clipboard: { writeText: async () => {} },
   shell: { openExternal: () => {} },
   Menu: {
     buildFromTemplate: (template: Template) => {

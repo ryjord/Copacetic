@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({
   Menu: { buildFromTemplate: () => ({ popup: () => {} }) },
   shell: { openExternal: async () => {} },
-  clipboard: { writeText: () => {} },
+  clipboard: { writeText: async () => {} },
   dialog: { showMessageBox: async () => ({ response: 1 }) },
 }));
 

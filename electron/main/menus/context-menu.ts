@@ -108,7 +108,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     }
     // The address someone shares is the clean one, when they asked for links to be cleaned.
     const shareable = browser.profile.settings().cleanLinks ? (cleanUrl(linkUrl) ?? linkUrl) : linkUrl;
-    push({ label: t('main.menu.context.copyLinkAddress'), click: () => clipboard.writeText(shareable) });
+    push({ label: t('main.menu.context.copyLinkAddress'), click: () => void clipboard.writeText(shareable) });
     push({ label: t('main.menu.context.downloadLinkedFile'), click: () => browser.commands.downloadUrl(linkUrl) });
     separate();
   }
@@ -126,7 +126,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
       label: t('main.menu.context.copyImage'),
       click: () => browser.tabs.copyImageAt(tabId, params.x, params.y),
     });
-    push({ label: t('main.menu.context.copyImageAddress'), click: () => clipboard.writeText(imageUrl) });
+    push({ label: t('main.menu.context.copyImageAddress'), click: () => void clipboard.writeText(imageUrl) });
     push({ label: t('main.menu.context.saveImage'), click: () => browser.commands.downloadUrl(imageUrl) });
     separate();
   }
@@ -201,7 +201,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     separate();
     push({
       label: t('main.menu.context.copyPageAddress'),
-      click: () => clipboard.writeText(browser.tabs.urlFor(tabId) ?? ''),
+      click: () => void clipboard.writeText(browser.tabs.urlFor(tabId) ?? ''),
     });
     push({
       label: t('main.menu.bookmarks.bookmarkThisPage'),
@@ -293,7 +293,11 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
         }
       },
     },
-    { label: t('main.menu.context.copyAddress'), enabled: url !== null, click: () => clipboard.writeText(url ?? '') },
+    {
+      label: t('main.menu.context.copyAddress'),
+      enabled: url !== null,
+      click: () => void clipboard.writeText(url ?? ''),
+    },
     {
       label: t('main.menu.context.openInDefaultBrowser'),
       enabled: url !== null && (url.startsWith('http://') || url.startsWith('https://')),
@@ -619,7 +623,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
       label: t('main.menu.context.openInNewWindow'),
       click: () => void browser.profile.openWindow({ url: bookmark.url }),
     },
-    { label: t('main.menu.context.copyAddress'), click: () => clipboard.writeText(bookmark.url) },
+    { label: t('main.menu.context.copyAddress'), click: () => void clipboard.writeText(bookmark.url) },
     { type: 'separator' },
     {
       label: t('main.menu.context.moveToFolder'),
@@ -670,7 +674,7 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
       label: t('main.menu.context.openInNewWindow'),
       click: () => void browser.profile.openWindow({ url: address }),
     },
-    { label: t('main.menu.context.copyAddress'), click: () => clipboard.writeText(address) },
+    { label: t('main.menu.context.copyAddress'), click: () => void clipboard.writeText(address) },
     { type: 'separator' },
     {
       label: t('main.menu.context.forgetSite', { site }),

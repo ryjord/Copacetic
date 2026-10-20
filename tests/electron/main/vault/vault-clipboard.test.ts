@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let board = '';
+// Electron 44's clipboard answers reads and writes asynchronously; clear stays synchronous.
+const readText = vi.fn(async () => board);
 vi.mock('electron', () => ({
   clipboard: {
-    writeText: (text: string) => {
+    writeText: async (text: string) => {
       board = text;
     },
-    readText: () => board,
+    readText: () => readText(),
     clear: () => {
       board = '';
     },
@@ -20,12 +22,14 @@ vi.mock('../../../../electron/main/vault/concealed-clipboard', () => ({
   writeConcealed: (secret: string) => writeConcealed(secret),
 }));
 
-const { CLEAR_SECRET_AFTER_MS, clearCopiedSecret, copySecret } =
+const { CLEAR_SECRET_AFTER_MS, READ_BACK_TIMEOUT_MS, clearCopiedSecret, copySecret, hasCopiedSecret } =
   await import('../../../../electron/main/vault/vault-clipboard');
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers();
+  await clearCopiedSecret();
   board = '';
+  readText.mockImplementation(async () => board);
   writeConcealed.mockImplementation(async () => false);
 });
 afterEach(() => vi.useRealTimers());
@@ -34,7 +38,7 @@ describe('a password on the clipboard', () => {
   it('is cleared after half a minute', async () => {
     await copySecret('hunter2');
     expect(board).toBe('hunter2');
-    vi.advanceTimersByTime(CLEAR_SECRET_AFTER_MS);
+    await vi.advanceTimersByTimeAsync(CLEAR_SECRET_AFTER_MS);
     expect(board).toBe('');
   });
 
@@ -42,20 +46,20 @@ describe('a password on the clipboard', () => {
   it('leaves alone whatever was copied after it', async () => {
     await copySecret('hunter2');
     board = 'a note';
-    vi.advanceTimersByTime(CLEAR_SECRET_AFTER_MS);
+    await vi.advanceTimersByTimeAsync(CLEAR_SECRET_AFTER_MS);
     expect(board).toBe('a note');
   });
 
   it('is cleared at once when the vault locks or the app quits', async () => {
     await copySecret('hunter2');
-    clearCopiedSecret();
+    await clearCopiedSecret();
     expect(board).toBe('');
   });
 
   it('leaves a later copy alone when cleared early too', async () => {
     await copySecret('hunter2');
     board = 'a note';
-    clearCopiedSecret();
+    await clearCopiedSecret();
     expect(board).toBe('a note');
   });
 
@@ -81,9 +85,27 @@ describe('a password on the clipboard', () => {
         }),
     );
     const copying = copySecret('hunter2');
-    clearCopiedSecret();
+    await clearCopiedSecret();
     finishConcealed(true);
     await copying;
+    expect(board).toBe('');
+  });
+
+  // The quit waits on this, so it has to say whether there is anything to wait for.
+  it('says whether a copied password is still waiting to be cleared', async () => {
+    expect(hasCopiedSecret()).toBe(false);
+    await copySecret('hunter2');
+    expect(hasCopiedSecret()).toBe(true);
+    await clearCopiedSecret();
+    expect(hasCopiedSecret()).toBe(false);
+  });
+
+  it('is cleared anyway when the clipboard never answers the read back', async () => {
+    await copySecret('hunter2');
+    readText.mockImplementation(() => new Promise<string>(() => {}));
+    const clearing = clearCopiedSecret();
+    await vi.advanceTimersByTimeAsync(READ_BACK_TIMEOUT_MS);
+    await clearing;
     expect(board).toBe('');
   });
 });
