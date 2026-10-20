@@ -102,6 +102,11 @@ jobs:
           COPACETIC_SMOKE_FOREGROUND: '1'
           SMOKE_FILE: ${{ inputs.smoke }}
 
+      # The runner refuses Chromium a namespace sandbox, so it falls back to this helper, which an install makes root's.
+      - name: Give Chromium's sandbox helper the permissions an install gives it
+        if: runner.os == 'Linux'
+        run: sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+
       # Electron needs a display even to open a window it never shows.
       - name: Smoke test the built app
         if: runner.os == 'Linux'
@@ -134,7 +139,10 @@ jobs:
 
       - name: Start the packaged app
         if: runner.os == 'Linux'
-        run: xvfb-run -a npm run check:packaged
+        run: |
+          sudo chown root:root release/linux*-unpacked/chrome-sandbox
+          sudo chmod 4755 release/linux*-unpacked/chrome-sandbox
+          xvfb-run -a npm run check:packaged
 
       # The installers themselves, on the branches a tag is cut from. `--dir`
       # produces a tree, not a .dmg, .exe or .deb, so anything that only breaks

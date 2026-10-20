@@ -263,7 +263,8 @@ describe('what forgetting leaves on disk', () => {
     const start = performance.now();
     store.forgetSite('site-77.example.com');
     expect(performance.now() - start).toBeLessThan(1_000);
-  });
+    // The bound that matters is the one above; filling ten thousand visits is slow on a shared runner.
+  }, 30_000);
 
   it('leaves no trace of a cleared history', () => {
     const store = openStore();
