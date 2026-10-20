@@ -12,7 +12,8 @@ import {
   sameSite,
   siteOf,
 } from '../../shared/data/forgetting';
-import { SEARCH_ENGINES, buildSearchUrl, hostOf, originOf, resolveOmniboxInput } from '../../shared/browsing/url';
+import { hostOf, originOf, resolveOmniboxInput } from '../../shared/browsing/url';
+import { buildSearchUrl, engineFor, keywordSearchFor } from '../../shared/browsing/search-engines';
 import { BookmarksStore } from './bookmarks-store';
 import { BookmarkFoldersStore } from './bookmark-folders-store';
 import { NamedSessionsStore } from './named-sessions-store';
@@ -644,7 +645,7 @@ export class BrowserStore {
         faviconDataUrl: this.getFavicon(entry.url),
       }));
 
-    const resolution = resolveOmniboxInput(query, settings.searchEngine, { httpsFirst: settings.httpsFirst });
+    const resolution = resolveOmniboxInput(query, settings, { httpsFirst: settings.httpsFirst });
     const head: Suggestion[] = [];
 
     if (resolution?.type === 'url') {
@@ -658,14 +659,14 @@ export class BrowserStore {
       });
     }
 
+    // A keyword names its own engine, and the search it starts is the first suggestion.
+    const keyworded = keywordSearchFor(query, settings);
     head.push({
       id: 'resolve:search',
       kind: 'search',
-      target: buildSearchUrl(query, settings.searchEngine),
-      title: query,
-      subtitle: t('main.search.searchWith', {
-        engine: SEARCH_ENGINES[settings.searchEngine]?.name ?? t('main.search.fallbackEngine'),
-      }),
+      target: keyworded?.target ?? buildSearchUrl(query, settings),
+      title: keyworded?.query ?? query,
+      subtitle: t('main.search.searchWith', { engine: keyworded?.engineName ?? engineFor(settings).name }),
       faviconDataUrl: null,
     });
 

@@ -671,6 +671,5 @@ export const main = {
   },
   search: {
     searchWith: 'Search with {engine}',
-    fallbackEngine: 'your search engine',
   },
 } as const;

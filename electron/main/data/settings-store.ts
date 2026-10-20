@@ -13,7 +13,8 @@ import {
 } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
 import { readShortcutOverrides } from '../../shared/chrome/shortcuts';
-import { SEARCH_ENGINES, isPageNavigableUrl } from '../../shared/browsing/url';
+import { isPageNavigableUrl } from '../../shared/browsing/url';
+import { isBuiltInEngine, readCustomSearchEngines } from '../../shared/browsing/search-engines';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/browsing/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
 
@@ -23,6 +24,7 @@ import type { SiteSettingsStore } from './site-settings-store';
 
 export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'brave',
+  customSearchEngines: [],
   dnsMode: 'system',
   dnsResolverId: DEFAULT_RESOLVER_ID,
   appearance: 'system',
@@ -196,13 +198,17 @@ function reviveSettings(raw: unknown): Settings | null {
     }
   }
   const engine = asString(raw.searchEngine, DEFAULT_SETTINGS.searchEngine);
+  const customSearchEngines = readCustomSearchEngines(raw.customSearchEngines) ?? [];
   const theme = asString(raw.theme, DEFAULT_SETTINGS.theme);
   const appearance = asString(raw.appearance, DEFAULT_SETTINGS.appearance);
   const density = asString(raw.density, DEFAULT_SETTINGS.density);
   const webRtcPolicy = asString(raw.webRtcPolicy);
 
   return normaliseSettings({
-    searchEngine: engine in SEARCH_ENGINES ? (engine as Settings['searchEngine']) : DEFAULT_SETTINGS.searchEngine,
+    searchEngine: isBuiltInEngine(engine)
+      ? engine
+      : (customSearchEngines.find((custom) => custom.id === engine)?.id ?? DEFAULT_SETTINGS.searchEngine),
+    customSearchEngines,
     appearance: isAppearanceId(appearance) ? appearance : DEFAULT_SETTINGS.appearance,
     theme: isThemeId(theme) ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',

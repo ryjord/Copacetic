@@ -1261,7 +1261,7 @@ export class TabManager {
     }
 
     const settings = this.store.getSettings();
-    const resolution = resolveOmniboxInput(input, settings.searchEngine, { httpsFirst: settings.httpsFirst });
+    const resolution = resolveOmniboxInput(input, settings, { httpsFirst: settings.httpsFirst });
     if (!resolution || this.placeByOpenRule(tab, resolution.target)) {
       return;
     }

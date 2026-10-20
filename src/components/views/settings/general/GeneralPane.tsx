@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button/Button';
 import { DefaultBrowserRow } from '@/components/views/settings/general/DefaultBrowserRow';
 import { PageAddressField } from '@/components/views/settings/general/PageAddressField';
+import { SearchEngines } from '@/components/views/settings/general/SearchEngines';
 import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
@@ -22,7 +23,6 @@ import { t } from '@shared/i18n/translate';
 import { updateSettings } from '@/components/views/settings/shared/options';
 
 // Types
-import { SEARCH_ENGINE_OPTIONS } from '@shared/browsing/url';
 import { isHistoryRetentionDays, isSleepAfterMinutes } from '@shared/types';
 
 const SLEEP_OPTIONS = [
@@ -32,8 +32,6 @@ const SLEEP_OPTIONS = [
   { id: '60', label: t('settings.general.memory.sleep.after60') },
   { id: '120', label: t('settings.general.memory.sleep.after120') },
 ];
-
-const ENGINES = SEARCH_ENGINE_OPTIONS.map((engine) => ({ id: engine.id, label: engine.name }));
 
 type StartupChoice = 'lastTabs' | 'startPage' | 'page';
 type HomeChoice = 'startPage' | 'page';
@@ -145,20 +143,7 @@ export function GeneralPane() {
         <DefaultBrowserRow />
       </SettingGroup>
 
-      <SettingGroup title={t('settings.general.search.title')}>
-        <SettingRow
-          label={t('settings.general.search.engine.label')}
-          help={t('settings.general.search.engine.help')}
-          control={
-            <Select
-              label={t('settings.general.search.engine.label')}
-              options={ENGINES}
-              value={settings.searchEngine}
-              onChange={(searchEngine) => updateSettings({ searchEngine })}
-            />
-          }
-        />
-      </SettingGroup>
+      <SearchEngines searchEngine={settings.searchEngine} customSearchEngines={settings.customSearchEngines} />
 
       <SettingGroup title={t('settings.general.memory.title')}>
         <SettingRow

@@ -25,7 +25,13 @@ import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
 import { readClearChoice } from '../../shared/data/clearing';
 import { openChromiumLicences } from '../system/chromium-licences';
 import { conflictFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
-import { SEARCH_ENGINES, hostOf, isPageNavigableUrl, resolveOmniboxInput } from '../../shared/browsing/url';
+import { hostOf, isPageNavigableUrl, resolveOmniboxInput } from '../../shared/browsing/url';
+import {
+  WITHOUT_KEYWORDS,
+  isBuiltInEngine,
+  isCustomEngineId,
+  readCustomSearchEngines,
+} from '../../shared/browsing/search-engines';
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
@@ -113,7 +119,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('startPage.saveShortcut', (browser, _event, previousUrl, shortcut) => {
     const input = isRecord(shortcut) ? shortcut : {};
     const address = typeof input.address === 'string' ? input.address.slice(0, MAX_SITE_LENGTH * 4) : '';
-    const resolved = resolveOmniboxInput(address, browser.store.getSettings().searchEngine);
+    const resolved = resolveOmniboxInput(address, WITHOUT_KEYWORDS);
     if (resolved?.type !== 'url' || !isPageNavigableUrl(resolved.target)) {
       return t('main.startPage.notAnAddress');
     }
@@ -246,10 +252,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
     }
   });
   handle('bookmarks.update', (browser, _event, id, changes) => {
-    const result = browser.store.updateBookmark(
-      asString(id),
-      asBookmarkChanges(changes, browser.store.getSettings()),
-    );
+    const result = browser.store.updateBookmark(asString(id), asBookmarkChanges(changes));
     if (result === 'saved') {
       browser.bookmarks.changed();
       browser.scheduleStatePush();
@@ -548,7 +551,7 @@ function asGroupColour(value: unknown): GroupColourId {
 }
 
 /** A typed address is read as the address bar reads it; one that reads as a search is sent on to be refused. */
-export function asBookmarkChanges(value: unknown, settings: Settings): { title?: string; url?: string } {
+export function asBookmarkChanges(value: unknown): { title?: string; url?: string } {
   if (!isRecord(value)) {
     return {};
   }
@@ -557,7 +560,7 @@ export function asBookmarkChanges(value: unknown, settings: Settings): { title?:
     changes.title = value.title.slice(0, 500);
   }
   if (typeof value.url === 'string') {
-    const resolved = resolveOmniboxInput(value.url.slice(0, 8192), settings.searchEngine);
+    const resolved = resolveOmniboxInput(value.url.slice(0, 8192), WITHOUT_KEYWORDS);
     changes.url = resolved?.type === 'url' ? resolved.target : '';
   }
   return changes;
@@ -590,8 +593,7 @@ function pageAddressFrom(value: string | null): string | null {
   if (value === null) {
     return null;
   }
-  // The engine only decides where a search goes, and a search is refused here either way.
-  const resolved = resolveOmniboxInput(value.slice(0, 8192), 'brave');
+  const resolved = resolveOmniboxInput(value.slice(0, 8192), WITHOUT_KEYWORDS);
   return resolved?.type === 'url' && isPageNavigableUrl(resolved.target) ? resolved.target : null;
 }
 
@@ -605,8 +607,13 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   // arrived, so an unknown engine or theme was kept in memory and applied until
   // the next start, when the store's own reviver quietly corrected it - a
   // setting that fixes itself overnight and nobody can explain.
-  if (typeof value.searchEngine === 'string' && value.searchEngine in SEARCH_ENGINES) {
-    patch.searchEngine = value.searchEngine as Settings['searchEngine'];
+  // A custom id is kept whether or not that engine exists yet: the list may arrive in the same patch, and a missing one searches with the fallback.
+  if (isBuiltInEngine(value.searchEngine) || isCustomEngineId(value.searchEngine)) {
+    patch.searchEngine = value.searchEngine;
+  }
+  const customSearchEngines = readCustomSearchEngines(value.customSearchEngines);
+  if (customSearchEngines) {
+    patch.customSearchEngines = customSearchEngines;
   }
   if (typeof value.appearance === 'string' && isAppearanceId(value.appearance)) {
     patch.appearance = value.appearance;

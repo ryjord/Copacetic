@@ -1,6 +1,7 @@
 // Utils
 import { PUSH } from '../../shared/ipc/channels';
-import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, viewSourceUrlFor } from '../../shared/browsing/url';
+import { START_PAGE_URL, isNavigableUrl, viewSourceUrlFor } from '../../shared/browsing/url';
+import { buildSearchUrl } from '../../shared/browsing/search-engines';
 import { nextZoomStep } from '../../shared/tabs/zoom';
 import { t } from '../../shared/i18n/translate';
 
@@ -190,6 +191,6 @@ export class TabCommands {
   }
 
   searchUrlFor(query: string): string {
-    return buildSearchUrl(query, this.deps.store.getSettings().searchEngine);
+    return buildSearchUrl(query, this.deps.store.getSettings());
   }
 }

@@ -1,5 +1,5 @@
 import { PUBLIC_SUFFIX_EXCEPTIONS, PUBLIC_SUFFIX_RULES, PUBLIC_SUFFIX_WILDCARDS } from './public-suffix-list';
-import type { SearchEngine, SearchEngineId } from '../types';
+import { buildSearchUrl, keywordSearchFor, type SearchSetup } from './search-engines';
 import { t } from '../i18n/translate';
 
 export const INTERNAL_SCHEME = 'copacetic';
@@ -10,45 +10,6 @@ export const NAVIGABLE_SCHEMES = new Set(['http:', 'https:', 'file:', `${INTERNA
 
 /** Schemes a *page* is allowed to drive a tab to. */
 export const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
-
-const SEARCH_ENGINE_LIST: SearchEngine[] = [
-  {
-    id: 'duckduckgo',
-    name: 'DuckDuckGo',
-    searchTemplate: 'https://duckduckgo.com/?q=%s',
-    suggestHost: 'duckduckgo.com',
-  },
-  {
-    id: 'google',
-    name: 'Google',
-    searchTemplate: 'https://www.google.com/search?q=%s',
-    suggestHost: 'www.google.com',
-  },
-  {
-    id: 'brave',
-    name: 'Brave Search',
-    searchTemplate: 'https://search.brave.com/search?q=%s',
-    suggestHost: 'search.brave.com',
-  },
-  {
-    id: 'startpage',
-    name: 'Startpage',
-    searchTemplate: 'https://www.startpage.com/sp/search?query=%s',
-    suggestHost: null,
-  },
-  { id: 'bing', name: 'Bing', searchTemplate: 'https://www.bing.com/search?q=%s', suggestHost: 'www.bing.com' },
-];
-
-export const SEARCH_ENGINES: Record<SearchEngineId, SearchEngine> = Object.fromEntries(
-  SEARCH_ENGINE_LIST.map((engine) => [engine.id, engine]),
-) as Record<SearchEngineId, SearchEngine>;
-
-export const SEARCH_ENGINE_OPTIONS: readonly SearchEngine[] = SEARCH_ENGINE_LIST;
-
-export function buildSearchUrl(query: string, engineId: SearchEngineId): string {
-  const engine = SEARCH_ENGINES[engineId] ?? SEARCH_ENGINES.duckduckgo;
-  return engine.searchTemplate.replace('%s', encodeURIComponent(query));
-}
 
 export function isNavigableUrl(value: string): boolean {
   try {
@@ -95,18 +56,22 @@ export type OmniboxResolution = { type: 'url'; target: string } | { type: 'searc
 /** Turn whatever the user typed into something we can actually navigate to. */
 export function resolveOmniboxInput(
   rawInput: string,
-  engineId: SearchEngineId,
+  searchSetup: SearchSetup,
   options: { httpsFirst?: boolean } = {},
 ): OmniboxResolution | null {
   const input = rawInput.trim();
   if (input.length === 0) {
     return null;
   }
+  const keyworded = keywordSearchFor(input, searchSetup);
+  if (keyworded) {
+    return { type: 'search', target: keyworded.target, query: keyworded.query };
+  }
 
   const httpsFirst = options.httpsFirst ?? true;
   const search = (): OmniboxResolution => ({
     type: 'search',
-    target: buildSearchUrl(input, engineId),
+    target: buildSearchUrl(input, searchSetup),
     query: input,
   });
 

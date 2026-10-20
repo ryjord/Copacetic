@@ -326,8 +326,20 @@ export interface SearchEngine {
   name: string;
   /** `%s` is replaced with the URI-encoded query. */
   searchTemplate: string;
-  suggestHost: string | null;
 }
+
+/** One someone added, reached as the default or by typing its keyword and a space. */
+export interface CustomSearchEngine {
+  id: CustomSearchEngineId;
+  name: string;
+  keyword: string;
+  /** `%s` is replaced with the URI-encoded query. */
+  searchTemplate: string;
+}
+
+export type CustomSearchEngineId = `custom-${string}`;
+
+export type SearchEngineChoice = SearchEngineId | CustomSearchEngineId;
 
 /**
  * The themes, as a list rather than only a type, because two places have to
@@ -541,7 +553,8 @@ export type ClearRange = 'hour' | 'day' | 'week' | 'all';
 export type ExportKind = 'bookmarks' | 'history';
 
 export interface Settings {
-  searchEngine: SearchEngineId;
+  searchEngine: SearchEngineChoice;
+  customSearchEngines: CustomSearchEngine[];
   appearance: AppearanceId;
   /** The start page's colour, and nothing else's. */
   theme: ThemeId;

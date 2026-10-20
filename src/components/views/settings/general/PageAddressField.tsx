@@ -9,6 +9,7 @@ import { TextField } from '@/components/ui/TextField/TextField';
 // Utils
 import { t } from '@shared/i18n/translate';
 import { isPageNavigableUrl, resolveOmniboxInput } from '@shared/browsing/url';
+import { WITHOUT_KEYWORDS } from '@shared/browsing/search-engines';
 
 interface PageAddressFieldProps {
   value: string | null;
@@ -26,8 +27,7 @@ export function PageAddressField({ value, label, onChange }: PageAddressFieldPro
     if (typed === null) {
       return;
     }
-    // The engine only decides where a search would go, and a search is not an address either way.
-    const resolved = resolveOmniboxInput(typed, 'brave');
+    const resolved = resolveOmniboxInput(typed, WITHOUT_KEYWORDS);
     if (resolved?.type !== 'url' || !isPageNavigableUrl(resolved.target)) {
       setProblem(t('settings.general.startup.notAnAddress'));
       return;

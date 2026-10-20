@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildSearchUrl,
   isFetchableFavicon,
   isLoopbackHost,
   isNavigableUrl,
@@ -11,9 +10,13 @@ import {
   splitUrlForDisplay,
   viewSourceUrlFor,
 } from '../../../../electron/shared/browsing/url';
+import { buildSearchUrl, type SearchSetup } from '../../../../electron/shared/browsing/search-engines';
+
+const DUCKDUCKGO: SearchSetup = { searchEngine: 'duckduckgo', customSearchEngines: [] };
+const BRAVE: SearchSetup = { searchEngine: 'brave', customSearchEngines: [] };
 
 const resolve = (input: string, options?: { httpsFirst?: boolean }) =>
-  resolveOmniboxInput(input, 'duckduckgo', options);
+  resolveOmniboxInput(input, DUCKDUCKGO, options);
 
 describe('resolveOmniboxInput', () => {
   it('returns null for empty input', () => {
@@ -163,11 +166,13 @@ describe('isLoopbackHost', () => {
 
 describe('buildSearchUrl', () => {
   it('encodes the query', () => {
-    expect(buildSearchUrl('a b&c', 'duckduckgo')).toBe('https://duckduckgo.com/?q=a%20b%26c');
+    expect(buildSearchUrl('a b&c', DUCKDUCKGO)).toBe('https://duckduckgo.com/?q=a%20b%26c');
   });
 
   it('falls back to the default engine for an unknown id', () => {
-    expect(buildSearchUrl('x', 'nope' as never)).toContain('duckduckgo.com');
+    expect(buildSearchUrl('x', { searchEngine: 'custom-missing1', customSearchEngines: [] })).toContain(
+      'duckduckgo.com',
+    );
   });
 });
 
@@ -321,7 +326,7 @@ describe('originOf, which keys every permission decision', () => {
  * has nothing to fall back to - so upgrading it only breaks it.
  */
 describe('upgrading http to https', () => {
-  const typed = (input: string) => resolveOmniboxInput(input, 'brave', { httpsFirst: true });
+  const typed = (input: string) => resolveOmniboxInput(input, BRAVE, { httpsFirst: true });
 
   it.each([
     'http://app.pacs.internal:3000/dashboards',
@@ -365,7 +370,7 @@ describe('upgrading http to https', () => {
   );
 
   it('leaves everything alone when the setting is off', () => {
-    expect(resolveOmniboxInput('http://example.com/', 'brave', { httpsFirst: false })?.target).toBe(
+    expect(resolveOmniboxInput('http://example.com/', BRAVE, { httpsFirst: false })?.target).toBe(
       'http://example.com/',
     );
   });

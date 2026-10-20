@@ -198,6 +198,22 @@ export const settings = {
         label: 'Search engine',
         help: 'Used when what you type is not an address. Suggestions come from your own history.',
       },
+      custom: {
+        keywordHelp: 'Type {keyword} and a space in the address bar',
+        remove: 'Remove {name}',
+        add: 'Add a search engine',
+        addHelp: 'Put %s in the address where the search words go.',
+        name: 'Name',
+        keyword: 'Keyword',
+        template: 'Address, with %s for the search',
+        action: 'Add',
+        problems: {
+          name: 'Give it a name.',
+          keyword: 'A keyword is one word, with no spaces.',
+          keywordTaken: 'Another search engine already uses that keyword.',
+          template: 'That is not a web address with %s in it, like https://example.com/search?q=%s.',
+        },
+      },
     },
     memory: {
       title: 'Memory',

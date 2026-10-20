@@ -18,7 +18,15 @@ const { DEFAULT_SETTINGS } = await import('../../../../electron/main/data/store'
 describe('every setting can actually be changed', () => {
   const changed: Settings = {
     ...DEFAULT_SETTINGS,
-    searchEngine: 'brave',
+    searchEngine: 'custom-wikipedia1',
+    customSearchEngines: [
+      {
+        id: 'custom-wikipedia1',
+        name: 'Wikipedia',
+        keyword: 'w',
+        searchTemplate: 'https://en.wikipedia.org/w/index.php?search=%s',
+      },
+    ],
     theme: 'moss',
     density: 'compact',
     accentColour: 'teal',
