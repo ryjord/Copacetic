@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -55,8 +55,9 @@ describe('opening the database', () => {
 
     const database = openDatabase(file);
     expect(versionOf(database)).toBe(MIGRATIONS.at(-1)?.version);
-    expect(existsSync(`${file}.newer`)).toBe(true);
-    expect(versionOf(new DatabaseSync(`${file}.newer`))).toBe(999);
+    const aside = readdirSync(path.dirname(file)).find((name) => name.startsWith(`${path.basename(file)}.newer-`));
+    expect(aside).toMatch(/\.newer-\d+$/);
+    expect(versionOf(new DatabaseSync(path.join(path.dirname(file), aside ?? '')))).toBe(999);
   });
 
   it('knows what the rest of the app means by the same site', () => {

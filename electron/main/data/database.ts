@@ -233,8 +233,10 @@ export function openDatabase(
   if (found > latest) {
     database.close();
     log.warn('the database came from a newer version and was kept aside', { found, latest });
+    // Stamped, as an unreadable one is, so going back a second time does not overwrite what the first one kept.
+    const aside = `${filePath}.newer-${Date.now()}`;
     SIDE_FILES.filter((suffix) => existsSync(`${filePath}${suffix}`)).forEach((suffix) =>
-      renameSync(`${filePath}${suffix}`, `${filePath}.newer${suffix}`),
+      renameSync(`${filePath}${suffix}`, `${aside}${suffix}`),
     );
     database = open(filePath);
   }

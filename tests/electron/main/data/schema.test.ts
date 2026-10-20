@@ -186,7 +186,8 @@ describe('a persisted file that has changed shape', () => {
     const file = new PersistedFile('thing.json', () => ({ title: 'fresh' }), revive, { flushDelayMs: 10, plan });
 
     expect(file.get().title).toBe('fresh');
-    expect(JSON.parse(readFileSync(path.join(dataDir, 'thing.json.newer'), 'utf8'))).toEqual({ somethingNew: true });
+    const aside = readdirSync(dataDir).find((name) => name.startsWith('thing.json.newer-')) ?? '';
+    expect(JSON.parse(readFileSync(path.join(dataDir, aside), 'utf8'))).toEqual({ somethingNew: true });
   });
 });
 

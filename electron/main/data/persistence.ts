@@ -72,7 +72,8 @@ export class PersistedFile<T> {
     console.error(`[persistence] ${this.filename} was written by a newer version (${found}), keeping it aside`);
     log.warn('a stored file came from a newer version and was kept aside', { file: this.filename, found });
     try {
-      renameSync(this.filePath, `${this.filePath}.newer`);
+      // Stamped, so going back a second time does not overwrite what the first one kept.
+      renameSync(this.filePath, `${this.filePath}.newer-${Date.now()}`);
     } catch {
       /* best effort */
     }
