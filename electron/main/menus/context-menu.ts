@@ -448,6 +448,29 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
   Menu.buildFromTemplate(items).popup({ window: browser.window });
 }
 
+/**
+ * The key in the address bar: one saved password fills at once, several are
+ * chosen from a menu. The page is never told a password exists until one is
+ * put into it, and nothing here watches what is typed.
+ */
+export async function showFillMenu(browser: Browser, tabId: TabId, x: number, y: number): Promise<void> {
+  const offer = browser.passwords.offerFor(tabId);
+  const only = offer.entries.length === 1 ? offer.entries[0] : undefined;
+  if (only) {
+    await browser.passwords.fill(tabId, only.id);
+    return;
+  }
+  if (offer.entries.length === 0) {
+    return;
+  }
+  Menu.buildFromTemplate(
+    offer.entries.map((entry) => ({
+      label: entry.username || t('main.menu.context.savedPassword'),
+      click: () => void browser.passwords.fill(tabId, entry.id),
+    })),
+  ).popup({ window: browser.window, x, y });
+}
+
 /** A group with its own session loses its sign-ins when it closes, which reopening cannot bring back, so it asks. */
 async function closeGroupAfterAsking(browser: Browser, groupId: string, hasOwnSession: boolean): Promise<void> {
   if (hasOwnSession) {

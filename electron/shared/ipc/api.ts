@@ -302,6 +302,10 @@ export interface CopaceticApi {
     lock(): Promise<void>;
     /** Where the file is and what is actually protecting it. */
     facts(): Promise<VaultFacts>;
+    /** How many saved passwords belong to the page in this tab; nothing about them leaves the main process. */
+    countForTab(id: TabId): Promise<number>;
+    /** Fills the one saved for this page, or asks which, in a menu at this point. Asked for, never offered by the page. */
+    fillForTab(id: TabId, x: number, y: number): Promise<void>;
   };
 
   profiles: {

@@ -12,6 +12,9 @@ import { TextField } from '@/components/ui/TextField/TextField';
 import { GeneratorOptions } from '@/components/views/settings/passwords/GeneratorOptions';
 import { SavedPasswords } from '@/components/views/settings/passwords/SavedPasswords';
 
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
 // Utils
 import { ask } from '@/lib/bridge/bridge';
 import { t } from '@shared/i18n/translate';
@@ -232,7 +235,9 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
 }
 
 function AddPasswordForm({ onDone, onCancel }: { onDone: (message: string) => void; onCancel: () => void }) {
-  const [origin, setOrigin] = useState('');
+  const activeUrl = useBrowserStore((state) => state.activeTab?.url ?? '');
+  // The site in front, when there is one: arriving from the site card is asking to save a password for it.
+  const [origin, setOrigin] = useState(() => (/^https?:/.test(activeUrl) ? new URL(activeUrl).origin : ''));
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isShowingPassword, setIsShowingPassword] = useState(false);

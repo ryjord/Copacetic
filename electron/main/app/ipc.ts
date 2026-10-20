@@ -46,6 +46,7 @@ import { describeKept, isKeptKind, siteOf as siteOfAddress, type KeptKind } from
 import { withSiteRestored, withoutSite } from '../../shared/data/site-settings';
 import {
   showBookmarkContextMenu,
+  showFillMenu,
   showSiteContextMenu,
   showBookmarkFolderContextMenu,
   showBookmarkFolderMenu,
@@ -496,6 +497,10 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('vault.unlock', (browser) => browser.vaultSession.unlock());
   handle('vault.lock', (browser) => browser.vaultSession.lock());
   handle('vault.facts', (browser) => browser.vaultSession.facts());
+  handle('vault.countForTab', (browser, _event, id) => browser.passwords.offerFor(asString(id)).entries.length);
+  handle('vault.fillForTab', (browser, _event, id, x, y) =>
+    showFillMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
+  );
   handle('vault.generate', (_browser, _event, recipe) =>
     generatePassword(readRecipe(recipe), (count) => new Uint8Array(randomBytes(count))),
   );

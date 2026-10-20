@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { ConnectionBadge } from '@/components/shell/ConnectionBadge/ConnectionBadge';
 
 // Icons
-import { BookOpen, Star } from 'lucide-react';
+import { BookOpen, KeyRound, Star } from 'lucide-react';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -223,6 +223,7 @@ export function Omnibox({ tab }: OmniboxProps) {
             <BookOpen size={14} strokeWidth={1.75} />
           </IconButton>
         )}
+        {tab && !tab.isStartPage && <PasswordKey tab={tab} />}
         {tab && !tab.isStartPage && <BookmarkStar tab={tab} />}
       </div>
 
@@ -280,6 +281,43 @@ function ZoomChip({ tab }: { tab: TabState }) {
     >
       {shown}
     </button>
+  );
+}
+
+/**
+ * On a site with a saved password, the way to fill it with one click. Asked
+ * for once per address, and the count is all that crosses: which accounts
+ * exist stays in the main process until one is chosen.
+ */
+function PasswordKey({ tab }: { tab: TabState }) {
+  const [loaded, setLoaded] = useState<{ url: string; count: number } | null>(null);
+
+  useEffect(() => {
+    let isCurrent = true;
+    void ask((api) => api.vault.countForTab(tab.id), 0).then((count) => {
+      if (isCurrent) {
+        setLoaded({ url: tab.url, count });
+      }
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [tab.id, tab.url]);
+
+  if (loaded?.url !== tab.url || loaded.count === 0) {
+    return null;
+  }
+  return (
+    <IconButton
+      label={t('shell.omnibox.fillPassword')}
+      size="sm"
+      onClick={(event) => {
+        const box = event.currentTarget.getBoundingClientRect();
+        send((api) => api.vault.fillForTab(tab.id, Math.round(box.left), Math.round(box.bottom + 4)));
+      }}
+    >
+      <KeyRound size={14} strokeWidth={1.75} />
+    </IconButton>
   );
 }
 

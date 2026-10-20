@@ -97,6 +97,11 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
         <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('sites'))}>
           {t('shell.overlay.siteInfo.siteSettings')}
         </Button>
+        {!tab.isHush && (
+          <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('passwords'))}>
+            {t('shell.overlay.siteInfo.savePassword')}
+          </Button>
+        )}
         <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('transparency'))}>
           {t('shell.overlay.siteInfo.whatItSends')}
         </Button>

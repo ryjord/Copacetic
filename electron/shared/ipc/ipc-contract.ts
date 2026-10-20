@@ -182,6 +182,8 @@ export const CHANNELS = {
   'vault.unlock': 'vault:unlock',
   'vault.lock': 'vault:lock',
   'vault.facts': 'vault:facts',
+  'vault.countForTab': 'vault:count-for-tab',
+  'vault.fillForTab': 'vault:fill-for-tab',
 
   'profiles.create': 'profile:create',
   'profiles.update': 'profile:update',

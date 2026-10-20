@@ -707,7 +707,7 @@ export const settings = {
   passwords: {
     intro: {
       label: 'Passwords are kept on this machine, encrypted',
-      help: 'Right-click a password box and choose Fill password. Copacetic never offers to save what you type.',
+      help: 'Press the key in the address bar, or right-click a password box and choose Fill password. Copacetic never offers to save what you type.',
       protection: 'How they are protected',
     },
     availability: {
@@ -887,7 +887,7 @@ export const settings = {
       fill: {
         question: 'Does it fill passwords in?',
         answer:
-          'When you ask. Right-click a password box and choose Fill password: one short script runs in that page, once, and leaves nothing behind. It only appears on sites you have a password saved for.',
+          'When you ask. Press the key in the address bar, or right-click a password box and choose Fill password: one short script runs in that page, once, and leaves nothing behind. Both appear only on sites you have a password saved for.',
       },
       offer: {
         question: 'Does it offer to save passwords?',
