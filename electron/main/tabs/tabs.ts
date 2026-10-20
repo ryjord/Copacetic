@@ -66,7 +66,7 @@ import {
 import { describeTab } from '../system/browser-identity';
 import { log } from '../system/diagnostics';
 import { surfaceColour } from '../window/appearance';
-import { attachTabEvents, settleUnstartedLoad } from './tab-events';
+import { attachTabEvents, markLoadRequested, settleUnstartedLoad } from './tab-events';
 import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
 import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
@@ -1396,8 +1396,7 @@ export class TabManager {
     tab.isStartPage = false;
     tab.error = null;
     tab.url = url;
-    // Loading from the moment it is asked for: a title with nothing loading yet read as a page already loaded.
-    tab.isLoading = true;
+    markLoadRequested(tab);
     tab.title = tab.title || fallbackTitleFor(url);
     tab.faviconDataUrl = this.store.getFavicon(url);
     this.blocker.resetCount(contents.id);

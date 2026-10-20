@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { attachTabEvents, settleUnstartedLoad, type TabEventDeps } from '../../../../electron/main/tabs/tab-events';
+import {
+  attachTabEvents,
+  markLoadRequested,
+  settleUnstartedLoad,
+  type TabEventDeps,
+} from '../../../../electron/main/tabs/tab-events';
 import type { TabRecord } from '../../../../electron/main/tabs/tab-record';
 import { HUSH_RECORD, storedRecord } from '../../../../electron/main/tabs/browsing-record';
 
@@ -123,6 +128,12 @@ describe('what a page reports about itself is not trusted to be sensible', () =>
 });
 
 describe('a load that ends without Chromium starting it', () => {
+  it('reads as loading from the moment it is asked for', () => {
+    const tab = { isLoading: false };
+    markLoadRequested(tab);
+    expect(tab.isLoading).toBe(true);
+  });
+
   const contentsThat = (state: { isDestroyed?: boolean; isLoading?: boolean }) => ({
     isDestroyed: () => state.isDestroyed ?? false,
     isLoading: () => state.isLoading ?? false,

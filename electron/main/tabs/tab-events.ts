@@ -200,11 +200,16 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
 }
 
 /**
- * Settles a tab whose load ended without Chromium ever starting it.
+ * Marks a tab as loading from the moment a page is asked for.
  *
- * A tab reads as loading from the moment a page is asked for, but a load
- * refused before it starts sends no did-stop-loading. Says whether it changed.
+ * Chromium's did-start-loading comes a moment later, and in between a tab with
+ * a title and nothing loading read as a page already loaded.
  */
+export function markLoadRequested(tab: Pick<TabRecord, 'isLoading'>): void {
+  tab.isLoading = true;
+}
+
+/** Settles a tab whose load ended without Chromium starting it, which sends no did-stop-loading. Says whether it changed. */
 export function settleUnstartedLoad(
   tab: Pick<TabRecord, 'isLoading'>,
   contents: { isDestroyed(): boolean; isLoading(): boolean },
