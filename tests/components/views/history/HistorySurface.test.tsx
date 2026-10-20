@@ -18,11 +18,19 @@ const ENTRIES = [
 const listed: unknown[] = [];
 const removedMany: string[][] = [];
 const created: string[] = [];
+// A search held here answers only when the test says so.
+const held = new Map<string, () => void>();
 const api = {
   history: {
     list: async (...args: unknown[]) => {
       listed.push(args);
-      return { entries: ENTRIES, total: ENTRIES.length };
+      const [query] = args;
+      const matches = ENTRIES.filter((item) => typeof query !== 'string' || item.title.toLowerCase().includes(query));
+      if (typeof query === 'string' && query.startsWith('held')) {
+        await new Promise<void>((resolve) => held.set(query, resolve));
+        return { entries: ENTRIES, total: ENTRIES.length };
+      }
+      return { entries: matches, total: matches.length };
     },
     totalBlocked: async () => 0,
     removeMany: (ids: string[]) => removedMany.push(ids),
@@ -54,6 +62,20 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('the history list', () => {
+  it('drops a slow search that answers after a newer one', async () => {
+    render(<HistorySurface />);
+    await screen.findByText('Inbox');
+    const search = screen.getByRole('searchbox');
+    fireEvent.change(search, { target: { value: 'held' } });
+    await waitFor(() => expect(held.has('held')).toBe(true));
+    fireEvent.change(search, { target: { value: 'brief' } });
+    await waitFor(() => expect(screen.queryByText('Inbox')).toBeNull());
+    held.get('held')?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText('Inbox')).toBeNull();
+    expect(screen.getByText('The Morning Brief')).toBeTruthy();
+  });
+
   it('asks for only the days chosen, and in the order chosen', async () => {
     render(<HistorySurface />);
     await screen.findByText('Inbox');

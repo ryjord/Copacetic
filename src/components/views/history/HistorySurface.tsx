@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
@@ -63,30 +63,53 @@ export function HistorySurface() {
   const icons = useFavicons(entries?.map((entry) => entry.url) ?? []);
   const selection = useSelection(entries?.map((entry) => entry.id) ?? []);
 
-  const refresh = useCallback(async (search: string, shown: HistoryFilter) => {
-    const page = await ask((api) => api.history.list(search, 0, shown), EMPTY_PAGE);
-    setEntries(page.entries);
-    setTotal(page.total);
+  // Bumped by every newer question, so an answer to an older one is dropped rather than shown over it.
+  const generation = useRef(0);
+  const shownCount = entries?.length ?? 0;
+
+  /** Asks again, for at least as many rows as asked for, so a change does not snap the list back to its first page. */
+  const refresh = useCallback(async (search: string, shown: HistoryFilter, rows: number) => {
+    generation.current += 1;
+    const request = generation.current;
+    let page = await ask((api) => api.history.list(search, 0, shown), EMPTY_PAGE);
+    let collected = page.entries;
+    while (collected.length < rows && page.entries.length > 0 && collected.length < page.total) {
+      const offset = collected.length;
+      page = await ask((api) => api.history.list(search, offset, shown), EMPTY_PAGE);
+      collected = [...collected, ...page.entries];
+    }
     // Asked of the whole of history rather than summed from one screenful.
-    setTotalBlocked(await ask((api) => api.history.totalBlocked(), 0));
+    const blocked = await ask((api) => api.history.totalBlocked(), 0);
+    if (request !== generation.current) {
+      return;
+    }
+    setEntries(collected);
+    setTotal(page.total);
+    setTotalBlocked(blocked);
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => void refresh(query, filter), 120);
+    // A page still loading for the old search would land after the new one.
+    generation.current += 1;
+    const timer = setTimeout(() => void refresh(query, filter, 0), 120);
     return () => clearTimeout(timer);
   }, [query, filter, refresh]);
 
   // An undo puts an entry back from outside this view, which has to ask again to show it.
   useEffect(
-    () => getBridge()?.on.dataChanged((kind) => kind === 'history' && void refresh(query, filter)),
-    [query, filter, refresh],
+    () => getBridge()?.on.dataChanged((kind) => kind === 'history' && void refresh(query, filter, shownCount)),
+    [query, filter, refresh, shownCount],
   );
 
   // Paged, so a search can reach a match past the first screenful and the surface stays quick.
   const loadMore = () => {
+    const request = generation.current;
     setIsLoadingMore(true);
-    void ask((api) => api.history.list(query, entries?.length ?? 0, filter), EMPTY_PAGE)
+    void ask((api) => api.history.list(query, shownCount, filter), EMPTY_PAGE)
       .then((page) => {
+        if (request !== generation.current) {
+          return;
+        }
         setEntries((current) => [...(current ?? []), ...page.entries]);
         setTotal(page.total);
       })
@@ -292,7 +315,7 @@ export function HistorySurface() {
           onOpenChange={(open) => !open && setClearing(null)}
           onConfirm={(choice) => {
             setClearing(null);
-            void ask((api) => api.history.clear(clearing, choice), undefined).then(() => refresh(query, filter));
+            void ask((api) => api.history.clear(clearing, choice), undefined).then(() => refresh(query, filter, 0));
           }}
         />
       )}
