@@ -113,13 +113,21 @@ machine. There are no accounts and no telemetry.
   memory and come back where they were. Each tab's tooltip says how much memory
   its page is using.
 - **Tab search** on `Cmd/Ctrl+Shift+A`, and a **command palette** on
-  `Cmd/Ctrl+K` that reaches every command and teaches its shortcut.
+  `Cmd/Ctrl+K` that reaches every command, bookmark, page of history and
+  setting, and teaches each command's shortcut.
+- **Reopen what you closed.** `Cmd/Ctrl+Shift+T` brings back the last tab, or a
+  whole group as a group, and Recently closed lists the rest in the main menu
+  and beside the new tab button.
 
 ### Reading and saving
 
 - **Reader view** on `Cmd/Ctrl+Alt+R`. The article is read through DevTools
   rather than a script in the page, and rebuilt from a short list of tags so
-  none of the page's markup reaches the interface.
+  none of the page's markup reaches the interface. It has its own text size,
+  typeface and line length, and shows the article's images.
+- **Translation** of an article in reader view, on this machine, with models
+  downloaded from Mozilla the first time a language is used and checked
+  against the hash Mozilla publishes.
 - **A picture of the whole page**, saved as a PNG, plus Save page as, View
   source, printing, PDFs in the built-in viewer, and find in page with match
   counts.
@@ -133,7 +141,16 @@ machine. There are no accounts and no telemetry.
   machine. **Export** bookmarks in the format every browser reads and history
   as plain JSON.
 - **Passwords** kept in a vault sealed with your system keychain, generated to
-  the length and character set you choose, and filled only when you ask.
+  the length and character set you choose, and filled only when you ask: a key
+  in the address bar fills a saved one in one click. They can be searched,
+  sorted, edited and copied, and a copied password is cleared from the
+  clipboard after 30 seconds, or as soon as the vault locks.
+- **History, bookmarks and downloads you can filter and sort**, with a tick per
+  row to open, delete or remove many at once, and **Undo** for eight seconds
+  after removing anything that can be put back.
+- **Bookmarks in reach.** A button beside the address bar opens every folder as
+  a menu, the star opens a sheet to name a bookmark and choose its folder, and
+  the bookmarks bar keeps what does not fit behind ».
 - **Site settings in one place**: permissions, zoom, tracker exceptions and open
   rules for every site, with a default per permission and the option to decide
   for a site before it asks.
@@ -145,10 +162,15 @@ machine. There are no accounts and no telemetry.
 
 ### Also
 
-A start page you assemble, light and dark appearance following the system,
-shortcuts you can move to other keys, an offer to reopen your tabs after a
-crash, native context menus and a full application menu, and the system's own
-window controls on Windows and Linux.
+Settings in four groups, for the browser, privacy, you and Copacetic itself,
+with a search that lands on the setting rather than its page. A start page you
+assemble from widgets, over one of six backgrounds or your own photo. Light or
+dark, an accent colour, text size and density, and which buttons the toolbar
+shows. Your own search engines, reached by a keyword. A choice of what opens at
+startup and of how long history is kept. A picture or initials for each
+profile. Shortcuts you can move to other keys, an offer to reopen your tabs
+after a crash, native context menus and a full application menu, and the
+system's own window controls on Windows and Linux.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/settings-dark.png">
@@ -159,12 +181,13 @@ window controls on Windows and Linux.
 
 Installers for every platform are on the
 [latest release](https://github.com/ryjord/Copacetic/releases/latest). Betas are
-published as prereleases on the [releases page](https://github.com/ryjord/Copacetic/releases)
-and never reach anyone through automatic updates.
+published as prereleases on the [releases page](https://github.com/ryjord/Copacetic/releases).
+A beta is offered newer betas as well as releases; a finished build is offered
+releases only, unless Settings is set to offer betas too.
 
 | Platform        | File                                      | Updates                                       |
 | --------------- | ----------------------------------------- | --------------------------------------------- |
-| macOS           | `Copacetic-<version>-arm64.dmg` or `.dmg` | Tells you a version is out and links it       |
+| macOS           | `Copacetic-<version>-arm64.dmg` or `.dmg` | Downloads the installer, checks it, opens it  |
 | Windows         | `Copacetic-Setup-<version>.exe`           | Downloads in the background, installs on quit |
 | Linux, AppImage | `Copacetic-<version>.AppImage`            | Downloads in the background, installs on quit |
 | Debian, Ubuntu  | `copacetic_<version>_amd64.deb` or apt    | Through `apt upgrade`                         |
@@ -181,9 +204,10 @@ quarantine flag:
 xattr -cr /Applications/Copacetic.app
 ```
 
-Updating in place needs a signed app, so on macOS Copacetic tells you a new
-version exists and links the download instead. That is a cost decision rather
-than an oversight, and Settings says so.
+Updating in place needs a signed app, so on macOS Download and open saves the
+installer to Downloads, checks it against the SHA-512 the release publishes, and
+opens it for you to drag into Applications. Not signing is a cost decision
+rather than an oversight, and Settings says so.
 
 ### Windows
 
@@ -223,7 +247,7 @@ one this repository built can be answered for free. Every release is attested by
 GitHub, naming the commit and workflow run it came from:
 
 ```bash
-gh attestation verify Copacetic-1.4.1.dmg --repo ryjord/Copacetic
+gh attestation verify Copacetic-2.0.0-beta.3-arm64.dmg --repo ryjord/Copacetic
 ```
 
 A file tampered with in transit, or served from anywhere but this repository,
@@ -271,8 +295,8 @@ other is Fill password, which runs once, when you choose it.
   GitHub and can be turned off.
 - **No extensions.** Chrome extensions are not loaded.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
-- **No translation yet.** On-device translation is planned, with models
-  downloaded only when you ask for one.
+- **Translation in reader view only.** An article is translated on this
+  machine; a whole page, with its layout, is not.
 - **Certificate inspection is Chromium's.** The badge reports the certificate
   Chromium accepted; it does no chain analysis of its own.
 - **Not code-signed, and not audited.** A personal project built to a high
