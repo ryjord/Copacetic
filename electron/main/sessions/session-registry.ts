@@ -59,7 +59,7 @@ export class SessionRegistry {
     // Everything but Hush is remembered. A Hush download's address, redirect
     // chain and time are browsing, and the tab's whole claim is that none of
     // that is written down.
-    this.deps.downloads.attach(session, remembersDownloads(partition));
+    this.deps.downloads.attach(session, remembersDownloads(partition), partition);
     session.setSpellCheckerEnabled(this.deps.isSpellcheckOn());
     this.applySpellcheckLanguages(session);
     return session;

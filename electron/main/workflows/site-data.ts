@@ -62,7 +62,8 @@ export class SiteData {
     // The allowlist may have lost an entry, and the blocking policy holds its own copy.
     this.deps.blocking.setAllowlist(this.deps.store.getSettings().blockerAllowlist);
 
-    const complete = { ...removed, cookies };
+    const downloads = this.deps.downloads.forgetSite(siteOf(address));
+    const complete = { ...removed, cookies, downloads };
     this.deps.notices.notify({
       id: `forget-${siteOf(address)}`,
       tone: 'done',
@@ -157,7 +158,11 @@ export class SiteData {
       return found;
     }
     const perSession = await this.cookiesForSite(site);
-    return { ...found, cookies: perSession.reduce((total, entry) => total + entry.cookies.length, 0) };
+    return {
+      ...found,
+      cookies: perSession.reduce((total, entry) => total + entry.cookies.length, 0),
+      downloads: this.deps.downloads.countForSite(site),
+    };
   }
 
   /** Clears one kind of thing kept about sites, and says it happened. */

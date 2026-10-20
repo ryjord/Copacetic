@@ -166,6 +166,13 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 10,
+    sql: `
+      -- The session a download came from, so a retry after a restart is made in the same one.
+      ALTER TABLE downloads ADD COLUMN partition TEXT;
+    `,
+  },
 ];
 
 const SIDE_FILES = ['', '-wal', '-shm'];

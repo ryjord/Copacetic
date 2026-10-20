@@ -320,6 +320,27 @@ describe('trying a download again', () => {
     expect(manager.list().some((entry) => entry.id === failed!.id)).toBe(false);
   });
 
+  // After a restart the session object is gone, but which one it was is written down with the download.
+  it('goes back to the session it came from after a restart', () => {
+    const table = openTable();
+    const first = new DownloadManager(() => {}, table, Date.now, existsSync);
+    const grouped = fakeDownloadSession();
+    first.attach(grouped.session as never, true, 'persist:copacetic-group-work');
+    grouped.offer().finish('interrupted');
+    table.flush();
+
+    const restarted = new DownloadManager(() => {}, openTable(), Date.now, existsSync);
+    const ordinary = fakeDownloadSession();
+    restarted.attach(ordinary.session as never, true, 'persist:copacetic-web');
+    const groupAgain = fakeDownloadSession();
+    restarted.setSessionResolver((partition) =>
+      partition === 'persist:copacetic-group-work' ? (groupAgain.session as never) : null,
+    );
+    restarted.retry(restarted.list()[0]!.id);
+    expect(groupAgain.started).toEqual(['https://files.example/report.pdf']);
+    expect(ordinary.started).toEqual([]);
+  });
+
   // A finished download has nothing to try again, and starting it twice would be a second copy nobody asked for.
   it('leaves a completed download alone', () => {
     const { manager, offer, started } = managerFor({ downloadDirectory: null, askWhereToSave: false });
@@ -390,5 +411,24 @@ describe('a file that runs when opened', () => {
     expect(item.pause).not.toHaveBeenCalled();
     expect(asked).toEqual([]);
     expect(manager.list()[0]?.isHeld).toBe(false);
+  });
+});
+
+describe('forgetting a site', () => {
+  it('removes the records that name it anywhere on the way, and leaves the rest', () => {
+    const { manager, offer } = managerFor({ downloadDirectory: null, askWhereToSave: false });
+    offer('report.pdf').finish('completed');
+    expect(manager.countForSite('files.example')).toBe(1);
+    expect(manager.forgetSite('files.example')).toBe(1);
+    expect(manager.list()).toEqual([]);
+    expect(manager.forgetSite('other.example')).toBe(0);
+  });
+
+  // One still downloading is not a record yet; forgetting must not cancel it silently.
+  it('leaves a download still running', () => {
+    const { manager, offer } = managerFor({ downloadDirectory: null, askWhereToSave: false });
+    offer('report.pdf');
+    expect(manager.forgetSite('files.example')).toBe(0);
+    expect(manager.list()).toHaveLength(1);
   });
 });

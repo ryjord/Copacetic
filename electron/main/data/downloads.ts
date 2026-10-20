@@ -18,6 +18,8 @@ export interface DownloadPreferences {
   askWhereToSave: boolean;
 }
 import { newId } from './persistence';
+import { hostOf } from '../../shared/browsing/url';
+import { sameSite } from '../../shared/data/forgetting';
 import { t } from '../../shared/i18n/translate';
 
 /** How often a download's speed sample is refreshed. */
@@ -60,6 +62,8 @@ export class DownloadManager {
   /** Which session each download this run came from, so a retry is made in the same one. */
   private readonly sessionOf = new Map<string, Session>();
   private defaultSession: Session | null = null;
+  /** Finds a written-down session again after a restart, or null for one that has gone, such as a deleted group's. */
+  private sessionForPartition: (partition: string) => Session | null = () => null;
 
   constructor(
     private readonly onChanged: () => void,
@@ -135,7 +139,7 @@ export class DownloadManager {
    * @param remember Whether this session's downloads are written down. False
    * for Hush, whose whole claim is that nothing it does is.
    */
-  attach(session: Session, remember = true): void {
+  attach(session: Session, remember = true, partition: string | null = null): void {
     if (remember && !this.defaultSession) {
       this.defaultSession = session;
     }
@@ -172,6 +176,7 @@ export class DownloadManager {
         fileExists: false,
         urlChain: item.getURLChain(),
         sha256: null,
+        ...(remember && partition ? { partition } : {}),
       });
 
       // Paused before it can finish, so a program nobody meant to download never lands ready to open.
@@ -311,15 +316,17 @@ export class DownloadManager {
    * Starts a failed or cancelled download again, in the session it came from.
    *
    * The new attempt is a new entry and the old one goes, so the list shows one
-   * download rather than a failure beside its own retry. After a restart the
-   * session it came from is not known, and ordinary browsing's is used.
+   * download rather than a failure beside its own retry. After a restart it is
+   * found again by the partition written with it; ordinary browsing's is used
+   * only when that session has gone.
    */
   retry(id: string): void {
     const entry = this.find(id);
     if (!entry || (entry.status !== 'interrupted' && entry.status !== 'cancelled')) {
       return;
     }
-    const session = this.sessionOf.get(id) ?? this.defaultSession;
+    const recorded = entry.partition ? this.sessionForPartition(entry.partition) : null;
+    const session = this.sessionOf.get(id) ?? recorded ?? this.defaultSession;
     if (!session) {
       return;
     }
@@ -390,6 +397,36 @@ export class DownloadManager {
       this.file.update((entries) => [entry, ...entries.filter((existing) => existing.id !== entry.id)]);
     }
     this.onChanged();
+  }
+
+  setSessionResolver(resolve: (partition: string) => Session | null): void {
+    this.sessionForPartition = resolve;
+  }
+
+  /** Finished downloads whose address, or any address on the way to it, belongs to the site. */
+  private namingSite(site: string): (entry: DownloadState) => boolean {
+    return (entry) =>
+      !this.live.has(entry.id) &&
+      [entry.url, ...entry.urlChain].some((url) => {
+        const host = hostOf(url);
+        return host !== '' && sameSite(host, site);
+      });
+  }
+
+  countForSite(site: string): number {
+    return [...this.ephemeral, ...this.file.get()].filter(this.namingSite(site)).length;
+  }
+
+  /** The records, never the files: those stay where they were saved. Returns how many went. */
+  forgetSite(site: string): number {
+    const naming = this.namingSite(site);
+    const count = this.countForSite(site);
+    this.ephemeral = this.ephemeral.filter((entry) => !naming(entry));
+    this.file.update((entries) => entries.filter((entry) => !naming(entry)));
+    if (count > 0) {
+      this.onChanged();
+    }
+    return count;
   }
 
   remove(id: string): void {

@@ -61,8 +61,8 @@ export class DownloadsTable {
   private write(entries: DownloadState[]): void {
     this.database.exec('DELETE FROM downloads');
     const insert = this.database.prepare(
-      `INSERT INTO downloads (id, filename, save_path, url, received_bytes, total_bytes, status, started_at, completed_at, url_chain, sha256)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO downloads (id, filename, save_path, url, received_bytes, total_bytes, status, started_at, completed_at, url_chain, sha256, partition)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     entries.forEach((entry) =>
       insert.run(
@@ -77,6 +77,7 @@ export class DownloadsTable {
         entry.completedAt,
         JSON.stringify(entry.urlChain),
         entry.sha256,
+        entry.partition ?? null,
       ),
     );
   }
@@ -98,6 +99,7 @@ export class DownloadsTable {
         completedAt: row.completed_at,
         urlChain: parseChain(row.url_chain),
         sha256: row.sha256,
+        partition: row.partition,
       }));
     return reviveDownloads(rows) ?? [];
   }
@@ -142,6 +144,9 @@ export function reviveDownloads(raw: unknown): DownloadState[] | null {
         // exactly what you want to check later rather than at the time.
         urlChain: Array.isArray(item.urlChain) ? item.urlChain.filter((url) => typeof url === 'string') : [],
         sha256: typeof item.sha256 === 'string' ? item.sha256 : null,
+        ...(typeof item.partition === 'string' && item.partition.startsWith('persist:')
+          ? { partition: item.partition }
+          : {}),
       },
     ];
   });

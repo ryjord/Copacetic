@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { cleanUrl } from '../../shared/browsing/link-cleaning';
 import { BlockingPolicy } from '../security/blocking-policy';
 import { HttpsFirst } from '../security/https-first';
-import { type ProfilePartitions, partitionsFor } from '../../shared/data/partitions';
+import { type ProfilePartitions, groupPartition, partitionsFor } from '../../shared/data/partitions';
 import { PendingPrompts } from '../security/pending-prompts';
 import { type TabDirectory, createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
 import { SessionRegistry } from '../sessions/session-registry';
@@ -153,6 +153,15 @@ export class Profile {
       groups: () => this.store.listGroups(),
       isSpellcheckOn: () => this.store.getSettings().spellcheck,
       spellcheckLanguages: () => this.store.getSettings().spellcheckLanguages,
+    });
+    // Only a session that still exists: a deleted group's partition is not made again by retrying a download from it.
+    this.downloads.setSessionResolver((partition) => {
+      const isLive =
+        partition === this.partitions.web ||
+        this.store
+          .listGroups()
+          .some((group) => group.ownSession && groupPartition(this.partitions, group.id) === partition);
+      return isLive ? this.sessions.prepare(partition) : null;
     });
     // Web and Hush exist from launch; a group that keeps its own browsing is prepared when a tab first asks.
     this.sessions.prepare(this.partitions.web);

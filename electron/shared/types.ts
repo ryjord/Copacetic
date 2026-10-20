@@ -127,6 +127,8 @@ export interface DownloadState {
   urlChain: string[];
   /** SHA-256 of what actually arrived, so it can be checked against a published one. */
   sha256: string | null;
+  /** The session it came from, for a retry after a restart; never set for Hush, whose downloads are not written. */
+  partition?: string;
   /**
    * Started from a Hush tab, so nothing about it is written down.
    *

@@ -268,9 +268,10 @@ export class BrowserStore {
       certificates: this.certificatesStore.origins().filter((origin) => sameSite(origin, site)).length,
       openRules: Object.keys(settings.openRules).filter((key) => sameSite(key, site)).length,
       startTiles: this.startTiles.countForSite(site),
-      // The store does not own the sessions, so it cannot see cookies. The
-      // browser adds that count before either sentence is said.
+      // The store owns neither the sessions nor the downloads list, so the
+      // browser adds those counts before either sentence is said.
       cookies: 0,
+      downloads: 0,
     };
   }
 

@@ -163,6 +163,7 @@ export const main = {
       cookies: { one: '{count} cookie', other: '{count} cookies' },
       openRules: { one: '{count} rule for where it opens', other: '{count} rules for where it opens' },
       startTiles: { one: '{count} start page tile', other: '{count} start page tiles' },
+      downloads: { one: '{count} download record', other: '{count} download records' },
     },
     nothingKept: 'Nothing is kept about this site.',
     single: '{part}.',
