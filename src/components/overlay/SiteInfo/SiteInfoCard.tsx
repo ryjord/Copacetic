@@ -42,6 +42,7 @@ const close = () => send((api) => api.chrome.closeSiteInfo());
 
 /** Everything Copacetic can honestly say about the current connection, over the page's top-left corner. */
 export function SiteInfoCard({ tab }: { tab: TabState }) {
+  const [hasChanged, setHasChanged] = useState(false);
   const openedAt = useBrowserStore((state) => state.siteInfo?.openedAt ?? null);
   useDismissLayer(true, close);
 
@@ -89,8 +90,26 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
 
       {tab.security.certificateChange && <CertificateChangeNotice detail={tab.security.certificateChange} />}
       {/* An exception is kept by site, which would be writing down a site opened in a tab that promises to keep nothing. */}
-      {!tab.isHush && <TrackerException url={tab.url} blockedCount={tab.blockedCount} />}
-      <SitePermissions url={tab.url} />
+      {!tab.isHush && (
+        <TrackerException url={tab.url} blockedCount={tab.blockedCount} onChanged={() => setHasChanged(true)} />
+      )}
+      <SitePermissions url={tab.url} onChanged={() => setHasChanged(true)} />
+      {/* The page already loaded under the old rules, so a change shows only once it loads again. */}
+      {hasChanged && (
+        <div className="flex items-center gap-3 border-t border-line px-4 py-3">
+          <p className="min-w-0 flex-1 text-body-sm text-ink-dim">{t('shell.overlay.siteInfo.reloadToApply')}</p>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              setHasChanged(false);
+              send((api) => api.tabs.reload(tab.id));
+            }}
+          >
+            {t('shell.overlay.siteInfo.reload')}
+          </Button>
+        </div>
+      )}
       {/* Keyed by tab, so a switch never shows one tab's hosts under another's heading. */}
       <ConnectionLog key={tab.id} tabId={tab.id} />
       <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
@@ -111,7 +130,15 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
 }
 
 // Turning blocking off for one site rather than everywhere.
-function TrackerException({ url, blockedCount }: { url: string; blockedCount: number }) {
+function TrackerException({
+  url,
+  blockedCount,
+  onChanged,
+}: {
+  url: string;
+  blockedCount: number;
+  onChanged: () => void;
+}) {
   const settings = useBrowserStore((state) => state.settings);
   const site = registrableDomainOf(hostOf(url));
   if (!site || !settings.blockTrackers) {
@@ -124,6 +151,7 @@ function TrackerException({ url, blockedCount }: { url: string; blockedCount: nu
       ? settings.blockerAllowlist.filter((entry) => entry !== site)
       : [...settings.blockerAllowlist, site];
     send((api) => api.settings.update({ blockerAllowlist: next }));
+    onChanged();
   };
 
   return (
@@ -155,7 +183,7 @@ function TrackerException({ url, blockedCount }: { url: string; blockedCount: nu
 }
 
 // What this site has already been allowed, or refused, to do.
-function SitePermissions({ url }: { url: string }) {
+function SitePermissions({ url, onChanged }: { url: string; onChanged: () => void }) {
   const decisions = useBrowserStore((state) => state.settings.permissionDecisions);
   const origin = originOf(url);
   if (!origin) {
@@ -194,7 +222,10 @@ function SitePermissions({ url }: { url: string }) {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => send((api) => api.permissions.forget(origin, entry.kind))}
+              onClick={() => {
+                send((api) => api.permissions.forget(origin, entry.kind));
+                onChanged();
+              }}
             >
               {t('shell.overlay.siteInfo.reset')}
             </Button>

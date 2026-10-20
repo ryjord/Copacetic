@@ -28,6 +28,8 @@ const LOOK: Record<Notice['tone'], { icon: typeof Info; className: string }> = {
 /** What the app has to say, as cards over the page's top-right corner, so nothing moves for something that lasts four seconds. */
 export function NoticeStrip() {
   const [notices, setNotices] = useState<Notice[]>([]);
+  // Paused while the pointer or keyboard is on the strip, so reaching for Undo never races the notice away.
+  const [isHeld, setIsHeld] = useState(false);
 
   useEffect(() => {
     const api = getBridge();
@@ -49,6 +51,9 @@ export function NoticeStrip() {
   // clock - a steady trickle would otherwise keep the first one on screen for
   // as long as the trickle lasted.
   useEffect(() => {
+    if (isHeld) {
+      return;
+    }
     const timers = notices
       .map((notice) => {
         const after = dismissAfterMs(notice.tone);
@@ -65,7 +70,7 @@ export function NoticeStrip() {
       .filter((timer): timer is ReturnType<typeof setTimeout> => timer !== null);
 
     return () => timers.forEach(clearTimeout);
-  }, [notices]);
+  }, [notices, isHeld]);
 
   if (notices.length === 0) {
     return null;
@@ -77,7 +82,18 @@ export function NoticeStrip() {
   };
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div
+      className="flex flex-col items-end gap-2"
+      onPointerEnter={() => setIsHeld(true)}
+      onPointerLeave={() => setIsHeld(false)}
+      onFocus={() => setIsHeld(true)}
+      onBlur={(event) => {
+        // Still held while focus moves between its own buttons.
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsHeld(false);
+        }
+      }}
+    >
       {notices.map((notice) => {
         const { icon: Icon, className } = LOOK[notice.tone];
         return (

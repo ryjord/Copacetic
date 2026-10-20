@@ -14,7 +14,7 @@ import { CircleAlert, FileCheck, X } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { send } from '@/lib/bridge/bridge';
+import { ask, send } from '@/lib/bridge/bridge';
 import { formatBytes } from '@/lib/text/format';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
@@ -60,6 +60,8 @@ export function FinishedDownloads() {
 
 function FinishedCard({ download, onClose }: { download: DownloadState; onClose: () => void }) {
   const [isHeld, setIsHeld] = useState(false);
+  // Why the file would not open, said on the card the button is on.
+  const [problem, setProblem] = useState('');
   const isComplete = download.status === 'completed';
 
   // Paused while the pointer or the keyboard is on it, so reaching for a button never races the card away.
@@ -102,11 +104,16 @@ function FinishedCard({ download, onClose }: { download: DownloadState; onClose:
               ? t('shell.overlay.finishedDownload.done', { size: formatBytes(download.totalBytes) })
               : t('shell.overlay.finishedDownload.failed')}
           </p>
+          {problem && <p className="text-body-sm text-alert">{problem}</p>}
         </div>
         <div className="flex gap-1.5">
           {isComplete ? (
             <>
-              <Button size="sm" variant="primary" onClick={() => send((api) => api.downloads.openFile(download.id))}>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => void ask((api) => api.downloads.openFile(download.id), '').then(setProblem)}
+              >
                 {t('shell.overlay.finishedDownload.open')}
               </Button>
               <Button size="sm" onClick={() => send((api) => api.downloads.revealFile(download.id))}>

@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // Components
 import { Favicon } from '@/components/ui/Favicon/Favicon';
@@ -9,7 +9,18 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
 
 // Icons
-import { AlertCircle, ChevronDown, Columns2, EyeOff, Lock, Plus, Volume2, VolumeX, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ChevronDown,
+  Columns2,
+  EyeOff,
+  ListChevronsUpDown,
+  Lock,
+  Plus,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -33,6 +44,8 @@ import {
   type TabGroup,
 } from '@shared/tabs/tab-groups';
 
+const CROWDED_TAB_WIDTH = 72;
+
 interface TabStripProps {
   tabs: TabState[];
   activeTabId: string | null;
@@ -43,6 +56,24 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  const toggleSurface = useBrowserStore((state) => state.toggleSurface);
+  // Crowded once a tab is too narrow for its title: past that, finding one by its icon alone is guesswork.
+  const [isCrowded, setIsCrowded] = useState(false);
+
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) {
+      return;
+    }
+    const measure = () =>
+      setIsCrowded(
+        strip.scrollWidth > strip.clientWidth || strip.clientWidth / Math.max(1, tabs.length) < CROWDED_TAB_WIDTH,
+      );
+    measure();
+    const resizes = new ResizeObserver(measure);
+    resizes.observe(strip);
+    return () => resizes.disconnect();
+  }, [tabs.length]);
 
   const handleDrop = (index: number) => {
     const from = dragId ? tabs.findIndex((tab) => tab.id === dragId) : -1;
@@ -67,6 +98,16 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
 
   return (
     <div className="flex h-full min-w-0 flex-1 items-end gap-0.5">
+      {isCrowded && (
+        <IconButton
+          label={t('shell.tabStrip.everyTab', { count: tabs.length })}
+          size="sm"
+          className="mb-1"
+          onClick={() => toggleSurface('tab-search')}
+        >
+          <ListChevronsUpDown size={14} strokeWidth={1.75} />
+        </IconButton>
+      )}
       <div
         ref={stripRef}
         role="tablist"
@@ -389,14 +430,17 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
         ) : (
           <button
             type="button"
-            // Named for what it does, not just what it says. The tooltip is a
-            // mouse-only hint; without this the accessible name is the group's
-            // name alone, which does not suggest that pressing it renames.
-            aria-label={t('shell.tabStrip.renameGroup', { name: group.name })}
+            // Named for what it does, not just what it says: pressing it folds the group away.
+            aria-label={
+              group.collapsed
+                ? t('shell.tabStrip.expandGroup', { name: group.name })
+                : t('shell.tabStrip.collapseGroup', { name: group.name })
+            }
+            aria-expanded={!group.collapsed}
             title={t('shell.tabStrip.groupHint', { claim: describeClaim(claim) })}
-            // Click names it; the chevron collapses it. A click that hid the tabs
-            // would make renaming the thing you cannot see.
-            onClick={() => setIsRenaming(true)}
+            onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
+            // The two clicks before it have folded and unfolded the group, so it ends where it started.
+            onDoubleClick={() => setIsRenaming(true)}
             className="flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-caption font-medium transition-[filter] hover:brightness-110"
             style={{ color: colour, background: tint }}
           >
@@ -407,20 +451,13 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
             {claim === 'mixed' && (
               <AlertCircle size={11} className="text-caution" aria-label={t('shell.tabStrip.mixed')} />
             )}
+            <ChevronDown
+              size={11}
+              aria-hidden
+              className={cn('shrink-0 opacity-70 transition-transform', group.collapsed && '-rotate-90')}
+            />
           </button>
         )}
-        <button
-          type="button"
-          aria-label={
-            group.collapsed
-              ? t('shell.tabStrip.expandGroup', { name: group.name })
-              : t('shell.tabStrip.collapseGroup', { name: group.name })
-          }
-          onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
-          className="shrink-0 rounded px-0.5 text-ink-faint transition-colors hover:text-ink"
-        >
-          <ChevronDown size={11} className={cn('transition-transform', group.collapsed && '-rotate-90')} />
-        </button>
       </div>
       {!group.collapsed && children}
     </>

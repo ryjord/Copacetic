@@ -168,6 +168,15 @@ export function Omnibox({ tab }: OmniboxProps) {
       event.preventDefault();
       const chosen = visibleSuggestions[highlighted];
       commit(chosen ? chosen.target : draft);
+      return;
+    }
+    // A page from history that keeps coming up can be forgotten from the list, with Undo.
+    const highlightedSuggestion = visibleSuggestions[highlighted];
+    if (event.key === 'Delete' && event.shiftKey && highlightedSuggestion?.kind === 'history') {
+      event.preventDefault();
+      send((api) => api.history.remove(highlightedSuggestion.id));
+      setSuggestions((current) => current.filter((suggestion) => suggestion.id !== highlightedSuggestion.id));
+      setHighlighted((current) => Math.max(0, Math.min(current, visibleSuggestions.length - 2)));
     }
   };
 

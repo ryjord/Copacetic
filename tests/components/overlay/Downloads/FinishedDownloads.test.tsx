@@ -3,15 +3,20 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { DownloadState } from '@shared/types';
 
 const calls: string[] = [];
+let openProblem = '';
+const api = {
+  downloads: {
+    openFile: async (id: string) => {
+      calls.push(`open ${id}`);
+      return openProblem;
+    },
+    revealFile: (id: string) => calls.push(`reveal ${id}`),
+    retry: (id: string) => calls.push(`retry ${id}`),
+  },
+};
 vi.mock('@/lib/bridge/bridge', () => ({
-  send: (call: (api: unknown) => void) =>
-    call({
-      downloads: {
-        openFile: (id: string) => calls.push(`open ${id}`),
-        revealFile: (id: string) => calls.push(`reveal ${id}`),
-        retry: (id: string) => calls.push(`retry ${id}`),
-      },
-    }),
+  send: (call: (bridge: typeof api) => void) => call(api),
+  ask: async (call: (bridge: typeof api) => Promise<unknown>) => call(api),
 }));
 
 let downloads: DownloadState[] = [];
@@ -69,5 +74,18 @@ describe('a download that just finished', () => {
       vi.advanceTimersByTime(8_100);
     });
     expect(screen.queryByText('broken.pdf')).toBeNull();
+  });
+});
+
+describe('a file that would not open', () => {
+  // Said on the card whose button was pressed, rather than nowhere.
+  it('says why', async () => {
+    vi.useFakeTimers({ now: 10_000, shouldAdvanceTime: true });
+    openProblem = 'The file is no longer where it was saved.';
+    downloads = [download('gone', { completedAt: 11_000 })];
+    render(<FinishedDownloads />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(await screen.findByText('The file is no longer where it was saved.')).toBeTruthy();
+    openProblem = '';
   });
 });

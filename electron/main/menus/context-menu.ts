@@ -583,6 +583,10 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
     { type: 'separator' },
     { label: t('main.menu.context.open'), click: () => browser.commands.openInActiveTab(bookmark.url) },
     { label: t('main.menu.context.openInNewTab'), click: () => browser.commands.openInNewTab(bookmark.url) },
+    {
+      label: t('main.menu.context.openInNewWindow'),
+      click: () => void browser.profile.openWindow({ url: bookmark.url }),
+    },
     { label: t('main.menu.context.copyAddress'), click: () => clipboard.writeText(bookmark.url) },
     { type: 'separator' },
     {
