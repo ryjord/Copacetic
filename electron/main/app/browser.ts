@@ -392,6 +392,31 @@ export class Browser {
     }
   }
 
+  /** Bookmarks removed with one Undo for all of them, from the panel, a selection or a bookmark's own menu alike. */
+  removeBookmarks(ids: readonly string[]): void {
+    // Every position read before anything goes, so putting them back in that order lands each where it was.
+    const snapshots = ids
+      .map((id) => this.store.bookmarkSnapshot(id))
+      .filter((snapshot) => snapshot !== null)
+      .toSorted((aSnapshot, bSnapshot) => aSnapshot.position - bSnapshot.position);
+    snapshots.forEach((snapshot) => this.store.removeBookmark(snapshot.bookmark.id));
+    this.bookmarks.changed();
+    this.scheduleStatePush();
+    const first = snapshots[0];
+    if (!first) {
+      return;
+    }
+    const message =
+      snapshots.length === 1
+        ? t('main.undo.bookmark', { title: first.bookmark.title })
+        : t('main.undo.bookmarkMany', { count: snapshots.length });
+    this.offerUndo(message, () => {
+      snapshots.forEach((snapshot) => this.store.restoreBookmark(snapshot));
+      this.bookmarks.changed();
+      this.scheduleStatePush();
+    });
+  }
+
   /** Says something was removed, with a few seconds in which to put it back. */
   offerUndo(message: string, restore: () => void): void {
     this.notices.notify(

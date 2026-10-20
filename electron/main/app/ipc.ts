@@ -257,18 +257,28 @@ export function registerIpcHandlers(profiles: Profiles): void {
     browser.scheduleStatePush();
     return bookmarked;
   });
-  handle('bookmarks.remove', (browser, _event, id) => {
-    const snapshot = browser.store.bookmarkSnapshot(asString(id));
-    browser.store.removeBookmark(asString(id));
+  handle('bookmarks.remove', (browser, _event, id) => browser.removeBookmarks([asString(id)]));
+  handle('bookmarks.removeMany', (browser, _event, ids) =>
+    browser.removeBookmarks(
+      Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string').slice(0, 1000) : [],
+    ),
+  );
+  handle('bookmarks.add', (browser, _event, title, address, folderId) => {
+    const resolved = resolveOmniboxInput(asString(address).slice(0, 8192), WITHOUT_KEYWORDS);
+    if (resolved?.type !== 'url' || !isPageNavigableUrl(resolved.target)) {
+      return t('main.startPage.notAnAddress');
+    }
+    if (browser.store.isBookmarked(resolved.target)) {
+      return t('main.bookmarks.alreadySaved');
+    }
+    browser.store.toggleBookmark(resolved.target, asString(title).trim().slice(0, 500) || hostOf(resolved.target));
+    const added = browser.store.listBookmarks().find((bookmark) => bookmark.url === resolved.target);
+    if (added && typeof folderId === 'string') {
+      browser.store.fileBookmark(added.id, folderId);
+    }
     browser.bookmarks.changed();
     browser.scheduleStatePush();
-    if (snapshot) {
-      browser.offerUndo(t('main.undo.bookmark', { title: snapshot.bookmark.title }), () => {
-        browser.store.restoreBookmark(snapshot);
-        browser.bookmarks.changed();
-        browser.scheduleStatePush();
-      });
-    }
+    return '';
   });
   handle('bookmarks.update', (browser, _event, id, changes) => {
     const result = browser.store.updateBookmark(asString(id), asBookmarkChanges(changes));

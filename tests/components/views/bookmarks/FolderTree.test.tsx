@@ -249,10 +249,11 @@ describe('dropping onto a folder', () => {
     expect(move).not.toHaveBeenCalled();
   });
 
-  it('unfiles a bookmark dropped on All bookmarks', () => {
+  // Every bookmark is already in All, so a drop there could only unfile it without saying so.
+  it('refuses a bookmark dropped on All bookmarks', () => {
     draw();
     fireEvent.drop(screen.getByText('All bookmarks').closest('button') as HTMLElement, carrying(DRAG_BOOKMARK, 'b1'));
-    expect(file).toHaveBeenCalledWith('b1', null);
+    expect(file).not.toHaveBeenCalled();
   });
 });
 

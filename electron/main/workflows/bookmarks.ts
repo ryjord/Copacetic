@@ -55,12 +55,6 @@ export class BookmarkCommands {
     this.deps.changed();
   }
 
-  remove(id: string): void {
-    this.deps.store.removeBookmark(id);
-    this.changed();
-    this.deps.changed();
-  }
-
   /** Deletes a folder, keeping everything that was in it, and says what moved. */
   deleteFolder(id: string): { folders: number; bookmarks: number } {
     const moved = this.deps.store.deleteBookmarkFolder(id);

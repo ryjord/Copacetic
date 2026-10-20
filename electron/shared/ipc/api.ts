@@ -188,6 +188,9 @@ export interface CopaceticApi {
     list(): Promise<Bookmark[]>;
     toggle(url: string, title: string): Promise<boolean>;
     remove(id: string): Promise<void>;
+    removeMany(ids: string[]): Promise<void>;
+    /** Saves an address typed by hand into a folder, or unfiled with null. Resolves empty, or with what is wrong. */
+    add(title: string, address: string, folderId: string | null): Promise<string>;
     /** The address is read as the address bar reads it, so `example.com` is enough. */
     update(id: string, changes: { title?: string; url?: string }): Promise<BookmarkEditResult>;
     /** Opens a saved address in the tab in front of you, or a new one when there is none. */

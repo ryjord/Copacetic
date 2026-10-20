@@ -109,9 +109,8 @@ export function FolderTree({
     >
       <button
         type="button"
+        // Not a drop target: every bookmark is already in All, so a drop here could only unfile it without saying so.
         onClick={() => onSelect({ kind: 'all' })}
-        onDragOver={(event) => event.dataTransfer.types.includes(DRAG_BOOKMARK) && event.preventDefault()}
-        onDrop={(event) => handleDrop(event, null)}
         className={cn(rowClasses(selection.kind === 'all', false), 'pl-2')}
       >
         <List size={16} strokeWidth={1.75} className="shrink-0" />

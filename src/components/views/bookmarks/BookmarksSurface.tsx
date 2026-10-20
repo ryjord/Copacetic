@@ -1,13 +1,16 @@
 'use client';
 
-// React
+// Libs
 import { useCallback, useEffect, useState } from 'react';
 
-// Icons
-import { Bookmark as BookmarkIcon, FolderOpen, Pencil, X } from 'lucide-react';
-
 // Components
+import { AddBookmarkForm } from '@/components/views/bookmarks/AddBookmarkForm';
 import { Button } from '@/components/ui/Button/Button';
+import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
+import { Menu } from '@/components/ui/Menu/Menu';
+import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
+import { Select } from '@/components/ui/Select/Select';
+import { SelectionBar } from '@/components/views/lists/SelectionBar';
 import { BookmarkEditor } from '@/components/views/bookmarks/BookmarkEditor';
 import { EmptyState } from '@/components/ui/EmptyState/EmptyState';
 import { Favicon } from '@/components/ui/Favicon/Favicon';
@@ -16,6 +19,9 @@ import { SearchField } from '@/components/ui/TextField/TextField';
 import { DRAG_BOOKMARK, FolderTree, type FolderSelection } from '@/components/views/bookmarks/FolderTree';
 import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
 
+// Icons
+import { Bookmark as BookmarkIcon, Ellipsis, FolderOpen, Pencil, Plus, X } from 'lucide-react';
+
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
 
@@ -23,6 +29,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { t } from '@shared/i18n/translate';
+import { useSelection } from '@/lib/state/useSelection';
 
 // Types
 import { type BookmarkFolder, countIn, pathOf } from '@shared/data/bookmark-folders';
@@ -31,6 +38,35 @@ import type { Bookmark } from '@shared/types';
 
 /** Rows drawn at once. More than a screenful, far short of a freeze. */
 const PAGE = 200;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+type BookmarkSort = 'name' | 'added' | 'site';
+type BookmarkFilter = 'all' | 'week' | 'duplicates';
+
+const SORT_OPTIONS: readonly { id: BookmarkSort; label: string }[] = [
+  { id: 'name', label: t('views.bookmarks.sort.name') },
+  { id: 'added', label: t('views.bookmarks.sort.added') },
+  { id: 'site', label: t('views.bookmarks.sort.site') },
+];
+const FILTER_OPTIONS: readonly { id: BookmarkFilter; label: string }[] = [
+  { id: 'all', label: t('views.bookmarks.filters.all') },
+  { id: 'week', label: t('views.bookmarks.filters.week') },
+  { id: 'duplicates', label: t('views.bookmarks.filters.duplicates') },
+];
+
+const SORTERS: Record<BookmarkSort, (aBookmark: Bookmark, bBookmark: Bookmark) => number> = {
+  name: (aBookmark, bBookmark) =>
+    (aBookmark.title || aBookmark.url).localeCompare(bBookmark.title || bBookmark.url, undefined, {
+      sensitivity: 'base',
+    }),
+  added: (aBookmark, bBookmark) => bBookmark.createdAt - aBookmark.createdAt,
+  site: (aBookmark, bBookmark) => hostFor(aBookmark.url).localeCompare(hostFor(bBookmark.url)),
+};
+
+/** The same page saved more than once, ignoring the trailing slash and the fragment that only scroll it. */
+function pageKey(url: string): string {
+  return url.replace(/#.*$/, '').replace(/\/$/, '');
+}
 
 export function BookmarksSurface() {
   const activeTabId = useBrowserStore((state) => state.activeTabId);
@@ -42,6 +78,12 @@ export function BookmarksSurface() {
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(PAGE);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sort, setSort] = useState<BookmarkSort>('name');
+  const [filter, setFilter] = useState<BookmarkFilter>('all');
+  const [isAdding, setIsAdding] = useState(false);
+  const [transferMessage, setTransferMessage] = useState('');
+  // Read once, so the filter does not need the clock on every render.
+  const [openedAt] = useState(() => Date.now());
 
   // Bookmarks also change from the toolbar star and the tab menu, so re-read
   // whenever the tab snapshot reports a different bookmarked set.
@@ -79,14 +121,63 @@ export function BookmarksSurface() {
     return bookmark.folderId === selection.id;
   };
 
-  const matching = searching
-    ? bookmarks.filter((bookmark) => `${bookmark.title} ${bookmark.url}`.toLowerCase().includes(needle))
-    : bookmarks.filter(inSelection);
+  const pageCounts = new Map<string, number>();
+  bookmarks.forEach((bookmark) =>
+    pageCounts.set(pageKey(bookmark.url), (pageCounts.get(pageKey(bookmark.url)) ?? 0) + 1),
+  );
+  const passesFilter = (bookmark: Bookmark) =>
+    filter === 'week'
+      ? openedAt - bookmark.createdAt < WEEK_MS
+      : filter === 'duplicates'
+        ? (pageCounts.get(pageKey(bookmark.url)) ?? 0) > 1
+        : true;
+
+  const matching = (
+    searching
+      ? bookmarks.filter((bookmark) => `${bookmark.title} ${bookmark.url}`.toLowerCase().includes(needle))
+      : bookmarks.filter(inSelection)
+  )
+    .filter(passesFilter)
+    // Duplicates side by side, whatever the chosen order, so each pair can be compared.
+    .toSorted(
+      filter === 'duplicates'
+        ? (aBookmark, bBookmark) => pageKey(aBookmark.url).localeCompare(pageKey(bBookmark.url))
+        : SORTERS[sort],
+    );
 
   // The one list in the interface with no ceiling: history is paged and
   // downloads are capped, but bookmarks only ever grow.
   const visible = matching.slice(0, shown);
   const icons = useFavicons(visible.map((bookmark) => bookmark.url));
+  const ticked = useSelection(visible.map((bookmark) => bookmark.id));
+
+  const removeSelected = () => {
+    const ids = ticked.selectedIds;
+    send((api) => api.bookmarks.removeMany(ids));
+    setBookmarks((current) => current.filter((item) => !ids.includes(item.id)));
+    ticked.clear();
+  };
+
+  const openSelected = () => {
+    const urls = visible.filter((bookmark) => ticked.isSelected(bookmark.id)).map((bookmark) => bookmark.url);
+    // One after another, so the tabs open in the order they were listed.
+    send((api) =>
+      urls.reduce<Promise<unknown>>(
+        (previous, url) => previous.then(() => api.tabs.create(url, false)),
+        Promise.resolve(),
+      ),
+    );
+    ticked.clear();
+    setSurface('none');
+  };
+
+  const transfer = (action: Promise<string>) => {
+    setTransferMessage('');
+    void action.then((message) => {
+      setTransferMessage(message);
+      reload();
+    });
+  };
 
   const selected = selection.kind === 'folder' ? folders.find((folder) => folder.id === selection.id) : undefined;
   const counted = selected ? countIn(bookmarks, folders, selected.id) : null;
@@ -95,7 +186,33 @@ export function BookmarksSurface() {
     <SurfaceShell
       title={t('views.bookmarks.title')}
       scrolls={false}
-      actions={<SearchField value={query} onChange={setQuery} label={t('views.bookmarks.search')} className="w-64" />}
+      actions={
+        <>
+          <SearchField value={query} onChange={setQuery} label={t('views.bookmarks.search')} className="w-64" />
+          <Select label={t('views.bookmarks.sort.label')} options={SORT_OPTIONS} value={sort} onChange={setSort} />
+          <Button size="sm" variant="primary" onClick={() => setIsAdding(true)}>
+            <Plus size={14} />
+            {t('views.bookmarks.add.action')}
+          </Button>
+          <Menu
+            trigger={
+              <IconButton label={t('views.bookmarks.transfer.label')}>
+                <Ellipsis size={16} />
+              </IconButton>
+            }
+            items={[
+              {
+                label: t('views.bookmarks.transfer.import'),
+                onSelect: () => transfer(ask((api) => api.data.importBookmarks(), '')),
+              },
+              {
+                label: t('views.bookmarks.transfer.export'),
+                onSelect: () => transfer(ask((api) => api.data.export('bookmarks'), '')),
+              },
+            ]}
+          />
+        </>
+      }
     >
       <div className="flex min-h-0 flex-1">
         <FolderTree
@@ -140,6 +257,42 @@ export function BookmarksSurface() {
               )}
             </div>
           )}
+
+          <div className="flex flex-none flex-col gap-3 px-5 pt-4">
+            <SegmentedControl
+              label={t('views.bookmarks.filters.label')}
+              options={FILTER_OPTIONS}
+              value={filter}
+              onChange={setFilter}
+            />
+            {transferMessage && (
+              <p role="status" className="text-body-sm text-ink-dim">
+                {transferMessage}
+              </p>
+            )}
+            {isAdding && (
+              <AddBookmarkForm
+                folderId={selection.kind === 'folder' ? selection.id : null}
+                onDone={(isSaved) => {
+                  setIsAdding(false);
+                  if (isSaved) {
+                    reload();
+                  }
+                }}
+              />
+            )}
+            {ticked.selectedIds.length > 0 && (
+              <SelectionBar
+                summary={t('views.bookmarks.selection.count', { count: ticked.selectedIds.length })}
+                actions={[
+                  { label: t('views.bookmarks.selection.openInTabs'), onSelect: openSelected },
+                  { label: t('views.bookmarks.selection.remove'), onSelect: removeSelected, isDestructive: true },
+                ]}
+                clearLabel={t('views.bookmarks.selection.clear')}
+                onClear={ticked.clear}
+              />
+            )}
+          </div>
 
           <div className="scroll-thin relative min-h-0 flex-1 overflow-y-auto">
             {visible.length === 0 ? (
@@ -190,6 +343,14 @@ export function BookmarksSurface() {
                         }}
                         className="group flex h-[52px] items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
                       >
+                        <Checkbox
+                          checked={ticked.isSelected(bookmark.id)}
+                          onChange={(isChecked) => ticked.toggle(bookmark.id, isChecked)}
+                          label={t('views.bookmarks.select', {
+                            name: bookmark.title || t('views.bookmarks.fallbackName'),
+                          })}
+                          isLabelHidden
+                        />
                         <Favicon dataUrl={iconFor(icons, bookmark.url)} seed={bookmark.url} size={20} />
                         <button
                           type="button"
@@ -200,6 +361,13 @@ export function BookmarksSurface() {
                             }
                             send((api) => api.tabs.navigate(activeTabId, bookmark.url));
                             setSurface('none');
+                          }}
+                          // A middle-click opens it behind, as it would on a link.
+                          onAuxClick={(event) => {
+                            if (event.button === 1) {
+                              event.preventDefault();
+                              send((api) => api.tabs.create(bookmark.url, false));
+                            }
                           }}
                           className="flex min-w-0 flex-1 flex-col text-left"
                         >
@@ -220,6 +388,16 @@ export function BookmarksSurface() {
                           </span>
                         )}
 
+                        <IconButton
+                          label={t('views.bookmarks.more', {
+                            name: bookmark.title || t('views.bookmarks.fallbackName'),
+                          })}
+                          size="sm"
+                          className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+                          onClick={() => send((api) => api.bookmarks.openContextMenu(bookmark.id))}
+                        >
+                          <Ellipsis size={14} />
+                        </IconButton>
                         <IconButton
                           label={t('views.bookmarks.edit', {
                             name: bookmark.title || t('views.bookmarks.fallbackName'),

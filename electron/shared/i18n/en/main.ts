@@ -335,6 +335,7 @@ export const main = {
   undo: {
     action: 'Undo',
     bookmark: 'Removed “{title}” from bookmarks.',
+    bookmarkMany: { one: 'Removed 1 bookmark.', other: 'Removed {count} bookmarks.' },
     history: 'Removed “{title}” from history.',
     historyMany: { one: 'Removed 1 page from history.', other: 'Removed {count} pages from history.' },
     download: 'Removed {name} from the list. The file is still there.',
@@ -342,6 +343,9 @@ export const main = {
     tile: 'Removed from the start page.',
     site: 'Forgot what was kept about {site}.',
     kept: 'Cleared: {what}.',
+  },
+  bookmarks: {
+    alreadySaved: 'That address is already in your bookmarks.',
   },
   startPage: {
     chooseIcon: 'Choose an icon',

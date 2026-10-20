@@ -112,6 +112,8 @@ export const CHANNELS = {
   'bookmarks.list': 'bookmarks:list',
   'bookmarks.toggle': 'bookmarks:toggle',
   'bookmarks.remove': 'bookmarks:remove',
+  'bookmarks.removeMany': 'bookmarks:remove-many',
+  'bookmarks.add': 'bookmarks:add',
   'bookmarks.update': 'bookmarks:update',
   'bookmarks.openInActiveTab': 'bookmarks:open',
   'bookmarks.openContextMenu': 'bookmarks:open-context-menu',

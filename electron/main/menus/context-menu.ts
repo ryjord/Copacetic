@@ -514,6 +514,8 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
     { label: bookmark.title || bookmark.url, enabled: false },
     { type: 'separator' },
     { label: t('main.menu.context.open'), click: () => browser.commands.openInActiveTab(bookmark.url) },
+    { label: t('main.menu.context.openInNewTab'), click: () => browser.commands.openInNewTab(bookmark.url) },
+    { label: t('main.menu.context.copyAddress'), click: () => clipboard.writeText(bookmark.url) },
     { type: 'separator' },
     {
       label: t('main.menu.context.moveToFolder'),
@@ -534,7 +536,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
       ],
     },
     { type: 'separator' },
-    { label: t('main.menu.context.removeBookmark'), click: () => browser.bookmarks.remove(bookmarkId) },
+    { label: t('main.menu.context.removeBookmark'), click: () => browser.removeBookmarks([bookmarkId]) },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
