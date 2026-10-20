@@ -341,7 +341,7 @@ export function BookmarksSurface() {
                           event.preventDefault();
                           send((api) => api.bookmarks.openContextMenu(bookmark.id));
                         }}
-                        className="group flex h-[52px] items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
+                        className="group flex h-list-row items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
                       >
                         <Checkbox
                           checked={ticked.isSelected(bookmark.id)}

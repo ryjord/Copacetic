@@ -175,6 +175,9 @@
   --text-heading--line-height: round(calc(28px * var(--text-scale, 1)), 1px);
   --text-display: round(calc(32px * var(--text-scale, 1)), 1px);
   --text-display--line-height: round(calc(38px * var(--text-scale, 1)), 1px);
+  /* Reader view's two larger sizes, between title and heading; the article sets its own leading. */
+  --text-article-large: round(calc(19px * var(--text-scale, 1)), 1px);
+  --text-article-larger: round(calc(22px * var(--text-scale, 1)), 1px);
 
   --radius-xs: 4px;
   /* Controls, fields, cards, dialogs: 6, 8, 12, 16. */
@@ -184,6 +187,9 @@
   --radius-tab: 8px;
   --radius-field: 8px;
   --radius-panel: 12px;
+
+  /* A row in history and bookmarks, which holds a title and an address under it. */
+  --spacing-list-row: 52px;
 
   --shadow-popover: 0 12px 32px -8px var(--shadow-colour), 0 0 0 1px var(--line);
   --shadow-dialog: 0 24px 64px -16px var(--shadow-colour), 0 0 0 1px var(--line);

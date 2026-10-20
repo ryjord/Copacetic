@@ -29,8 +29,8 @@ type Reading = { state: 'loading' } | { state: 'none' } | { state: 'ready'; arti
 const SIZE_CLASSES: Record<ReaderStyle['size'], string> = {
   small: 'text-reading',
   default: 'text-title',
-  large: 'text-[19px]',
-  larger: 'text-[22px]',
+  large: 'text-article-large',
+  larger: 'text-article-larger',
 };
 const WIDTH_CLASSES: Record<ReaderStyle['width'], string> = {
   narrow: 'max-w-[56ch]',
@@ -77,6 +77,9 @@ export function ReaderSurface() {
         return;
       }
       setReading(article && document ? { state: 'ready', article, url: document.url } : { state: 'none' });
+      // Reset with the article, since a fetch for the previous one may have been abandoned midway.
+      setImages({});
+      setIsFetchingImages(false);
       setTranslated(null);
       setIsShowingOriginal(false);
       // The text first, so reading can start while the pictures arrive.
@@ -120,7 +123,7 @@ export function ReaderSurface() {
               onClick={() => setIsStyling(!isStyling)}
               className="font-serif"
             >
-              Aa
+              {t('views.reader.style.button')}
             </Button>
             {activeTabId && (
               <Button size="sm" variant="ghost" onClick={() => send((api) => api.tabs.print(activeTabId))}>

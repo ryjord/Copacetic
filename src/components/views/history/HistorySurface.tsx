@@ -234,7 +234,7 @@ export function HistorySurface() {
                   {items.map((entry) => (
                     <li
                       key={entry.id}
-                      className="group flex h-[52px] items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
+                      className="group flex h-list-row items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
                       // Forgetting a whole site lives on its own menu, where someone is already looking at one.
                       onContextMenu={(event) => {
                         event.preventDefault();
