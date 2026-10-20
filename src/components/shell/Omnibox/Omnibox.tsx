@@ -332,10 +332,14 @@ function PasswordKey({ tab }: { tab: TabState }) {
 
 /** Saving the page belongs to the page's address, so it sits at the end of it. */
 function BookmarkStar({ tab }: { tab: TabState }) {
+  // A Hush page could still be unbookmarked if it was saved from an ordinary tab, but never saved from this one.
+  const isRefused = tab.isHush && !tab.isBookmarked;
+  const label = tab.isBookmarked ? t('shell.omnibox.removeBookmark') : t('shell.omnibox.addBookmark');
   return (
     <IconButton
-      label={tab.isBookmarked ? t('shell.omnibox.removeBookmark') : t('shell.omnibox.addBookmark')}
+      label={isRefused ? t('shell.omnibox.noHushBookmark') : label}
       size="sm"
+      disabled={isRefused}
       tone={tab.isBookmarked ? 'active' : 'default'}
       onClick={() => send((api) => api.bookmarks.toggle(tab.url, tab.title))}
     >

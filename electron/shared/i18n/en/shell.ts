@@ -73,6 +73,7 @@ export const shell = {
     fillPassword: 'Fill saved password',
     removeBookmark: 'Remove bookmark',
     addBookmark: 'Bookmark this page',
+    noHushBookmark: 'A Hush tab keeps nothing, so its page is not bookmarked',
   },
   tabStrip: {
     openTabs: 'Open tabs',

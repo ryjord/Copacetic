@@ -191,6 +191,7 @@ export const main = {
     sessionSaved: 'Saved {pages} as “{name}”. Open it again from the menu beside the new tab button.',
     sessionEmpty: 'There are no pages here to save. Hush tabs and new tabs are left out.',
     hushTabsWere: { one: '{count} Hush tab was', other: '{count} Hush tabs were' },
+    hushNotBookmarked: 'A Hush tab keeps nothing, so its page is not bookmarked.',
     savedGroupWithHush: 'Saved {pages} to “{folderName}”. {hush} left out, because a bookmark is written to disk.',
     bookmarks: { one: '{count} bookmark', other: '{count} bookmarks' },
     added: 'Added {bookmarks}.',

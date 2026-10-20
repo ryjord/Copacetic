@@ -53,6 +53,13 @@ describe('everything a Hush tab writes', () => {
         await window.copacetic.tabs.setZoom(hush.id, 1.75);
       }
     });
+    // And starred, which a Hush tab refuses rather than write a bookmark.
+    const isBookmarked = await copacetic.chrome.evaluate(async () => {
+      const state = await window.copacetic.chrome.getState();
+      const hush = state.tabs.find((tab) => tab.isHush);
+      return hush ? window.copacetic.bookmarks.toggle(hush.url, hush.title) : null;
+    });
+    expect(isBookmarked).toBe(false);
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
     const named: string[] = [];

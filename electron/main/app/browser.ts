@@ -409,9 +409,20 @@ export class Browser {
       this.removeBookmarks([existing.id]);
       return;
     }
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    // Saving writes the address to disk, which is the one thing a Hush tab promises not to do.
+    const active = tabs.find((tab) => tab.id === activeTabId);
+    if (active?.isHush && active.url === url) {
+      this.notices.notify({
+        id: 'hush-not-bookmarked',
+        key: 'hush-not-bookmarked',
+        tone: 'info',
+        message: t('main.notices.hushNotBookmarked'),
+      });
+      return;
+    }
     this.store.toggleBookmark(url, title);
     const added = this.store.listBookmarks().find((bookmark) => bookmark.url === url);
-    const { activeTabId } = this.tabs.snapshot();
     this.bookmarks.changed();
     if (added && activeTabId) {
       this.bookmarkSheet = { tabId: activeTabId, bookmarkId: added.id };
