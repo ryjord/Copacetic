@@ -333,6 +333,18 @@ export class Profile {
       const holder = (opener === undefined ? null : this.windowHoldingContents(opener)) ?? this.focused();
       holder?.tabs.create(url, options);
     },
+    adopt: (contents, url, options) => {
+      const holder = this.windowHoldingContents(options.openerWebContentsId);
+      if (!holder) {
+        return false;
+      }
+      holder.tabs.create(url || 'about:blank', {
+        activate: options.activate,
+        openerWebContentsId: options.openerWebContentsId,
+        adopting: contents,
+      });
+      return true;
+    },
   };
 
   windowHoldingTab(tabId: TabId): Browser | null {

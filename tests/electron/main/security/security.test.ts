@@ -84,6 +84,8 @@ function fakeDelegate(
   const asked: { origin: string; kind: PermissionKind }[] = [];
   const opened: string[] = [];
   const handed: string[] = [];
+  const adopted: [string, number][] = [];
+  let isAdoptionRefused = false;
   const remembered: Record<string, PermissionDecision> = {};
   const offered: string[][] = [];
   let pick: string | null = null;
@@ -94,6 +96,8 @@ function fakeDelegate(
     asked,
     opened,
     handed,
+    adopted,
+    refuseAdoption: () => (isAdoptionRefused = true),
     remembered,
     offered,
     pickSource: (id: string | null) => (pick = id),
@@ -107,6 +111,10 @@ function fakeDelegate(
         return { decision: answer, remember };
       },
       openInNewTab: (url: string) => opened.push(url),
+      adoptOpenedPage: (_contents: unknown, url: string, options: { openerWebContentsId: number }) => {
+        adopted.push([url, options.openerWebContentsId]);
+        return !isAdoptionRefused;
+      },
       confirmExternalOpen: async (url: string) => {
         handed.push(url);
         return false;
@@ -341,13 +349,44 @@ describe('devices are refused outright', () => {
 });
 
 describe('a page trying to open a window', () => {
-  it('never gets one, whatever it asks for', () => {
+  // A sign-in pop-up answers its opener, so Chromium makes it; it is then handed to a tab, never a window.
+  it('gets its page made into a tab that keeps its opener', () => {
     const contents = fakeContents();
     const delegated = fakeDelegate();
     guardTabWebContents(contents.contents as never, delegated.delegate as never);
 
-    const result = contents.fire('window-open', { url: 'https://example.com/x', disposition: 'new-window' });
+    const result = contents.fire('window-open', { url: 'https://example.com/x', disposition: 'new-window' }) as {
+      action: string;
+      createWindow: (options: unknown) => unknown;
+    };
+    expect(result.action).toBe('allow');
+    const page = { id: 9, loadURL: () => {}, close: () => {} };
+    expect(result.createWindow({ webContents: page })).toBe(page);
+    expect(delegated.adopted).toEqual([['https://example.com/x', 7]]);
+  });
+
+  it('closes the page it was given when it cannot become a tab', () => {
+    const contents = fakeContents();
+    const delegated = fakeDelegate();
+    delegated.refuseAdoption();
+    guardTabWebContents(contents.contents as never, delegated.delegate as never);
+
+    const result = contents.fire('window-open', { url: 'https://example.com/x', disposition: 'new-window' }) as {
+      createWindow: (options: unknown) => unknown;
+    };
+    let isClosed = false;
+    result.createWindow({ webContents: { id: 9, loadURL: () => {}, close: () => (isClosed = true) } });
+    expect(isClosed).toBe(true);
+  });
+
+  it('never gets anything for an address a page may not reach', () => {
+    const contents = fakeContents();
+    const delegated = fakeDelegate();
+    guardTabWebContents(contents.contents as never, delegated.delegate as never);
+
+    const result = contents.fire('window-open', { url: 'javascript:alert(1)', disposition: 'new-window' });
     expect(result).toEqual({ action: 'deny' });
+    expect(delegated.adopted).toEqual([]);
   });
 
   it('gets a tab instead, when the address is one a page may reach', () => {

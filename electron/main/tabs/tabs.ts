@@ -717,6 +717,12 @@ export class TabManager {
       pinned?: boolean;
       /** Where it can go back and forward to, from a restored session. */
       history?: SessionHistory;
+      /**
+       * A page a tab opened with `window.open`, already made by Chromium and
+       * linked to its opener. It becomes this tab as it is, never loaded again,
+       * so `window.opener` still reaches the page that opened it.
+       */
+      adopting?: Electron.WebContents;
     } = {},
   ): TabId {
     // Last line of defence. Callers are expected to have already decided the
@@ -736,7 +742,9 @@ export class TabManager {
       groupId: options.groupId,
     });
     // A caller that said where the tab goes has already decided; otherwise the site's rule does.
-    const isPlacedByCaller = options.hush !== undefined || options.groupId !== undefined;
+    // An adopted page is already in its opener's session, so no rule can move it elsewhere.
+    const isPlacedByCaller =
+      options.hush !== undefined || options.groupId !== undefined || options.adopting !== undefined;
     const inherited = isPlacedByCaller ? fromOpener : this.placementFor(fromOpener, rawUrl);
 
     const id = randomUUID();
@@ -751,9 +759,9 @@ export class TabManager {
     // default, no tracker blocking and no download handling.
     this.prepareSession(partition);
 
-    const view = this.makeView(partition);
+    const view = this.makeView(partition, options.adopting);
 
-    const isStartPage = rawUrl === START_PAGE_URL;
+    const isStartPage = rawUrl === START_PAGE_URL && !options.adopting;
     const tab: TabRecord = {
       id,
       view,
@@ -783,9 +791,9 @@ export class TabManager {
     this.order.splice(Math.min(Math.max(0, insertAt), this.order.length), 0, id);
     this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
 
-    const described = this.wireView(tab);
+    const described = this.wireView(tab, options.adopting !== undefined);
 
-    if (!isStartPage) {
+    if (!isStartPage && !options.adopting) {
       void described.then(() => {
         // It can be closed, or sent somewhere else, while it waits.
         if (this.tabs.get(id) !== tab || tab.url !== rawUrl) {
@@ -810,8 +818,9 @@ export class TabManager {
   }
 
   /** A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows. */
-  private makeView(partition: string): WebContentsView {
+  private makeView(partition: string, adopting?: Electron.WebContents): WebContentsView {
     const view = new WebContentsView({
+      ...(adopting ? { webContents: adopting } : {}),
       webPreferences: {
         preload: undefined,
         sandbox: true,
@@ -837,7 +846,7 @@ export class TabManager {
    * resolves once it is ready to navigate. The same for a new tab and one
    * waking, so a woken tab is guarded exactly as it was when it was made.
    */
-  private wireView(tab: TabRecord): Promise<void> {
+  private wireView(tab: TabRecord, isAdopted = false): Promise<void> {
     const { view, id } = tab;
     const settings = this.store.getSettings();
     this.window.contentView.addChildView(view);
@@ -881,6 +890,10 @@ export class TabManager {
     view.webContents.on('will-redirect', followRule);
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
+    // An adopted page already has a document and is on its way somewhere; loading the empty one would stop it.
+    if (isAdopted) {
+      return describeTab(view.webContents, process.platform);
+    }
     // A view with no document yet answers no DevTools command at all, so it is
     // given the empty one first. Navigation then waits for the description to
     // land, because a tab that starts loading before it does is exactly the tab

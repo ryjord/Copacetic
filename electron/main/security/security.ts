@@ -23,6 +23,12 @@ export interface SecurityDelegate {
   }): Promise<PermissionAnswer>;
   /** A page tried to open a new window; route it into a tab instead. */
   openInNewTab(url: string, options: { activate: boolean; openerWebContentsId: number }): void;
+  /** Makes a page a tab opened, with its opener kept, a tab; false when it could not, and it is then closed. */
+  adoptOpenedPage(
+    contents: WebContents,
+    url: string,
+    options: { activate: boolean; openerWebContentsId: number },
+  ): boolean;
   /** A page tried to hand off to another application. */
   confirmExternalOpen(url: string, openerWebContentsId: number): Promise<boolean>;
   getStoredDecision(origin: string, kind: PermissionKind): PermissionDecision | null;
@@ -238,6 +244,15 @@ async function resolvePermission(
   return answer.decision === 'allow';
 }
 
+function isWebContents(value: unknown): value is WebContents {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof Reflect.get(value, 'id') === 'number' &&
+    typeof Reflect.get(value, 'loadURL') === 'function'
+  );
+}
+
 /** How long after a click or key press a page may still hand a link to another app. */
 export const GESTURE_WINDOW_MS = 5_000;
 const GESTURE_INPUTS = new Set(['mouseDown', 'rawKeyDown', 'keyDown', 'gestureTap', 'touchStart']);
@@ -264,11 +279,32 @@ export function guardTabWebContents(contents: WebContents, delegate: SecurityDel
   };
 
   contents.setWindowOpenHandler(({ url, disposition }) => {
+    const activate = disposition !== 'background-tab';
+    // A pop-up, such as a "Sign in with Google" window, waits to report back to
+    // the page that opened it through window.opener. Opened as a tab of its own
+    // the link was lost and every such sign-in silently went nowhere. So
+    // Chromium makes the page, already linked to its opener, and it is handed
+    // to a tab rather than a window: still never a window, so there is no
+    // surface for a pop-up that imitates browser chrome.
+    if (disposition === 'new-window' && (url === '' || url === 'about:blank' || isNavigable(url))) {
+      return {
+        action: 'allow',
+        outlivesOpener: true,
+        createWindow: (options) => {
+          // Electron hands over the page it made in these options; that is what keeps the opener.
+          const adopted: unknown = Reflect.get(options, 'webContents');
+          if (!isWebContents(adopted)) {
+            throw new Error('Electron made no page to adopt for a window a page opened');
+          }
+          if (!delegate.adoptOpenedPage(adopted, url, { activate, openerWebContentsId: contents.id })) {
+            adopted.close();
+          }
+          return adopted;
+        },
+      };
+    }
     if (isNavigable(url)) {
-      delegate.openInNewTab(url, {
-        activate: disposition !== 'background-tab',
-        openerWebContentsId: contents.id,
-      });
+      delegate.openInNewTab(url, { activate, openerWebContentsId: contents.id });
     } else {
       offerExternalOpen(url);
     }

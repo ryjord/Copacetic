@@ -18,6 +18,12 @@ export interface TabDirectory {
   tabIdForWebContentsId(webContentsId: number): TabId | null;
   urlFor(id: TabId): string | null;
   create(url: string, options: { activate?: boolean; openerWebContentsId?: number }): void;
+  /** A page a tab opened, made a tab of its own with its opener kept; null when the opener is not a tab. */
+  adopt(
+    contents: Electron.WebContents,
+    url: string,
+    options: { activate: boolean; openerWebContentsId: number },
+  ): boolean;
 }
 import { describeAuthPrompt, isPromptWorthy } from './auth';
 import type { SecurityDelegate } from './security';
@@ -120,6 +126,13 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
         deps.prompts.addPermission(prompt, resolve);
         deps.onPromptsChanged();
       }),
+
+    adoptOpenedPage: (contents, url, options) => {
+      if (!isPageNavigableUrl(url) && url !== '') {
+        return false;
+      }
+      return deps.tabs().adopt(contents, url, options);
+    },
 
     openInNewTab: (url, options) => {
       // Page-initiated, so the strict set: `window.open('file:///…')` must not become a tab.
