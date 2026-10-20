@@ -127,10 +127,26 @@ jobs:
       # build of 1.4.0 and not a single run before it.
       #
       # Not on pull requests: it is ten minutes a platform, and the branches
-      # below are the only ones a release is ever tagged from.
+      # below are the only ones a release is ever tagged from. On a tag too,
+      # where the release runs this workflow first, so the installers it is
+      # about to publish have been installed before anyone else gets them, and
+      # when run by hand, to check a branch before a tag is cut from it.
       - name: Build the installers
-        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development')
+        if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
         run: npx electron-builder --publish never
+
+      # A person's first five minutes: install it, start what was installed, take it away again.
+      - name: Install, start and remove each installer
+        if: runner.os != 'Linux' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
+        run: node scripts/check-installers.mjs
+        env:
+          COPACETIC_LAUNCH_IN_BACKGROUND: '1'
+
+      - name: Install, start and remove each installer
+        if: runner.os == 'Linux' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
+        run: xvfb-run -a node scripts/check-installers.mjs
+        env:
+          COPACETIC_LAUNCH_IN_BACKGROUND: '1'
 
       # Without this a platform-specific packaging failure can only be
       # reproduced by building locally on that platform, which for two of the
