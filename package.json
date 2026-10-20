@@ -121,6 +121,7 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
+      "minimumSystemVersion": "13.0",
       "extraResources": [
         {
           "from": "node_modules/electron/dist/LICENSES.chromium.html",
