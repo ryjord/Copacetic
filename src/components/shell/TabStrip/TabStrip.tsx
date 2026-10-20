@@ -159,6 +159,15 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
       >
         <Plus size={16} strokeWidth={1.75} />
       </IconButton>
+      {/* What the right-click opens, made visible: saved sessions and recently closed were only there to be found. */}
+      <IconButton
+        label={t('shell.tabStrip.newTabMenu')}
+        size="sm"
+        className="mb-1 -ml-1 w-5"
+        onClick={() => send((api) => api.tabs.openNewTabMenu())}
+      >
+        <ChevronDown size={14} strokeWidth={1.75} />
+      </IconButton>
     </div>
   );
 }

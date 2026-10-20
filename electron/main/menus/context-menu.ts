@@ -1,5 +1,5 @@
 // Libs
-import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, shell } from 'electron';
+import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, dialog, shell } from 'electron';
 
 // Utils
 import { cleanUrl } from '../../shared/browsing/link-cleaning';
@@ -295,6 +295,7 @@ export function showNewTabMenu(browser: Browser): void {
       enabled: browser.tabs.hasClosedTabs(),
       click: () => browser.commands.reopenClosedTab(),
     },
+    recentlyClosedSubmenu(browser),
     { type: 'separator' },
     { label: t('main.menu.tabs.saveSession'), click: () => browser.saveTabsAsSession() },
     namedSessionsSubmenu(browser),
@@ -303,7 +304,30 @@ export function showNewTabMenu(browser: Browser): void {
   Menu.buildFromTemplate(items).popup({ window: browser.window });
 }
 
-function namedSessionsSubmenu(browser: Browser): MenuItemConstructorOptions {
+const MAX_CLOSED_LABEL = 60;
+
+/** Every tab and group that can come back, newest first; a group is one item and reopens as the group. */
+export function recentlyClosedSubmenu(browser: Browser): MenuItemConstructorOptions {
+  const entries = browser.tabs.closedEntries();
+  const shorten = (text: string) =>
+    text.length > MAX_CLOSED_LABEL ? `${text.slice(0, MAX_CLOSED_LABEL - 1)}…` : text;
+  return {
+    label: t('main.menu.recentlyClosed.title'),
+    enabled: entries.length > 0,
+    submenu:
+      entries.length === 0
+        ? [{ label: t('main.menu.recentlyClosed.none'), enabled: false }]
+        : entries.map((entry, position) => ({
+            label:
+              entry.kind === 'group'
+                ? t('main.menu.recentlyClosed.group', { name: entry.group.name, count: entry.tabs.length })
+                : shorten(entry.tab.title || entry.tab.url),
+            click: () => browser.tabs.reopenClosedAt(position),
+          })),
+  };
+}
+
+export function namedSessionsSubmenu(browser: Browser): MenuItemConstructorOptions {
   const sessions = browser.store.listNamedSessions();
   return {
     label: t('main.sessions.savedSessions'),
@@ -415,10 +439,31 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
     { type: 'separator' },
     // Said plainly, because "delete" beside a row of tabs reads as deleting them.
     { label: t('main.menu.context.ungroupTabs'), click: () => browser.groups.remove(groupId) },
-    { label: t('main.menu.context.closeTheseTabs'), click: () => browser.groups.close(groupId) },
+    {
+      label: t('main.menu.context.closeTheseTabs'),
+      click: () => void closeGroupAfterAsking(browser, groupId, group.ownSession),
+    },
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/** A group with its own session loses its sign-ins when it closes, which reopening cannot bring back, so it asks. */
+async function closeGroupAfterAsking(browser: Browser, groupId: string, hasOwnSession: boolean): Promise<void> {
+  if (hasOwnSession) {
+    const { response } = await dialog.showMessageBox(browser.window, {
+      type: 'warning',
+      message: t('main.groups.closeOwnSession.message'),
+      detail: t('main.groups.closeOwnSession.detail'),
+      buttons: [t('main.groups.closeOwnSession.confirm'), t('main.groups.closeOwnSession.cancel')],
+      defaultId: 1,
+      cancelId: 1,
+    });
+    if (response !== 0) {
+      return;
+    }
+  }
+  browser.groups.close(groupId);
 }
 
 /**

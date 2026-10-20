@@ -65,7 +65,7 @@ import { describeTab } from '../system/browser-identity';
 import { log } from '../system/diagnostics';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents } from './tab-events';
-import { ClosedTabs } from './closed-tabs';
+import { ClosedTabs, type ClosedEntry, type ClosedGroup } from './closed-tabs';
 import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
 import { type TabRecord, pageOf } from './tab-record';
@@ -1015,12 +1015,41 @@ export class TabManager {
   }
 
   reopenClosed(): void {
-    const restored = this.closedTabs.takeMostRecent();
-    if (!restored) {
+    this.reopen(this.closedTabs.takeMostRecent());
+  }
+
+  /** One entry from the recently closed list, by its place in it. */
+  reopenClosedAt(position: number): void {
+    this.reopen(this.closedTabs.take(position));
+  }
+
+  closedEntries(): readonly ClosedEntry[] {
+    return this.closedTabs.entries();
+  }
+
+  /** Closes a group's tabs as one thing to reopen, rather than a handful of loose tabs. */
+  closeAsGroup(groupId: string, group: ClosedGroup): void {
+    this.closedTabs.beginGroup(group);
+    try {
+      this.tabsInGroup(groupId).forEach((tab) => this.close(tab.id));
+    } finally {
+      this.closedTabs.endGroup();
+    }
+  }
+
+  private reopen(entry: ClosedEntry | null): void {
+    if (entry?.kind === 'tab') {
+      // A group that has since been deleted is dropped by create, which leaves an ordinary tab.
+      this.create(entry.tab.url, { index: entry.tab.index, activate: true, groupId: entry.tab.groupId });
       return;
     }
-    // A group that has since been deleted is dropped by create, which leaves an ordinary tab.
-    this.create(restored.url, { index: restored.index, activate: true, groupId: restored.groupId });
+    if (entry?.kind === 'group') {
+      // A new group, since the old one went with its tabs; one with its own session starts signed out.
+      const group = this.store.createGroup(entry.group.name, entry.group.colour, entry.group.ownSession);
+      entry.tabs.forEach((tab, position) =>
+        this.create(tab.url, { index: tab.index, activate: position === 0, groupId: group.id }),
+      );
+    }
   }
 
   /** The person read why the HTTPS version failed and chose the plain one. */

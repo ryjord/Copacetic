@@ -241,7 +241,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       },
       {
         label: t('main.menu.history.clearBrowsingData'),
-        click: () => inWindow((browser) => browser.openSurface('settings')),
+        click: () => inWindow((browser) => browser.openSettingsPane('data')),
       },
     ],
   });

@@ -54,6 +54,8 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSle
       sleep: record('tabs.sleep'),
       titleFor: () => 'Example',
       hasClosedTabs: () => hasClosedTabs,
+      closedEntries: () => [],
+      reopenClosedAt: () => {},
       create: record('tabs.create'),
       duplicate: record('tabs.duplicate'),
       reload: record('tabs.reload'),

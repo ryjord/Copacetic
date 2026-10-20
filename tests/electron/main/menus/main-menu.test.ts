@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({
   Menu: { buildFromTemplate: () => ({ popup: () => {} }) },
   shell: { openExternal: async () => {} },
+  clipboard: { writeText: () => {} },
+  dialog: { showMessageBox: async () => ({ response: 1 }) },
 }));
 
 const { mainMenuItems } = await import('../../../../electron/main/menus/main-menu');
@@ -19,9 +21,24 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
       toggleTabDevTools: () => opened.push('devtools'),
       viewSourceOfActiveTab: () => opened.push('view source'),
       saveActiveTab: () => {},
+      activeZoomFactor: () => 1.25,
+      adjustZoom: (direction: string) => opened.push(`zoom ${direction}`),
     },
+    store: { listNamedSessions: () => [] },
+    openSettingsPane: (pane: string) => opened.push(`settings ${pane}`),
     openDownloadsFolder: () => opened.push('downloads folder'),
-    tabs: { hasClosedTabs: () => hasClosedTabs },
+    tabs: {
+      hasClosedTabs: () => hasClosedTabs,
+      toggleSplit: () => opened.push('split'),
+      closedEntries: () =>
+        hasClosedTabs
+          ? [
+              { kind: 'tab', tab: { url: 'https://example.com/', title: 'Example', index: 0, groupId: null } },
+              { kind: 'group', group: { name: 'Work', colour: 'moss', ownSession: false }, tabs: [{}, {}] },
+            ]
+          : [],
+      reopenClosedAt: (position: number) => opened.push(`reopen ${position}`),
+    },
     openFind: () => {},
     openSurface: (surface: string) => opened.push(surface),
     profile: {
@@ -81,5 +98,28 @@ describe('the main menu', () => {
     submenu('More tools').forEach((item) => item.click?.());
     expect(opened).toEqual(['devtools', 'view source', 'downloads folder']);
     expect(submenu('Help').map((item) => item.label)).toEqual(['Copacetic on GitHub', 'Report a problem']);
+  });
+
+  // Windows and Linux have no menu bar, so zoom, reader and split had nowhere else to be.
+  it('carries zoom, reader view, split view and clearing data', () => {
+    expect(labels()).toEqual(
+      expect.arrayContaining([
+        'Zoom 125%',
+        'Zoom in',
+        'Zoom out',
+        'Reader view',
+        'Split view',
+        'Clear browsing data…',
+      ]),
+    );
+  });
+
+  it('lists what was closed, a group as one item, and reopens the one chosen', () => {
+    opened.length = 0;
+    const recent = mainMenuItems(fakeBrowser()).find((item) => item.label === 'Recently closed');
+    const items = (recent?.submenu ?? []) as { label?: string; click?: () => void }[];
+    expect(items.map((item) => item.label)).toEqual(['Example', 'Work (2 tabs)']);
+    items[1]?.click?.();
+    expect(opened).toEqual(['reopen 1']);
   });
 });

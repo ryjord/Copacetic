@@ -3,6 +3,7 @@ import { Menu, type MenuItemConstructorOptions, shell } from 'electron';
 
 // Utils
 import { profileMenuItems } from './profile-menu';
+import { namedSessionsSubmenu, recentlyClosedSubmenu } from './context-menu';
 import { acceleratorFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
 
@@ -32,6 +33,8 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
       enabled: browser.tabs.hasClosedTabs(),
       click: () => browser.commands.reopenClosedTab(),
     },
+    recentlyClosedSubmenu(browser),
+    namedSessionsSubmenu(browser),
     { type: 'separator' },
     {
       label: t('main.menu.bookmarks.title'),
@@ -40,6 +43,22 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     },
     { label: t('main.menu.history.title'), ...shortcut('history'), click: () => browser.openSurface('history') },
     { label: t('main.menu.tabs.downloads'), ...shortcut('downloads'), click: () => browser.openSurface('downloads') },
+    { label: t('main.menu.history.clearBrowsingData'), click: () => browser.openSettingsPane('data') },
+    { type: 'separator' },
+    // Windows and Linux have no menu bar, so the zoom, reader and split controls have to live here too.
+    {
+      label: t('main.menu.mainMenu.zoomLevel', { percent: Math.round(browser.commands.activeZoomFactor() * 100) }),
+      enabled: false,
+    },
+    { label: t('main.menu.view.zoomIn'), ...shortcut('zoom-in'), click: () => browser.commands.adjustZoom('in') },
+    { label: t('main.menu.view.zoomOut'), ...shortcut('zoom-out'), click: () => browser.commands.adjustZoom('out') },
+    {
+      label: t('main.menu.view.actualSize'),
+      ...shortcut('zoom-reset'),
+      click: () => browser.commands.adjustZoom('reset'),
+    },
+    { label: t('main.menu.view.readerView'), ...shortcut('reader-view'), click: () => browser.openSurface('reader') },
+    { label: t('main.menu.tabs.splitView'), ...shortcut('split-view'), click: () => browser.tabs.toggleSplit() },
     { type: 'separator' },
     { label: t('main.menu.edit.findOnPage'), ...shortcut('find'), click: () => browser.openFind() },
     {

@@ -164,9 +164,10 @@ export class GroupCommands {
 
   /** Closes everything in a group and the group with it, including its own session's data. */
   close(id: string): void {
-    const hadOwnSession = this.deps.store.groupFor(id)?.ownSession === true;
-    for (const tab of this.deps.tabs.tabsInGroup(id)) {
-      this.deps.tabs.close(tab.id);
+    const group = this.deps.store.groupFor(id);
+    const hadOwnSession = group?.ownSession === true;
+    if (group) {
+      this.deps.tabs.closeAsGroup(id, { name: group.name, colour: group.colour, ownSession: group.ownSession });
     }
     this.deps.store.removeGroup(id);
     if (hadOwnSession) {

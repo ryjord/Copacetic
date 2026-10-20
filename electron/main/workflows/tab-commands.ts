@@ -73,7 +73,14 @@ export class TabCommands {
   }
 
   goHome(): void {
-    this.withActiveTab((tabId) => this.deps.tabs.navigate(tabId, START_PAGE_URL));
+    const homeUrl = this.deps.store.getSettings().homeUrl ?? START_PAGE_URL;
+    this.withActiveTab((tabId) => this.deps.tabs.navigate(tabId, homeUrl));
+  }
+
+  /** The zoom of the tab in front, for a menu to name; the default when there is none. */
+  activeZoomFactor(): number {
+    const { tabs, activeTabId } = this.deps.tabs.snapshot();
+    return tabs.find((tab) => tab.id === activeTabId)?.zoomFactor ?? this.deps.store.getSettings().defaultZoomFactor;
   }
 
   adjustZoom(direction: 'in' | 'out' | 'reset'): void {

@@ -70,6 +70,7 @@ export const shell = {
   tabStrip: {
     openTabs: 'Open tabs',
     newTab: 'New tab',
+    newTabMenu: 'Recently closed and saved sessions',
     pinned: 'pinned',
     asleep: 'asleep',
     hushTab: 'Hush tab',

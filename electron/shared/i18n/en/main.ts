@@ -1,6 +1,11 @@
 /** Words from the main process: menus, dialogs, notices and what the app says back to the renderer. */
 export const main = {
   menu: {
+    recentlyClosed: {
+      title: 'Recently closed',
+      none: 'Nothing closed yet',
+      group: '{name} ({count} tabs)',
+    },
     app: {
       settings: 'Settings…',
     },
@@ -131,6 +136,7 @@ export const main = {
     mainMenu: {
       profiles: 'Profiles',
       moreTools: 'More tools',
+      zoomLevel: 'Zoom {percent}%',
       quit: 'Quit Copacetic',
     },
   },
@@ -223,6 +229,13 @@ export const main = {
     },
   },
   groups: {
+    closeOwnSession: {
+      message: 'Close these tabs and sign out of their sites?',
+      detail:
+        'This group has its own session. Its cookies and sign-ins are deleted when it closes, and reopening it starts signed out.',
+      confirm: 'Close tabs',
+      cancel: 'Cancel',
+    },
     claim: {
       separate: 'Its own cookies and logins. Signing in here signs you in nowhere else.',
       shared: 'Shares cookies and logins with your other tabs.',
