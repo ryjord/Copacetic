@@ -475,13 +475,13 @@ export function registerIpcHandlers(profiles: Profiles): void {
   });
   handle('vault.remove', (browser, _event, id) => browser.vault.remove(asString(id)));
   handle('vault.reveal', (browser, _event, id) => browser.vault.reveal(asString(id)));
-  handle('vault.copy', (browser, _event, id, field) => {
+  handle('vault.copy', async (browser, _event, id, field) => {
     if (field === 'password') {
       const secret = browser.vault.reveal(asString(id));
       if (secret === null) {
         return false;
       }
-      copySecret(secret);
+      await copySecret(secret);
       return true;
     }
     const entry = browser.vault.state().entries.find((candidate) => candidate.id === asString(id));
