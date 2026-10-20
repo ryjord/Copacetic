@@ -1396,6 +1396,8 @@ export class TabManager {
     tab.isStartPage = false;
     tab.error = null;
     tab.url = url;
+    // Loading from the moment it is asked for: a title with nothing loading yet read as a page already loaded.
+    tab.isLoading = true;
     tab.title = tab.title || fallbackTitleFor(url);
     tab.faviconDataUrl = this.store.getFavicon(url);
     this.blocker.resetCount(contents.id);
@@ -1411,6 +1413,11 @@ export class TabManager {
       if (process.env.COPACETIC_DEBUG) {
         console.error('[tabs] loadURL rejected', url, error);
       }
+    }
+    // A load refused before Chromium started it sends no did-stop-loading to settle the tab.
+    if (tab.isLoading && !contents.isDestroyed() && !contents.isLoading()) {
+      tab.isLoading = false;
+      this.onChanged();
     }
   }
 
