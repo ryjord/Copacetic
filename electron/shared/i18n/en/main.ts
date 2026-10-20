@@ -78,6 +78,7 @@ export const main = {
     context: {
       openLinkInNewTab: 'Open link in new tab',
       openLinkInBackgroundTab: 'Open link in background tab',
+      openLinkInHushTab: 'Open link in Hush tab',
       copyLinkAddress: 'Copy link address',
       downloadLinkedFile: 'Download linked file',
       openImageInNewTab: 'Open image in new tab',

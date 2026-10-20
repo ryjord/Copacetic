@@ -94,6 +94,18 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
           openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
         }),
     });
+    // From a Hush tab every link already opens in Hush, so the choice is only offered elsewhere.
+    if (!browser.tabs.isHush(tabId)) {
+      push({
+        label: t('main.menu.context.openLinkInHushTab'),
+        click: () =>
+          browser.tabs.create(linkUrl, {
+            activate: true,
+            hush: true,
+            openerWebContentsId: browser.tabs.webContentsIdFor(tabId),
+          }),
+      });
+    }
     // The address someone shares is the clean one, when they asked for links to be cleaned.
     const shareable = browser.profile.settings().cleanLinks ? (cleanUrl(linkUrl) ?? linkUrl) : linkUrl;
     push({ label: t('main.menu.context.copyLinkAddress'), click: () => clipboard.writeText(shareable) });

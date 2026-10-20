@@ -71,16 +71,16 @@ describe('every tab opened from page content names its opener', () => {
   it('passes an opener on every tabs.create in the page context menu', () => {
     // Each call, from `tabs.create(` to the closing brace of its options.
     const calls = [...source.matchAll(/browser\.tabs\.create\([^;]*?\}\)/g)].map((match) => match[0]);
-    // Link, background link, image, search selection, and the tab-strip's own
-    // "New tab to the right" - which has no page behind it and takes none.
-    // Exactly five: a looser bound would pass while the regex quietly stopped
+    // Link, background link, Hush link, image, search selection, and the tab-strip's
+    // own "New tab to the right" - which has no page behind it and takes none.
+    // Exactly six: a looser bound would pass while the regex quietly stopped
     // matching one of them, which is the only way this check can rot.
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(6);
 
     // Anchored on the argument rather than on the word, so a future call whose
     // first argument merely starts with `undefined` is not skipped by accident.
     const fromPageContent = calls.filter((call) => !call.includes('create(undefined,'));
-    expect(fromPageContent).toHaveLength(4);
+    expect(fromPageContent).toHaveLength(5);
     for (const call of fromPageContent) {
       expect(call).toContain('openerWebContentsId');
     }

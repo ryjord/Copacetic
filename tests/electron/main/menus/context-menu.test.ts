@@ -16,8 +16,13 @@ vi.mock('electron', () => ({
   },
 }));
 
-const { showBookmarkFolderContextMenu, showGroupContextMenu, showNewTabMenu, showTabContextMenu } =
-  await import('../../../../electron/main/menus/context-menu');
+const {
+  showBookmarkFolderContextMenu,
+  showGroupContextMenu,
+  showNewTabMenu,
+  showPageContextMenu,
+  showTabContextMenu,
+} = await import('../../../../electron/main/menus/context-menu');
 
 const called: string[] = [];
 
@@ -324,5 +329,40 @@ describe("a bookmark folder's menu", () => {
     expect(open).toBe('Open all 0 as a tab group');
     const item = folderMenu({ here: 0 }).find((entry) => String(entry.label).startsWith('Open all'));
     expect(item?.enabled).toBe(false);
+  });
+});
+
+describe('a link right-clicked in a page', () => {
+  function linkMenu(isHush: boolean) {
+    const created: unknown[] = [];
+    const browser = {
+      profile: { settings: () => ({ cleanLinks: false }) },
+      commands: { downloadUrl: () => {} },
+      tabs: { isHush: () => isHush, webContentsIdFor: () => 7, create: (...args: unknown[]) => created.push(args) },
+    } as never;
+    captured = [];
+    showPageContextMenu(browser, 'tab-1', {
+      linkURL: 'https://example.com/elsewhere',
+      srcURL: '',
+      mediaType: 'none',
+      selectionText: '',
+      isEditable: false,
+      x: 0,
+      y: 0,
+    } as never);
+    return { items: captured, created };
+  }
+
+  it('opens in a Hush tab, from the page it was found on', () => {
+    const { items, created } = linkMenu(false);
+    (itemNamed(items, 'Open link in Hush tab')?.click as () => void)();
+    expect(created).toEqual([
+      ['https://example.com/elsewhere', { activate: true, hush: true, openerWebContentsId: 7 }],
+    ]);
+  });
+
+  // Every link out of a Hush tab is Hush already.
+  it('is not offered in a Hush tab', () => {
+    expect(labelsOf(linkMenu(true).items)).not.toContain('Open link in Hush tab');
   });
 });
