@@ -238,8 +238,31 @@ async function resolvePermission(
   return answer.decision === 'allow';
 }
 
+/** How long after a click or key press a page may still hand a link to another app. */
+export const GESTURE_WINDOW_MS = 5_000;
+const GESTURE_INPUTS = new Set(['mouseDown', 'rawKeyDown', 'keyDown', 'gestureTap', 'touchStart']);
+
+/** Whether someone used the page recently enough that an app link can be theirs. */
+export function isRecentGesture(lastInputAt: number | null, now: number): boolean {
+  return lastInputAt !== null && now - lastInputAt <= GESTURE_WINDOW_MS;
+}
+
 /** Guards applied to every tab's webContents. */
 export function guardTabWebContents(contents: WebContents, delegate: SecurityDelegate): void {
+  // Seen by the main process before the page, so a script cannot fake one.
+  let lastInputAt: number | null = null;
+  contents.on('input-event', (_event, input) => {
+    if (GESTURE_INPUTS.has(input.type)) {
+      lastInputAt = Date.now();
+    }
+  });
+  // An app link with no click or key behind it is refused without a question: asking is itself the nuisance.
+  const offerExternalOpen = (url: string) => {
+    if (isRecentGesture(lastInputAt, Date.now())) {
+      void delegate.confirmExternalOpen(url, contents.id);
+    }
+  };
+
   contents.setWindowOpenHandler(({ url, disposition }) => {
     if (isNavigable(url)) {
       delegate.openInNewTab(url, {
@@ -247,7 +270,7 @@ export function guardTabWebContents(contents: WebContents, delegate: SecurityDel
         openerWebContentsId: contents.id,
       });
     } else {
-      void delegate.confirmExternalOpen(url, contents.id);
+      offerExternalOpen(url);
     }
     // Copacetic never lets a page create a real window. Everything becomes a
     // tab, so there is no surface for a popup that imitates browser chrome.
@@ -259,7 +282,7 @@ export function guardTabWebContents(contents: WebContents, delegate: SecurityDel
       return;
     }
     event.preventDefault();
-    void delegate.confirmExternalOpen(url, contents.id);
+    offerExternalOpen(url);
   });
 
   contents.on('will-redirect', (event, url) => {

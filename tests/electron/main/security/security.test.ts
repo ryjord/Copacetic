@@ -25,8 +25,14 @@ vi.mock('electron', () => ({
   },
 }));
 
-const { guardChromeWebContents, guardTabWebContents, hardenWebSession, isTransportSecure, promptFor } =
-  await import('../../../../electron/main/security/security');
+const {
+  guardChromeWebContents,
+  guardTabWebContents,
+  hardenWebSession,
+  isRecentGesture,
+  isTransportSecure,
+  promptFor,
+} = await import('../../../../electron/main/security/security');
 
 type Handler = (...args: never[]) => unknown;
 
@@ -373,6 +379,34 @@ describe('a page trying to navigate itself somewhere', () => {
   // a tab to one.
   it.each(['file:///etc/passwd', 'javascript:alert(1)', 'data:text/html,x'])('refuses %s', (url) => {
     expect(attempt(url).prevented).toBe(true);
+  });
+});
+
+describe('a link to another app', () => {
+  const follow = (withClick: boolean) => {
+    const contents = fakeContents();
+    const delegated = fakeDelegate();
+    guardTabWebContents(contents.contents as never, delegated.delegate as never);
+    if (withClick) {
+      contents.fire('input-event', {}, { type: 'mouseDown' });
+    }
+    contents.fire('will-navigate', { preventDefault: () => {} }, 'zoommtg://zoom.us/join?confno=1');
+    return delegated.handed;
+  };
+
+  it('is offered when someone just clicked', () => {
+    expect(follow(true)).toEqual(['zoommtg://zoom.us/join?confno=1']);
+  });
+
+  // A page that opens app links on its own, on load or on a timer, never gets as far as a question.
+  it('is refused without a question when nobody did anything', () => {
+    expect(follow(false)).toEqual([]);
+  });
+
+  it('counts a gesture for a few seconds only', () => {
+    expect(isRecentGesture(1_000, 5_500)).toBe(true);
+    expect(isRecentGesture(1_000, 7_000)).toBe(false);
+    expect(isRecentGesture(null, 1_000)).toBe(false);
   });
 });
 
