@@ -1106,6 +1106,7 @@ export class TabManager {
     // Before the switch, so the highlights cleared are the ones on the tab being left.
     this.stopFind();
     if (this.fullscreen && this.fullscreen.tabId !== id) {
+      // The third script in pages, named on the transparency page: only the page itself can leave its full screen.
       void this.contentsFor(this.fullscreen.tabId)
         ?.executeJavaScript('document.exitFullscreen?.()')
         .catch(() => {});

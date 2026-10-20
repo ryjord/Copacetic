@@ -48,7 +48,7 @@ thing worth looking at.
 
 **Privacy you can check, not take on trust.** Settings has a page that lists
 every request Copacetic makes for itself and everything it keeps. Pages run no
-script of Copacetic's beyond two that are named there. Blocking counts are real
+script of Copacetic's beyond three that are named there. Blocking counts are real
 counts. Where something cannot be done, the interface says so rather than
 implying it was.
 
@@ -281,11 +281,13 @@ that. To report something that gets past them, see [SECURITY.md](SECURITY.md).
 | Malicious download filenames          | Path components, control characters and bidirectional overrides are stripped before a file is written                                                                                                           |
 | Tampering with the packaged app       | Electron's fuses are set: no `RunAsNode`, no `NODE_OPTIONS`, no inspector flags, ASAR integrity validated, and the app loads only from its archive                                                              |
 
-Two small scripts are the only ones Copacetic puts in a page, and the
-transparency page names both. One fills in the `window.chrome` object that real
-Chrome has and Electron leaves empty, with three placeholder members and nothing
-of the browser's, because some sign-in pages refuse a browser without it. The
-other is Fill password, which runs once, when you choose it.
+Three small scripts are the only ones Copacetic puts in a page, and the
+transparency page names each of them. One fills in the `window.chrome` object
+that real Chrome has and Electron leaves empty, with three placeholder members
+and nothing of the browser's, because some sign-in pages refuse a browser
+without it. Fill password runs once, when you choose it. And a page left in full
+screen when you switch to another tab is asked to leave it, with one call that
+reads nothing.
 
 ## What it does not do
 

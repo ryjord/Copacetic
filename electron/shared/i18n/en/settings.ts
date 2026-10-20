@@ -815,7 +815,7 @@ export const settings = {
       },
       runs: {
         title: 'What runs in pages',
-        line: 'A placeholder some sign-in pages need and Fill password when you choose it, and nothing that watches what you type.',
+        line: 'A placeholder some sign-in pages need, Fill password when you choose it and a call to leave full screen, and nothing that watches what you type.',
       },
       more: 'Read more',
     },
@@ -901,9 +901,9 @@ export const settings = {
       title: 'Scripts in pages',
       run: {
         question: 'Does Copacetic run code in the pages I visit?',
-        before: 'Two small things. Every page gets a placeholder for the',
+        before: 'Three small things. Every page gets a placeholder for the',
         after:
-          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. The other is Fill password, which runs once when you choose it.",
+          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it. And a page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing.",
       },
     },
     blocking: {
