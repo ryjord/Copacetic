@@ -11,7 +11,7 @@ export function profileMenuItems(browser: Browser): MenuItemConstructorOptions[]
       click: () => void browser.profile.openWindowIn(summary.id),
     })),
     { type: 'separator' },
-    { label: t('main.menu.profiles.manage'), click: () => browser.openSurface('settings') },
+    { label: t('main.menu.profiles.manage'), click: () => browser.openSettingsPane('profiles') },
   ];
 }
 

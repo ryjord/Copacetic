@@ -802,6 +802,21 @@ export const settings = {
     },
   },
   transparency: {
+    summary: {
+      leaves: {
+        title: 'What leaves',
+        line: 'No analytics, telemetry or account. The update check, filter lists, dictionaries and translation models are fetched only as described.',
+      },
+      kept: {
+        title: 'What is kept',
+        line: 'History, bookmarks, settings and passwords, in your profile folder on this machine. A Hush tab keeps nothing.',
+      },
+      runs: {
+        title: 'What runs in pages',
+        line: 'A placeholder some sign-in pages need, and Fill password when you choose it. Nothing watches what you type.',
+      },
+      more: 'Read more',
+    },
     leaves: {
       title: 'What leaves this machine',
       track: {
@@ -812,7 +827,7 @@ export const settings = {
       contact: {
         question: 'What does it contact on its own?',
         answer:
-          "Only the update check, which asks GitHub for the latest version number and sends nothing about you. You can turn it off in Updates. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker. Translating an article downloads the model a language needs from Mozilla, once.",
+          "The update check, which asks GitHub for the latest releases and their notes and sends nothing about you; you can turn it off in Updates. On macOS, Download and open fetches the installer from GitHub only when you press it. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker. Translating an article downloads the model a language needs from Mozilla, once.",
       },
       translation: {
         question: 'What does translation send?',
@@ -830,7 +845,7 @@ export const settings = {
       where: {
         question: 'Where is my data?',
         answer:
-          "In Copacetic's folder in your user profile: a SQLite database for history, bookmarks, downloads and what you decided about each site, and a settings file you can read in any text editor. History is removed after 90 days. You can export or clear it in Your data.",
+          "In Copacetic's folder in your user profile: a SQLite database for history, bookmarks, downloads and what you decided about each site, and a settings file you can read in any text editor. History is kept for as long as General says, 90 days unless you change it. You can export or clear it in Your data.",
       },
       log: {
         question: 'What is the diagnostics log?',

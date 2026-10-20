@@ -133,6 +133,8 @@ export interface CopaceticApi {
     focusOverlay(): Promise<void>;
     toggleSiteInfo(): Promise<void>;
     closeSiteInfo(): Promise<void>;
+    /** Settings, opened at one pane; from the site card, which cannot reach the chrome's own state. */
+    openSettingsPane(paneId: string): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;
@@ -381,6 +383,7 @@ export interface CopaceticApi {
     state(listener: (patch: BrowserStatePatch) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
+    openSettingsPane(listener: (paneId: string) => void): Unsubscribe;
     /** Something finished, or something needs deciding before it can. */
     notice(listener: (notice: Notice) => void): Unsubscribe;
     /** A notice was answered or dismissed somewhere else, so stop showing it. */

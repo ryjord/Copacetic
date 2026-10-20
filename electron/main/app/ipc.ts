@@ -295,6 +295,13 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('chrome.focusOverlay', (browser, event) => browser.focusOverlay(event.senderFrame));
   handle('chrome.toggleSiteInfo', (browser) => browser.toggleSiteInfo());
   handle('chrome.closeSiteInfo', (browser) => browser.closeSiteInfo());
+  handle('chrome.openSettingsPane', (browser, _event, paneId) => {
+    const id = asString(paneId);
+    // A pane's id, never anything the chrome would treat as more than a name.
+    if (/^[a-z]{1,30}$/.test(id)) {
+      browser.openSettingsPane(id);
+    }
+  });
   handle('chrome.setOverlaySize', (browser, event, width, height) =>
     browser.setOverlaySize(event.senderFrame, asNumber(width, 0), asNumber(height, 0)),
   );

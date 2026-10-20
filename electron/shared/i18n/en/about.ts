@@ -1,6 +1,12 @@
 /** Settings, About: versions, where to read more, and the licences. Product names are names, not words, and stay in the code. */
 export const about = {
   platform: 'Platform',
+  copyDetails: {
+    label: 'Details for a bug report',
+    help: 'The versions above and this platform, ready to paste. Nothing else is included.',
+    action: 'Copy',
+    copied: 'Copied.',
+  },
   transparency: {
     label: 'What Copacetic sends and keeps',
     help: 'Every request it makes, everything it stores, and what it does not do.',

@@ -167,6 +167,8 @@ export const shell = {
       byHostname: 'by hostname',
       showAll: 'Show all {count}',
       exportReport: 'Save as a report',
+      siteSettings: 'Site settings',
+      whatItSends: 'What Copacetic sends',
       certificateChanged: 'This certificate has changed',
       issuedBy: 'Issued by',
       issuedTo: 'Issued to',

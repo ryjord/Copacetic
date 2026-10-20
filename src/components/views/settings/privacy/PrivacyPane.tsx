@@ -43,7 +43,7 @@ const WEB_RTC_HELP: Record<WebRtcPolicy, string> = {
 
 const PROVIDERS = DNS_RESOLVERS.map((resolver) => ({ id: resolver.id, label: resolver.name }));
 
-export function PrivacyPane({ info }: SettingsPaneProps) {
+export function PrivacyPane({ info, openPane }: SettingsPaneProps) {
   const settings = useBrowserStore((state) => state.settings);
   const [isChecking, setIsChecking] = useState(false);
   const [blockedThisWeek, setBlockedThisWeek] = useState(0);
@@ -83,6 +83,18 @@ export function PrivacyPane({ info }: SettingsPaneProps) {
 
   return (
     <>
+      <SettingGroup>
+        <SettingRow
+          label={t('about.transparency.label')}
+          help={t('about.transparency.help')}
+          control={
+            <Button size="sm" onClick={() => openPane('transparency')}>
+              {t('about.transparency.action')}
+            </Button>
+          }
+        />
+      </SettingGroup>
+
       <SettingGroup title={t('settings.privacy.browsing.title')}>
         <SettingRow
           label={t('settings.privacy.browsing.httpsFirst.label')}

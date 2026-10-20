@@ -46,7 +46,25 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
 
   return (
     <div className="flex max-w-[62ch] flex-col gap-8">
-      <Topic title={t('settings.transparency.leaves.title')}>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Summary
+          title={t('settings.transparency.summary.leaves.title')}
+          line={t('settings.transparency.summary.leaves.line')}
+          target="transparency-leaves"
+        />
+        <Summary
+          title={t('settings.transparency.summary.kept.title')}
+          line={t('settings.transparency.summary.kept.line')}
+          target="transparency-kept"
+        />
+        <Summary
+          title={t('settings.transparency.summary.runs.title')}
+          line={t('settings.transparency.summary.runs.line')}
+          target="transparency-scripts"
+        />
+      </div>
+
+      <Topic id="transparency-leaves" title={t('settings.transparency.leaves.title')}>
         <Answer question={t('settings.transparency.leaves.track.question')}>
           {t('settings.transparency.leaves.track.answer')}
         </Answer>
@@ -61,7 +79,7 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
         </Answer>
       </Topic>
 
-      <Topic title={t('settings.transparency.kept.title')}>
+      <Topic id="transparency-kept" title={t('settings.transparency.kept.title')}>
         <Answer question={t('settings.transparency.kept.where.question')}>
           {t('settings.transparency.kept.where.answer')}
         </Answer>
@@ -109,7 +127,7 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
         </Answer>
       </Topic>
 
-      <Topic title={t('settings.transparency.scripts.title')}>
+      <Topic id="transparency-scripts" title={t('settings.transparency.scripts.title')}>
         <Answer question={t('settings.transparency.scripts.run.question')}>
           {t('settings.transparency.scripts.run.before')} <code className="font-mono">window.chrome</code>{' '}
           {t('settings.transparency.scripts.run.after')}
@@ -149,9 +167,27 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
   );
 }
 
-function Topic({ title, children }: { title: string; children: ReactNode }) {
+/** The short answer, first, with the way to the long one. */
+function Summary({ title, line, target }: { title: string; line: string; target: string }) {
   return (
-    <section className="flex flex-col gap-4">
+    <div className="flex flex-col gap-1.5 rounded-md bg-inset p-4">
+      <h3 className="text-reading font-semibold text-ink">{title}</h3>
+      <p className="flex-1 text-body text-ink-dim">{line}</p>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="self-start"
+        onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+      >
+        {t('settings.transparency.summary.more')}
+      </Button>
+    </div>
+  );
+}
+
+function Topic({ id, title, children }: { id?: string; title: string; children: ReactNode }) {
+  return (
+    <section id={id} className="flex flex-col gap-4">
       <h3 className="text-title font-semibold text-ink">{title}</h3>
       {children}
     </section>

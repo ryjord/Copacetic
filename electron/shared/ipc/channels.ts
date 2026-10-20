@@ -10,6 +10,8 @@ export const PUSH = {
   focusOmnibox: 'push:focus-omnibox',
   /** Fired when a menu item or shortcut wants the chrome to open a surface. */
   openSurface: 'push:open-surface',
+  /** Settings, at one pane, asked for from a menu or the site card. */
+  openSettingsPane: 'push:open-settings-pane',
   /** A native menu cannot hold a text field, so renaming asks the chrome to make the group's label editable. */
   renameGroup: 'push:rename-group',
   /** Saved bookmarks or folders changed. No tab changes when one is filed, so the tab snapshot cannot say it. */

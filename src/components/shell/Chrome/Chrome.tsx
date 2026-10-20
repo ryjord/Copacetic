@@ -34,6 +34,7 @@ import { shownSplit } from '@shared/tabs/split-view';
 export function Chrome() {
   const applyState = useBrowserStore((state) => state.applyState);
   const setSurface = useBrowserStore((state) => state.setSurface);
+  const openSettings = useBrowserStore((state) => state.openSettings);
   const requestOmniboxFocus = useBrowserStore((state) => state.requestOmniboxFocus);
 
   const isReady = useBrowserStore((state) => state.isReady);
@@ -64,6 +65,7 @@ export function Chrome() {
       api.on.state(applyState),
       api.on.focusOmnibox(requestOmniboxFocus),
       api.on.openSurface((next) => setSurface(next)),
+      api.on.openSettingsPane((paneId) => openSettings(paneId)),
     ];
 
     // Anything asked for before this listener existed was pushed to nobody. The
@@ -75,7 +77,7 @@ export function Chrome() {
       }
     });
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, [applyState, requestOmniboxFocus, setSurface]);
+  }, [applyState, requestOmniboxFocus, setSurface, openSettings]);
 
   // --- reporting the content rectangle ------------------------------------
 

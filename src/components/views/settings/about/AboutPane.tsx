@@ -20,6 +20,25 @@ const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', l
 export function AboutPane({ info, openPane }: SettingsPaneProps) {
   const [isShowingLicences, setIsShowingLicences] = useState(false);
   const [message, setMessage] = useState('');
+  const [copyNote, setCopyNote] = useState('');
+
+  const copyDetails = async () => {
+    if (!info) {
+      return;
+    }
+    const details = [
+      `Copacetic ${info.version}`,
+      `Chromium ${info.chromeVersion}`,
+      `Electron ${info.electronVersion}`,
+      PLATFORMS[info.platform] ?? info.platform,
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(details);
+      setCopyNote(t('about.copyDetails.copied'));
+    } catch (error) {
+      setCopyNote(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   return (
     <>
@@ -30,6 +49,15 @@ export function AboutPane({ info, openPane }: SettingsPaneProps) {
         <SettingRow
           label={t('about.platform')}
           control={<Version value={info ? (PLATFORMS[info.platform] ?? info.platform) : undefined} />}
+        />
+        <SettingRow
+          label={t('about.copyDetails.label')}
+          help={copyNote ? <span role="status">{copyNote}</span> : t('about.copyDetails.help')}
+          control={
+            <Button size="sm" disabled={!info} onClick={() => void copyDetails()}>
+              {t('about.copyDetails.action')}
+            </Button>
+          }
         />
       </SettingGroup>
 

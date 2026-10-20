@@ -93,6 +93,14 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
       <SitePermissions url={tab.url} />
       {/* Keyed by tab, so a switch never shows one tab's hosts under another's heading. */}
       <ConnectionLog key={tab.id} tabId={tab.id} />
+      <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
+        <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('sites'))}>
+          {t('shell.overlay.siteInfo.siteSettings')}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('transparency'))}>
+          {t('shell.overlay.siteInfo.whatItSends')}
+        </Button>
+      </div>
     </section>
   );
 }
