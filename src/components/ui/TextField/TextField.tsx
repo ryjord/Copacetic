@@ -1,9 +1,14 @@
 'use client';
 
+// Icons
 import { Search, X } from 'lucide-react';
-import type { ComponentProps } from 'react';
+
+// Utils
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
+
+// Types
+import type { ComponentProps } from 'react';
 
 type TextFieldProps = ComponentProps<'input'>;
 

@@ -1,9 +1,16 @@
 'use client';
 
+// Libs
 import { AlertDialog } from 'radix-ui';
-import type { MouseEvent, ReactNode } from 'react';
+
+// Components
 import { Button } from '@/components/ui/Button/Button';
+
+// Utils
 import { t } from '@shared/i18n/translate';
+
+// Types
+import type { MouseEvent, ReactNode } from 'react';
 
 interface ConfirmDialogProps {
   open: boolean;

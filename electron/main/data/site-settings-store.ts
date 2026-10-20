@@ -1,7 +1,10 @@
-import type { DatabaseSync } from 'node:sqlite';
-import type { PermissionDecision } from '../../shared/types';
+// Utils
 import { type OpenRules, isOpenTarget } from '../../shared/tabs/open-rules';
 import { inTransaction } from './database';
+
+// Types
+import type { DatabaseSync } from 'node:sqlite';
+import type { PermissionDecision } from '../../shared/types';
 
 /** The per-site parts of the settings: what each site may do, how far it is zoomed, and where trackers are allowed. */
 export class SiteSettingsStore {

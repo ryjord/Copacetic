@@ -1,6 +1,9 @@
+// Utils
 import { PersistedFile, asNumber, asString, isRecord } from './persistence';
 import { EVEN_SPLIT_RATIO, clampSplitRatio } from '../../shared/tabs/split-view';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
+
+// Types
 import type { SchemaPlan } from './schema';
 
 /**

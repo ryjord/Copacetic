@@ -1,6 +1,9 @@
+// Libs
 import { type BrowserWindow, type FileFilter, dialog } from 'electron';
 import { chmod, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+
+// Utils
 import { t } from '../../shared/i18n/translate';
 
 /**

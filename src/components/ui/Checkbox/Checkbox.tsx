@@ -1,8 +1,13 @@
 'use client';
 
+// Libs
 import { Checkbox as CheckboxPrimitive } from 'radix-ui';
-import { Check } from 'lucide-react';
 import { useId } from 'react';
+
+// Icons
+import { Check } from 'lucide-react';
+
+// Utils
 import { cn } from '@/lib/utils';
 
 interface CheckboxProps {

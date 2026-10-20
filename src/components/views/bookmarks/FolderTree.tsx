@@ -1,13 +1,15 @@
 'use client';
 
-// React
+// Libs
 import { useEffect, useState } from 'react';
+
+// Components
+import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
 
 // Icons
 import { ChevronDown, Inbox, List, Plus } from 'lucide-react';
 
 // Utils
-import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenameField';
 import { getBridge, send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';

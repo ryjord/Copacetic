@@ -1,3 +1,4 @@
+// Utils
 import {
   MAX_SESSION_HISTORY,
   type SessionHistory,
@@ -5,6 +6,8 @@ import {
   type SessionTab,
 } from '../data/session-store';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
+
+// Types
 import type { TabId } from '../../shared/types';
 import type { SplitView } from '../../shared/tabs/split-view';
 
