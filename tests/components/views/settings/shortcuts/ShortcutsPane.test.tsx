@@ -49,11 +49,30 @@ describe('the shortcuts pane', () => {
     expect(recording.at(-1)).toBe(false);
   });
 
-  it('refuses keys another shortcut already has, and says which', () => {
+  // Another changeable shortcut on the key is a trade, not a dead end.
+  it('offers to swap with the shortcut that has the keys', () => {
     render(<ShortcutsPane />);
     fireEvent.keyDown(changePrint(), { code: 'KeyT', ctrlKey: true });
     expect(updateSettings).not.toHaveBeenCalled();
-    expect(screen.getByText('Ctrl + T is already used for New tab.')).toBeTruthy();
+    expect(screen.getByText('Ctrl + T is used for New tab. Swap gives that one Ctrl + P instead.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Swap' }));
+    expect(updateSettings).toHaveBeenCalledWith({
+      shortcutOverrides: { print: 'CmdOrCtrl+T', 'new-tab': 'CmdOrCtrl+P' },
+    });
+  });
+
+  it('refuses keys that cannot move, and says which', () => {
+    render(<ShortcutsPane />);
+    fireEvent.keyDown(changePrint(), { code: 'Digit1', ctrlKey: true });
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(screen.getByText('Ctrl + 1 is already used for Select tab by position.')).toBeTruthy();
+  });
+
+  it('removes a shortcut, leaving the command without one', () => {
+    render(<ShortcutsPane />);
+    fireEvent.change(screen.getByLabelText('Search shortcuts'), { target: { value: 'print' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(updateSettings).toHaveBeenCalledWith({ shortcutOverrides: { print: '' } });
   });
 
   it('keeps the old keys on Escape', () => {
@@ -75,5 +94,6 @@ describe('the shortcuts pane', () => {
     render(<ShortcutsPane />);
     fireEvent.change(screen.getByLabelText('Search shortcuts'), { target: { value: 'topmost panel' } });
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+    expect(screen.getByText('Built into how tabs and the keyboard work, so these cannot move.')).toBeTruthy();
   });
 });

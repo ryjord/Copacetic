@@ -571,6 +571,12 @@ export const settings = {
     none: 'None',
     change: 'Change',
     reset: 'Reset',
+    remove: 'Remove',
+    swap: 'Swap',
+    cancel: 'Cancel',
+    swapHelp: '{shortcut} is used for {conflict}. Swap gives that one {previous} instead.',
+    swapHelpNone: '{shortcut} is used for {conflict}. Swap leaves that one without a shortcut.',
+    fixed: 'Built into how tabs and the keyboard work, so these cannot move.',
   },
   updates: {
     status: {

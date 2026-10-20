@@ -180,6 +180,14 @@ export function readShortcutOverrides(value: unknown): ShortcutOverrides {
 // Tab positions are bound by the menu but listed as one range.
 const POSITION_KEYS = Array.from({ length: 8 }, (_unused, index) => `CmdOrCtrl+${index + 1}`);
 
+/** The other changeable shortcut on a key, which a swap can trade places with; null when none, or when it is fixed. */
+export function rebindableHolderOf(id: string, accelerator: string, overrides: ShortcutOverrides): Shortcut | null {
+  return (
+    REBINDABLE.find((shortcut) => shortcut.id !== id && acceleratorFor(shortcut.id, overrides) === accelerator) ??
+    null
+  );
+}
+
 /** What already answers to a key, so a new binding cannot quietly take another's place. */
 export function conflictFor(id: string, accelerator: string, overrides: ShortcutOverrides): string | null {
   if (POSITION_KEYS.includes(accelerator)) {

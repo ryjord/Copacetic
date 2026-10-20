@@ -5,14 +5,17 @@ import { cn } from '@/lib/utils';
 
 interface SettingGroupProps {
   title?: string;
+  /** One line under the title, for what is true of every row in the group. */
+  description?: string;
   children: ReactNode;
 }
 
 /** A titled group of settings, drawn as one inset panel. */
-export function SettingGroup({ title, children }: SettingGroupProps) {
+export function SettingGroup({ title, description, children }: SettingGroupProps) {
   return (
     <section className="flex flex-col gap-2" data-setting-group={title ?? ''}>
       {title && <h3 className="px-1 text-body font-semibold text-ink-dim">{title}</h3>}
+      {description && <p className="-mt-1 px-1 text-body text-ink-dim">{description}</p>}
       <div className="divide-y divide-line overflow-hidden rounded-md bg-inset">{children}</div>
     </section>
   );

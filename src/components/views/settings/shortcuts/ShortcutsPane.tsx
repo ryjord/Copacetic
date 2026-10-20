@@ -25,6 +25,7 @@ import {
   acceleratorFor,
   acceleratorFromKeys,
   conflictFor,
+  rebindableHolderOf,
   isValidAccelerator,
   readableAccelerator,
 } from '@shared/chrome/shortcuts';
@@ -34,6 +35,8 @@ export function ShortcutsPane() {
   const [query, setQuery] = useState('');
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [problem, setProblem] = useState('');
+  // A key that another changeable shortcut has, held while the swap is offered.
+  const [pendingSwap, setPendingSwap] = useState<{ id: string; accelerator: string; holder: Shortcut } | null>(null);
   const isMac = isMacPlatform();
 
   // The menu lets go of its keys only while one is being recorded, and always takes them back.
@@ -71,6 +74,13 @@ export function ShortcutsPane() {
       setProblem(t(isMac ? 'settings.shortcuts.holdMac' : 'settings.shortcuts.holdOther'));
       return;
     }
+    const holder = rebindableHolderOf(id, accelerator, overrides);
+    if (holder) {
+      setPendingSwap({ id, accelerator, holder });
+      setRecordingId(null);
+      setProblem('');
+      return;
+    }
     const conflict = conflictFor(id, accelerator, overrides);
     if (conflict) {
       setProblem(t('settings.shortcuts.conflict', { shortcut: readableAccelerator(accelerator, isMac), conflict }));
@@ -79,6 +89,13 @@ export function ShortcutsPane() {
     updateSettings({ shortcutOverrides: { ...overrides, [id]: accelerator } });
     setRecordingId(null);
     setProblem('');
+  };
+
+  const swap = ({ id, accelerator, holder }: { id: string; accelerator: string; holder: Shortcut }) => {
+    updateSettings({
+      shortcutOverrides: { ...overrides, [id]: accelerator, [holder.id]: acceleratorFor(id, overrides) ?? '' },
+    });
+    setPendingSwap(null);
   };
 
   const reset = (id: string) => {
@@ -94,11 +111,44 @@ export function ShortcutsPane() {
       <SearchField value={query} onChange={setQuery} label={t('settings.shortcuts.search')} />
       {groups.length === 0 && <p className="px-0.5 text-body-sm text-ink-dim">{t('settings.shortcuts.noMatch')}</p>}
       {groups.map((group) => (
-        <SettingGroup key={group.title} title={group.title}>
+        <SettingGroup
+          key={group.title}
+          title={group.title}
+          description={group.isRebindable ? undefined : t('settings.shortcuts.fixed')}
+        >
           {group.shortcuts.map((shortcut) => {
             const isRecording = recordingId === shortcut.id;
             const current = group.isRebindable ? acceleratorFor(shortcut.id, overrides) : shortcut.accelerator;
             const isChanged = group.isRebindable && Object.hasOwn(overrides, shortcut.id);
+            const swapping = pendingSwap?.id === shortcut.id ? pendingSwap : null;
+            if (swapping) {
+              const previous = current ? readableAccelerator(current, isMac) : '';
+              return (
+                <SettingRow
+                  key={shortcut.id}
+                  label={shortcut.description}
+                  help={
+                    <span role="status">
+                      {t(previous ? 'settings.shortcuts.swapHelp' : 'settings.shortcuts.swapHelpNone', {
+                        shortcut: readableAccelerator(swapping.accelerator, isMac),
+                        conflict: swapping.holder.description,
+                        previous,
+                      })}
+                    </span>
+                  }
+                  control={
+                    <>
+                      <Button size="sm" variant="ghost" onClick={() => setPendingSwap(null)}>
+                        {t('settings.shortcuts.cancel')}
+                      </Button>
+                      <Button size="sm" variant="primary" onClick={() => swap(swapping)}>
+                        {t('settings.shortcuts.swap')}
+                      </Button>
+                    </>
+                  }
+                />
+              );
+            }
             return (
               <SettingRow
                 key={shortcut.id}
@@ -131,6 +181,15 @@ export function ShortcutsPane() {
                         }}
                       >
                         {t('settings.shortcuts.change')}
+                      </Button>
+                    )}
+                    {group.isRebindable && current && !isRecording && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => updateSettings({ shortcutOverrides: { ...overrides, [shortcut.id]: '' } })}
+                      >
+                        {t('settings.shortcuts.remove')}
                       </Button>
                     )}
                     {isChanged && !isRecording && (
