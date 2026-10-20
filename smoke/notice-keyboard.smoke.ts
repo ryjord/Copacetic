@@ -27,7 +27,7 @@ describe('a question the app asks', () => {
     await copacetic.chrome.evaluate(async () => {
       const folder = await window.copacetic.bookmarkFolders.create('Keyboard', 'plum', null);
       for (let index = 0; index < 12; index += 1) {
-        await window.copacetic.bookmarks.toggle(`https://example.com/k-${index}`, `K ${index}`);
+        await window.copacetic.bookmarks.add(`K ${index}`, `https://example.com/k-${index}`, null);
       }
       const saved = await window.copacetic.bookmarks.list();
       for (const bookmark of saved.filter((entry) => entry.url.includes('/k-'))) {

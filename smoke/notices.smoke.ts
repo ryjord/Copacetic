@@ -33,7 +33,7 @@ describe('a notice said before anyone was listening', () => {
     const outcome = await copacetic.chrome.evaluate(async () => {
       const folder = await window.copacetic.bookmarkFolders.create('Held', 'ocean', null);
       for (let index = 0; index < 12; index += 1) {
-        await window.copacetic.bookmarks.toggle(`https://example.com/held-${index}`, `Held ${index}`);
+        await window.copacetic.bookmarks.add(`Held ${index}`, `https://example.com/held-${index}`, null);
       }
       const saved = await window.copacetic.bookmarks.list();
       for (const bookmark of saved.filter((entry) => entry.url.includes('/held-'))) {
@@ -102,7 +102,7 @@ describe('a notice said before anyone was listening', () => {
     await copacetic.chrome.evaluate(async () => {
       const folder = await window.copacetic.bookmarkFolders.create('Second', 'plum', null);
       for (let index = 0; index < 12; index += 1) {
-        await window.copacetic.bookmarks.toggle(`https://example.com/second-${index}`, `Second ${index}`);
+        await window.copacetic.bookmarks.add(`Second ${index}`, `https://example.com/second-${index}`, null);
       }
       const saved = await window.copacetic.bookmarks.list();
       for (const bookmark of saved.filter((entry) => entry.url.includes('/second-'))) {

@@ -45,6 +45,8 @@ import {
 } from '@shared/tabs/tab-groups';
 
 const CROWDED_TAB_WIDTH = 72;
+// Roughly the system's double-click interval: longer and folding feels slow, shorter and a double-click folds first.
+const DOUBLE_CLICK_MS = 250;
 
 interface TabStripProps {
   tabs: TabState[];
@@ -390,6 +392,8 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
 /** A group's own mark, and the only place its colour appears: never filling a tab keeps Hush the strongest tint. */
 function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
   const [isRenaming, setIsRenaming] = useState(false);
+  const foldTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(foldTimer.current), []);
 
   useEffect(() => {
     const api = getBridge();
@@ -438,9 +442,21 @@ function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: 
             }
             aria-expanded={!group.collapsed}
             title={t('shell.tabStrip.groupHint', { claim: describeClaim(claim) })}
-            onClick={() => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed }))}
-            // The two clicks before it have folded and unfolded the group, so it ends where it started.
-            onDoubleClick={() => setIsRenaming(true)}
+            onClick={(event) => {
+              // Held for a moment, so the first click of a double-click never folds the group out from under the rename.
+              if (event.detail > 1) {
+                return;
+              }
+              clearTimeout(foldTimer.current);
+              foldTimer.current = setTimeout(
+                () => send((api) => api.groups.update(group.id, { collapsed: !group.collapsed })),
+                DOUBLE_CLICK_MS,
+              );
+            }}
+            onDoubleClick={() => {
+              clearTimeout(foldTimer.current);
+              setIsRenaming(true);
+            }}
             className="flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-caption font-medium transition-[filter] hover:brightness-110"
             style={{ color: colour, background: tint }}
           >

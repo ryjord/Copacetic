@@ -27,9 +27,9 @@ describe('a bookmark folder opens as a tab group', () => {
       const inner = await window.copacetic.bookmarkFolders.create('Long form', 'moss', outer.id);
 
       // Bookmarks are saved the way the star saves them, then filed.
-      await window.copacetic.bookmarks.toggle('https://example.com/one', 'One');
-      await window.copacetic.bookmarks.toggle('https://example.com/two', 'Two');
-      await window.copacetic.bookmarks.toggle('https://example.com/three', 'Three');
+      await window.copacetic.bookmarks.add('One', 'https://example.com/one', null);
+      await window.copacetic.bookmarks.add('Two', 'https://example.com/two', null);
+      await window.copacetic.bookmarks.add('Three', 'https://example.com/three', null);
       const saved = await window.copacetic.bookmarks.list();
       const idFor = (url: string) => saved.find((bookmark) => bookmark.url === url)?.id ?? '';
 
@@ -120,7 +120,7 @@ describe('opening a folder big enough to hurt', () => {
     const asked = await copacetic.chrome.evaluate(async () => {
       const folder = await window.copacetic.bookmarkFolders.create('Everything', 'ocean', null);
       for (let index = 0; index < 14; index += 1) {
-        await window.copacetic.bookmarks.toggle(`https://example.com/many-${index}`, `Page ${index}`);
+        await window.copacetic.bookmarks.add(`Page ${index}`, `https://example.com/many-${index}`, null);
       }
       const saved = await window.copacetic.bookmarks.list();
       for (const bookmark of saved.filter((entry) => entry.url.includes('/many-'))) {

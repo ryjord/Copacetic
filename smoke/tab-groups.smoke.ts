@@ -29,7 +29,8 @@ describe('renaming a group', () => {
    */
   it('does not move the chrome or the page', async () => {
     const before = await pageTop();
-    await copacetic.chrome.getByRole('button', { name: /Work/ }).first().click();
+    // A click folds the group away; a double-click is what renames it.
+    await copacetic.chrome.getByRole('button', { name: /Work/ }).first().dblclick();
     await new Promise((resolve) => setTimeout(resolve, 500));
     const after = await pageTop();
 
@@ -85,7 +86,7 @@ describe('renaming a group', () => {
     await copacetic.chrome
       .getByRole('button', { name: /Client work/ })
       .first()
-      .click();
+      .dblclick();
     await new Promise((resolve) => setTimeout(resolve, 400));
     await copacetic.chrome.keyboard.type('Thrown away');
     await copacetic.chrome.keyboard.press('Escape');
