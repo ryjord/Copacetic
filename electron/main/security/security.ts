@@ -9,6 +9,7 @@ import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';
 import { APP_ORIGIN, DEV_SERVER_ORIGIN, isDevelopment } from '../app/env';
 import { t } from '../../shared/i18n/translate';
+import { isLoadedExtensionPage } from '../extensions/extension-pages';
 
 // Types
 import type { PermissionAnswer, PermissionDecision, PermissionDefault, PermissionKind } from '../../shared/types';
@@ -366,7 +367,7 @@ function hardenAttachedFrames(contents: WebContents): void {
 function isNavigable(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === `${INTERNAL_SCHEME}:`) {
+    if (parsed.protocol === `${INTERNAL_SCHEME}:` || isLoadedExtensionPage(url)) {
       return true;
     }
     return PAGE_NAVIGABLE_SCHEMES.has(parsed.protocol);

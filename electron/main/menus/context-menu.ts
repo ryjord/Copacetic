@@ -214,6 +214,26 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     separate();
   }
 
+  // What extensions added, above Inspect as Chrome puts them; a Hush tab runs none.
+  const contentsId = browser.tabs.webContentsIdFor(tabId);
+  const fromExtensions =
+    contentsId === undefined || browser.tabs.isHush(tabId)
+      ? []
+      : browser.profile.extensions.menuItemsFor({
+          pageUrl: params.pageURL,
+          linkUrl,
+          srcUrl: imageUrl,
+          selectionText: params.selectionText,
+          isEditable: params.isEditable,
+          mediaType: params.mediaType,
+          tabId: contentsId,
+        });
+  if (fromExtensions.length > 0) {
+    separate();
+    fromExtensions.forEach((item) => push(item));
+    separate();
+  }
+
   push({
     label: t('main.menu.context.inspectElement'),
     click: () => browser.tabs.inspectAt(tabId, params.x, params.y),

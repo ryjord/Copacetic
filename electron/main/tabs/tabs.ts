@@ -25,6 +25,7 @@ import {
 } from '../../shared/browsing/url';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
 import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
+import { isLoadedExtensionPage } from '../extensions/extension-pages';
 import {
   DEFAULT_INSETS,
   type ContentBounds,
@@ -729,7 +730,10 @@ export class TabManager {
     // URL is allowed, but this is the single place every tab is born, so
     // refusing here means no future caller can quietly open a `data:` or
     // `javascript:` tab by forgetting a check of its own.
-    const rawUrl = requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) ? requestedUrl : START_PAGE_URL;
+    // An installed extension's own page, such as its options, is the one other kind of address a tab may open.
+    const isAllowed =
+      requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) || isLoadedExtensionPage(requestedUrl);
+    const rawUrl = isAllowed ? requestedUrl : START_PAGE_URL;
 
     // What the opener was, this tab is, unless the caller said otherwise. A
     // link followed out of a Hush tab used to open an ordinary recorded one -

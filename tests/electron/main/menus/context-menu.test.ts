@@ -336,7 +336,7 @@ describe('a link right-clicked in a page', () => {
   function linkMenu(isHush: boolean) {
     const created: unknown[] = [];
     const browser = {
-      profile: { settings: () => ({ cleanLinks: false }) },
+      profile: { settings: () => ({ cleanLinks: false }), extensions: { menuItemsFor: () => [] } },
       commands: { downloadUrl: () => {} },
       tabs: { isHush: () => isHush, webContentsIdFor: () => 7, create: (...args: unknown[]) => created.push(args) },
     } as never;

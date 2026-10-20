@@ -23,6 +23,8 @@ interface SessionRegistryDeps {
   groups: () => readonly TabGroup[];
   isSpellcheckOn: () => boolean;
   spellcheckLanguages: () => readonly string[];
+  /** Told of each session once it is hardened, for the extensions that run there. */
+  onPrepared?: (session: Session, partition: string) => void;
 }
 
 /**
@@ -62,6 +64,7 @@ export class SessionRegistry {
     this.deps.downloads.attach(session, remembersDownloads(partition), partition);
     session.setSpellCheckerEnabled(this.deps.isSpellcheckOn());
     this.applySpellcheckLanguages(session);
+    this.deps.onPrepared?.(session, partition);
     return session;
   }
 

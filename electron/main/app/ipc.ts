@@ -42,6 +42,7 @@ import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start
 import { readChosenImage } from '../system/file-dialogs';
 import { clearCopiedSecret, copySecret, copyText } from '../vault/vault-clipboard';
 import { t } from '../../shared/i18n/translate';
+import { webStoreIdFrom } from '../../shared/extensions/extensions';
 import { describeKept, isKeptKind, siteOf as siteOfAddress, type KeptKind } from '../../shared/data/forgetting';
 import { withSiteRestored, withoutSite } from '../../shared/data/site-settings';
 import {
@@ -591,6 +592,27 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('shortcuts.setRecording', (_browser, _event, isRecording) =>
     profiles.setRecordingShortcut(isRecording === true),
   );
+  // ------------------------------------------------------------ extensions
+
+  handle('extensions.list', (browser) => browser.profile.extensions.summaries(browser.activeChromeTabId()));
+  handle('extensions.addFromWebStore', (browser, _event, input) => {
+    const id = webStoreIdFrom(asString(input).slice(0, 2048));
+    return id ? browser.profile.extensions.addFromWebStore(id) : t('main.extensions.install.notAStoreAddress');
+  });
+  handle('extensions.addFromFolder', (browser) => browser.profile.extensions.addFromFolder());
+  handle('extensions.setEnabled', (browser, _event, id, isEnabled) =>
+    browser.profile.extensions.setEnabled(asString(id), isEnabled === true),
+  );
+  handle('extensions.remove', (browser, _event, id) => browser.profile.extensions.remove(asString(id)));
+  handle('extensions.press', (browser, _event, id, left, right, bottom) =>
+    browser.profile.extensions.press(asString(id), browser.window, browser.activeChromeTabId(), {
+      left: Math.round(asNumber(left, 0)),
+      right: Math.round(asNumber(right, 0)),
+      bottom: Math.round(asNumber(bottom, 0)),
+    }),
+  );
+  handle('extensions.openOptions', (browser, _event, id) => browser.profile.extensions.openOptions(asString(id)));
+
   handle('updates.check', (browser) => browser.updates.check());
   handle('updates.install', (browser) => browser.updates.install());
   handle('updates.openReleases', (browser) => browser.updates.openReleasesPage());

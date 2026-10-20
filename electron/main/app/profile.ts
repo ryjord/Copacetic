@@ -1,6 +1,7 @@
 // Libs
-import { BrowserWindow, type WebContents, app, net, safeStorage, shell, systemPreferences } from 'electron';
+import { BrowserWindow, type WebContents, app, dialog, net, safeStorage, shell, systemPreferences } from 'electron';
 import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 // Utils
 import { cleanUrl } from '../../shared/browsing/link-cleaning';
@@ -10,6 +11,7 @@ import { type ProfilePartitions, groupPartition, partitionsFor } from '../../sha
 import { PendingPrompts } from '../security/pending-prompts';
 import { type TabDirectory, createSecurityDelegate, watchAuthChallenges } from '../security/browser-delegate';
 import { SessionRegistry } from '../sessions/session-registry';
+import { PUSH } from '../../shared/ipc/channels';
 import { BrowserStore } from '../data/store';
 import { DownloadManager } from '../data/downloads';
 import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
@@ -20,6 +22,10 @@ import { isDevelopment } from './env';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
 import { ClosedTabs } from '../tabs/closed-tabs';
+import { ExtensionHost } from '../extensions/extension-host';
+import { profileBrowsing } from '../extensions/profile-browsing';
+import { fetchFromWebStore } from '../extensions/web-store-fetch';
+import { abilitiesOf } from '../../shared/extensions/abilities';
 import { t } from '../../shared/i18n/translate';
 
 // Types
@@ -70,6 +76,7 @@ export class Profile {
   readonly partitions: ProfilePartitions;
   /** Tabs to reopen, one stack for every window of this profile. */
   readonly closedTabs = new ClosedTabs();
+  readonly extensions: ExtensionHost;
 
   private readonly windows = new Set<Browser>();
   /** The window last in front, for menus and notices when none is focused at this moment. */
@@ -144,6 +151,49 @@ export class Profile {
       onPromptsChanged: () => this.scheduleStatePush(),
     };
     this.securityDelegate = createSecurityDelegate(delegateDeps);
+    this.extensions = new ExtensionHost({
+      directory,
+      browsing: profileBrowsing({
+        windows: () => [...this.windows],
+        focused: () => this.focused(),
+        openWindow: (url) => void this.openWindow(url ? { url } : {}),
+      }),
+      fetchBytes: fetchFromWebStore,
+      confirmAdd: async (request) => {
+        const abilities = abilitiesOf(request.permissions, request.hostPermissions);
+        const parent = this.focused()?.window;
+        const options: Electron.MessageBoxOptions = {
+          type: 'question',
+          message: t('main.extensions.add.message', { name: request.name }),
+          detail: t('main.extensions.add.detail', {
+            abilities:
+              abilities.length > 0
+                ? abilities.map((ability) => `- ${ability}`).join('\n')
+                : t('main.extensions.add.nothingAsked'),
+          }),
+          buttons: [t('main.extensions.add.confirm'), t('main.extensions.add.cancel')],
+          defaultId: 1,
+          cancelId: 1,
+          noLink: true,
+        };
+        const { response } = parent
+          ? await dialog.showMessageBox(parent, options)
+          : await dialog.showMessageBox(options);
+        return response === 0;
+      },
+      chooseFolder: async () => {
+        const parent = this.focused()?.window;
+        const options: Electron.OpenDialogOptions = {
+          title: t('main.extensions.add.chooseFolder'),
+          properties: ['openDirectory'],
+        };
+        const chosen = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options);
+        return chosen.canceled ? null : (chosen.filePaths[0] ?? null);
+      },
+      workerPreload: path.join(app.getAppPath(), 'dist', 'electron', 'preload', 'extensions', 'worker.js'),
+      pagePreload: path.join(app.getAppPath(), 'dist', 'electron', 'preload', 'extensions', 'page.js'),
+      changed: () => this.broadcast(PUSH.extensionsChanged),
+    });
     this.sessions = new SessionRegistry({
       partitions: this.partitions,
       securityDelegate: this.securityDelegate,
@@ -153,6 +203,7 @@ export class Profile {
       groups: () => this.store.listGroups(),
       isSpellcheckOn: () => this.store.getSettings().spellcheck,
       spellcheckLanguages: () => this.store.getSettings().spellcheckLanguages,
+      onPrepared: (session, partition) => this.extensions.attach(session, partition),
     });
     // Only a session that still exists: a deleted group's partition is not made again by retrying a download from it.
     this.downloads.setSessionResolver((partition) => {
@@ -528,6 +579,8 @@ export class Profile {
     this.windows.forEach((window) => window.stopPublishing());
     this.downloads.cancelAllInFlight();
     this.downloads.flush();
+    this.extensions.quit();
+    this.extensions.flush();
     this.store.flushAll();
   }
 

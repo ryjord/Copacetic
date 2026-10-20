@@ -36,6 +36,7 @@ import type {
   VaultState,
 } from '../types';
 import type { TabMemory } from '../tabs/tab-memory';
+import type { ExtensionSummary } from '../extensions/extensions';
 
 /** A shortcut as typed: the address may be bare, like `example.com`, and is resolved in the main process. */
 export interface StartShortcutInput {
@@ -384,6 +385,19 @@ export interface CopaceticApi {
     /** While a new key is being recorded, the menu lets go of its own so the key reaches the page. */
     setRecording(isRecording: boolean): Promise<void>;
   };
+  extensions: {
+    /** Every extension, with its toolbar button as it stands for the tab in front. */
+    list(): Promise<ExtensionSummary[]>;
+    /** From a store address or an id; resolves empty, or with why it was not added. */
+    addFromWebStore(input: string): Promise<string>;
+    /** From a folder chosen in the main process's own dialog, for someone building one. */
+    addFromFolder(): Promise<string>;
+    setEnabled(id: string, isEnabled: boolean): Promise<void>;
+    remove(id: string): Promise<void>;
+    /** Its toolbar button was pressed, at these edges in the window. */
+    press(id: string, left: number, right: number, bottom: number): Promise<void>;
+    openOptions(id: string): Promise<void>;
+  };
   updates: {
     /** Ask now, rather than waiting for the periodic check. */
     check(): Promise<void>;
@@ -409,6 +423,7 @@ export interface CopaceticApi {
     bookmarksChanged(listener: () => void): Unsubscribe;
     /** History or the start page tiles changed outside the view showing them, such as an undo. */
     dataChanged(listener: (kind: DataKind) => void): Unsubscribe;
+    extensionsChanged(listener: () => void): Unsubscribe;
 
     /** The bookmark folder whose label should become editable. */
     renameBookmarkFolder(listener: (folderId: string) => void): Unsubscribe;

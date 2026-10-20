@@ -114,7 +114,10 @@ export class Browser {
       },
       canSend: () => !this.window.isDestroyed() && !this.window.webContents.isDestroyed(),
       // The tabs changed often enough to tell the interface, which is when they are worth writing down.
-      beforeSend: () => this.profile.saveSession(),
+      beforeSend: () => {
+        this.profile.saveSession();
+        this.profile.extensions.tabsChanged();
+      },
     });
 
     this.tabs = new TabManager(
@@ -431,6 +434,13 @@ export class Browser {
       this.overlays.trailing.takeFocus();
     }
     this.scheduleStatePush();
+  }
+
+  /** The tab in front as extensions number it, by its page; null when there is none or it is Hush. */
+  activeChromeTabId(): number | null {
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    const active = tabs.find((tab) => tab.id === activeTabId);
+    return active && !active.isHush && activeTabId ? (this.tabs.webContentsIdFor(activeTabId) ?? null) : null;
   }
 
   toggleBookmarkForActiveTab(): void {

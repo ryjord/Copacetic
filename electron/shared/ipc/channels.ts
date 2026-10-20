@@ -16,6 +16,8 @@ export const PUSH = {
   renameGroup: 'push:rename-group',
   /** Saved bookmarks or folders changed. No tab changes when one is filed, so the tab snapshot cannot say it. */
   bookmarksChanged: 'push:bookmarks-changed',
+  /** Extensions were added, removed or switched, or one changed its toolbar button. */
+  extensionsChanged: 'push:extensions-changed',
   /** Something the app finished, or a question it has to ask before finishing. */
   notice: 'push:notice',
   /** A notice is finished with. Said so the layer drawing it can stop. */

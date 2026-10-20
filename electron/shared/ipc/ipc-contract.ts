@@ -224,6 +224,13 @@ export const CHANNELS = {
   'connections.exportReport': 'connections:export-report',
 
   'shortcuts.setRecording': 'shortcuts:set-recording',
+  'extensions.list': 'extensions:list',
+  'extensions.addFromWebStore': 'extensions:add-from-web-store',
+  'extensions.addFromFolder': 'extensions:add-from-folder',
+  'extensions.setEnabled': 'extensions:set-enabled',
+  'extensions.remove': 'extensions:remove',
+  'extensions.press': 'extensions:press',
+  'extensions.openOptions': 'extensions:open-options',
   'updates.check': 'updates:check',
   'updates.install': 'updates:install',
   'updates.openReleases': 'updates:open-releases',

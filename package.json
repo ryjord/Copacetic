@@ -18,7 +18,7 @@
     "build": "npm run build:renderer && npm run build:main && npm run filters:build",
     "build:renderer": "node scripts/build-licences.mjs && next build",
     "build:main": "npm run clean:dist && tsc -p tsconfig.electron.json && npm run build:preload && node scripts/build-translation-engine.mjs",
-    "build:preload": "esbuild electron/preload/index.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outfile=dist/electron/preload/index.js",
+    "build:preload": "esbuild electron/preload/index.ts electron/preload/extensions/worker.ts electron/preload/extensions/page.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outbase=electron/preload --outdir=dist/electron/preload",
     "start": "cross-env NODE_ENV=production electron .",
     "package": "npm run build && electron-builder --publish never",
     "package:dir": "npm run build && electron-builder --dir --publish never",
