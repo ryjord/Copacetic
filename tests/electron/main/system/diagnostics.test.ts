@@ -34,6 +34,15 @@ describe('nothing written down identifies where someone has been', () => {
     expect(scrub('token AKIAIOSFODNN7EXAMPLEKEYVALUE123 rejected')).toBe('token <redacted> rejected');
   });
 
+  // The folder name is usually the person's name.
+  it.each([
+    ['macOS', '/Users/riley/Library/Copacetic/x.json', '~/Library/Copacetic/x.json'],
+    ['Linux', 'could not write /home/riley/.config/Copacetic/x.db', 'could not write ~/.config/Copacetic/x.db'],
+    ['Windows', 'C:\\Users\\Riley Jordan\\AppData\\Roaming', '~\\AppData\\Roaming'],
+  ])('replaces a home folder on %s', (_system, raw, scrubbed) => {
+    expect(scrub(raw)).toBe(scrubbed);
+  });
+
   it('scrubs values that arrive through fields, not just the event', () => {
     new Diagnostics(dir).error('load failed', { url: 'https://private.example/path' });
     expect(read()).toContain('url=https://<address>');

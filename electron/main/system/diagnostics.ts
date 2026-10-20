@@ -16,18 +16,22 @@ const URL_LIKE = /\b[a-z][a-z0-9+.-]*:\/\/\S+/gi;
 // Long unbroken runs of key-shaped characters: tokens, hashes, ciphertext.
 const SECRET_LIKE = /\b[A-Za-z0-9+/=_-]{24,}\b/g;
 
+// A home folder names the person; the rest of a path is what says where something failed. Windows names can hold spaces.
+const HOME_LIKE = /(?:\/Users|\/home)\/[^/\s]+|\b[A-Za-z]:\\Users\\[^\\]+/gi;
+
 /**
  * What is safe to write down.
  *
  * A diagnostics log is only useful if someone will send it to you, and they can
  * only do that if it holds nothing they would mind sharing. Rather than trusting
  * every call site to remember that, every value written goes through here: an
- * address becomes its scheme, anything key-shaped is removed, and what is left
- * is short.
+ * address becomes its scheme, a home folder becomes ~, anything key-shaped is
+ * removed, and what is left is short.
  */
 export function scrub(value: string): string {
   return value
     .replace(URL_LIKE, (match) => `${match.slice(0, match.indexOf(':'))}://<address>`)
+    .replace(HOME_LIKE, '~')
     .replace(SECRET_LIKE, '<redacted>')
     .slice(0, MAX_VALUE_LENGTH);
 }
