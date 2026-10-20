@@ -47,6 +47,8 @@ export function SavedPasswords({ entries, isUnlocked, onRemove, onChanged }: Sav
   const [sort, setSort] = useState<PasswordSort>('site');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // One region that is always there, since one added along with its text is often not read out at all.
+  const [announcement, setAnnouncement] = useState('');
   const { revealed, toggle } = useRevealed(isUnlocked);
 
   const needle = query.trim().toLowerCase();
@@ -57,7 +59,10 @@ export function SavedPasswords({ entries, isUnlocked, onRemove, onChanged }: Sav
     );
 
   // Said in the row the action was taken in, rather than at the top of the pane.
-  const note = (id: string, text: string) => setNotes((current) => ({ ...current, [id]: text }));
+  const note = (id: string, text: string) => {
+    setNotes((current) => ({ ...current, [id]: text }));
+    setAnnouncement(text);
+  };
 
   const copy = async (entry: VaultEntry, field: 'username' | 'password') => {
     const isCopied = await ask((api) => api.vault.copy(entry.id, field), false);
@@ -73,6 +78,9 @@ export function SavedPasswords({ entries, isUnlocked, onRemove, onChanged }: Sav
 
   return (
     <>
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
       {entries.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 px-3.5 py-2.5">
           <div className="min-w-48 flex-1">
@@ -114,11 +122,7 @@ export function SavedPasswords({ entries, isUnlocked, onRemove, onChanged }: Sav
               ) : (
                 <>
                   {entry.username || t('settings.passwords.saved.noUsername')}
-                  {notes[entry.id] && (
-                    <span role="status" className="block text-ink">
-                      {notes[entry.id]}
-                    </span>
-                  )}
+                  {notes[entry.id] && <span className="block text-ink">{notes[entry.id]}</span>}
                 </>
               )
             }
@@ -131,19 +135,28 @@ export function SavedPasswords({ entries, isUnlocked, onRemove, onChanged }: Sav
                   <>
                     {entry.username && (
                       <IconButton
-                        label={t('settings.passwords.saved.copyUsername')}
+                        label={t('settings.passwords.saved.copyUsername', { site: siteLabel(entry) })}
                         onClick={() => void copy(entry, 'username')}
                       >
                         <Copy size={15} />
                       </IconButton>
                     )}
                     <IconButton
-                      label={t('settings.passwords.saved.copyPassword')}
+                      label={t('settings.passwords.saved.copyPassword', { site: siteLabel(entry) })}
                       onClick={() => void copy(entry, 'password')}
                     >
                       <KeyRound size={15} />
                     </IconButton>
-                    <Button size="sm" variant="ghost" onClick={() => toggle(entry.id)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={
+                        revealed[entry.id] === undefined
+                          ? t('settings.passwords.saved.showFor', { site: siteLabel(entry) })
+                          : t('settings.passwords.saved.hideFor', { site: siteLabel(entry) })
+                      }
+                      onClick={() => toggle(entry.id)}
+                    >
                       {revealed[entry.id] === undefined
                         ? t('settings.passwords.saved.show')
                         : t('settings.passwords.saved.hide')}
@@ -181,7 +194,28 @@ export function SavedPasswords({ entries, isUnlocked, onRemove, onChanged }: Sav
 /** Revealed passwords, each hidden again on its own timer, and all of them the moment the vault locks. */
 function useRevealed(isUnlocked: boolean) {
   const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [wasUnlocked, setWasUnlocked] = useState(isUnlocked);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const asking = useRef(new Set<string>());
+  const locks = useRef(0);
+
+  // Dropped in the render that sees the lock, so not one password outlives it in memory.
+  if (wasUnlocked !== isUnlocked) {
+    setWasUnlocked(isUnlocked);
+    if (!isUnlocked) {
+      setRevealed({});
+    }
+  }
+
+  useEffect(() => {
+    if (isUnlocked) {
+      return;
+    }
+    locks.current += 1;
+    timers.current.forEach((timer) => clearTimeout(timer));
+    timers.current.clear();
+    asking.current.clear();
+  }, [isUnlocked]);
 
   const hide = (id: string) => {
     clearTimeout(timers.current.get(id));
@@ -199,7 +233,17 @@ function useRevealed(isUnlocked: boolean) {
       hide(id);
       return;
     }
+    if (asking.current.has(id)) {
+      return;
+    }
+    asking.current.add(id);
+    const locksBefore = locks.current;
     void ask((api) => api.vault.reveal(id), null).then((password) => {
+      asking.current.delete(id);
+      // The vault locked while this was being read, so it is not shown.
+      if (locks.current !== locksBefore) {
+        return;
+      }
       setRevealed((current) => ({ ...current, [id]: password ?? '' }));
       timers.current.set(
         id,
@@ -208,7 +252,7 @@ function useRevealed(isUnlocked: boolean) {
     });
   };
 
-  return { revealed: isUnlocked ? revealed : {}, toggle };
+  return { revealed, toggle };
 }
 
 function EditPasswordForm({

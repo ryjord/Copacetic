@@ -55,7 +55,7 @@ describe('the passwords pane', () => {
     vaultState = { availability: 'ready', detail: '', entries: [entry('a', true)], unreadableCount: 0 };
     render(<PasswordsPane />);
     await waitFor(() => expect(screen.getByText('example.com')).toBeTruthy());
-    expect(screen.getByRole('button', { name: 'Show' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show the password for example.com' })).toBeTruthy();
   });
 
   // Filling shipped in 1.3.2 while Settings denied it for four releases; the claim stays tied to the code.
@@ -90,7 +90,7 @@ describe('the passwords pane', () => {
       vaultState = unreadable;
       render(<PasswordsPane />);
       await waitFor(() => expect(screen.getAllByText('Unreadable').length).toBeGreaterThan(0));
-      expect(screen.queryByRole('button', { name: 'Show' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Show the password/ })).toBeNull();
     });
   });
 
@@ -151,16 +151,16 @@ describe('working with a saved password', () => {
   it('copies a password and says it will be cleared', async () => {
     vaultState = { availability: 'ready', detail: '', entries: [entry('a', true)], unreadableCount: 0 };
     render(<PasswordsPane />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy password' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy the password for example.com' }));
     await waitFor(() => expect(copied).toHaveBeenCalledWith('a', 'password'));
-    expect(await screen.findByText(/cleared from the clipboard in 30 seconds/)).toBeTruthy();
+    expect(await screen.findAllByText(/cleared from the clipboard in 30 seconds/)).toHaveLength(2);
   });
 
   it('hides a shown password by itself', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vaultState = { availability: 'ready', detail: '', entries: [entry('a', true)], unreadableCount: 0 };
     render(<PasswordsPane />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Show' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Show the password for example.com' }));
     expect(await screen.findByText('hunter2')).toBeTruthy();
     act(() => {
       vi.advanceTimersByTime(20_000);
