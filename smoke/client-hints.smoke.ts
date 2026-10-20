@@ -41,9 +41,12 @@ describe('a tab describes itself consistently', () => {
     expect(seen.brands).toContain('Chromium');
   });
 
-  it('reports the same version in the hints as in the user agent', async () => {
+  // As Chrome does: the user agent is cut to the major version, and the full build is answered when asked.
+  it('reports the same major version in both, and the real build in the hints', async () => {
     const seen = await copacetic.inPage<{ uaFullVersion: string; userAgent: string }>('https://example.com/', REPORT);
-    expect(seen.userAgent).toContain(`Chrome/${seen.uaFullVersion}`);
+    const major = seen.uaFullVersion.split('.')[0];
+    expect(seen.userAgent).toContain(`Chrome/${major}.0.0.0`);
+    expect(seen.uaFullVersion).toMatch(/^\d+\.0\.[1-9]\d*\.\d+$/);
   });
 
   // A beta's version once left `-beta.1` in the string: a user agent nobody else sends.

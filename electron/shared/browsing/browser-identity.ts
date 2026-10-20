@@ -26,15 +26,47 @@ export interface ClientHints {
   mobile: boolean;
 }
 
-/** Chromium's own filler entry, present so that nothing parses the list by position. */
-const GREASE: Brand = { brand: 'Not;A=Brand', version: '8' };
-const GREASE_FULL: Brand = { brand: 'Not;A=Brand', version: '8.0.0.0' };
+// Chromium's filler brand, and the order of the list, both follow from the major version; see greaseFor.
+const GREASE_CHARACTERS = [' ', '(', ':', '-', '.', '/', ')', ';', '=', '?', '_'];
+const GREASE_VERSIONS = ['8', '99', '24'];
+const BRAND_ORDERS = [
+  [0, 1, 2],
+  [0, 2, 1],
+  [1, 0, 2],
+  [1, 2, 0],
+  [2, 0, 1],
+  [2, 1, 0],
+];
 
+/**
+ * The filler entry Chromium adds so that nothing parses the brand list by
+ * position, and the order it puts the list in, each worked out from the major
+ * version the way Chromium itself does. A fixed filler matched one version of
+ * Chrome and contradicted every other.
+ */
+export function greaseFor(major: number): { brand: string; version: string; order: number[] } {
+  const character = (offset: number) => GREASE_CHARACTERS[(major + offset) % GREASE_CHARACTERS.length] ?? ' ';
+  return {
+    brand: `Not${character(0)}A${character(1)}Brand`,
+    version: GREASE_VERSIONS[major % GREASE_VERSIONS.length] ?? '8',
+    order: BRAND_ORDERS[major % BRAND_ORDERS.length] ?? [0, 1, 2],
+  };
+}
+
+// Used when the system's own version cannot be read. On Windows Chrome reports the API contract version, not the OS's.
 const PLATFORMS: Record<string, { platform: string; platformVersion: string }> = {
   darwin: { platform: 'macOS', platformVersion: '15.5.0' },
   win32: { platform: 'Windows', platformVersion: '15.0.0' },
   linux: { platform: 'Linux', platformVersion: '6.8.0' },
 };
+
+/** What the process actually runs, for the answers Chrome gives in full. */
+export interface ActualVersions {
+  /** Chromium's own build, such as 150.0.7871.250. */
+  chromium?: string;
+  /** The operating system's version, as macOS reports it. */
+  system?: string;
+}
 
 /** What Chrome reports, from what the process actually runs on. Claiming arm on an Intel Mac would contradict WebGL. */
 function architectureFor(arch: string): string {
@@ -42,29 +74,56 @@ function architectureFor(arch: string): string {
 }
 
 /**
- * Everything reported is read out of the user agent the session already sends,
- * so the string and the hints cannot drift apart - including when Chromium is
- * upgraded and the version changes underneath.
+ * The major version is read out of the user agent the session already sends,
+ * so the string and the hints cannot drift apart when Chromium is upgraded.
+ *
+ * The full version is not: the user agent is cut to `150.0.0.0`, as Chrome's
+ * own is, but Chrome still answers the full build when a page asks, and a
+ * zeroed build next to the Chrome brand is the mark of a browser pretending.
+ * Sign-in pages' fraud checks look for exactly that, so the real build is
+ * passed in.
  */
-export function clientHintsFor(userAgent: string, platform: string, arch = 'x64'): ClientHints | null {
+export function clientHintsFor(
+  userAgent: string,
+  platform: string,
+  arch = 'x64',
+  actual: ActualVersions = {},
+): ClientHints | null {
   const version = /Chrome\/((\d+)[\d.]*)/.exec(userAgent);
-  const full = version?.[1];
   const major = version?.[2];
-  if (!full || !major) {
+  const reported = version?.[1];
+  if (!reported || !major) {
     return null;
   }
+  const full = actual.chromium?.startsWith(`${major}.`) ? actual.chromium : reported;
 
   const system = PLATFORMS[platform];
   if (!system) {
     return null;
   }
 
+  const grease = greaseFor(Number(major));
+  const inOrder = (entries: Brand[]) =>
+    grease.order.map((index) => entries[index]).filter((entry) => entry !== undefined);
+  const platformVersion =
+    platform === 'darwin' && actual.system && /^\d+(\.\d+)*$/.test(actual.system)
+      ? [...actual.system.split('.'), '0', '0'].slice(0, 3).join('.')
+      : system.platformVersion;
+
   return {
-    brands: [GREASE, { brand: 'Chromium', version: major }, { brand: 'Google Chrome', version: major }],
-    fullVersionList: [GREASE_FULL, { brand: 'Chromium', version: full }, { brand: 'Google Chrome', version: full }],
+    brands: inOrder([
+      { brand: grease.brand, version: grease.version },
+      { brand: 'Chromium', version: major },
+      { brand: 'Google Chrome', version: major },
+    ]),
+    fullVersionList: inOrder([
+      { brand: grease.brand, version: `${grease.version}.0.0.0` },
+      { brand: 'Chromium', version: full },
+      { brand: 'Google Chrome', version: full },
+    ]),
     fullVersion: full,
     platform: system.platform,
-    platformVersion: system.platformVersion,
+    platformVersion,
     architecture: architectureFor(arch),
     model: '',
     mobile: false,

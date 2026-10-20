@@ -36,7 +36,7 @@ export function describeSession(session: Session, platform: string, locale: stri
   session.setUserAgent(userAgent, acceptLanguagesFor(locale));
 
   // Handed back rather than sent from here: a session has one request-headers listener, and it is shared.
-  const hints = clientHintsFor(userAgent, platform, process.arch);
+  const hints = clientHintsFor(userAgent, platform, process.arch, actualVersions());
   return hints ? clientHintHeaders(hints) : {};
 }
 
@@ -62,7 +62,7 @@ export async function describeTab(contents: WebContents, platform: string): Prom
 
   try {
     const userAgent = contents.session.getUserAgent();
-    const hints = clientHintsFor(userAgent, platform, process.arch);
+    const hints = clientHintsFor(userAgent, platform, process.arch, actualVersions());
     if (!hints) {
       return;
     }
@@ -70,6 +70,13 @@ export async function describeTab(contents: WebContents, platform: string): Prom
   } catch (error) {
     log.warn('could not describe a tab as Chrome', describeError(error));
   }
+}
+
+/** The real Chromium build and system version, which Chrome answers in full when a page asks. */
+function actualVersions(): { chromium?: string; system?: string } {
+  // Electron's own additions to process, absent when this runs under plain Node in a test.
+  const system = typeof process.getSystemVersion === 'function' ? process.getSystemVersion() : undefined;
+  return { chromium: process.versions.chrome, system };
 }
 
 async function describeAsChrome(contents: WebContents, userAgent: string, hints: ClientHints): Promise<void> {

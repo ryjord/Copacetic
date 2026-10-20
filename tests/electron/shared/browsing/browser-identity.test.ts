@@ -165,3 +165,39 @@ describe('what the browser tells sites it is', () => {
     expect(stripElectronFromUserAgent(plain)).toBe(plain);
   });
 });
+
+describe("the brand list's filler and order", () => {
+  const headerFor = (major: number) =>
+    clientHintHeaders(clientHintsFor(`Mozilla/5.0 (Macintosh) Chrome/${major}.0.0.0 Safari/537.36`, 'darwin')!)[
+      'sec-ch-ua'
+    ];
+
+  // As real Chrome sends them; the filler and the order change with every major version.
+  it.each([
+    [120, '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'],
+    [131, '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'],
+    [150, '"Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150"'],
+  ])('matches Chrome %s', (major, expected) => {
+    expect(headerFor(major)).toBe(expected);
+  });
+});
+
+describe('the full answers a page can ask for', () => {
+  const REDUCED =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36';
+
+  // The user agent is cut to 150.0.0.0 as Chrome's is; a zeroed build in the full list is what fraud checks look for.
+  it('gives the real build, not the reduced one in the user agent', () => {
+    const hints = clientHintsFor(REDUCED, 'darwin', 'arm64', { chromium: '150.0.7871.250' });
+    expect(hints?.fullVersion).toBe('150.0.7871.250');
+    expect(hints?.fullVersionList).toContainEqual({ brand: 'Google Chrome', version: '150.0.7871.250' });
+  });
+
+  it('ignores a build that does not match the user agent', () => {
+    expect(clientHintsFor(REDUCED, 'darwin', 'arm64', { chromium: '151.0.1.2' })?.fullVersion).toBe('150.0.0.0');
+  });
+
+  it("gives this Mac's own version of macOS", () => {
+    expect(clientHintsFor(REDUCED, 'darwin', 'arm64', { system: '26.1' })?.platformVersion).toBe('26.1.0');
+  });
+});
