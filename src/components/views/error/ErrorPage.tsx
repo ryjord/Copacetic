@@ -1,28 +1,50 @@
 'use client';
 
 // Libs
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
 
 // Icons
-import { ChevronDown, CloudOff, RotateCw, ShieldAlert, TriangleAlert } from 'lucide-react';
+import { ChevronDown, CloudOff, RotateCw, Search, ShieldAlert, TriangleAlert } from 'lucide-react';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { send } from '@/lib/bridge/bridge';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
+import { buildSearchUrl } from '@shared/browsing/search-engines';
 
 // Types
 import type { PageError } from '@shared/types';
 
+// The machine has no way out, rather than one site having none.
+const OFFLINE_ERRORS = new Set(['ERR_INTERNET_DISCONNECTED', 'ERR_NETWORK_CHANGED', 'ERR_ADDRESS_UNREACHABLE']);
+
 /** What happened, what to do about it, and the symbolic code behind Technical details for anyone searching. */
 export function ErrorPage({ tabId, error }: { tabId: string; error: PageError }) {
+  const searchEngine = useBrowserStore((state) => state.settings.searchEngine);
+  const customSearchEngines = useBrowserStore((state) => state.settings.customSearchEngines);
   const isCertificateProblem = error.name.startsWith('ERR_CERT');
   const isCrash = error.name.startsWith('RENDERER_');
+  const isOffline = OFFLINE_ERRORS.has(error.name);
   const [isShowingDetails, setIsShowingDetails] = useState(false);
   const host = hostFrom(error.url);
+  // An address nobody could find is often words that were meant as a search.
+  const searchText = error.name === 'ERR_NAME_NOT_RESOLVED' ? host.replace(/^www\./, '') : '';
+
+  // The system says when it is back online, so the page need not be watched.
+  useEffect(() => {
+    if (!isOffline) {
+      return;
+    }
+    const retry = () => send((api) => api.tabs.reload(tabId));
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, [isOffline, tabId]);
   const Icon = isCertificateProblem ? ShieldAlert : isCrash ? TriangleAlert : CloudOff;
 
   return (
@@ -40,11 +62,29 @@ export function ErrorPage({ tabId, error }: { tabId: string; error: PageError })
           <p className="text-body text-ink-dim">{t('views.error.certificateRefused')}</p>
         )}
         {error.plainUrl && <p className="text-body text-ink-dim">{t('views.error.plainHttp')}</p>}
+        {isOffline && <p className="text-body text-ink-dim">{t('views.error.offlineHint')}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {!isCertificateProblem && (
             <Button variant="primary" onClick={() => send((api) => api.tabs.reload(tabId))}>
               <RotateCw size={14} aria-hidden />
               {t('views.error.tryAgain')}
+            </Button>
+          )}
+          {searchText && (
+            <Button
+              onClick={() =>
+                send((api) =>
+                  api.tabs.navigate(tabId, buildSearchUrl(searchText, { searchEngine, customSearchEngines })),
+                )
+              }
+            >
+              <Search size={14} aria-hidden />
+              {t('views.error.searchInstead', { text: searchText })}
+            </Button>
+          )}
+          {isCertificateProblem && (
+            <Button onClick={() => send((api) => api.chrome.toggleSiteInfo())}>
+              {t('views.error.connectionDetails')}
             </Button>
           )}
           {error.plainUrl && (

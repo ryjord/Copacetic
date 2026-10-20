@@ -9,13 +9,33 @@ import { ErrorPage } from '@/components/views/error/ErrorPage';
 import type { PageError } from '@shared/types';
 
 const send = vi.fn();
+const navigated: string[] = [];
+const reloaded: string[] = [];
+const toggledSiteInfo = vi.fn();
 vi.mock('@/lib/bridge/bridge', () => ({
-  send: (call: unknown) => send(call),
+  send: (call: (api: unknown) => unknown) => {
+    send(call);
+    call({
+      tabs: {
+        navigate: (_id: string, url: string) => navigated.push(url),
+        reload: (id: string) => reloaded.push(id),
+        continueOverHttp: () => {},
+        acceptCertificate: () => {},
+      },
+      chrome: { toggleSiteInfo: toggledSiteInfo },
+    });
+  },
+}));
+vi.mock('@/store/useBrowserStore', () => ({
+  useBrowserStore: (select: (state: unknown) => unknown) =>
+    select({ settings: { searchEngine: 'duckduckgo', customSearchEngines: [] } }),
 }));
 
 afterEach(() => {
   cleanup();
   send.mockClear();
+  navigated.length = 0;
+  reloaded.length = 0;
 });
 
 const NOT_RESOLVED: PageError = {
@@ -89,5 +109,28 @@ describe('a certificate Copacetic refused', () => {
 
     expect(screen.getByText(/will not open this site/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Continue to/ })).toBeNull();
+  });
+});
+
+describe('a way forward that fits what went wrong', () => {
+  // An address nobody could find is often words that were meant as a search.
+  it('offers to search for an address that could not be found', () => {
+    render(<ErrorPage tabId="t1" error={NOT_RESOLVED} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Search for “nowhere.example” instead' }));
+    expect(navigated).toEqual(['https://duckduckgo.com/?q=nowhere.example']);
+  });
+
+  it('says to check the connection when offline, and tries again once it is back', () => {
+    render(<ErrorPage tabId="t1" error={{ ...NOT_RESOLVED, name: 'ERR_INTERNET_DISCONNECTED', code: -106 }} />);
+    expect(screen.getByText(/Check that Wi-Fi or a cable is connected/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Search for/ })).toBeNull();
+    window.dispatchEvent(new Event('online'));
+    expect(reloaded).toEqual(['t1']);
+  });
+
+  it('opens the connection details for a certificate', () => {
+    render(<ErrorPage tabId="t1" error={BAD_CERTIFICATE} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Connection details' }));
+    expect(toggledSiteInfo).toHaveBeenCalledTimes(1);
   });
 });

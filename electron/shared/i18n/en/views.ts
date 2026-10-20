@@ -183,6 +183,10 @@ export const views = {
     plainHttp:
       'This site did not answer over HTTPS. The HTTP version is not encrypted, so anyone on your network can read or change it.',
     tryAgain: 'Try again',
+    offlineHint:
+      'Check that Wi-Fi or a cable is connected. The page tries again by itself once the connection is back.',
+    searchInstead: 'Search for “{text}” instead',
+    connectionDetails: 'Connection details',
     continueOverHttp: 'Continue over HTTP',
     backToStart: 'Back to start',
     technicalDetails: 'Technical details',
