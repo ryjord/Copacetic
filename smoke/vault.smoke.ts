@@ -1,16 +1,30 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
+import { type Server, createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { SmokeApp } from './support/harness';
 
 let copacetic: SmokeApp;
+let server: Server;
+let signIn = '';
 const PASSWORD = 'correct horse battery staple 7c1e';
 
 beforeAll(async () => {
+  // A sign-in form on a loopback address, the one kind of plain-HTTP page a password may be filled into.
+  server = createServer((_request, response) => {
+    response.writeHead(200, { 'content-type': 'text/html' });
+    response.end('<title>Sign in</title><form><input name="user"><input type="password" name="pass"></form>');
+  });
+  await new Promise<void>((resolve) => server.listen(0, 'localhost', resolve));
+  signIn = `http://localhost:${(server.address() as AddressInfo).port}/`;
   copacetic = await SmokeApp.launch();
   await copacetic.waitForReady();
 });
-afterAll(async () => copacetic?.close());
+afterAll(async () => {
+  await copacetic?.close();
+  server?.close();
+});
 
 const add = () =>
   copacetic.chrome.evaluate(
@@ -52,4 +66,27 @@ describe.skipIf(process.env.CI !== 'true')('the password vault', () => {
     expect(await copacetic.chrome.evaluate(() => window.copacetic.vault.unlock())).toBe('');
     expect(await copacetic.chrome.evaluate((entryId) => window.copacetic.vault.reveal(entryId), id)).toBe(PASSWORD);
   });
+
+  // The only script Copacetic puts in a page because someone asked, proved on a real form.
+  it.runIf(process.platform !== 'linux')(
+    'fills the saved password into the page it belongs to, when asked',
+    async () => {
+      const origin = signIn.slice(0, -1);
+      await copacetic.chrome.evaluate(
+        (entry) => window.copacetic.vault.add({ origin: entry.origin, username: 'riley', password: entry.password }),
+        { origin, password: PASSWORD },
+      );
+      const tabId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), signIn);
+      await copacetic.inOpenPage(signIn, 'document.readyState');
+      expect(await copacetic.inOpenPage(signIn, 'document.querySelector("[name=pass]").value')).toBe('');
+      await copacetic.chrome.evaluate((id) => window.copacetic.vault.fillForTab(id, 0, 0), tabId);
+      const filled = () =>
+        copacetic.inOpenPage<{ user: string; pass: string }>(
+          signIn,
+          '({ user: document.querySelector("[name=user]").value, pass: document.querySelector("[name=pass]").value })',
+        );
+      expect(await copacetic.until(async () => (await filled()).pass === PASSWORD, 10_000)).toBe(true);
+      expect((await filled()).user).toBe('riley');
+    },
+  );
 });
