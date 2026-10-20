@@ -2,7 +2,7 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 2.0.0-beta.4 - unreleased
+## 2.0.0-beta.4 - 20 October 2026
 
 The fourth beta of 2.0: fixes from a review of beta-3, most of them about
 what is kept after you ask for it to go.
@@ -37,6 +37,8 @@ what is kept after you ask for it to go.
   at a time within a budget.
 - Translation models and profile pictures are checked more strictly before
   they touch the disk, and a cached model's hash is checked once a run.
+- A password copied on macOS is now marked concealed, so clipboard managers
+  that honour the mark do not keep it.
 - Show, Hide and the copy buttons for each saved password now name the site,
   the command palette groups its commands properly for screen readers, and a
   slider saves only on the keys that move it.
