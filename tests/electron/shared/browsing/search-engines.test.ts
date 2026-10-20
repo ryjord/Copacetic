@@ -58,6 +58,9 @@ describe('what can be added', () => {
     expect(problemWithEngine({ ...base, keyword: 'W' }, [WIKIPEDIA])).toBe('keywordTaken');
     expect(problemWithEngine({ ...base, searchTemplate: 'https://maps.example/' }, [])).toBe('template');
     expect(problemWithEngine({ ...base, searchTemplate: 'javascript:alert(%s)' }, [])).toBe('template');
+    expect(problemWithEngine({ ...base, searchTemplate: 'https://%s/' }, [])).toBe('template');
+    expect(problemWithEngine({ ...base, searchTemplate: 'https://%s.example/search' }, [])).toBe('template');
+    expect(problemWithEngine({ ...base, searchTemplate: 'https://%s@search.example/' }, [])).toBe('template');
   });
 
   it('drops what would not survive being added, read from disk or a renderer', () => {

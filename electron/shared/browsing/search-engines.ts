@@ -91,14 +91,17 @@ export function problemWithEngine(
   return isSearchTemplate(engine.searchTemplate.trim()) ? null : 'template';
 }
 
-/** A web address with %s where the query goes, and nothing a page could not be sent to. */
+/** A web address with %s where the query goes, after the site: the words must never choose where they are sent. */
 export function isSearchTemplate(template: string): boolean {
   if (template.length > MAX_TEMPLATE || !template.includes('%s')) {
     return false;
   }
+  const placeholder = 'copaceticquery';
   try {
-    const protocol = new URL(template.replaceAll('%s', 'query')).protocol;
-    return protocol === 'https:' || protocol === 'http:';
+    const address = new URL(template.replaceAll('%s', placeholder));
+    const isWeb = address.protocol === 'https:' || address.protocol === 'http:';
+    const site = `${address.username}:${address.password}@${address.host}`.toLowerCase();
+    return isWeb && !site.includes(placeholder);
   } catch {
     return false;
   }

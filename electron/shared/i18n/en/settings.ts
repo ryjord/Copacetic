@@ -211,7 +211,7 @@ export const settings = {
           name: 'Give it a name.',
           keyword: 'A keyword is one word, with no spaces.',
           keywordTaken: 'Another search engine already uses that keyword.',
-          template: 'That is not a web address with %s in it, like https://example.com/search?q=%s.',
+          template: 'That is not a web address with %s after the site, like https://example.com/search?q=%s.',
         },
       },
     },

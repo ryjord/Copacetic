@@ -82,7 +82,7 @@ describe('search engines someone adds', () => {
     fill('Address, with %s for the search', 'https://maps.example/');
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(updateSettings).not.toHaveBeenCalled();
-    expect(screen.getByText(/with %s in it/)).toBeTruthy();
+    expect(screen.getByText(/with %s after the site/)).toBeTruthy();
   });
 
   // Removing the default leaves searching somewhere real.
