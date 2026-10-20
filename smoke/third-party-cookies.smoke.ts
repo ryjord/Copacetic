@@ -11,6 +11,8 @@ let copacetic: SmokeApp;
 let server: Server;
 /** What the tracker was sent with each request for its image, newest last. */
 const cookiesSeenByTracker: string[] = [];
+/** The same, for what a service worker on the page asked the tracker for. */
+const cookiesSeenFromWorker: string[] = [];
 
 const PAGE = 'https://news.example.com/story';
 const TRACKER = 'https://tracker.example.net/';
@@ -66,6 +68,27 @@ beforeAll(async () => {
   }
   server = createServer(credentials, (request, response) => {
     const host = request.headers.host ?? '';
+    if (host.startsWith('tracker.') && request.url?.startsWith('/from-worker')) {
+      cookiesSeenFromWorker.push(request.headers.cookie ?? '');
+      response.writeHead(200, { 'content-type': 'text/plain' });
+      response.end('ok');
+      return;
+    }
+    if (request.url?.startsWith('/worker.js')) {
+      // A worker that, once installed, asks the tracker for something with every cookie it may send.
+      response.writeHead(200, { 'content-type': 'text/javascript' });
+      response.end(
+        `self.addEventListener('install', (event) => event.waitUntil(fetch('${TRACKER}from-worker?' + Date.now(), { mode: 'no-cors', credentials: 'include' })));`,
+      );
+      return;
+    }
+    if (request.url?.startsWith('/with-worker')) {
+      response.writeHead(200, { 'content-type': 'text/html' });
+      response.end(
+        `<title>News</title><script>navigator.serviceWorker.register('/worker.js?' + Date.now())</script>`,
+      );
+      return;
+    }
     if (host.startsWith('tracker.') && request.url?.startsWith('/logo.gif')) {
       cookiesSeenByTracker.push(request.headers.cookie ?? '');
       response.writeHead(200, { 'content-type': 'image/gif', 'set-cookie': `pixel=again; ${CROSS_SITE_COOKIE}` });
@@ -127,6 +150,16 @@ describe.skipIf(skipsWhenMissing(credentials !== null))('a cookie from another s
 
   it('does not ride along with what a page loads from that site', async () => {
     expect(await loadPage()).toBe('');
+  }, 90_000);
+
+  // A worker's request has no page behind it, so the filter has to judge it by the site that made it.
+  it('does not ride along with what a service worker on the page asks that site for', async () => {
+    await copacetic.chrome.evaluate(
+      (url) => window.copacetic.tabs.create(url),
+      'https://news.example.com/with-worker',
+    );
+    expect(await until(() => cookiesSeenFromWorker.length > 0, 30_000)).toBe(true);
+    expect(cookiesSeenFromWorker.at(-1)).toBe('');
   }, 90_000);
 
   // The counterweight: with blocking off the same request carries it, so the check above is about the setting.

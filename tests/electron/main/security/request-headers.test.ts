@@ -37,6 +37,14 @@ function fakeSession(blockedSites: string[] = ['example.com']) {
         webContents: page(pageUrl),
         responseHeaders: { 'set-cookie': ['id=123'], 'content-type': ['image/png'] },
       }).responseHeaders as Record<string, string[]>,
+    // As a service worker's request arrives: no page, only the origin that made it.
+    fromWorker: (url: string, initiatorOrigin: string) =>
+      run(listeners.request!, {
+        url,
+        resourceType: 'xhr',
+        initiatorOrigin,
+        requestHeaders: { Cookie: 'id=123' },
+      }).requestHeaders as Record<string, string>,
   };
 }
 
@@ -51,6 +59,20 @@ describe('a third-party request from a page that blocks them', () => {
     const headers = fakeSession().response('https://tracker.example.net/pixel', 'https://news.example.com/story');
     expect(headers).not.toHaveProperty('set-cookie');
     expect(headers['content-type']).toEqual(['image/png']);
+  });
+});
+
+describe("a service worker's request", () => {
+  it('goes without its cookie to another site, judged by the origin that made it', () => {
+    expect(
+      fakeSession().fromWorker('https://tracker.example.net/pixel', 'https://news.example.com'),
+    ).not.toHaveProperty('Cookie');
+  });
+
+  it("keeps the cookie for the worker's own site", () => {
+    expect(fakeSession().fromWorker('https://api.example.com/feed', 'https://news.example.com').Cookie).toBe(
+      'id=123',
+    );
   });
 });
 
