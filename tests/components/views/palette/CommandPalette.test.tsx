@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const input = () => screen.getByRole('combobox', { name: 'Search commands and open tabs' });
+const input = () => screen.getByRole('combobox', { name: 'Search commands, tabs, bookmarks, history and settings' });
 
 describe('the command palette', () => {
   // The highlighted row was never announced: focus stays in the field, so it has to say which option is active.
@@ -103,7 +103,7 @@ describe('the command palette', () => {
   it('says so when nothing matches', () => {
     render(<CommandPalette />);
     fireEvent.change(input(), { target: { value: 'qqqqzz' } });
-    expect(screen.getByText('No command or tab matches.')).toBeTruthy();
+    expect(screen.getByText('Nothing matches.')).toBeTruthy();
   });
 
   // The audit found the palette could not reach pinning, sleeping, groups, DevTools, import or clearing.
@@ -115,11 +115,28 @@ describe('the command palette', () => {
     });
   });
 
-  it('opens Your data for clearing and importing', () => {
+  // Importing from a browser needs one chosen and looked at first, which is the Data pane's job.
+  it('opens Your data to import from another browser', () => {
     render(<CommandPalette />);
     fireEvent.change(input(), { target: { value: 'firefox' } });
-    fireEvent.click(screen.getByRole('option', { name: /Import bookmarks and history/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Import from another browser/ }));
     expect(openSettings).toHaveBeenCalledWith('data');
+  });
+
+  // The rest do the thing rather than opening Settings at it.
+  it('opens the clearing dialog for the range named', async () => {
+    render(<CommandPalette />);
+    fireEvent.change(input(), { target: { value: 'clear browsing data' } });
+    fireEvent.click(screen.getAllByRole('option', { name: /Clear browsing data/ })[0]!);
+    expect(openSettings).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alertdialog', { name: /Clear browsing data/ })).toBeTruthy();
+  });
+
+  it('finds a setting and opens its pane', () => {
+    render(<CommandPalette />);
+    fireEvent.change(input(), { target: { value: 'wallpaper' } });
+    fireEvent.click(screen.getByRole('option', { name: /Settings: Appearance/ }));
+    expect(openSettings).toHaveBeenCalledWith('appearance');
   });
 
   it('teaches a shortcut where it has been moved to, not where it started', () => {

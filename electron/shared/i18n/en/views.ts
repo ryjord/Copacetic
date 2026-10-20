@@ -247,10 +247,10 @@ export const views = {
   palette: {
     label: 'Command palette',
     tabSearch: 'Tab search',
-    searchEverything: 'Search commands and open tabs',
+    searchEverything: 'Search commands, tabs, bookmarks, history and settings',
     searchTabs: 'Search open tabs',
     commandsList: 'Commands',
-    noMatches: 'No command or tab matches.',
+    noMatches: 'Nothing matches.',
     noTabMatches: 'No open tab matches.',
     newGroupName: 'Group',
     groups: {
@@ -261,6 +261,9 @@ export const views = {
       appearance: 'Appearance',
       openTabs: 'Open tabs',
       sessions: 'Saved sessions',
+      bookmarks: 'Bookmarks',
+      history: 'History',
+      settings: 'Settings',
     },
     commands: {
       newWindow: 'New window',
@@ -301,9 +304,12 @@ export const views = {
       useDark: 'Use dark appearance',
       matchSystem: 'Match the system appearance',
       sleepOthers: 'Put other tabs to sleep',
-      clearData: 'Clear browsing data',
-      import: 'Import bookmarks and history',
-      export: 'Export bookmarks or history',
+      clearData: 'Clear browsing data: {range}',
+      importBookmarks: 'Import bookmarks from a file',
+      importFromBrowser: 'Import from another browser',
+      exportBookmarks: 'Export bookmarks',
+      exportHistory: 'Export history',
+      openSettingsPane: 'Settings: {pane}',
     },
     keywords: {
       newHushTab: 'private incognito',
@@ -324,6 +330,8 @@ export const views = {
       clearData: 'history cookies cache delete',
       import: 'chrome firefox safari edge brave file',
       export: 'backup file',
+      bookmark: 'bookmark saved',
+      historyEntry: 'history visited',
     },
   },
 } as const;

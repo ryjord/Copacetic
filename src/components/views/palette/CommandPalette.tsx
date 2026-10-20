@@ -4,6 +4,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 // Components
+import { ClearBrowsingDialog } from '@/components/views/clearing/ClearBrowsingDialog';
 import { Kbd } from '@/components/ui/Kbd/Kbd';
 
 // Icons
@@ -17,6 +18,8 @@ import { ask, send } from '@/lib/bridge/bridge';
 import { useDismissLayer } from '@/lib/layers/dismissLayer';
 import { useFocusTrap } from '@/lib/layers/focusTrap';
 import { rankByMatch } from '@/lib/text/fuzzy';
+import { CLEAR_RANGES } from '@/lib/text/clearing';
+import { SETTINGS_PANES, matchesTerm } from '@/components/views/settings/shared/panes';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
@@ -27,13 +30,26 @@ import { nextZoomStep } from '@shared/tabs/zoom';
 import { isInSplit } from '@shared/tabs/split-view';
 import { formatMemory, type TabMemory } from '@shared/tabs/tab-memory';
 import { acceleratorFor, isRebindable } from '@shared/chrome/shortcuts';
+import type { Bookmark, ClearRange, HistoryEntry } from '@shared/types';
 
 interface Command {
   id: string;
   label: string;
   /** The shortcut that does the same thing, so the palette teaches it. */
   accelerator?: string;
-  group: 'tabs' | 'page' | 'goTo' | 'sessions' | 'yourData' | 'appearance' | 'openTabs';
+  group:
+    | 'tabs'
+    | 'page'
+    | 'goTo'
+    | 'sessions'
+    | 'yourData'
+    | 'appearance'
+    | 'openTabs'
+    | 'bookmarks'
+    | 'history'
+    | 'settings';
+  /** An address shown beside it, for a tab, bookmark or page of history. */
+  address?: string;
   /** Also matched, but not shown: a tab's address, for instance. */
   keywords?: string;
   /** The open tab this switches to, for the figures shown beside it. */
@@ -49,7 +65,64 @@ const GROUP_ORDER: readonly Command['group'][] = [
   'yourData',
   'appearance',
   'openTabs',
+  'bookmarks',
+  'history',
+  'settings',
 ];
+
+// Enough to find the one meant; the full lists are a surface away.
+const MAX_FOUND = 5;
+
+/** Bookmarks read once as the palette opens, and history asked for as the query changes. */
+function useFoundElsewhere(query: string, isSearchingEverything: boolean) {
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const needle = query.trim();
+
+  useEffect(() => {
+    if (!isSearchingEverything) {
+      return;
+    }
+    let isCurrent = true;
+    void ask((api) => api.bookmarks.list(), []).then((found) => {
+      if (isCurrent) {
+        setBookmarks(found);
+      }
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [isSearchingEverything]);
+
+  useEffect(() => {
+    if (!isSearchingEverything || needle.length < 2) {
+      return;
+    }
+    let isCurrent = true;
+    const timer = setTimeout(() => {
+      void ask((api) => api.history.list(needle), { entries: [], total: 0 }).then((page) => {
+        if (isCurrent) {
+          setHistory(page.entries.slice(0, MAX_FOUND));
+        }
+      });
+    }, 120);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [needle, isSearchingEverything]);
+
+  const lowered = needle.toLowerCase();
+  return {
+    bookmarks:
+      needle.length < 2
+        ? []
+        : bookmarks
+            .filter((bookmark) => `${bookmark.title} ${bookmark.url}`.toLowerCase().includes(lowered))
+            .slice(0, MAX_FOUND),
+    history: needle.length < 2 ? [] : history,
+  };
+}
 
 /** One keystroke to reach anything, and a place to learn the shortcut for it. */
 /** Every command and open tab, or, opened as tab search, the open tabs alone. */
@@ -83,11 +156,14 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
 
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
+  const [clearing, setClearing] = useState<ClearRange | null>(null);
+  const [result, setResult] = useState('');
+  const found = useFoundElsewhere(query, scope === 'everything');
   const panelRef = useRef<HTMLDivElement>(null);
   const listId = useId();
-
-  useDismissLayer(true, () => setSurface('none'));
-  useFocusTrap(panelRef, true);
+  // Stood down while the clear dialog is open: it keeps its own keyboard, and Escape should close only it.
+  useDismissLayer(clearing === null, () => setSurface('none'));
+  useFocusTrap(panelRef, clearing === null);
 
   const commands = useMemo<Command[]>(() => {
     const close = () => setSurface('none');
@@ -354,27 +430,44 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       });
     }
 
+    // These do the thing rather than opening Settings at it; the answer is said here, where it was asked.
+    const report = (action: Promise<string>) => void action.then(setResult);
     list.push(
-      {
-        id: 'clear-data',
-        label: t('views.palette.commands.clearData'),
+      ...CLEAR_RANGES.map<Command>((range) => ({
+        id: `clear-data-${range.id}`,
+        label: t('views.palette.commands.clearData', { range: range.label.toLowerCase() }),
         group: 'yourData',
         keywords: t('views.palette.keywords.clearData'),
-        run: () => openSettings('data'),
-      },
+        run: () => setClearing(range.id),
+      })),
       {
-        id: 'import',
-        label: t('views.palette.commands.import'),
+        id: 'import-bookmarks',
+        label: t('views.palette.commands.importBookmarks'),
         group: 'yourData',
         keywords: t('views.palette.keywords.import'),
+        run: () => report(ask((api) => api.data.importBookmarks(), '')),
+      },
+      {
+        id: 'import-from-browser',
+        label: t('views.palette.commands.importFromBrowser'),
+        group: 'yourData',
+        keywords: t('views.palette.keywords.import'),
+        // A browser has to be chosen and what it holds looked at first, which is the Data pane's job.
         run: () => openSettings('data'),
       },
       {
-        id: 'export',
-        label: t('views.palette.commands.export'),
+        id: 'export-bookmarks',
+        label: t('views.palette.commands.exportBookmarks'),
         group: 'yourData',
         keywords: t('views.palette.keywords.export'),
-        run: () => openSettings('data'),
+        run: () => report(ask((api) => api.data.export('bookmarks'), '')),
+      },
+      {
+        id: 'export-history',
+        label: t('views.palette.commands.exportHistory'),
+        group: 'yourData',
+        keywords: t('views.palette.keywords.export'),
+        run: () => report(ask((api) => api.data.export('history'), '')),
       },
     );
 
@@ -403,6 +496,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         label: tab.isStartPage ? t('views.palette.commands.newTab') : tab.title || tab.url,
         group: 'openTabs',
         keywords: tab.url,
+        address: tab.url,
         run: then(() => send((api) => api.tabs.activate(tab.id))),
       }));
     if (scope === 'tabs') {
@@ -430,8 +524,54 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     toggleSurface,
   ]);
 
+  // Opened where the person is looking, as a bookmark or a history entry would be from its own list.
+  const openHere = (url: string) => {
+    setSurface('none');
+    if (activeTab) {
+      send((api) => api.tabs.navigate(activeTab.id, url));
+    } else {
+      send((api) => api.tabs.create(url));
+    }
+  };
+  const elsewhere: Command[] =
+    scope === 'tabs'
+      ? []
+      : [
+          ...found.bookmarks.map<Command>((bookmark) => ({
+            id: `bookmark:${bookmark.id}`,
+            label: bookmark.title || bookmark.url,
+            group: 'bookmarks',
+            keywords: `${bookmark.url} ${t('views.palette.keywords.bookmark')}`,
+            address: bookmark.url,
+            run: () => openHere(bookmark.url),
+          })),
+          ...found.history
+            .filter((entry) => !found.bookmarks.some((bookmark) => bookmark.url === entry.url))
+            .map<Command>((entry) => ({
+              id: `history:${entry.id}`,
+              label: entry.title || entry.url,
+              group: 'history',
+              keywords: `${entry.url} ${t('views.palette.keywords.historyEntry')}`,
+              address: entry.url,
+              run: () => openHere(entry.url),
+            })),
+          ...SETTINGS_PANES.filter(
+            (pane) => query.trim() && matchesTerm(`${pane.label} ${pane.terms.join(' ')}`, query),
+          ).map<Command>((pane) => ({
+            id: `settings:${pane.id}`,
+            label: t('views.palette.commands.openSettingsPane', { pane: pane.label }),
+            group: 'settings',
+            keywords: pane.terms.join(' '),
+            run: () => openSettings(pane.id),
+          })),
+        ];
+
   // Ranked by how well each matches, then laid out in group order, so headings never repeat.
-  const ranked = rankByMatch(commands, query, (command) => `${command.label} ${command.keywords ?? ''}`);
+  const ranked = rankByMatch(
+    [...commands, ...elsewhere],
+    query,
+    (command) => `${command.label} ${command.keywords ?? ''}`,
+  );
   const matches = query.trim()
     ? ranked
     : GROUP_ORDER.flatMap((group) => ranked.filter((command) => command.group === group));
@@ -529,9 +669,9 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
                     )}
                   >
                     <span className="min-w-0 flex-1 truncate text-body">{command.label}</span>
-                    {command.group === 'openTabs' && command.keywords && (
+                    {command.address && (
                       <span className="max-w-[40%] shrink-0 truncate text-body-sm text-ink-faint">
-                        {hostFor(command.keywords)}
+                        {hostFor(command.address)}
                       </span>
                     )}
                     {command.tabId && memory[command.tabId] && (
@@ -546,7 +686,26 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
             })}
           </ul>
         )}
+        {result && (
+          <p role="status" className="border-t border-line px-4 py-2.5 text-body-sm text-ink-dim">
+            {result}
+          </p>
+        )}
       </div>
+
+      {clearing && (
+        <ClearBrowsingDialog
+          key={clearing}
+          range={clearing}
+          open
+          onOpenChange={(isOpen) => !isOpen && setClearing(null)}
+          onConfirm={(choice) => {
+            setClearing(null);
+            setSurface('none');
+            send((api) => api.history.clear(clearing, choice));
+          }}
+        />
+      )}
     </div>
   );
 }
