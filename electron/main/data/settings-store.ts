@@ -8,6 +8,7 @@ import {
   isThemeId,
   isWebRtcPolicy,
   readPermissionDefaults,
+  readReaderStyle,
   readToolbarItems,
   readWallpaperDim,
 } from '../../shared/types';
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   startupUrl: null,
   homeUrl: null,
   historyRetentionDays: 90,
+  readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
   showBookmarksBar: false,
@@ -227,6 +229,7 @@ function reviveSettings(raw: unknown): Settings | null {
     blockTrackers: asBoolean(raw.blockTrackers, DEFAULT_SETTINGS.blockTrackers),
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),
     startupUrl: pageAddressFrom(raw.startupUrl),
+    readerStyle: readReaderStyle(raw.readerStyle) ?? DEFAULT_SETTINGS.readerStyle,
     homeUrl: pageAddressFrom(raw.homeUrl),
     historyRetentionDays: isHistoryRetentionDays(raw.historyRetentionDays)
       ? raw.historyRetentionDays

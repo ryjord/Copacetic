@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   startupUrl: null,
   homeUrl: null,
   historyRetentionDays: 90,
+  readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
   showBookmarksBar: false,

@@ -69,6 +69,7 @@ export const shell = {
     suggestion: '{title}, {subtitle}',
     zoomReset: 'Zoom {zoom}, reset to {defaultZoom}',
     resetZoom: 'Reset zoom',
+    readerView: 'Reader view',
     removeBookmark: 'Remove bookmark',
     addBookmark: 'Bookmark this page',
   },

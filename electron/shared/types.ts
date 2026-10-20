@@ -393,6 +393,27 @@ export function readToolbarItems(raw: unknown): ToolbarItemId[] | null {
   return TOOLBAR_ITEMS.filter((item) => raw.includes(item));
 }
 
+/** How reader view sets an article: its own size, typeface and width, apart from the interface's. */
+export interface ReaderStyle {
+  size: 'small' | 'default' | 'large' | 'larger';
+  typeface: 'serif' | 'sans';
+  width: 'narrow' | 'default' | 'wide';
+}
+
+export const DEFAULT_READER_STYLE: ReaderStyle = { size: 'default', typeface: 'serif', width: 'default' };
+
+export function readReaderStyle(raw: unknown): ReaderStyle | null {
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+  const { size, typeface, width } = raw as Record<string, unknown>;
+  return {
+    size: size === 'small' || size === 'large' || size === 'larger' ? size : 'default',
+    typeface: typeface === 'sans' ? 'sans' : 'serif',
+    width: width === 'narrow' || width === 'wide' ? width : 'default',
+  };
+}
+
 /** How long history is kept, in days; zero keeps it until it is cleared. */
 export const HISTORY_RETENTION_DAYS = [30, 90, 365, 0] as const;
 
@@ -609,6 +630,7 @@ export interface Settings {
   /** Where the Home button goes; null for the start page. */
   homeUrl: string | null;
   historyRetentionDays: HistoryRetentionDays;
+  readerStyle: ReaderStyle;
   // Which pieces the start page shows, in order.
   startPageWidgets: StartPageWidgetId[];
   /** Set once someone has read what Hush does and does not do. */

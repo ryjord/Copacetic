@@ -236,6 +236,23 @@ export const views = {
       hint: 'Reader view needs a page with a main body of text, such as an article or a post.',
     },
     minutes: { one: '{count} minute read', other: '{count} minute read' },
+    openOriginal: 'Open original',
+    print: 'Print the page',
+    style: {
+      label: 'Text',
+      size: 'Text size',
+      typeface: 'Typeface',
+      width: 'Line length',
+      small: 'Small',
+      default: 'Default',
+      large: 'Large',
+      larger: 'Larger',
+      serif: 'Serif',
+      sans: 'Sans',
+      narrow: 'Narrow',
+      medium: 'Medium',
+      wide: 'Wide',
+    },
     translation: {
       from: 'Translate from',
       into: 'Translate into',
@@ -246,7 +263,8 @@ export const views = {
       hint: 'Runs on this machine. The first translation from or into a language downloads its model from Mozilla once, about 35 MB.',
       failed: 'The translation did not finish.',
     },
-    imagesFetched: 'Images are fetched through the page’s own session, so what blocking refuses stays out.',
+    imagesFetched:
+      'Some images are missing: they are fetched through the page’s own session, so what blocking refuses stays out.',
   },
   palette: {
     label: 'Command palette',

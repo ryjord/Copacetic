@@ -19,6 +19,7 @@ import {
   isPermissionDecisionKey,
   isWebRtcPolicy,
   readPermissionDefaults,
+  readReaderStyle,
   readToolbarItems,
   readWallpaperDim,
 } from '../../shared/types';
@@ -856,6 +857,10 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (value.homeUrl === null || typeof value.homeUrl === 'string') {
     patch.homeUrl = pageAddressFrom(value.homeUrl);
+  }
+  const readerStyle = readReaderStyle(value.readerStyle);
+  if (readerStyle) {
+    patch.readerStyle = readerStyle;
   }
   if (isHistoryRetentionDays(value.historyRetentionDays)) {
     patch.historyRetentionDays = value.historyRetentionDays;

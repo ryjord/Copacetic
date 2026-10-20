@@ -41,6 +41,7 @@ describe('every setting can actually be changed', () => {
     startupUrl: 'https://example.com/',
     homeUrl: 'https://example.org/',
     historyRetentionDays: 365,
+    readerStyle: { size: 'large', typeface: 'sans', width: 'wide' },
     startPageWidgets: ['search', 'clock'],
     checkForUpdates: false,
     updateChannel: 'betas',

@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { ConnectionBadge } from '@/components/shell/ConnectionBadge/ConnectionBadge';
 
 // Icons
-import { Star } from 'lucide-react';
+import { BookOpen, Star } from 'lucide-react';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -33,6 +33,7 @@ interface OmniboxProps {
 
 /** The address bar, and the one place in Copacetic where boldness is spent. */
 export function Omnibox({ tab }: OmniboxProps) {
+  const setSurface = useBrowserStore((state) => state.setSurface);
   const focusToken = useBrowserStore((state) => state.omniboxFocusToken);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -216,6 +217,12 @@ export function Omnibox({ tab }: OmniboxProps) {
         )}
 
         {tab && !tab.isStartPage && <ZoomChip tab={tab} />}
+        {/* Offered on every web page rather than guessed at: finding the article means reading the whole page. */}
+        {tab && !tab.isStartPage && /^https?:/.test(tab.url) && (
+          <IconButton label={t('shell.omnibox.readerView')} size="sm" onClick={() => setSurface('reader')}>
+            <BookOpen size={14} strokeWidth={1.75} />
+          </IconButton>
+        )}
         {tab && !tab.isStartPage && <BookmarkStar tab={tab} />}
       </div>
 
