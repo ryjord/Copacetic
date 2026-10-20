@@ -4,8 +4,19 @@ on:
   push:
     branches: [main, development]
   pull_request:
-  # A release branch is checked on demand before a beta is tagged from it.
+  # A release branch is checked on demand before a beta is tagged from it, and a
+  # failure on one system is looked into on that system alone.
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Which system to build and smoke on
+        type: choice
+        default: all
+        options: [all, macos-latest, ubuntu-latest, windows-latest]
+      smoke:
+        description: One smoke file to run instead of all of them, such as smoke/extensions.smoke.ts; skips the installers
+        type: string
+        default: ''
   # Run by the release workflow on the tagged commit, before anything publishes.
   workflow_call:
 
@@ -64,7 +75,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        # Every system unless a run by hand asked for one; a push, a pull request and a release pass no input.
+        os: ${{ fromJSON((inputs.platform == '' || inputs.platform == 'all' || inputs.platform == null) && '["macos-latest","ubuntu-latest","windows-latest"]' || format('["{0}"]', inputs.platform)) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -82,17 +94,21 @@ jobs:
       # platforms nobody here has to test on.
       - name: Smoke test the built app
         if: runner.os != 'Linux'
-        run: npm run smoke
+        shell: bash
+        # Through the environment, so the file asked for is an argument and never part of the script.
+        run: npm run smoke -- ${SMOKE_FILE:+"$SMOKE_FILE"}
         # Nobody is at a runner, so the checks that need the app in front run here.
         env:
           COPACETIC_SMOKE_FOREGROUND: '1'
+          SMOKE_FILE: ${{ inputs.smoke }}
 
       # Electron needs a display even to open a window it never shows.
       - name: Smoke test the built app
         if: runner.os == 'Linux'
-        run: xvfb-run -a npm run smoke
+        run: xvfb-run -a npm run smoke -- ${SMOKE_FILE:+"$SMOKE_FILE"}
         env:
           COPACETIC_SMOKE_FOREGROUND: '1'
+          SMOKE_FILE: ${{ inputs.smoke }}
 
       # A no-op once the smoke tests have fetched it; the macOS build copies Chromium's licences out of it.
       - name: Fetch Electron for the licences it carries
@@ -132,18 +148,18 @@ jobs:
       # about to publish have been installed before anyone else gets them, and
       # when run by hand, to check a branch before a tag is cut from it.
       - name: Build the installers
-        if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
+        if: ((github.event_name == 'workflow_dispatch' && inputs.smoke == '') || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
         run: npx electron-builder --publish never
 
       # A person's first five minutes: install it, start what was installed, take it away again.
       - name: Install, start and remove each installer
-        if: runner.os != 'Linux' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
+        if: runner.os != 'Linux' && ((github.event_name == 'workflow_dispatch' && inputs.smoke == '') || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
         run: node scripts/check-installers.mjs
         env:
           COPACETIC_LAUNCH_IN_BACKGROUND: '1'
 
       - name: Install, start and remove each installer
-        if: runner.os == 'Linux' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
+        if: runner.os == 'Linux' && ((github.event_name == 'workflow_dispatch' && inputs.smoke == '') || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development' || startsWith(github.ref, 'refs/tags/v'))))
         run: xvfb-run -a node scripts/check-installers.mjs
         env:
           COPACETIC_LAUNCH_IN_BACKGROUND: '1'
