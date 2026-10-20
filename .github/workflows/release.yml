@@ -36,8 +36,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The checks a pull request runs, on the commit being released. A tag used to
+  # publish from any commit, green or not; a stable tag also prunes apt for good
+  # and reaches every 1.4 install through its updater, so nothing, not even the
+  # GitHub release itself, is made until these pass.
+  checks:
+    name: Verify, build and smoke the tagged commit
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   guard:
     name: Check the tag matches package.json
+    needs: checks
     # A job that hangs should fail rather than hold the runner until someone looks.
     timeout-minutes: 10
     runs-on: ubuntu-latest
