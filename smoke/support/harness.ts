@@ -109,6 +109,8 @@ export class SmokeApp {
       // Playwright emulates a light colour scheme by default, which pinned the
       // chrome to light whatever Appearance said and made dark mode untestable.
       colorScheme: null,
+      // Playwright adds --no-sandbox on Linux otherwise, and extension workers get their preload only when sandboxed.
+      chromiumSandbox: true,
     });
 
     // Both the chrome and the overlay are pages, and Playwright hands back

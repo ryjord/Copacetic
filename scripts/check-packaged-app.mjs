@@ -274,6 +274,8 @@ try {
     env: environment,
     timeout: 60_000,
     colorScheme: null,
+    // Sandboxed as an installed copy runs; Playwright adds --no-sandbox on Linux otherwise.
+    chromiumSandbox: true,
   });
 
   const chrome = await until(async () => app.windows().find((w) => !w.url().includes('/overlay')) ?? null, 45_000);
