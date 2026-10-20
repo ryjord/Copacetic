@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_FAVICON_BYTES, fetchFaviconDataUrl } from '../../../../electron/main/tabs/tab-favicon';
+import {
+  MAX_FAVICON_BYTES,
+  fetchFaviconDataUrl,
+  fetchImagesWithinBudget,
+} from '../../../../electron/main/tabs/tab-favicon';
 
 const PAGE = 'https://example.com/article';
 
@@ -117,5 +121,32 @@ describe('an icon that tries to be more than an icon', () => {
         respondWith({ body: huge, contentLength: 'none' }),
       ),
     ).toBeNull();
+  });
+});
+
+describe('fetchImagesWithinBudget', () => {
+  it('asks a few at a time rather than all at once', async () => {
+    let inFlight = 0;
+    let mostInFlight = 0;
+    const urls = Array.from({ length: 12 }, (_unused, index) => `https://example.com/${index}.png`);
+    const found = await fetchImagesWithinBudget(urls, async (url) => {
+      inFlight += 1;
+      mostInFlight = Math.max(mostInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight -= 1;
+      return url.endsWith('3.png') ? null : `data:image/png;base64,${url}`;
+    });
+    expect(mostInFlight).toBe(4);
+    expect(Object.keys(found)).toHaveLength(11);
+  });
+
+  it('stops asking once the images add up to the budget', async () => {
+    const asked: string[] = [];
+    const urls = Array.from({ length: 12 }, (_unused, index) => `https://example.com/${index}.png`);
+    await fetchImagesWithinBudget(urls, async (url) => {
+      asked.push(url);
+      return 'x'.repeat(10 * 1024 * 1024);
+    });
+    expect(asked).toHaveLength(4);
   });
 });

@@ -22,6 +22,37 @@ export function fetchFaviconDataUrl(
   return fetchImageDataUrl(pageUrl, faviconUrl, fetchFromWebSession, MAX_FAVICON_BYTES);
 }
 
+const IMAGES_AT_ONCE = 4;
+// Counted in data URL characters, which run about a third over the bytes they hold.
+const MOST_IMAGE_CHARACTERS = 32 * 1024 * 1024;
+
+/**
+ * Many images, a few at a time, until they add up to the budget; one that fails is left out.
+ *
+ * The page chose the addresses and each answer is held whole in the main process, so all at once was every image's
+ * worst case added together.
+ */
+export async function fetchImagesWithinBudget(
+  urls: readonly string[],
+  fetchOne: (url: string) => Promise<string | null>,
+): Promise<Record<string, string>> {
+  const batches = Array.from({ length: Math.ceil(urls.length / IMAGES_AT_ONCE) }, (_unused, index) =>
+    urls.slice(index * IMAGES_AT_ONCE, (index + 1) * IMAGES_AT_ONCE),
+  );
+  const fetched: [string, string][] = [];
+  let spent = 0;
+  for (const batch of batches) {
+    if (spent >= MOST_IMAGE_CHARACTERS) {
+      break;
+    }
+    const answers = await Promise.all(batch.map(async (url) => [url, await fetchOne(url)] as const));
+    const found = answers.filter((answer): answer is readonly [string, string] => answer[1] !== null);
+    spent += found.reduce((total, [, dataUrl]) => total + dataUrl.length, 0);
+    fetched.push(...found.map(([url, dataUrl]): [string, string] => [url, dataUrl]));
+  }
+  return Object.fromEntries(fetched);
+}
+
 /** An image a page names, fetched in that page's session under the same guards, as a data URL the chrome can show. */
 export async function fetchImageDataUrl(
   pageUrl: string,

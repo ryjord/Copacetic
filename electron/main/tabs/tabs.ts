@@ -24,7 +24,7 @@ import {
   resolveOmniboxInput,
 } from '../../shared/browsing/url';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
-import { fetchFaviconDataUrl, fetchImageDataUrl } from './tab-favicon';
+import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
 import {
   DEFAULT_INSETS,
   type ContentBounds,
@@ -530,18 +530,9 @@ export class TabManager {
     }
     const session = this.prepareSession(tab.partition);
     const wanted = [...new Set(urls)].slice(0, MAX_READER_IMAGES);
-    const fetched = await Promise.all(
-      wanted.map(async (url) => {
-        const dataUrl = await fetchImageDataUrl(
-          tab.url,
-          url,
-          (target, options) => session.fetch(target, options),
-          MAX_READER_IMAGE_BYTES,
-        );
-        return dataUrl ? [[url, dataUrl] as const] : [];
-      }),
+    return fetchImagesWithinBudget(wanted, (url) =>
+      fetchImageDataUrl(tab.url, url, (target, options) => session.fetch(target, options), MAX_READER_IMAGE_BYTES),
     );
-    return Object.fromEntries(fetched.flat());
   }
 
   /** The page's document for reader view, or null when there is no page to read. */
