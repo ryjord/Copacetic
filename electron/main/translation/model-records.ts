@@ -31,6 +31,10 @@ function isNewer(aVersion: string, bVersion: string): boolean {
   return index !== -1 && (aParts[index] ?? 0) > (bParts[index] ?? 0);
 }
 
+// Both become part of a path in the profile, so neither may name anything outside it.
+const PLAIN_VERSION = /^\d+(\.\d+)*([a-z]+\d*)?$/i;
+const BARE_FILE_NAME = /^[\w-][\w.-]*$/;
+
 export function isModelRecord(value: unknown): value is ModelRecord {
   if (typeof value !== 'object' || value === null) {
     return false;
@@ -46,10 +50,12 @@ export function isModelRecord(value: unknown): value is ModelRecord {
     typeof record.toLang === 'string' &&
     typeof record.fileType === 'string' &&
     typeof record.version === 'string' &&
+    PLAIN_VERSION.test(record.version) &&
     typeof file.location === 'string' &&
     typeof file.size === 'number' &&
     typeof file.hash === 'string' &&
-    typeof file.filename === 'string'
+    typeof file.filename === 'string' &&
+    BARE_FILE_NAME.test(file.filename)
   );
 }
 

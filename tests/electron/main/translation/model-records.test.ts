@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { modelFilesFor, type ModelRecord } from '../../../../electron/main/translation/model-records';
+import { isModelRecord, modelFilesFor, type ModelRecord } from '../../../../electron/main/translation/model-records';
 
 const record = (fileType: string, version: string, over: Partial<ModelRecord> = {}): ModelRecord => ({
   fromLang: 'fr',
@@ -44,6 +44,17 @@ describe('modelFilesFor', () => {
       'en',
     );
     expect(chosen?.files.srcvocab && chosen.files.trgvocab).toBeTruthy();
+  });
+
+  // Both name a path in the profile.
+  it('refuses a version or a file name that could leave the models folder', () => {
+    expect(isModelRecord(record('model', '../../escape'))).toBe(false);
+    expect(
+      isModelRecord(
+        record('model', '2.0', { attachment: { ...record('model', '2.0').attachment, filename: '../model.bin' } }),
+      ),
+    ).toBe(false);
+    expect(isModelRecord(record('model', '2.0a1'))).toBe(true);
   });
 
   it('skips records meant for another platform, and versions this engine cannot run', () => {

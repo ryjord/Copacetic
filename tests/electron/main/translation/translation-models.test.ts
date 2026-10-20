@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -55,6 +55,16 @@ describe('translation models', () => {
       /did not arrive as Mozilla published it/,
     );
     expect(new TranslationModels(directory, tampered).installedBytes()).toBeLessThan(files.model.length * 3);
+  });
+
+  it('fetches again a kept file that changed on disk, even at the same size', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-models-'));
+    await new TranslationModels(directory, fakeMozilla()).buffersFor({ from: 'fr', to: 'en' });
+    writeFileSync(path.join(directory, 'fr-en', '2.0', 'model.bin'), 'model bytez');
+    const later = fakeMozilla();
+    const buffers = await new TranslationModels(directory, later).buffersFor({ from: 'fr', to: 'en' });
+    expect(buffers.model.toString()).toBe('model bytes');
+    expect(later.asked).toContain(`${ATTACHMENTS_URL}files/model`);
   });
 
   it('says so when no model translates a direction', async () => {

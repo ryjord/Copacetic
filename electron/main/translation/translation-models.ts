@@ -45,6 +45,8 @@ export interface ModelBuffers {
  */
 export class TranslationModels {
   private records: Promise<ModelRecord[]> | null = null;
+  /** Files on disk whose hash was checked this run; the size alone says nothing about a file changed since. */
+  private readonly checked = new Set<string>();
 
   constructor(
     private readonly directory: string,
@@ -107,7 +109,12 @@ export class TranslationModels {
   private async fileIn(folder: string, file: ModelRecord['attachment']): Promise<Buffer> {
     const target = path.join(folder, path.basename(file.filename));
     if (existsSync(target) && statSync(target).size === file.size) {
-      return readFileSync(target);
+      const kept = readFileSync(target);
+      if (this.checked.has(target) || createHash('sha256').update(kept).digest('hex') === file.hash) {
+        this.checked.add(target);
+        return kept;
+      }
+      rmSync(target, { force: true });
     }
     if (file.size > MAX_MODEL_FILE_BYTES) {
       throw new Error(`${file.filename} is larger than any model should be.`);
@@ -121,6 +128,7 @@ export class TranslationModels {
     const temporary = `${target}.partial`;
     writeFileSync(temporary, body);
     renameSync(temporary, target);
+    this.checked.add(target);
     return body;
   }
 }
