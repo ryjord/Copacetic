@@ -941,7 +941,22 @@ export const settings = {
       signed: {
         question: 'Is it signed?',
         answer:
-          'The builds are not code-signed. Your system may warn the first time you open Copacetic, and on macOS updates are installed by hand.',
+          'The builds are not code-signed. A certificate costs more than a project with no income can spend, so your system may warn the first time you open Copacetic; on macOS updates are installed by hand; on Windows and as an AppImage an update is checked against the release but carries no signature; cookies are not sealed with a key tied to the app, since an unsigned app can lose that key on every update; and the camera and microphone prompts have not been seen in a signed build.',
+      },
+      engine: {
+        question: 'What can Electron not do?',
+        answer:
+          'Clear cookies, site data or the cache from just the last hour, day or week: those are cleared for all time, and the clearing dialog says so. Find whole words only: find in page matches case or not, and nothing more. Choose the spelling language on macOS, which uses the languages set in System Settings.',
+      },
+      language: {
+        question: 'Is it in my language?',
+        answer:
+          'Not yet. Every word Copacetic shows is in one English catalogue, ready for a second language once someone fluent has checked it; a translation nobody checked would make the browser say things it does not mean.',
+      },
+      onPurpose: {
+        question: 'What does it leave out on purpose?',
+        answer:
+          'A restored tab keeps where Back goes but not how far down the page you were, because the page state that holds that also holds what was typed into its forms. HTTPS-first upgrades the page you go to, not the frames inside it, as Chrome does. A site’s permissions are the same in every group of a profile, as they are across Firefox containers. The tab strip’s arrow keys, Home, End and Delete follow the standard pattern for tabs and cannot be moved.',
       },
       unsupported: {
         question: 'What does it not support?',

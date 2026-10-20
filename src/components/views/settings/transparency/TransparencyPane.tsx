@@ -156,6 +156,15 @@ export function TransparencyPane({ info }: Pick<SettingsPaneProps, 'info'>) {
         <Answer question={t('settings.transparency.limits.signed.question')}>
           {t('settings.transparency.limits.signed.answer')}
         </Answer>
+        <Answer question={t('settings.transparency.limits.engine.question')}>
+          {t('settings.transparency.limits.engine.answer')}
+        </Answer>
+        <Answer question={t('settings.transparency.limits.onPurpose.question')}>
+          {t('settings.transparency.limits.onPurpose.answer')}
+        </Answer>
+        <Answer question={t('settings.transparency.limits.language.question')}>
+          {t('settings.transparency.limits.language.answer')}
+        </Answer>
         <Answer question={t('settings.transparency.limits.unsupported.question')}>
           {t('settings.transparency.limits.unsupported.answer')}
         </Answer>
