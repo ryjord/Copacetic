@@ -129,9 +129,20 @@ export class BookmarksStore {
     if (this.has(bookmark.url)) {
       return;
     }
+    // A folder deleted since would leave it in no folder and not under Unfiled either, so it is unfiled.
+    const folderStillThere =
+      bookmark.folderId !== null &&
+      this.database.prepare('SELECT 1 FROM bookmark_folders WHERE id = ?').get(bookmark.folderId) !== undefined;
     this.database
       .prepare(`INSERT INTO bookmarks (position, ${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(position, bookmark.id, bookmark.url, bookmark.title, bookmark.createdAt, bookmark.folderId);
+      .run(
+        position,
+        bookmark.id,
+        bookmark.url,
+        bookmark.title,
+        bookmark.createdAt,
+        folderStillThere ? bookmark.folderId : null,
+      );
   }
 
   /** Every write is already on disk; kept so the store's callers flush every part the same way. */

@@ -26,6 +26,18 @@ describe('putting back what was removed', () => {
     expect(store.listBookmarks().map((bookmark) => bookmark.title)).toEqual(['Three', 'Two', 'One']);
   });
 
+  it('unfiles a bookmark whose folder was deleted since', () => {
+    const folder = store.createBookmarkFolder('Reading', 'ocean', null);
+    store.toggleBookmark('https://one.example/', 'One');
+    const [bookmark] = store.listBookmarks();
+    store.fileBookmark(bookmark?.id ?? '', folder.id);
+    const snapshot = store.bookmarkSnapshot(bookmark?.id ?? '');
+    store.removeBookmark(bookmark?.id ?? '');
+    store.deleteBookmarkFolder(folder.id);
+    store.restoreBookmark(snapshot!);
+    expect(store.listBookmarks()[0]?.folderId).toBeNull();
+  });
+
   it('returns a history entry with its counts', () => {
     store.recordVisit('https://news.example/', 'News');
     const [entry] = store.listHistory().entries;
