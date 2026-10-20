@@ -5,6 +5,7 @@ export interface ClosedTab {
   title: string;
   index: number;
   groupId: string | null;
+  isPinned: boolean;
 }
 
 /** What a closed group was, enough to make it again; its own session's data is gone with it either way. */
@@ -21,7 +22,8 @@ const MAX_REOPENABLE = 12;
 
 /**
  * Somewhere to put a tab you closed by accident, newest first and bounded so a
- * long session cannot grow one without end. What a tab was allowed to remember
+ * long session cannot grow one without end. One per profile, so a tab closed in
+ * one window can be reopened from another. What a tab was allowed to remember
  * is decided before it gets here: a Hush tab is never offered, because being
  * able to reopen it is the record it was supposed not to leave.
  */

@@ -42,6 +42,29 @@ describe('more than one window', () => {
     expect(await tabsIn(0)).not.toContain('https://example.com/second-window');
   }, 60_000);
 
+  // One stack for the profile, and the pin travels with the tab.
+  it('reopens a pinned tab closed in one window from another, still pinned', async () => {
+    const [first, second] = copacetic.chromePages();
+    await second!.evaluate(async () => {
+      const state = await window.copacetic.chrome.getState();
+      const tab = state.tabs.find((candidate) => candidate.url === 'https://example.com/second-window');
+      if (tab) {
+        await window.copacetic.tabs.setPinned(tab.id, true);
+        await window.copacetic.tabs.close(tab.id);
+      }
+    });
+    expect(await until(async () => !(await tabsIn(1)).includes('https://example.com/second-window'))).toBe(true);
+    await first!.evaluate(() => window.copacetic.tabs.reopenClosed());
+    const reopened = () =>
+      first!.evaluate(async () =>
+        (await window.copacetic.chrome.getState()).tabs.find(
+          (tab) => tab.url === 'https://example.com/second-window',
+        ),
+      );
+    expect(await until(async () => (await reopened()) !== undefined)).toBe(true);
+    expect((await reopened())?.isPinned).toBe(true);
+  }, 60_000);
+
   it('brings every open window back after a restart', async () => {
     await copacetic
       .chromePages()[0]!

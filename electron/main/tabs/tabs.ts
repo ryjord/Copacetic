@@ -65,7 +65,7 @@ import { describeTab } from '../system/browser-identity';
 import { log } from '../system/diagnostics';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents } from './tab-events';
-import { ClosedTabs, type ClosedEntry, type ClosedGroup } from './closed-tabs';
+import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
 import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
 import { type TabRecord, pageOf } from './tab-record';
@@ -90,7 +90,6 @@ export class TabManager {
   private activeId: TabId | null = null;
   private insets: ContentInsets = DEFAULT_INSETS;
   private overlayVisible = false;
-  private readonly closedTabs = new ClosedTabs();
   private stored: BrowsingRecord | null = null;
   private readonly sleepTimer: NodeJS.Timeout;
   private readonly stopCounting: () => void;
@@ -112,6 +111,8 @@ export class TabManager {
     private readonly securityDelegate: SecurityDelegate,
     /** The sessions this profile's tabs run in; another profile's are never reachable from here. */
     private readonly partitions: ProfilePartitions,
+    /** Shared by every window of the profile. */
+    private readonly closedTabs: ClosedTabs,
     /**
      * Hardens a partition and returns its session. Called before a tab exists,
      * because a session that is hardened afterwards has already been used.
@@ -956,7 +957,13 @@ export class TabManager {
 
     const index = this.order.indexOf(id);
     if (!tab.isStartPage && !options.isReplaced) {
-      tab.record.rememberClosedTab({ url: tab.url, title: tab.title, index, groupId: tab.groupId });
+      tab.record.rememberClosedTab({
+        url: tab.url,
+        title: tab.title,
+        index,
+        groupId: tab.groupId,
+        isPinned: tab.isPinned,
+      });
     }
 
     this.leaveFullscreen(id);
@@ -1031,7 +1038,12 @@ export class TabManager {
   private reopen(entry: ClosedEntry | null): void {
     if (entry?.kind === 'tab') {
       // A group that has since been deleted is dropped by create, which leaves an ordinary tab.
-      this.create(entry.tab.url, { index: entry.tab.index, activate: true, groupId: entry.tab.groupId });
+      this.create(entry.tab.url, {
+        index: entry.tab.index,
+        activate: true,
+        groupId: entry.tab.groupId,
+        pinned: entry.tab.isPinned,
+      });
       return;
     }
     if (entry?.kind === 'group') {
@@ -1074,6 +1086,7 @@ export class TabManager {
       activate: true,
       hush: tab.isHush,
       groupId: tab.groupId,
+      pinned: tab.isPinned,
     });
   }
 

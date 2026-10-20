@@ -14,7 +14,7 @@ const spies = () => {
 };
 
 const CERTIFICATE = { fingerprint: 'ab', issuer: 'Example CA', seenAt: 1 } as never;
-const CLOSED = { url: 'https://example.com/', title: 'Example', index: 0, groupId: null };
+const CLOSED = { url: 'https://example.com/', title: 'Example', index: 0, groupId: null, isPinned: false };
 
 describe("an ordinary tab's record", () => {
   it('keeps each thing in the place it belongs', () => {

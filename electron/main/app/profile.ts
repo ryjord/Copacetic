@@ -19,6 +19,7 @@ import { Wallpaper } from '../system/wallpaper';
 import { isDevelopment } from './env';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
+import { ClosedTabs } from '../tabs/closed-tabs';
 import { t } from '../../shared/i18n/translate';
 
 // Types
@@ -67,6 +68,8 @@ export class Profile {
   readonly securityDelegate: SecurityDelegate;
   readonly wallpaper: Wallpaper;
   readonly partitions: ProfilePartitions;
+  /** Tabs to reopen, one stack for every window of this profile. */
+  readonly closedTabs = new ClosedTabs();
 
   private readonly windows = new Set<Browser>();
   /** The window last in front, for menus and notices when none is focused at this moment. */

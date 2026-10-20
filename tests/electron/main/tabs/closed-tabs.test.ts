@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ClosedTabs } from '../../../../electron/main/tabs/closed-tabs';
 
-const tab = (url: string, index = 0) => ({ url, title: url, index, groupId: null });
+const tab = (url: string, index = 0) => ({ url, title: url, index, groupId: null, isPinned: false });
 
 describe('what can be reopened', () => {
   // Reopening a closed group used to bring its tabs back one at a time, ungrouped.

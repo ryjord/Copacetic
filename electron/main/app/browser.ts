@@ -124,6 +124,7 @@ export class Browser {
       profile.httpsFirst,
       profile.securityDelegate,
       profile.partitions,
+      profile.closedTabs,
       // No tab is born in a partition the registry has not hardened first.
       (partition) => profile.sessions.prepare(partition),
       () => this.scheduleStatePush(),
