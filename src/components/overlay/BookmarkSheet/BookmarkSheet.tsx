@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
@@ -20,28 +20,78 @@ import type { Bookmark } from '@shared/types';
 const UNFILED = 'unfiled';
 const close = () => send((api) => api.chrome.closeBookmarkSheet());
 
+interface SheetEdit {
+  bookmark: Bookmark;
+  title: string;
+  folderId: string | null;
+}
+
+/** The bookmark as the sheet now shows it, where a field left alone keeps what was saved. */
+function editOf(bookmark: Bookmark, title: string | null, folderId: string | null): SheetEdit {
+  const chosenFolder = folderId ?? bookmark.folderId ?? UNFILED;
+  return { bookmark, title: title ?? bookmark.title, folderId: chosenFolder === UNFILED ? null : chosenFolder };
+}
+
+function save({ bookmark, title, folderId }: SheetEdit, isClosing: boolean): void {
+  send(async (api) => {
+    if (title !== bookmark.title) {
+      await api.bookmarks.update(bookmark.id, { title });
+    }
+    if (folderId !== bookmark.folderId) {
+      await api.bookmarks.file(bookmark.id, folderId);
+    }
+    if (isClosing) {
+      await api.chrome.closeBookmarkSheet();
+    }
+  });
+}
+
 /** A bookmark just added, named and filed before it is left: the star alone saved it blind. */
 export function BookmarkSheet({ bookmarkId }: { bookmarkId: string }) {
   const [bookmark, setBookmark] = useState<Bookmark | null>(null);
   const [folders, setFolders] = useState<BookmarkFolder[]>([]);
   const [title, setTitle] = useState<string | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
+  // What is typed is kept however the sheet goes: Escape, a click back into the page, or another tab.
+  const latestEdit = useRef<SheetEdit | null>(null);
+  const isSettled = useRef(false);
   useDismissLayer(true, close);
 
   useEffect(() => {
     let isCurrent = true;
     void Promise.all([ask((api) => api.bookmarks.list(), []), ask((api) => api.bookmarkFolders.list(), [])]).then(
       ([bookmarks, found]) => {
-        if (isCurrent) {
-          setBookmark(bookmarks.find((candidate) => candidate.id === bookmarkId) ?? null);
-          setFolders(found);
+        if (!isCurrent) {
+          return;
         }
+        const saved = bookmarks.find((candidate) => candidate.id === bookmarkId) ?? null;
+        // Removed elsewhere before it loaded, so there is nothing left to name or file.
+        if (!saved) {
+          close();
+          return;
+        }
+        setBookmark(saved);
+        setFolders(found);
       },
     );
     return () => {
       isCurrent = false;
     };
   }, [bookmarkId]);
+
+  useEffect(() => {
+    latestEdit.current = bookmark ? editOf(bookmark, title, folderId) : null;
+  });
+
+  useEffect(
+    () => () => {
+      const edit = latestEdit.current;
+      if (edit && !isSettled.current) {
+        save(edit, false);
+      }
+    },
+    [],
+  );
 
   if (!bookmark) {
     return null;
@@ -61,16 +111,8 @@ export function BookmarkSheet({ bookmarkId }: { bookmarkId: string }) {
   const shownFolder = folderId ?? bookmark.folderId ?? UNFILED;
 
   const done = () => {
-    send(async (api) => {
-      if (shownTitle !== bookmark.title) {
-        await api.bookmarks.update(bookmark.id, { title: shownTitle });
-      }
-      const target = shownFolder === UNFILED ? null : shownFolder;
-      if (target !== bookmark.folderId) {
-        await api.bookmarks.file(bookmark.id, target);
-      }
-      await api.chrome.closeBookmarkSheet();
-    });
+    isSettled.current = true;
+    save(editOf(bookmark, title, folderId), true);
   };
 
   return (
@@ -100,12 +142,13 @@ export function BookmarkSheet({ bookmarkId }: { bookmarkId: string }) {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() =>
+          onClick={() => {
+            isSettled.current = true;
             send(async (api) => {
               await api.chrome.closeBookmarkSheet();
               await api.bookmarks.remove(bookmark.id);
-            })
-          }
+            });
+          }}
         >
           {t('shell.overlay.bookmarkSheet.remove')}
         </Button>

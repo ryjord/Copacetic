@@ -36,6 +36,27 @@ describe('the sheet after the star', () => {
     await waitFor(() => expect(calls).toEqual([['update', 'b1', { title: 'My example' }], ['close']]));
   });
 
+  // Escape, a click back into the page and another tab all unmount it, and none of them should lose a typed name.
+  it('keeps a name typed before the sheet was dismissed', async () => {
+    const { unmount } = render(<BookmarkSheet bookmarkId="b1" />);
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'My example' } });
+    unmount();
+    await waitFor(() => expect(calls).toEqual([['update', 'b1', { title: 'My example' }]]));
+  });
+
+  it('saves once when Done is pressed and the sheet then goes', async () => {
+    const { unmount } = render(<BookmarkSheet bookmarkId="b1" />);
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'My example' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    unmount();
+    await waitFor(() => expect(calls).toEqual([['update', 'b1', { title: 'My example' }], ['close']]));
+  });
+
+  it('closes when its bookmark was removed before it loaded', async () => {
+    render(<BookmarkSheet bookmarkId="gone" />);
+    await waitFor(() => expect(calls).toEqual([['close']]));
+  });
+
   it('removes what the star just added', async () => {
     render(<BookmarkSheet bookmarkId="b1" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
