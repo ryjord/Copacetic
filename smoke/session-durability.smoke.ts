@@ -117,23 +117,30 @@ describe('the tabs that are open', () => {
 
 // Back after a restart goes where it went before it, and only addresses and titles were written to get there.
 describe('back history across a restart', () => {
+  // An app of its own: the tests above tell theirs it is quitting, after which it rightly writes nothing more.
+  let browser: SmokeApp | undefined;
+  afterAll(async () => browser?.close());
+
   it('comes back with the tab, without the page state', async () => {
-    await copacetic.chrome.evaluate(async () => {
+    browser = await SmokeApp.launch();
+    await browser.waitForReady();
+    await browser.chrome.evaluate(async () => {
       const id = await window.copacetic.tabs.create('https://example.com/history-one');
       await new Promise((resolve) => setTimeout(resolve, 3000));
       await window.copacetic.tabs.navigate(id, 'https://example.com/history-two');
     });
     await new Promise((resolve) => setTimeout(resolve, 6000));
-    const written = readFileSync(path.join(copacetic.profile, 'session.json'), 'utf8');
+    const written = readFileSync(path.join(browser.profile, 'session.json'), 'utf8');
     expect(written).toContain('history-one');
     expect(written).not.toContain('pageState');
 
-    const profile = copacetic.profile;
-    await copacetic.close({ keepProfile: true });
-    copacetic = await SmokeApp.launch({ profile });
-    await copacetic.waitForReady();
+    const profile = browser.profile;
+    await browser.close({ keepProfile: true });
+    browser = await SmokeApp.launch({ profile });
+    await browser.waitForReady();
+    const restarted = browser;
     const restored = async () =>
-      copacetic.chrome.evaluate(async () =>
+      restarted.chrome.evaluate(async () =>
         (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.url.includes('history-two')),
       );
     const deadline = Date.now() + 20_000;

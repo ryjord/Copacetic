@@ -63,6 +63,9 @@ describe('more than one window', () => {
       );
     expect(await until(async () => (await reopened()) !== undefined)).toBe(true);
     expect((await reopened())?.isPinned).toBe(true);
+    // The second window keeps a page of its own, or it has nothing to bring back after the restart below.
+    await second!.evaluate(() => window.copacetic.tabs.create('https://example.com/second-window'));
+    expect(await until(async () => (await tabsIn(1)).includes('https://example.com/second-window'))).toBe(true);
   }, 60_000);
 
   it('brings every open window back after a restart', async () => {
