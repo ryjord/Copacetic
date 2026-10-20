@@ -206,6 +206,7 @@ export class Browser {
         activate: index === session.activeIndex,
         groupId: tab.groupId,
         pinned: tab.isPinned === true,
+        history: tab.history,
       }),
     );
     const { split } = session;

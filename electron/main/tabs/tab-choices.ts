@@ -1,4 +1,10 @@
-import type { SessionSnapshot, SessionTab } from '../data/session-store';
+import {
+  MAX_SESSION_HISTORY,
+  type SessionHistory,
+  type SessionSnapshot,
+  type SessionTab,
+} from '../data/session-store';
+import { isPageNavigableUrl } from '../../shared/browsing/url';
 import type { TabId } from '../../shared/types';
 import type { SplitView } from '../../shared/tabs/split-view';
 
@@ -35,6 +41,26 @@ export interface SessionCandidate {
   isStartPage: boolean;
   isHush: boolean;
   isPinned: boolean;
+  /** Its back and forward list as the page has it, page state and all; only addresses and titles are kept. */
+  history: { entries: readonly { url: string; title: string }[]; index: number } | null;
+}
+
+/**
+ * The part of a tab's history worth writing down: none for a single page, and
+ * none at all if any entry is not a page, since a gap would send Back somewhere
+ * the tab never was. A long history keeps the stretch around where the tab is.
+ */
+export function historyToKeep(history: SessionCandidate['history']): SessionHistory | null {
+  if (!history || history.entries.length < 2 || !history.entries.every((entry) => isPageNavigableUrl(entry.url))) {
+    return null;
+  }
+  const forwardRoom = 10;
+  const latestStart = Math.max(0, history.entries.length - MAX_SESSION_HISTORY);
+  const start = Math.min(Math.max(0, history.index - (MAX_SESSION_HISTORY - forwardRoom)), latestStart);
+  const entries = history.entries
+    .slice(start, start + MAX_SESSION_HISTORY)
+    .map((entry) => ({ url: entry.url, title: entry.title }));
+  return { entries, index: history.index - start };
 }
 
 /**
@@ -68,7 +94,13 @@ export function sessionFrom(
       activeIndex = saved.length;
     }
     placeOf.set(tab.id, saved.length);
-    saved.push({ url: tab.url, groupId: tab.groupId, ...(tab.isPinned ? { isPinned: true } : {}) });
+    const history = historyToKeep(tab.history);
+    saved.push({
+      url: tab.url,
+      groupId: tab.groupId,
+      ...(tab.isPinned ? { isPinned: true } : {}),
+      ...(history ? { history } : {}),
+    });
   }
 
   const leftIndex = split ? placeOf.get(split.leftId) : undefined;

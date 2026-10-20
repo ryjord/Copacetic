@@ -350,3 +350,47 @@ describe('a session file that is not what it should be', () => {
     expect(data.windows[0]?.tabs).toHaveLength(2);
   });
 });
+
+describe('back history in the session, read back off disk', () => {
+  const read = (history: unknown) =>
+    reviveSession({ windows: [{ tabs: [{ url: 'https://example.com/b', groupId: null, history }], activeIndex: 0 }] })
+      ?.windows[0]?.tabs[0]?.history;
+
+  it('comes back whole', () => {
+    const history = {
+      entries: [
+        { url: 'https://example.com/a', title: 'A' },
+        { url: 'https://example.com/b', title: 'B' },
+      ],
+      index: 1,
+    };
+    expect(read(history)).toEqual(history);
+  });
+
+  // An edited file must not make Back load something a tab could never open.
+  it.each([
+    [
+      'a script address',
+      {
+        entries: [
+          { url: 'javascript:alert(1)', title: '' },
+          { url: 'https://example.com/b', title: 'B' },
+        ],
+        index: 1,
+      },
+    ],
+    [
+      'an index past the end',
+      {
+        entries: [
+          { url: 'https://example.com/a', title: 'A' },
+          { url: 'https://example.com/b', title: 'B' },
+        ],
+        index: 5,
+      },
+    ],
+    ['not a list', { entries: 'https://example.com/a', index: 0 }],
+  ])('is dropped for %s, keeping the tab', (_name, history) => {
+    expect(read(history)).toBeUndefined();
+  });
+});

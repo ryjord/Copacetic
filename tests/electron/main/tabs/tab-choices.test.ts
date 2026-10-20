@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   type SessionCandidate,
+  historyToKeep,
   sessionFrom,
   tabAfterClosing,
   pinnedFirst,
@@ -16,6 +17,7 @@ const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate
   isStartPage: false,
   isHush: false,
   isPinned: false,
+  history: null,
   ...over,
 });
 
@@ -148,10 +150,7 @@ describe('pinned tabs in the strip', () => {
 
   it('are remembered as pinned, and only pinned ones say so', () => {
     const written = sessionFrom(
-      [
-        { id: 'p1', url: 'https://mail.example/', groupId: null, isStartPage: false, isHush: false, isPinned: true },
-        { id: 'a', url: 'https://news.example/', groupId: null, isStartPage: false, isHush: false, isPinned: false },
-      ],
+      [tab('p1', { url: 'https://mail.example/', isPinned: true }), tab('a', { url: 'https://news.example/' })],
       'a',
     );
     expect(written.tabs).toEqual([
@@ -193,5 +192,36 @@ describe('which tabs go to sleep', () => {
 
   it('is none at all when sleeping is turned off', () => {
     expect(tabsToSleep([tab({ lastActiveAt: 0 })], now, 0)).toEqual([]);
+  });
+});
+
+describe('the back history a restored tab keeps', () => {
+  const pages = (count: number) =>
+    Array.from({ length: count }, (_unused, index) => ({
+      url: `https://example.com/${index}`,
+      title: `Page ${index}`,
+    }));
+
+  it('keeps addresses and titles, and none for a single page', () => {
+    expect(historyToKeep({ entries: pages(1), index: 0 })).toBeNull();
+    const written = sessionFrom([tab('a', { history: { entries: pages(3), index: 2 } })], 'a');
+    expect(written.tabs[0]?.history).toEqual({ entries: pages(3), index: 2 });
+  });
+
+  // Page state holds what was typed into forms, so it never reaches the session file.
+  it('leaves page state behind', () => {
+    const withState = pages(2).map((entry) => ({ ...entry, pageState: 'secret form text' }));
+    expect(JSON.stringify(historyToKeep({ entries: withState, index: 1 }))).not.toContain('pageState');
+  });
+
+  it('keeps nothing when an entry is not a page, rather than a gap Back would fall into', () => {
+    const entries = [...pages(2), { url: 'chrome-error://chromewebdata/', title: '' }];
+    expect(historyToKeep({ entries, index: 1 })).toBeNull();
+  });
+
+  it('keeps the stretch around where a long history is', () => {
+    const kept = historyToKeep({ entries: pages(200), index: 150 });
+    expect(kept?.entries).toHaveLength(50);
+    expect(kept?.entries[kept.index]?.url).toBe('https://example.com/150');
   });
 });

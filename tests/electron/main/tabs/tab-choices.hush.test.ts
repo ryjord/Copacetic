@@ -66,6 +66,7 @@ describe('nothing a Hush tab does is written down', () => {
           isStartPage: false,
           isHush: false,
           isPinned: false,
+          history: null,
         },
         {
           id: 'h',
@@ -74,6 +75,13 @@ describe('nothing a Hush tab does is written down', () => {
           isStartPage: false,
           isHush: true,
           isPinned: false,
+          history: {
+            entries: [
+              { url: 'https://secret.example/first', title: 'First' },
+              { url: 'https://secret.example/', title: 'Secret' },
+            ],
+            index: 1,
+          },
         },
       ],
       'a',

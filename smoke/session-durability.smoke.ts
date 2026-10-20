@@ -114,3 +114,32 @@ describe('the tabs that are open', () => {
     180_000,
   );
 });
+
+// Back after a restart goes where it went before it, and only addresses and titles were written to get there.
+describe('back history across a restart', () => {
+  it('comes back with the tab, without the page state', async () => {
+    await copacetic.chrome.evaluate(async () => {
+      const id = await window.copacetic.tabs.create('https://example.com/history-one');
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await window.copacetic.tabs.navigate(id, 'https://example.com/history-two');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+    const written = readFileSync(path.join(copacetic.profile, 'session.json'), 'utf8');
+    expect(written).toContain('history-one');
+    expect(written).not.toContain('pageState');
+
+    const profile = copacetic.profile;
+    await copacetic.close({ keepProfile: true });
+    copacetic = await SmokeApp.launch({ profile });
+    await copacetic.waitForReady();
+    const restored = async () =>
+      copacetic.chrome.evaluate(async () =>
+        (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.url.includes('history-two')),
+      );
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline && !(await restored())?.canGoBack) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    expect((await restored())?.canGoBack).toBe(true);
+  }, 120_000);
+});

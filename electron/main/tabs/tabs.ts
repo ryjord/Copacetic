@@ -78,7 +78,7 @@ import { t } from '../../shared/i18n/translate';
 import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
-import type { SessionSnapshot } from '../data/session-store';
+import type { SessionHistory, SessionSnapshot } from '../data/session-store';
 import type { NamedSessionTab } from '../../shared/data/named-sessions';
 import { type TabMemory, memoryByTab } from '../../shared/tabs/tab-memory';
 import type { ProfilePartitions } from '../../shared/data/partitions';
@@ -199,10 +199,22 @@ export class TabManager {
           isStartPage: tab.isStartPage,
           isHush: tab.isHush,
           isPinned: tab.isPinned,
+          history: this.historyOf(tab),
         });
       }
     }
     return sessionFrom(candidates, this.activeId, this.split);
+  }
+
+  private historyOf(tab: TabRecord): SessionCandidate['history'] {
+    const contents = pageOf(tab);
+    if (contents && !contents.isDestroyed()) {
+      return {
+        entries: contents.navigationHistory.getAllEntries(),
+        index: contents.navigationHistory.getActiveIndex(),
+      };
+    }
+    return tab.sleptHistory;
   }
 
   private toState(tab: TabRecord): TabState {
@@ -701,6 +713,8 @@ export class TabManager {
       hush?: boolean;
       groupId?: string | null;
       pinned?: boolean;
+      /** Where it can go back and forward to, from a restored session. */
+      history?: SessionHistory;
     } = {},
   ): TabId {
     // Last line of defence. Callers are expected to have already decided the
@@ -772,9 +786,15 @@ export class TabManager {
     if (!isStartPage) {
       void described.then(() => {
         // It can be closed, or sent somewhere else, while it waits.
-        if (this.tabs.get(id) === tab && tab.url === rawUrl) {
-          void this.loadUrl(tab, rawUrl);
+        if (this.tabs.get(id) !== tab || tab.url !== rawUrl) {
+          return;
         }
+        const page = pageOf(tab);
+        if (options.history && page) {
+          void page.navigationHistory.restore(options.history).catch(() => this.loadUrl(tab, rawUrl));
+          return;
+        }
+        void this.loadUrl(tab, rawUrl);
       });
     }
 
