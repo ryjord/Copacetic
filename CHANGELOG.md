@@ -2,7 +2,7 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 2.0.0-beta.3 - Unreleased
+## 2.0.0-beta.3 - 20 October 2026
 
 The third beta of 2.0: Settings rebuilt pane by pane, filter and sort for the
 three lists, and the everyday gaps a sweep of every view turned up.
