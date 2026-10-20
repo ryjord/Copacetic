@@ -196,7 +196,7 @@ export const settings = {
       title: 'Search',
       engine: {
         label: 'Search engine',
-        help: 'Used when what you type is not an address. Suggestions come from your own history.',
+        help: 'Used for what you type that is not an address, with suggestions from your own history.',
       },
       custom: {
         keywordHelp: 'Type {keyword} and a space in the address bar',
@@ -219,7 +219,7 @@ export const settings = {
       title: 'Memory',
       sleep: {
         label: 'Put tabs to sleep',
-        help: 'A tab left alone this long gives back its memory and comes back where it was when you return to it. Never one playing sound.',
+        help: 'A tab left alone this long, unless it is playing sound, gives back its memory and comes back where it was.',
         never: 'Never',
         after15: 'After 15 minutes',
         after30: 'After 30 minutes',
@@ -231,7 +231,7 @@ export const settings = {
       title: 'Typing',
       spelling: {
         label: 'Check spelling',
-        help: 'Underlines misspelt words in what you type into pages. Checked on this machine.',
+        help: 'Underlines misspelt words in what you type into pages, checked on this machine.',
       },
       languages: {
         label: 'Languages',
@@ -279,7 +279,7 @@ export const settings = {
       },
       accent: {
         label: 'Accent',
-        help: 'Selection, focus and switches. Security, warnings and Hush keep their own colours.',
+        help: 'Selection, focus and switches, while security, warnings and Hush keep their own colours.',
         blue: 'Blue',
         indigo: 'Indigo',
         teal: 'Teal',
@@ -288,7 +288,7 @@ export const settings = {
       },
       textSize: {
         label: 'Text size',
-        help: 'The interface only. Pages keep their own zoom.',
+        help: 'The interface only, since pages keep their own zoom.',
         small: 'Small',
         default: 'Default',
         large: 'Large',
@@ -371,7 +371,7 @@ export const settings = {
       title: 'Browsing',
       httpsFirst: {
         label: 'Always use secure connections',
-        help: 'Tries HTTPS first, and asks before falling back to HTTP. Your own network is left alone.',
+        help: 'Tries HTTPS first and asks before falling back to HTTP, leaving your own network alone.',
       },
       blockTrackers: {
         label: 'Block trackers and ads',
@@ -390,7 +390,7 @@ export const settings = {
       rulesModified: '{rules} rules · {modified}',
       check: {
         label: 'Check for newer lists',
-        help: 'Contacts {hosts} once. Lists never update on their own.',
+        help: 'Contacts {hosts} once, since the lists never update on their own.',
         checking: 'Checking…',
         action: 'Check now',
       },
@@ -407,7 +407,7 @@ export const settings = {
     },
     banners: {
       label: 'Hide cookie banners',
-      help: 'Consent pop-ups are hidden from view. Nothing is accepted or refused for you.',
+      help: 'Consent pop-ups are hidden, with nothing accepted or refused for you.',
     },
     links: {
       label: 'Clean tracking from links',
@@ -429,7 +429,7 @@ export const settings = {
       publicOnlyHelp:
         'Calls and video work, and a page can learn your public address but not the one on your home or office network.',
       allHelp:
-        'A page can learn your local network address as well. Only for a call that will not connect otherwise.',
+        'A page can learn your local network address too, so use it only for a call that will not connect otherwise.',
       proxiedOnlyHelp:
         'Calls go through your proxy or not at all, so nothing is revealed that the proxy does not already show.',
     },
@@ -574,8 +574,8 @@ export const settings = {
     remove: 'Remove',
     swap: 'Swap',
     cancel: 'Cancel',
-    swapHelp: '{shortcut} is used for {conflict}. Swap gives that one {previous} instead.',
-    swapHelpNone: '{shortcut} is used for {conflict}. Swap leaves that one without a shortcut.',
+    swapHelp: '{shortcut} is used for {conflict}, which Swap moves to {previous}.',
+    swapHelpNone: '{shortcut} is used for {conflict}, which Swap leaves without a shortcut.',
     fixed: 'Built into how tabs and the keyboard work, so these cannot move.',
   },
   updates: {
@@ -613,7 +613,7 @@ export const settings = {
     version: 'Copacetic {version}',
     openInstaller: 'Download and open',
     openInstallerHelp:
-      'Saved to Downloads and checked against the release before it opens. Copacetic is not signed by Apple, so macOS asks before opening it the first time.',
+      'Saved to Downloads and checked against the release before it opens, and since Copacetic is not signed by Apple, macOS asks the first time.',
     releasePage: 'Release page',
     notes: {
       title: 'What {version} changes',
@@ -629,7 +629,7 @@ export const settings = {
     howItUpdates: 'How this build updates',
     automatic: {
       label: 'Check for updates automatically',
-      help: 'Asks {host} for the latest version number. Nothing about you is sent.',
+      help: 'Asks {host} for the latest releases and their notes, sending nothing about you.',
     },
   },
   data: {
@@ -637,7 +637,7 @@ export const settings = {
       title: 'Translation',
       label: 'Translation models',
       kept: '{size} kept on this machine, so translating needs nothing from Mozilla again.',
-      none: 'None downloaded. Translating in reader view fetches the one a language needs.',
+      none: 'None yet: translating in reader view fetches the one a language needs.',
       remove: 'Delete',
     },
     sessions: {
@@ -682,7 +682,7 @@ export const settings = {
       title: 'Import',
       bookmarks: {
         label: 'Bookmarks',
-        help: 'From the file any browser exports, folders and all. In Safari, choose File, then Export Bookmarks.',
+        help: 'From the file any browser exports, folders and all, which Safari makes from File, Export Bookmarks.',
       },
       history: {
         label: 'History',
@@ -690,7 +690,7 @@ export const settings = {
       },
       browser: {
         label: 'From another browser',
-        help: 'Bookmarks, and as much history as Copacetic keeps. Passwords are left where they are.',
+        help: 'Bookmarks, and as much history as Copacetic keeps, leaving passwords where they are.',
         none: 'No Chrome, Brave, Edge, Vivaldi, Arc or Firefox profile was found on this computer.',
         choose: 'Browser to import from',
         look: 'Look…',
@@ -707,7 +707,7 @@ export const settings = {
   passwords: {
     intro: {
       label: 'Passwords are kept on this machine, encrypted',
-      help: 'Press the key in the address bar, or right-click a password box and choose Fill password. Copacetic never offers to save what you type.',
+      help: 'Filled from the key in the address bar or Fill password on a password box’s menu, and Copacetic never offers to save what you type.',
       protection: 'How they are protected',
     },
     availability: {
@@ -759,7 +759,7 @@ export const settings = {
       title: 'Import and export',
       export: {
         label: 'Export passwords',
-        help: 'A CSV file that Chrome, Firefox and 1Password can read. Every password is readable in it.',
+        help: 'A CSV file Chrome, Firefox and 1Password can read, with every password readable in it.',
         action: 'Export',
       },
       import: {

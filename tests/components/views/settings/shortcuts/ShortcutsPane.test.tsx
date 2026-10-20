@@ -54,7 +54,7 @@ describe('the shortcuts pane', () => {
     render(<ShortcutsPane />);
     fireEvent.keyDown(changePrint(), { code: 'KeyT', ctrlKey: true });
     expect(updateSettings).not.toHaveBeenCalled();
-    expect(screen.getByText('Ctrl + T is used for New tab. Swap gives that one Ctrl + P instead.')).toBeTruthy();
+    expect(screen.getByText('Ctrl + T is used for New tab, which Swap moves to Ctrl + P.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Swap' }));
     expect(updateSettings).toHaveBeenCalledWith({
       shortcutOverrides: { print: 'CmdOrCtrl+T', 'new-tab': 'CmdOrCtrl+P' },
