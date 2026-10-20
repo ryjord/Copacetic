@@ -7,7 +7,13 @@ import path from 'node:path';
 import { hostResolverFor } from '../../shared/browsing/dns';
 import { FIRST_PROFILE_ID } from '../../shared/data/partitions';
 import { profileDirectory, sweepRemovedProfiles } from '../data/profile-folders';
-import { readPicture, removePicture, squarePicture, writePicture } from '../data/profile-pictures';
+import {
+  isTooLargeToDecode,
+  readPicture,
+  removePicture,
+  squarePicture,
+  writePicture,
+} from '../data/profile-pictures';
 import { ProfilesStore } from '../data/profiles-store';
 import { ContentBlocker } from '../security/blocker';
 import { hardenChromeSession } from '../security/security';
@@ -220,6 +226,9 @@ export class Profiles {
     if (!chosen.value) {
       return chosen.message;
     }
+    if (isTooLargeToDecode(chosen.value)) {
+      return t('main.profiles.pictureTooWide');
+    }
     const png = squarePicture(chosen.value);
     if (!png) {
       return t('main.files.notAnImage');
@@ -235,6 +244,10 @@ export class Profiles {
   }
 
   removePicture(id: string): void {
+    // The id names a folder, so only a profile that exists may name one.
+    if (!this.list.find(id)) {
+      return;
+    }
     removePicture(profileDirectory(app.getPath('userData'), id));
     this.list.setPictureVersion(id, null);
     this.listChanged();

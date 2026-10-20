@@ -547,6 +547,7 @@ export const main = {
     firstName: 'Personal',
     choosePicture: 'Choose a profile picture',
     pictureTooLarge: 'That picture is over 10 MB. Try a smaller one.',
+    pictureTooWide: 'That picture is over 8192 pixels a side. Try a smaller one.',
   },
   netErrors: {
     failed: {
