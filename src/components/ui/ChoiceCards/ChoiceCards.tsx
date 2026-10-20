@@ -16,6 +16,8 @@ interface ChoiceCardsProps<Id extends string> {
   label: string;
   /** Labels under the cards; without them each card's label is only its accessible name. */
   hasCaptions?: boolean;
+  /** False when choosing does more than show a choice, so the arrow keys only move and Space chooses. */
+  isChosenByArrowKeys?: boolean;
   className?: string;
 }
 
@@ -26,6 +28,7 @@ export function ChoiceCards<Id extends string>({
   onChange,
   label,
   hasCaptions = true,
+  isChosenByArrowKeys = true,
   className,
 }: ChoiceCardsProps<Id>) {
   return (
@@ -47,6 +50,8 @@ export function ChoiceCards<Id extends string>({
           value={option.id}
           aria-label={option.label}
           title={hasCaptions ? undefined : option.label}
+          // Radix chooses an item as an arrow key focuses it, unless this handler prevents it.
+          onFocus={isChosenByArrowKeys ? undefined : (event) => event.preventDefault()}
           className="group flex flex-col items-center gap-1.5 rounded-sm text-body-sm text-ink-dim outline-offset-2 data-[state=checked]:text-ink"
         >
           <span className="block overflow-hidden rounded-sm border-2 border-transparent transition-colors group-hover:border-line-strong group-data-[state=checked]:border-accent">

@@ -149,6 +149,8 @@ export function StartPageLook({ settings }: { settings: Settings }) {
             options={backgroundOptions}
             value={chosenBackground}
             onChange={(choice) => void chooseBackground(choice)}
+            // Photo opens a chooser and a colour removes the photo, so looking through them must not choose.
+            isChosenByArrowKeys={false}
           />
         }
       />
