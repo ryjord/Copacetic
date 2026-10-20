@@ -22,14 +22,15 @@ const pageTop = () =>
 
 describe('renaming a group', () => {
   /**
-   * Renaming used to open a panel, which could not float over the page — a
-   * WebContentsView paints above the renderer's HTML — so it was put in flow
+   * Renaming used to open a panel, which could not float over the page - a
+   * WebContentsView paints above the renderer's HTML - so it was put in flow
    * and pushed the toolbar and the page down every time it opened. The field
    * is now the label itself, and the chrome must not move at all.
    */
   it('does not move the chrome or the page', async () => {
     const before = await pageTop();
-    await copacetic.chrome.getByRole('button', { name: /Work/ }).first().click();
+    // A click folds the group away; a double-click is what renames it.
+    await copacetic.chrome.getByRole('button', { name: /Work/ }).first().dblclick();
     await new Promise((resolve) => setTimeout(resolve, 500));
     const after = await pageTop();
 
@@ -46,7 +47,7 @@ describe('renaming a group', () => {
         value: field.value,
         selected: field.selectionStart === 0 && field.selectionEnd === field.value.length,
         // The strip is a fixed height, so a field that outgrows it is clipped
-        // rather than moving anything — invisible to the measurement above.
+        // rather than moving anything - invisible to the measurement above.
         overflowsTheStrip: box.top < strip.top - 1 || box.bottom > strip.bottom + 1,
       };
     });
@@ -64,7 +65,7 @@ describe('renaming a group', () => {
     await copacetic.chrome.locator('main').click({ position: { x: 40, y: 40 }, force: true });
 
     // Waited for rather than slept through: the file is written on a debounce,
-    // and a fixed pause is the same wait written badly — it passes here and
+    // and a fixed pause is the same wait written badly - it passes here and
     // fails on a slower machine, saying the rename is broken when it means it
     // has not landed yet. A rename that never lands still fails.
     const stored = await copacetic.waitForProfileJson<Array<{ name: string }>>(
@@ -85,7 +86,7 @@ describe('renaming a group', () => {
     await copacetic.chrome
       .getByRole('button', { name: /Client work/ })
       .first()
-      .click();
+      .dblclick();
     await new Promise((resolve) => setTimeout(resolve, 400));
     await copacetic.chrome.keyboard.type('Thrown away');
     await copacetic.chrome.keyboard.press('Escape');
@@ -101,7 +102,7 @@ describe('renaming a group', () => {
 /**
  * A collapsed group hides its tabs, and one of them may be the tab being looked
  * at. Its page stays on screen with nothing in the strip pointing at it, and
- * the only way back is to expand the group again — so activation steps out of
+ * the only way back is to expand the group again - so activation steps out of
  * the group before it closes.
  */
 describe('collapsing a group that holds the active tab', () => {

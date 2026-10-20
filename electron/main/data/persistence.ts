@@ -1,6 +1,9 @@
+// Libs
 import { app } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync } from 'node:fs';
+
+// Utils
 import { type DiskOperations, REAL_DISK, renameOverAnyLock } from './durable-write';
 
 // Re-exported because a store's durable write is still part of this module's
@@ -9,6 +12,24 @@ export { type DiskOperations, REAL_DISK, renameOverAnyLock };
 import path from 'node:path';
 import { describeError, log } from '../system/diagnostics';
 import { UNVERSIONED, type SchemaPlan, type SchemaVersions, migrate, schemaVersionsFor } from './schema';
+
+export interface PersistedFileOptions {
+  /** The profile's folder. Left out, it is the app's own, which is the first profile's. */
+  directory?: string;
+  flushDelayMs?: number;
+  /** How this file's shape has changed over time. Files that have never changed shape need nothing here. */
+  plan?: SchemaPlan;
+  /**
+   * The two disk operations a flush performs.
+   *
+   * A seam, and it exists for one reason: the durability of this write is the
+   * whole point of the class, and nothing could check it. Mocking `node:fs`
+   * does not reach this module under the test runner - measured, not assumed
+   * - so a revert to a plain unflushed write would have left every test
+   * green. Production passes nothing and gets the real ones.
+   */
+  disk?: DiskOperations;
+}
 
 /** A single JSON file on disk, written atomically and flushed on a debounce. */
 export class PersistedFile<T> {
@@ -19,25 +40,20 @@ export class PersistedFile<T> {
 
   private readonly versions: SchemaVersions;
 
+  private readonly flushDelayMs: number;
+  private readonly plan: SchemaPlan;
+  private readonly disk: DiskOperations;
+
   constructor(
     private readonly filename: string,
     private readonly fallback: () => T,
     private readonly revive: (raw: unknown) => T | null,
-    private readonly flushDelayMs = 400,
-    /** How this file's shape has changed over time. Files that have never changed shape need nothing here. */
-    private readonly plan: SchemaPlan = UNVERSIONED,
-    /**
-     * The two disk operations a flush performs.
-     *
-     * A seam, and it exists for one reason: the durability of this write is the
-     * whole point of the class, and nothing could check it. Mocking `node:fs`
-     * does not reach this module under the test runner — measured, not assumed
-     * — so a revert to a plain unflushed write would have left every test
-     * green. Production passes nothing and gets the real ones.
-     */
-    private readonly disk: DiskOperations = REAL_DISK,
+    options: PersistedFileOptions = {},
   ) {
-    const dir = app.getPath('userData');
+    this.flushDelayMs = options.flushDelayMs ?? 400;
+    this.plan = options.plan ?? UNVERSIONED;
+    this.disk = options.disk ?? REAL_DISK;
+    const dir = options.directory ?? app.getPath('userData');
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
@@ -49,14 +65,15 @@ export class PersistedFile<T> {
   /**
    * A file written by a newer build than this one. Reading it would mean
    * guessing at a shape from the future, and writing it back would then destroy
-   * whatever the newer build had put there — so it is kept, untouched and named
+   * whatever the newer build had put there - so it is kept, untouched and named
    * so it can be found, and this build starts fresh.
    */
   private setAsideNewerFile(found: number): void {
     console.error(`[persistence] ${this.filename} was written by a newer version (${found}), keeping it aside`);
     log.warn('a stored file came from a newer version and was kept aside', { file: this.filename, found });
     try {
-      renameSync(this.filePath, `${this.filePath}.newer`);
+      // Stamped, so going back a second time does not overwrite what the first one kept.
+      renameSync(this.filePath, `${this.filePath}.newer-${Date.now()}`);
     } catch {
       /* best effort */
     }

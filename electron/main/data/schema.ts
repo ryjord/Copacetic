@@ -1,8 +1,11 @@
+// Libs
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
-import { REAL_DISK } from './durable-write';
-import { describeError, log } from '../system/diagnostics';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
+
+// Utils
+import { REAL_DISK } from './durable-write';
+import { describeError, log } from '../system/diagnostics';
 
 /** One step, taking a file written at `to - 1` and returning it at `to`. */
 export interface Migration {
@@ -104,7 +107,7 @@ export class SchemaVersions {
       // Losing this means every file is treated as the first version and every
       // step runs again over data that has already had it. That is only safe
       // because each step is required to recognise its own output and return it
-      // untouched — see the idempotence test, which runs every step twice.
+      // untouched - see the idempotence test, which runs every step twice.
       return {};
     }
   }
@@ -127,13 +130,13 @@ export class SchemaVersions {
    * Through the same durable path as the data it describes: flushed to the disk
    * before the rename, readable only by its owner, and retried when something
    * else is holding the file. It was written the plain way, which made the note
-   * saying how to read the files less safe than the files — the wrong way round.
+   * saying how to read the files less safe than the files - the wrong way round.
    *
    * A failure here is reported rather than swallowed. It used to be caught and
    * dropped, so a data file could reach version N with the record still saying
    * N-1 and nothing anywhere would mention it. That state is survivable, because
    * every migration step is required to recognise its own output and is tested
-   * by being run twice — but survivable is not the same as unremarkable.
+   * by being run twice - but survivable is not the same as unremarkable.
    */
   private write(): void {
     const tempPath = `${this.filePath}.${randomBytes(4).toString('hex')}.tmp`;

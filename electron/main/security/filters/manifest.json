@@ -1,25 +1,36 @@
 {
-  "fetchedAt": "2026-09-02T22:07:24.731Z",
+  "fetchedAt": "2026-10-19T20:52:25.457Z",
   "lists": [
     {
       "name": "easylist",
       "url": "https://easylist.to/easylist/easylist.txt",
       "describe": "Advertising. The list most blockers are built on.",
-      "bytes": 2119864,
-      "rules": 80708,
-      "sha256": "4a4d179cc63be94177cc7babe3607a562261f0cb509c223b805aa0d6002ccc2c",
-      "lastModified": "02 Sep 2026 21:40 UTC",
-      "version": "202609022140"
+      "bytes": 2200270,
+      "rules": 83972,
+      "sha256": "ce87eb5b94bc562d2fc6ce76abbb49c667a3ebca4ccaf11ab1bf080fe862f498",
+      "lastModified": "19 Oct 2026 20:43 UTC",
+      "version": "202610192043"
     },
     {
       "name": "easyprivacy",
       "url": "https://easylist.to/easylist/easyprivacy.txt",
       "describe": "Tracking and analytics, separate from advertising.",
-      "bytes": 1500601,
-      "rules": 56008,
-      "sha256": "085a34a84f886003691fb0b78267ce9334b6bd236379b6659f05a33ddfe71a30",
-      "lastModified": "02 Sep 2026 21:40 UTC",
-      "version": "202609022140"
+      "bytes": 1510371,
+      "rules": 56368,
+      "sha256": "a0def290d6f81b8d53b9696f5d3efb0ee3fc87fdf463cb69395d4b24fe2837ad",
+      "lastModified": "19 Oct 2026 20:48 UTC",
+      "version": "202610192048"
+    },
+    {
+      "name": "easylist-cookie",
+      "url": "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
+      "describe": "Cookie consent banners, hidden rather than answered.",
+      "purpose": "cookie-banners",
+      "bytes": 902408,
+      "rules": 25323,
+      "sha256": "9682f9dfc0d9109435b27b97d73a2f55a17e611fa744a7178d50d403a68177ba",
+      "lastModified": "2026-10-19 15:50 UTC",
+      "version": null
     }
   ]
 }

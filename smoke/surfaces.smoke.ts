@@ -14,10 +14,11 @@ beforeAll(async () => {
 });
 afterAll(async () => copacetic?.close());
 
-const surfaceOpen = () => copacetic.chrome.evaluate(() => document.body.innerText.includes('Kept on this machine'));
+const surfaceOpen = () =>
+  copacetic.chrome.evaluate(() => Boolean(document.querySelector('[role="dialog"][aria-label="History"]')));
 
 const pageVisible = () =>
-  copacetic.main(({ BrowserWindow }) =>
+  copacetic.read(({ BrowserWindow }) =>
     (BrowserWindow.getAllWindows()[0]?.contentView.children ?? []).some((view) => view.getVisible?.() === true),
   );
 
@@ -26,13 +27,15 @@ const pageVisible = () =>
  *
  * A surface covers the whole content area and hides every page view. Measured
  * before this was fixed: clicking a tab with History open switched to it and
- * highlighted it in the strip, and showed nothing — the browser looked like it
+ * highlighted it in the strip, and showed nothing - the browser looked like it
  * had ignored the click, and the only way out was the close button.
  */
 describe('a surface when a tab is chosen', () => {
   it('gets out of the way, and the page comes back', async () => {
-    await copacetic.chrome.getByRole('button', { name: 'History' }).click();
-    expect(await copacetic.waitForChrome(() => document.body.innerText.includes('Kept on this machine'))).toBe(true);
+    await copacetic.chooseMenuItem('Show all history');
+    expect(
+      await copacetic.waitForChrome(() => Boolean(document.querySelector('[role="dialog"][aria-label="History"]'))),
+    ).toBe(true);
     // The surface is up, so nothing is showing the page.
     expect(await pageVisible()).toBe(false);
 
@@ -44,7 +47,9 @@ describe('a surface when a tab is chosen', () => {
       .first()
       .click();
     // The surface closing is the thing under test, so it is waited for.
-    expect(await copacetic.waitForChrome(() => !document.body.innerText.includes('Kept on this machine'))).toBe(true);
+    expect(
+      await copacetic.waitForChrome(() => !document.querySelector('[role="dialog"][aria-label="History"]')),
+    ).toBe(true);
     expect(await surfaceOpen()).toBe(false);
     // And the page it switched to is actually on screen, which is the whole
     // point: closing the surface without showing the page would look the same
@@ -54,14 +59,16 @@ describe('a surface when a tab is chosen', () => {
 
   /*
    * The counterweight. A surface that closed on any state change at all would
-   * pass the test above and be impossible to use — every keystroke in its
+   * pass the test above and be impossible to use - every keystroke in its
    * search field would shut it.
    */
   it('stays open while it is being used', async () => {
-    await copacetic.chrome.getByRole('button', { name: 'History' }).click();
-    expect(await copacetic.waitForChrome(() => document.body.innerText.includes('Kept on this machine'))).toBe(true);
+    await copacetic.chooseMenuItem('Show all history');
+    expect(
+      await copacetic.waitForChrome(() => Boolean(document.querySelector('[role="dialog"][aria-label="History"]'))),
+    ).toBe(true);
 
-    await copacetic.chrome.getByRole('textbox', { name: /Search history/ }).fill('example');
+    await copacetic.chrome.getByRole('searchbox', { name: /Search history/ }).fill('example');
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     expect(await surfaceOpen()).toBe(true);

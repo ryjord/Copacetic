@@ -16,8 +16,8 @@ const savedTabs = (): { url: string }[] => {
   if (!existsSync(file)) {
     return [];
   }
-  const raw = JSON.parse(readFileSync(file, 'utf8')) as { tabs?: { url: string }[] };
-  return raw.tabs ?? [];
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as { windows?: { tabs: { url: string }[] }[] };
+  return raw.windows?.flatMap((window) => window.tabs) ?? [];
 };
 
 /**
@@ -58,8 +58,8 @@ describe('the tabs that are open', () => {
    */
   /*
    * The same thing on Windows, which has no signals. `process.kill(pid,
-   * 'SIGTERM')` there does not deliver anything for a handler to catch — it
-   * terminates the process outright — so the spec above asserts something
+   * 'SIGTERM')` there does not deliver anything for a handler to catch - it
+   * terminates the process outright - so the spec above asserts something
    * Windows cannot do, and failed on every run rather than finding a bug.
    *
    * What is worth checking on every platform is the flush itself: that asking
@@ -81,7 +81,7 @@ describe('the tabs that are open', () => {
 
   /*
    * Its own app, because the spec above asks this one to prepare for quit and
-   * an app that has prepared for quit stops recording — correctly, and it makes
+   * an app that has prepared for quit stops recording - correctly, and it makes
    * the two impossible to run against one instance. Written sharing an app
    * first, where the second spec then failed for that reason rather than for a
    * reason about durability.
@@ -103,13 +103,50 @@ describe('the tabs that are open', () => {
 
         const file = path.join(victim.profile, 'session.json');
         const saved = existsSync(file)
-          ? (JSON.parse(readFileSync(file, 'utf8')) as { tabs?: { url: string }[] })
+          ? (JSON.parse(readFileSync(file, 'utf8')) as { windows?: { tabs: { url: string }[] }[] })
           : {};
-        expect((saved.tabs ?? []).some((tab) => tab.url.includes('killed'))).toBe(true);
+        const urls = (saved.windows ?? []).flatMap((window) => window.tabs).map((tab) => tab.url);
+        expect(urls.some((url) => url.includes('killed'))).toBe(true);
       } finally {
         await victim.close().catch(() => {});
       }
     },
     180_000,
   );
+});
+
+// Back after a restart goes where it went before it, and only addresses and titles were written to get there.
+describe('back history across a restart', () => {
+  // An app of its own: the tests above tell theirs it is quitting, after which it rightly writes nothing more.
+  let browser: SmokeApp | undefined;
+  afterAll(async () => browser?.close());
+
+  it('comes back with the tab, without the page state', async () => {
+    browser = await SmokeApp.launch();
+    await browser.waitForReady();
+    await browser.chrome.evaluate(async () => {
+      const id = await window.copacetic.tabs.create('https://example.com/history-one');
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await window.copacetic.tabs.navigate(id, 'https://example.com/history-two');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+    const written = readFileSync(path.join(browser.profile, 'session.json'), 'utf8');
+    expect(written).toContain('history-one');
+    expect(written).not.toContain('pageState');
+
+    const profile = browser.profile;
+    await browser.close({ keepProfile: true });
+    browser = await SmokeApp.launch({ profile });
+    await browser.waitForReady();
+    const restarted = browser;
+    const restored = async () =>
+      restarted.chrome.evaluate(async () =>
+        (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.url.includes('history-two')),
+      );
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline && !(await restored())?.canGoBack) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    expect((await restored())?.canGoBack).toBe(true);
+  }, 120_000);
 });

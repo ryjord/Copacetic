@@ -31,7 +31,15 @@ export function normaliseInsets(insets: ContentInsets): ContentInsets {
 }
 
 /** Where a tab's view sits inside the window, once the chrome has taken its share. */
-export function contentBoundsWithin(windowSize: WindowSize, insets: ContentInsets): ContentBounds {
+export function contentBoundsWithin(
+  windowSize: WindowSize,
+  insets: ContentInsets,
+  isFullscreen = false,
+): ContentBounds {
+  // A video that went fullscreen takes the whole window, chrome and all.
+  if (isFullscreen) {
+    return { x: 0, y: 0, width: windowSize.width, height: windowSize.height };
+  }
   return {
     x: insets.left,
     y: insets.top,

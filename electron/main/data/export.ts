@@ -1,10 +1,10 @@
-import type { BookmarkFolder } from '../../shared/bookmark-folders';
+import type { BookmarkFolder } from '../../shared/data/bookmark-folders';
 import type { Bookmark, HistoryEntry } from '../../shared/types';
 
 // Getting your own data back out.
 
 /**
- * Netscape bookmark format — what every browser's importer expects.
+ * Netscape bookmark format - what every browser's importer expects.
  *
  * Folders are written as folders. They were not: everything was flattened into
  * one folder called Copacetic and `folderId` was dropped on the floor, so

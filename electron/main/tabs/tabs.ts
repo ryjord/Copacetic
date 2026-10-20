@@ -1,6 +1,20 @@
-import { type BrowserWindow, type ContextMenuParams, WebContentsView, type WebContents } from 'electron';
+// Libs
+import {
+  type BrowserWindow,
+  type ContextMenuParams,
+  type Session,
+  WebContentsView,
+  type WebContents,
+  app,
+  dialog,
+} from 'electron';
 import { randomUUID } from 'node:crypto';
-import type { FindState, TabId, TabState } from '../../shared/types';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+// Utils
+import { sanitiseFilename } from '../data/downloads';
+import { focusContents } from '../system/launch-mode';
 import {
   START_PAGE_URL,
   fallbackTitleFor,
@@ -8,10 +22,10 @@ import {
   isNavigableUrl,
   originOf,
   resolveOmniboxInput,
-} from '../../shared/url';
-import type { ContentBlocker } from '../security/blocker';
+} from '../../shared/browsing/url';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
-import { fetchFaviconDataUrl } from './tab-favicon';
+import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
+import { isLoadedExtensionPage } from '../extensions/extension-pages';
 import {
   DEFAULT_INSETS,
   type ContentBounds,
@@ -21,25 +35,55 @@ import {
   shouldTabBeVisible,
 } from './tab-layout';
 import { describeSecurity } from './tab-security';
-import { inheritFromOpener } from '../../shared/opening';
-import { type SessionCandidate, sessionFrom, tabAfterClosing } from './tab-choices';
-import { clampZoom } from '../../shared/types';
-import { partitionFor, tabAfterCollapsing } from '../../shared/tab-groups';
-import type { SessionSnapshot } from '../data/session-store';
-import { trustedLocally } from '../security/local-certificates';
-import { describeTab } from '../system/browser-identity';
-import { attachTabEvents } from './tab-events';
-import { ClosedTabs } from './closed-tabs';
-import type { TabRecord } from './tab-record';
-import { certificateFor } from '../security/certificates';
-import { compareCertificate, rememberCertificate } from '../../shared/certificate-changes';
+import { inheritFromOpener } from '../../shared/tabs/opening';
 import {
-  HUSH_PARTITION,
-  WEB_PARTITION,
-  type SecurityDelegate,
-  getWebSession,
-  guardTabWebContents,
-} from '../security/security';
+  type SessionCandidate,
+  historyToKeep,
+  sessionFrom,
+  tabAfterClosing,
+  clampToRun,
+  pinnedFirst,
+  tabsToSleep,
+} from './tab-choices';
+import { clampZoom } from '../../shared/types';
+import { partitionFor, tabAfterCollapsing } from '../../shared/tabs/tab-groups';
+import { type Placement, placeByRule, openRuleFor } from '../../shared/tabs/open-rules';
+import {
+  EVEN_SPLIT_RATIO,
+  type SplitView,
+  clampSplitRatio,
+  isInSplit,
+  pageWithinPane,
+  partnerIn,
+  shownSplit,
+  splitPanes,
+} from '../../shared/tabs/split-view';
+import {
+  acceptRefused,
+  exceptionFor,
+  forgetTab as forgetRefusedCertificate,
+} from '../security/certificate-exceptions';
+import { describeTab } from '../system/browser-identity';
+import { log } from '../system/diagnostics';
+import { surfaceColour } from '../window/appearance';
+import { attachTabEvents } from './tab-events';
+import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
+import { applyWebRtcPolicy } from '../security/web-rtc';
+import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
+import { type TabRecord, pageOf } from './tab-record';
+import { certificateFor } from '../security/certificates';
+import { compareCertificate, rememberCertificate } from '../../shared/browsing/certificate-changes';
+import { type SecurityDelegate, guardTabWebContents } from '../security/security';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
+import type { ContentBlocker } from '../security/blocker';
+import type { HttpsFirst } from '../security/https-first';
+import type { SessionHistory, SessionSnapshot } from '../data/session-store';
+import type { NamedSessionTab } from '../../shared/data/named-sessions';
+import { type TabMemory, memoryByTab } from '../../shared/tabs/tab-memory';
+import type { ProfilePartitions } from '../../shared/data/partitions';
 import type { BrowserStore } from '../data/store';
 
 export class TabManager {
@@ -48,31 +92,44 @@ export class TabManager {
   private activeId: TabId | null = null;
   private insets: ContentInsets = DEFAULT_INSETS;
   private overlayVisible = false;
-  private readonly closedTabs = new ClosedTabs();
+  private stored: BrowsingRecord | null = null;
+  private readonly sleepTimer: NodeJS.Timeout;
+  private readonly stopCounting: () => void;
   private find: FindState = CLOSED_FIND;
   private isDisposed = false;
   /** What has already been added to history per tab, so only the difference is. */
   private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
+  private pageFocusHandler: (() => void) | null = null;
+  private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
+  private windowIsEnteringFullscreen = false;
+  private split: SplitView | null = null;
 
   constructor(
     private readonly window: BrowserWindow,
     private readonly store: BrowserStore,
     private readonly blocker: ContentBlocker,
+    private readonly httpsFirst: HttpsFirst,
     private readonly securityDelegate: SecurityDelegate,
+    /** The sessions this profile's tabs run in; another profile's are never reachable from here. */
+    private readonly partitions: ProfilePartitions,
+    /** Shared by every window of the profile. */
+    private readonly closedTabs: ClosedTabs,
     /**
      * Hardens a partition and returns its session. Called before a tab exists,
      * because a session that is hardened afterwards has already been used.
      */
-    private readonly prepareSession: (partition: string) => unknown,
+    private readonly prepareSession: (partition: string) => Session,
     private readonly onChanged: () => void,
     /** Fired once per closed tab so owners can drop state keyed to it. */
     private readonly onTabClosed: (id: TabId) => void = () => {},
     /** The rectangle the page occupies, for anything drawn over it. */
     private readonly onContentBounds: (bounds: ContentBounds) => void = () => {},
   ) {
+    this.sleepTimer = setInterval(() => this.sleepIdleTabs(), 60_000);
+    this.sleepTimer.unref?.();
     this.window.on('resize', () => this.applyBounds());
-    this.blocker.onCount((webContentsId, count) => {
+    this.stopCounting = this.blocker.onCount((webContentsId, count) => {
       const tab = this.findByWebContentsId(webContentsId);
       if (!tab) {
         return;
@@ -87,14 +144,13 @@ export class TabManager {
        * Only the difference is added, because the blocker's number is a
        * running total for the tab and this is called once per refusal.
        *
-       * A Hush tab is skipped entirely. Its visits are not written down, and a
-       * count is something written down.
+       * A Hush tab's record keeps no count, as it keeps no visit.
        */
-      if (!tab.isHush && tab.url.startsWith('http')) {
+      if (tab.url.startsWith('http')) {
         const already = this.countedBlocked.get(webContentsId) ?? 0;
         if (count > already) {
           this.countedBlocked.set(webContentsId, count);
-          this.store.addBlocked(tab.url, count - already);
+          tab.record.addBlocked(tab.url, count - already);
         }
       }
 
@@ -120,7 +176,7 @@ export class TabManager {
     return this.closedTabs.canReopen;
   }
 
-  snapshot(): { tabs: TabState[]; tabOrder: TabId[]; activeTabId: TabId | null } {
+  snapshot(): { tabs: TabState[]; tabOrder: TabId[]; activeTabId: TabId | null; split: SplitView | null } {
     return {
       tabs: this.order.flatMap((id) => {
         const tab = this.tabs.get(id);
@@ -128,6 +184,7 @@ export class TabManager {
       }),
       tabOrder: [...this.order],
       activeTabId: this.activeId,
+      split: this.split,
     };
   }
 
@@ -143,15 +200,28 @@ export class TabManager {
           groupId: tab.groupId,
           isStartPage: tab.isStartPage,
           isHush: tab.isHush,
+          isPinned: tab.isPinned,
+          history: this.historyOf(tab),
         });
       }
     }
-    return sessionFrom(candidates, this.activeId);
+    return sessionFrom(candidates, this.activeId, this.split);
+  }
+
+  private historyOf(tab: TabRecord): SessionCandidate['history'] {
+    const contents = pageOf(tab);
+    if (contents && !contents.isDestroyed()) {
+      return {
+        entries: contents.navigationHistory.getAllEntries(),
+        index: contents.navigationHistory.getActiveIndex(),
+      };
+    }
+    return tab.sleptHistory;
   }
 
   private toState(tab: TabRecord): TabState {
-    const contents = tab.view.webContents;
-    const alive = !contents.isDestroyed();
+    const contents = pageOf(tab);
+    const alive = contents !== null;
     return {
       id: tab.id,
       url: tab.isStartPage ? START_PAGE_URL : tab.url,
@@ -159,15 +229,20 @@ export class TabManager {
       title: tab.title || fallbackTitleFor(tab.url),
       faviconDataUrl: tab.faviconDataUrl,
       isLoading: tab.isLoading,
-      canGoBack: alive && !tab.isStartPage && contents.navigationHistory.canGoBack(),
-      canGoForward: alive && !tab.isStartPage && contents.navigationHistory.canGoForward(),
-      isAudible: alive ? contents.isCurrentlyAudible() : false,
+      // A sleeping tab keeps its history to restore, so it can still go back once it wakes.
+      canGoBack: alive
+        ? !tab.isStartPage && contents.navigationHistory.canGoBack()
+        : (tab.sleptHistory?.index ?? 0) > 0,
+      canGoForward: alive
+        ? !tab.isStartPage && contents.navigationHistory.canGoForward()
+        : (tab.sleptHistory?.index ?? 0) < (tab.sleptHistory?.entries.length ?? 0) - 1,
+      isAudible: contents?.isCurrentlyAudible() ?? false,
       isMuted: tab.isMuted,
       security: describeSecurity(
         tab.isStartPage ? START_PAGE_URL : tab.url,
         tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
-        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab.url, tab.isHush),
-        !tab.isStartPage && trustedLocally(originOf(tab.url)),
+        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab),
+        tab.isStartPage ? null : exceptionFor(originOf(tab.url), contents?.session),
         tab.error !== null,
       ),
       error: tab.error,
@@ -176,6 +251,8 @@ export class TabManager {
       zoomFactor: tab.zoomFactor,
       isStartPage: tab.isStartPage,
       isHush: tab.isHush,
+      isPinned: tab.isPinned,
+      isAsleep: tab.isAsleep,
       groupId: tab.groupId,
       isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
     };
@@ -186,9 +263,9 @@ export class TabManager {
    * records it. Reading and remembering happen together so a site cannot be
    * flagged twice for the same change.
    */
-  private certificateChangeFor(url: string, isHush: boolean): string {
-    const origin = originOf(url);
-    const current = certificateFor(hostOf(url));
+  private certificateChangeFor(tab: TabRecord): string {
+    const origin = originOf(tab.url);
+    const current = certificateFor(hostOf(tab.url));
     if (!origin || !current) {
       return '';
     }
@@ -196,33 +273,18 @@ export class TabManager {
     const remembered = this.store.rememberedCertificateFor(origin);
     const { detail } = compareCertificate(remembered, current);
 
-    /*
-     * Compared, never written, for a Hush tab.
-     *
-     * This runs for every https page with no action from anyone, so it was
-     * putting the origin of everything opened in a Hush tab into
-     * certificates.json, timestamped, where it stayed after the tab closed —
-     * the same shape of leak as the favicon cache and the download record, and
-     * against the same sentence: nothing it does reaches the disk.
-     *
-     * The comparison still happens, so a certificate that changed mid-session
-     * is still reported; there is simply nothing kept afterwards to compare
-     * against next time, which is what a tab that remembers nothing means.
-     */
-    if (!isHush) {
-      this.store.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
-    }
+    // Compared for every tab, kept only by a record that keeps things: a Hush tab still sees a change mid-session.
+    tab.record.rememberCertificate(origin, rememberCertificate(remembered, current, Date.now()));
     return detail;
   }
 
   /**
    * Puts a tab in a group, or takes it out of one.
    *
-   * The tab keeps the session it was born with. Moving an ordinary tab into a
-   * group that keeps its own browsing does not move its cookies across, and
-   * saying otherwise would be the sort of quiet untruth this browser avoids —
-   * so the group's separation applies to tabs opened in it, and the interface
-   * says so.
+   * A view cannot change session, so a tab whose new group keeps a different
+   * one is reopened there at the same address and position. Leaving it in its
+   * old session made "its own cookies and logins" untrue for the tab that
+   * founded the group, until a restart moved it without saying so.
    */
   setGroup(id: TabId, groupId: string | null): void {
     const tab = this.tabs.get(id);
@@ -235,8 +297,25 @@ export class TabManager {
     if (groupId !== null && !this.store.groupFor(groupId)) {
       return;
     }
+    const partition = partitionFor({ isHush: tab.isHush, group: this.store.groupFor(groupId) }, this.partitions);
+    if (partition !== tab.partition) {
+      this.reopenInGroup(tab, groupId);
+      return;
+    }
     tab.groupId = groupId;
     this.onChanged();
+  }
+
+  private reopenInGroup(tab: TabRecord, groupId: string | null): void {
+    const replacement = this.create(tab.isStartPage ? START_PAGE_URL : tab.url, {
+      index: this.order.indexOf(tab.id),
+      activate: this.activeId === tab.id,
+      hush: tab.isHush,
+      groupId,
+      history: historyToKeep(this.historyOf(tab)) ?? undefined,
+    });
+    this.setMuted(replacement, tab.isMuted);
+    this.close(tab.id, { isReplaced: true });
   }
 
   groupIdFor(id: TabId): string | null {
@@ -294,11 +373,19 @@ export class TabManager {
 
   private findByWebContentsId(webContentsId: number): TabRecord | null {
     for (const tab of this.tabs.values()) {
-      if (!tab.view.webContents.isDestroyed() && tab.view.webContents.id === webContentsId) {
+      if (pageOf(tab)?.id === webContentsId) {
         return tab;
       }
     }
     return null;
+  }
+
+  isPinned(id: TabId): boolean {
+    return this.tabs.get(id)?.isPinned === true;
+  }
+
+  has(id: TabId): boolean {
+    return this.tabs.has(id);
   }
 
   tabIdForWebContentsId(webContentsId: number): TabId | null {
@@ -381,8 +468,108 @@ export class TabManager {
     }
   }
 
-  print(id: TabId): void {
-    this.contentsFor(id)?.print({}, () => {});
+  /** Asks where, then writes the page and what it is made of. Resolves empty, or with why it was not saved. */
+  async savePage(id: TabId): Promise<string> {
+    const contents = this.contentsFor(id);
+    if (!contents || this.window.isDestroyed()) {
+      return t('main.dialogs.savePage.noPage');
+    }
+    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
+      title: t('main.dialogs.savePage.title'),
+      defaultPath: `${sanitiseFilename(contents.getTitle() || t('main.dialogs.savePage.defaultName'))}.html`,
+      filters: [{ name: t('main.dialogs.savePage.filterName'), extensions: ['html', 'htm'] }],
+    });
+    if (canceled || !filePath) {
+      return '';
+    }
+    try {
+      await contents.savePage(filePath, 'HTMLComplete');
+      return '';
+    } catch (error) {
+      return error instanceof Error ? error.message : t('main.dialogs.savePage.failed');
+    }
+  }
+
+  /**
+   * The whole page as one image, saved where the person chooses. Captured by
+   * Chromium itself past the visible area, rather than stitched from scrolled
+   * pieces, and capped so an endless page cannot exhaust memory.
+   */
+  async saveScreenshot(id: TabId): Promise<string> {
+    const contents = this.contentsFor(id);
+    if (!contents || this.window.isDestroyed()) {
+      return t('main.dialogs.screenshot.noPage');
+    }
+    const image = await captureWholePage(contents);
+    if (typeof image === 'string') {
+      return image;
+    }
+    const { canceled, filePath } = await dialog.showSaveDialog(this.window, {
+      title: t('main.dialogs.screenshot.title'),
+      defaultPath: path.join(
+        app.getPath('downloads'),
+        `${sanitiseFilename(contents.getTitle() || t('main.dialogs.savePage.defaultName'))}.png`,
+      ),
+      filters: [{ name: t('main.dialogs.screenshot.filter'), extensions: ['png'] }],
+    });
+    if (canceled || !filePath) {
+      return '';
+    }
+    try {
+      await writeFile(filePath, image);
+      return '';
+    } catch (error) {
+      return error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten');
+    }
+  }
+
+  /** Measured when asked, never on a timer: only tabs with a page have a process to measure. */
+  memoryUse(): Record<TabId, TabMemory> {
+    const tabs = [...this.tabs.values()].flatMap((tab) => {
+      const contents = pageOf(tab);
+      return contents && !contents.isDestroyed() ? [{ id: tab.id, processId: contents.getOSProcessId() }] : [];
+    });
+    const processes = app
+      .getAppMetrics()
+      .map((metric) => ({ processId: metric.pid, kilobytes: metric.memory.workingSetSize }));
+    return memoryByTab(tabs, processes);
+  }
+
+  /**
+   * The images an article names, fetched in the tab's own session so blocking
+   * and its cookies apply as they did on the page; one that fails is left out.
+   */
+  async readerImages(id: TabId, urls: readonly string[]): Promise<Record<string, string>> {
+    const tab = this.tabs.get(id);
+    if (!tab) {
+      return {};
+    }
+    const session = this.prepareSession(tab.partition);
+    const wanted = [...new Set(urls)].slice(0, MAX_READER_IMAGES);
+    return fetchImagesWithinBudget(wanted, (url) =>
+      fetchImageDataUrl(tab.url, url, (target, options) => session.fetch(target, options), MAX_READER_IMAGE_BYTES),
+    );
+  }
+
+  /** The page's document for reader view, or null when there is no page to read. */
+  async readerDocument(id: TabId): Promise<{ url: string; html: string } | null> {
+    const tab = this.tabs.get(id);
+    const contents = tab ? pageOf(tab) : null;
+    if (!tab || !contents || tab.isStartPage || tab.error) {
+      return null;
+    }
+    const html = await documentOf(contents);
+    return html ? { url: contents.getURL(), html } : null;
+  }
+
+  print(id: TabId, onFailed: (reason: string) => void): void {
+    this.contentsFor(id)?.print({}, (isPrinted, failureReason) => {
+      // Cancelling the dialog is an answer, not a failure.
+      if (!isPrinted && failureReason && !/cancel/i.test(failureReason)) {
+        log.warn('a page did not print', { reason: failureReason });
+        onFailed(failureReason);
+      }
+    });
   }
 
   inspectAt(id: TabId, x: number, y: number): void {
@@ -412,7 +599,67 @@ export class TabManager {
 
   private currentBounds(): ContentBounds {
     const [width, height] = this.window.getContentSize();
-    return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets);
+    const isFullscreen = this.fullscreen !== null && this.fullscreen.tabId === this.activeId;
+    return contentBoundsWithin({ width: width ?? 0, height: height ?? 0 }, this.insets, isFullscreen);
+  }
+
+  /** Where one tab's page goes: the whole content area, or its half of a split that is on screen. */
+  private boundsFor(id: TabId): ContentBounds {
+    const content = this.currentBounds();
+    const shown = shownSplit(this.split, this.activeId);
+    if (!shown || !isInSplit(shown, id) || this.fullscreen !== null) {
+      return content;
+    }
+    const panes = splitPanes(content, shown.ratio);
+    return pageWithinPane(shown.leftId === id ? panes.left : panes.right);
+  }
+
+  /** The split on screen, unless a page in it has gone fullscreen and taken the window for itself. */
+  private visibleSplit(): SplitView | null {
+    return this.fullscreen === null ? shownSplit(this.split, this.activeId) : null;
+  }
+
+  /**
+   * A page asked for fullscreen, usually a video. Electron leaves a view where
+   * it was, so without this the video filled a rectangle under the chrome. The
+   * window goes fullscreen only if it was not already, and comes back the same.
+   */
+  private enterFullscreen(tabId: TabId): void {
+    if (this.window.isDestroyed()) {
+      return;
+    }
+    const wasWindowFullscreen = this.window.isFullScreen();
+    this.fullscreen = { tabId, wasWindowFullscreen };
+    if (!wasWindowFullscreen) {
+      this.windowIsEnteringFullscreen = true;
+      const settled = () => {
+        if (!this.windowIsEnteringFullscreen) {
+          return;
+        }
+        this.windowIsEnteringFullscreen = false;
+        // The page left while macOS was still animating in, and a request made then is ignored.
+        if (this.fullscreen === null && !this.window.isDestroyed()) {
+          this.window.setFullScreen(false);
+        }
+      };
+      this.window.once('enter-full-screen', settled);
+      // In case a platform never says the transition finished.
+      setTimeout(settled, 2_000).unref?.();
+    }
+    this.window.setFullScreen(true);
+    this.applyBounds();
+  }
+
+  private leaveFullscreen(tabId: TabId): void {
+    if (this.fullscreen?.tabId !== tabId) {
+      return;
+    }
+    const { wasWindowFullscreen } = this.fullscreen;
+    this.fullscreen = null;
+    if (!this.window.isDestroyed() && !wasWindowFullscreen && !this.windowIsEnteringFullscreen) {
+      this.window.setFullScreen(false);
+    }
+    this.applyBounds();
   }
 
   // Only the tab the user is looking at is resized here.
@@ -427,23 +674,31 @@ export class TabManager {
     const bounds = this.currentBounds();
     this.onContentBounds(bounds);
 
-    const active = this.activeId ? this.tabs.get(this.activeId) : null;
-    if (!active || active.view.webContents.isDestroyed()) {
-      return;
-    }
-    active.view.setBounds(bounds);
+    const visible = this.visibleSplit();
+    const onScreen = visible ? [visible.leftId, visible.rightId] : this.activeId ? [this.activeId] : [];
+    onScreen.forEach((id) => {
+      const tab = this.tabs.get(id);
+      if (tab && pageOf(tab) !== null) {
+        tab.view.setBounds(this.boundsFor(id));
+      }
+    });
   }
 
   private applyVisibility(): void {
     if (this.isDisposed) {
       return;
     }
+    const visible = this.visibleSplit();
     for (const [id, tab] of this.tabs) {
-      if (tab.view.webContents.isDestroyed()) {
+      if (pageOf(tab) === null) {
         continue;
       }
       const isVisible = shouldTabBeVisible(
-        { isActive: id === this.activeId, isStartPage: tab.isStartPage, hasError: tab.error !== null },
+        {
+          isActive: id === this.activeId || isInSplit(visible, id),
+          isStartPage: tab.isStartPage,
+          hasError: tab.error !== null,
+        },
         this.overlayVisible,
       );
       tab.view.setVisible(isVisible);
@@ -460,61 +715,63 @@ export class TabManager {
       openerWebContentsId?: number;
       hush?: boolean;
       groupId?: string | null;
+      pinned?: boolean;
+      /** Where it can go back and forward to, from a restored session. */
+      history?: SessionHistory;
+      /**
+       * A page a tab opened with `window.open`, already made by Chromium and
+       * linked to its opener. It becomes this tab as it is, never loaded again,
+       * so `window.opener` still reaches the page that opened it.
+       */
+      adopting?: Electron.WebContents;
     } = {},
   ): TabId {
     // Last line of defence. Callers are expected to have already decided the
     // URL is allowed, but this is the single place every tab is born, so
     // refusing here means no future caller can quietly open a `data:` or
     // `javascript:` tab by forgetting a check of its own.
-    const rawUrl = requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) ? requestedUrl : START_PAGE_URL;
+    // An installed extension's own page, such as its options, is the one other kind of address a tab may open.
+    const isAllowed =
+      requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) || isLoadedExtensionPage(requestedUrl);
+    const rawUrl = isAllowed ? requestedUrl : START_PAGE_URL;
 
     // What the opener was, this tab is, unless the caller said otherwise. A
-    // link followed out of a Hush tab used to open an ordinary recorded one —
+    // link followed out of a Hush tab used to open an ordinary recorded one -
     // see shared/opening.ts. Applied here because this is the single place
     // every tab is born, so no caller can forget it.
     const opener =
       options.openerWebContentsId === undefined ? null : this.findByWebContentsId(options.openerWebContentsId);
-    const inherited = inheritFromOpener(opener ? { isHush: opener.isHush, groupId: opener.groupId } : null, {
+    const fromOpener = inheritFromOpener(opener ? { isHush: opener.isHush, groupId: opener.groupId } : null, {
       hush: options.hush,
       groupId: options.groupId,
     });
+    // A caller that said where the tab goes has already decided; otherwise the site's rule does.
+    // An adopted page is already in its opener's session, so no rule can move it elsewhere.
+    const isPlacedByCaller =
+      options.hush !== undefined || options.groupId !== undefined || options.adopting !== undefined;
+    const inherited = isPlacedByCaller ? fromOpener : this.placementFor(fromOpener, rawUrl);
 
     const id = randomUUID();
     const settings = this.store.getSettings();
     // Hush wins over a group's own session: see shared/tab-groups.ts.
     const partition = partitionFor(
       { isHush: inherited.hush, group: this.store.groupFor(inherited.groupId) },
-      { web: WEB_PARTITION, hush: HUSH_PARTITION },
+      this.partitions,
     );
     // Before the view exists, not after. A group's own session had nothing
     // installed on it at all, so its tabs ran with permissions approved by
     // default, no tracker blocking and no download handling.
     this.prepareSession(partition);
 
-    const view = new WebContentsView({
-      webPreferences: {
-        // Page content gets no bridge, no Node, and its own persistent
-        // partition. It is as close to a plain browser tab as Electron allows.
-        preload: undefined,
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
-        webviewTag: false,
-        webSecurity: true,
-        allowRunningInsecureContent: false,
-        partition,
-        spellcheck: true,
-        safeDialogs: true,
-      },
-    });
-    // Matches the chrome's surface so a slow first paint does not flash white.
-    view.setBackgroundColor('#0b0f14');
+    const view = this.makeView(partition, options.adopting);
 
-    const isStartPage = rawUrl === START_PAGE_URL;
+    const isStartPage = rawUrl === START_PAGE_URL && !options.adopting;
     const tab: TabRecord = {
       id,
       view,
       isHush: inherited.hush,
+      isPinned: options.pinned === true,
+      record: inherited.hush ? HUSH_RECORD : this.storedRecord(),
       isStartPage,
       url: isStartPage ? START_PAGE_URL : rawUrl,
       title: '',
@@ -527,46 +784,31 @@ export class TabManager {
       isMuted: false,
       pendingFaviconUrl: null,
       groupId: inherited.groupId && this.store.groupFor(inherited.groupId) ? inherited.groupId : null,
+      partition,
+      isAsleep: false,
+      lastActiveAt: Date.now(),
+      sleptHistory: null,
     };
 
     this.tabs.set(id, tab);
     const insertAt = options.index ?? this.insertionIndexFor(options.openerWebContentsId);
     this.order.splice(Math.min(Math.max(0, insertAt), this.order.length), 0, id);
+    this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
 
-    this.window.contentView.addChildView(view);
-    // Sized once up front so a background tab loads against the real viewport
-    // rather than a zero-sized one and picks the wrong responsive breakpoint.
-    view.setBounds(this.currentBounds());
-    view.setVisible(false);
-    attachTabEvents(tab, {
-      store: this.store,
-      blocker: this.blocker,
-      forgetBlockedCount: (webContentsId: number) => this.countedBlocked.delete(webContentsId),
-      onChanged: () => this.onChanged(),
-      applyVisibility: () => this.applyVisibility(),
-      cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),
-      onFoundInPage: (activeMatch, matches) => {
-        this.find = findWithMatches(this.find, activeMatch, matches);
-      },
-      onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
-    });
-    guardTabWebContents(view.webContents, this.securityDelegate);
-    // A view with no document yet answers no DevTools command at all, so it is
-    // given the empty one first. Navigation then waits for the description to
-    // land, because a tab that starts loading before it does is exactly the tab
-    // that needed it. `about:blank` is ignored when a navigation commits, so
-    // none of this reaches the tab's state.
-    const described = view.webContents
-      .loadURL('about:blank')
-      .catch(() => {})
-      .then(() => describeTab(view.webContents, process.platform));
+    const described = this.wireView(tab, options.adopting !== undefined);
 
-    if (!isStartPage) {
+    if (!isStartPage && !options.adopting) {
       void described.then(() => {
         // It can be closed, or sent somewhere else, while it waits.
-        if (this.tabs.get(id) === tab && tab.url === rawUrl) {
-          void this.loadUrl(tab, rawUrl);
+        if (this.tabs.get(id) !== tab || tab.url !== rawUrl) {
+          return;
         }
+        const page = pageOf(tab);
+        if (options.history && page) {
+          void page.navigationHistory.restore(options.history).catch(() => this.loadUrl(tab, rawUrl));
+          return;
+        }
+        void this.loadUrl(tab, rawUrl);
       });
     }
 
@@ -577,6 +819,160 @@ export class TabManager {
       this.onChanged();
     }
     return id;
+  }
+
+  /** A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows. */
+  private makeView(partition: string, adopting?: Electron.WebContents): WebContentsView {
+    const view = new WebContentsView({
+      ...(adopting ? { webContents: adopting } : {}),
+      webPreferences: {
+        preload: undefined,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        webviewTag: false,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
+        partition,
+        spellcheck: true,
+        safeDialogs: true,
+        // Only Chromium's own PDF viewer is a plugin here; without it a PDF downloads instead of opening.
+        plugins: true,
+      },
+    });
+    // Matches the chrome's surface so a slow first paint does not flash white.
+    view.setBackgroundColor(surfaceColour());
+    return view;
+  }
+
+  /**
+   * Puts a tab's view in the window with everything a page view needs, and
+   * resolves once it is ready to navigate. The same for a new tab and one
+   * waking, so a woken tab is guarded exactly as it was when it was made.
+   */
+  private wireView(tab: TabRecord, isAdopted = false): Promise<void> {
+    const { view, id } = tab;
+    const settings = this.store.getSettings();
+    this.window.contentView.addChildView(view);
+    // Sized once up front so a background tab loads against the real viewport
+    // rather than a zero-sized one and picks the wrong responsive breakpoint.
+    view.setBounds(this.currentBounds());
+    view.setVisible(false);
+    attachTabEvents(tab, {
+      store: this.store,
+      blocker: this.blocker,
+      httpsFirst: this.httpsFirst,
+      forgetBlockedCount: (webContentsId: number) => this.countedBlocked.delete(webContentsId),
+      onChanged: () => this.onChanged(),
+      applyVisibility: () => this.applyVisibility(),
+      cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),
+      onFoundInPage: (activeMatch, matches) => {
+        // A background tab finishing a search must not overwrite the count for the one on screen.
+        if (this.activeId !== id) {
+          return;
+        }
+        this.find = findWithMatches(this.find, activeMatch, matches);
+      },
+      onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
+    });
+    guardTabWebContents(view.webContents, this.securityDelegate);
+    // Before the first navigation, so no page gets a moment to ask for the local address.
+    applyWebRtcPolicy(view.webContents, settings.webRtcPolicy);
+    view.webContents.on('focus', () => {
+      // Clicking into the other half of a split is choosing that page.
+      if (this.activeId !== id && isInSplit(this.visibleSplit(), id)) {
+        this.activate(id);
+      }
+      this.pageFocusHandler?.();
+    });
+    const followRule = (event: Electron.Event<{ url: string; isMainFrame: boolean }>) => {
+      if (event.isMainFrame && this.placeByOpenRule(tab, event.url)) {
+        event.preventDefault();
+      }
+    };
+    view.webContents.on('will-navigate', followRule);
+    view.webContents.on('will-redirect', followRule);
+    view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
+    view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
+    // An adopted page already has a document and is on its way somewhere; loading the empty one would stop it.
+    if (isAdopted) {
+      return describeTab(view.webContents, process.platform);
+    }
+    // A view with no document yet answers no DevTools command at all, so it is
+    // given the empty one first. Navigation then waits for the description to
+    // land, because a tab that starts loading before it does is exactly the tab
+    // that needed it. `about:blank` is ignored when a navigation commits, so
+    // none of this reaches the tab's state.
+    return view.webContents
+      .loadURL('about:blank')
+      .catch(() => {})
+      .then(() => describeTab(view.webContents, process.platform));
+  }
+
+  /** Whether a tab has a page that could be closed to save memory; the one in front never does. */
+  canSleep(id: TabId): boolean {
+    const tab = this.tabs.get(id);
+    return Boolean(
+      tab && pageOf(tab) && !tab.isStartPage && id !== this.activeId && !isInSplit(this.visibleSplit(), id),
+    );
+  }
+
+  /** Closes a tab's page to give back its memory, keeping its address, title and history. */
+  sleep(id: TabId): void {
+    const tab = this.tabs.get(id);
+    const contents = tab ? pageOf(tab) : null;
+    if (!tab || !contents || !this.canSleep(id)) {
+      return;
+    }
+    tab.sleptHistory = {
+      entries: contents.navigationHistory.getAllEntries(),
+      index: contents.navigationHistory.getActiveIndex(),
+    };
+    this.destroyTab(tab);
+    tab.isAsleep = true;
+    tab.isLoading = false;
+    this.onChanged();
+  }
+
+  /** Gives a sleeping tab a page again, at the address and with the history it had. */
+  private wake(tab: TabRecord): void {
+    if (!tab.isAsleep) {
+      return;
+    }
+    const history = tab.sleptHistory;
+    void this.givePageBack(tab).then(() => {
+      const page = pageOf(tab);
+      if (this.tabs.get(tab.id) !== tab || !page) {
+        return;
+      }
+      if (history && history.entries.length > 0) {
+        void page.navigationHistory.restore(history).catch(() => this.loadUrl(tab, tab.url));
+        return;
+      }
+      void this.loadUrl(tab, tab.url);
+    });
+  }
+
+  /** A new page for a sleeping tab, there at once; resolves when it can be navigated. */
+  private givePageBack(tab: TabRecord): Promise<unknown> {
+    tab.view = this.makeView(tab.partition);
+    tab.isAsleep = false;
+    tab.sleptHistory = null;
+    return this.wireView(tab);
+  }
+
+  private sleepIdleTabs(): void {
+    const afterMinutes = this.store.getSettings().sleepTabsAfterMinutes;
+    const visible = this.visibleSplit();
+    const candidates = [...this.tabs.values()].map((tab) => ({
+      id: tab.id,
+      isActive: tab.id === this.activeId || isInSplit(visible, tab.id),
+      isStartPage: tab.isStartPage,
+      isAsleep: tab.isAsleep,
+      isAudible: pageOf(tab)?.isCurrentlyAudible() ?? false,
+      lastActiveAt: tab.lastActiveAt,
+    }));
+    tabsToSleep(candidates, Date.now(), afterMinutes).forEach((id) => this.sleep(id));
   }
 
   /** New tabs opened by a page land immediately after the tab that opened them. */
@@ -592,24 +988,37 @@ export class TabManager {
     return openerIndex === -1 ? this.order.length : openerIndex + 1;
   }
 
-  close(id: TabId): void {
+  close(id: TabId, options: { isReplaced?: boolean } = {}): void {
     const tab = this.tabs.get(id);
     if (!tab) {
       return;
     }
 
     const index = this.order.indexOf(id);
-    if (!tab.isStartPage && !tab.isHush) {
-      this.closedTabs.remember({ url: tab.url, title: tab.title, index });
+    if (!tab.isStartPage && !options.isReplaced) {
+      tab.record.rememberClosedTab({
+        url: tab.url,
+        title: tab.title,
+        index,
+        groupId: tab.groupId,
+        isPinned: tab.isPinned,
+      });
     }
 
+    this.leaveFullscreen(id);
     this.destroyTab(tab);
     this.tabs.delete(id);
     this.order = this.order.filter((tabId) => tabId !== id);
     this.onTabClosed(id);
 
+    // A split of one is no split; the page beside it is the one left to look at.
+    const partner = this.split && isInSplit(this.split, id) ? partnerIn(this.split, id) : null;
+    if (partner) {
+      this.split = null;
+    }
+
     if (this.activeId === id) {
-      const next = tabAfterClosing(this.order, index);
+      const next = partner ?? tabAfterClosing(this.order, index);
       this.activeId = null;
       if (next) {
         this.activate(next);
@@ -627,26 +1036,82 @@ export class TabManager {
   }
 
   private destroyTab(tab: TabRecord): void {
-    const contents = tab.view.webContents;
-    if (!contents.isDestroyed()) {
+    const contents = pageOf(tab);
+    if (contents) {
       this.blocker.forget(contents.id);
+      this.httpsFirst.forget(contents.id);
+      forgetRefusedCertificate(contents.id);
       this.countedBlocked.delete(contents.id);
       contents.stop();
     }
-    if (!this.window.isDestroyed()) {
+    // A sleeping tab's view is already out of the window and its page already closed.
+    if (!this.window.isDestroyed() && !tab.isAsleep) {
       this.window.contentView.removeChildView(tab.view);
     }
-    if (!contents.isDestroyed()) {
-      contents.close();
-    }
+    contents?.close();
   }
 
   reopenClosed(): void {
-    const restored = this.closedTabs.takeMostRecent();
-    if (!restored) {
+    this.reopen(this.closedTabs.takeMostRecent());
+  }
+
+  /** One entry from the recently closed list, by its place in it. */
+  reopenClosedAt(position: number): void {
+    this.reopen(this.closedTabs.take(position));
+  }
+
+  closedEntries(): readonly ClosedEntry[] {
+    return this.closedTabs.entries();
+  }
+
+  /** Closes a group's tabs as one thing to reopen, rather than a handful of loose tabs. */
+  closeAsGroup(groupId: string, group: ClosedGroup): void {
+    this.closedTabs.beginGroup(group);
+    try {
+      this.tabsInGroup(groupId).forEach((tab) => this.close(tab.id));
+    } finally {
+      this.closedTabs.endGroup();
+    }
+  }
+
+  private reopen(entry: ClosedEntry | null): void {
+    if (entry?.kind === 'tab') {
+      // A group that has since been deleted is dropped by create, which leaves an ordinary tab.
+      this.create(entry.tab.url, {
+        index: entry.tab.index,
+        activate: true,
+        groupId: entry.tab.groupId,
+        pinned: entry.tab.isPinned,
+      });
       return;
     }
-    this.create(restored.url, { index: restored.index, activate: true });
+    if (entry?.kind === 'group') {
+      // A new group, since the old one went with its tabs; one with its own session starts signed out.
+      const group = this.store.createGroup(entry.group.name, entry.group.colour, entry.group.ownSession);
+      entry.tabs.forEach((tab, position) =>
+        this.create(tab.url, { index: tab.index, activate: position === 0, groupId: group.id }),
+      );
+    }
+  }
+
+  /** The person read why the HTTPS version failed and chose the plain one. */
+  continueOverHttp(id: TabId): void {
+    const tab = this.tabs.get(id);
+    const plainUrl = tab?.error?.plainUrl;
+    // Loaded directly: the address bar would upgrade it straight back.
+    if (tab && plainUrl && this.httpsFirst.allowPlain(plainUrl)) {
+      void this.loadUrl(tab, plainUrl);
+    }
+  }
+
+  /** The person read why the certificate was refused and chose to continue to this one site. */
+  acceptCertificate(id: TabId): void {
+    const tab = this.tabs.get(id);
+    const failedUrl = tab?.error?.url;
+    const page = tab ? pageOf(tab) : null;
+    if (tab && page && failedUrl && acceptRefused(page.id, failedUrl)) {
+      void this.loadUrl(tab, failedUrl);
+    }
   }
 
   duplicate(id: TabId): void {
@@ -654,7 +1119,33 @@ export class TabManager {
     if (!tab || tab.isStartPage) {
       return;
     }
-    this.create(tab.url, { index: this.order.indexOf(id) + 1, activate: true });
+    // Named outright rather than through its page, which a sleeping tab does not have.
+    this.create(tab.url, {
+      index: this.order.indexOf(id) + 1,
+      activate: true,
+      hush: tab.isHush,
+      groupId: tab.groupId,
+      pinned: tab.isPinned,
+    });
+  }
+
+  /** Behind every page before it paints, so a new tab never flashes the other theme's colour. */
+  setWebRtcPolicy(policy: WebRtcPolicy): void {
+    // A sleeping tab is given the setting as it stands when it wakes.
+    this.tabs.forEach((tab) => {
+      const page = pageOf(tab);
+      if (page) {
+        applyWebRtcPolicy(page, policy);
+      }
+    });
+  }
+
+  setBackgroundColor(colour: string): void {
+    for (const tab of this.tabs.values()) {
+      if (pageOf(tab)) {
+        tab.view.setBackgroundColor(colour);
+      }
+    }
   }
 
   activate(id: TabId): void {
@@ -664,22 +1155,49 @@ export class TabManager {
       }
       return;
     }
-    this.activeId = id;
+    // Before the switch, so the highlights cleared are the ones on the tab being left.
     this.stopFind();
+    if (this.fullscreen && this.fullscreen.tabId !== id) {
+      // The third script in pages, named on the transparency page: only the page itself can leave its full screen.
+      void this.contentsFor(this.fullscreen.tabId)
+        ?.executeJavaScript('document.exitFullscreen?.()')
+        .catch(() => {});
+    }
+    const now = Date.now();
+    const leaving = this.activeTab();
+    if (leaving) {
+      leaving.lastActiveAt = now;
+    }
+    this.activeId = id;
+    const arriving = this.tabs.get(id);
+    if (arriving) {
+      arriving.lastActiveAt = now;
+      this.wake(arriving);
+    }
+    const visible = this.visibleSplit();
+    const beside = visible ? this.tabs.get(partnerIn(visible, id)) : undefined;
+    if (beside) {
+      beside.lastActiveAt = now;
+      this.wake(beside);
+    }
     this.applyBounds();
     this.applyVisibility();
     this.focusActive();
     this.onChanged();
   }
 
-  private focusActive(): void {
+  focusActive(): void {
     const tab = this.activeTab();
+    // A start page or an error is drawn by the chrome, so the keyboard belongs there rather than in a hidden view.
     if (!tab || tab.isStartPage || tab.error) {
+      if (!this.window.isDestroyed()) {
+        focusContents(this.window.webContents);
+      }
       return;
     }
-    const contents = tab.view.webContents;
-    if (!contents.isDestroyed()) {
-      contents.focus();
+    const page = pageOf(tab);
+    if (page) {
+      focusContents(page);
     }
   }
 
@@ -688,12 +1206,102 @@ export class TabManager {
     if (from === -1) {
       return;
     }
-    const clamped = Math.min(Math.max(0, toIndex), this.order.length - 1);
+    const clamped = clampToRun(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true, id, toIndex);
     if (from === clamped) {
       return;
     }
     this.order.splice(from, 1);
     this.order.splice(clamped, 0, id);
+    this.onChanged();
+  }
+
+  /** Pins a tab to the start of the strip, or lets it go. A pinned tab leaves its group, as in every other browser. */
+  setPinned(id: TabId, isPinned: boolean): void {
+    const tab = this.tabs.get(id);
+    if (!tab || tab.isPinned === isPinned) {
+      return;
+    }
+    tab.isPinned = isPinned;
+    if (isPinned) {
+      tab.groupId = null;
+    }
+    this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
+    this.onChanged();
+  }
+
+  /** What a saved session keeps of this window: every page, but nothing from Hush, which is never written down. */
+  namedSessionTabs(): NamedSessionTab[] {
+    return this.order.flatMap((id) => {
+      const tab = this.tabs.get(id);
+      return tab && !tab.isHush && !tab.isStartPage && isNavigableUrl(tab.url)
+        ? [{ url: tab.url, title: tab.title }]
+        : [];
+    });
+  }
+
+  // ------------------------------------------------------------ split view
+
+  getSplit(): SplitView | null {
+    return this.split;
+  }
+
+  /**
+   * Shows the tab in front beside another, or beside a new tab when none is
+   * named. The other tab moves next to it in the strip and takes the keyboard.
+   */
+  splitWith(otherId: TabId | null): void {
+    const leftId = this.activeId;
+    if (!leftId || otherId === leftId || (otherId !== null && !this.tabs.has(otherId))) {
+      return;
+    }
+    const leftIndex = this.order.indexOf(leftId);
+    const rightId = otherId ?? this.create(START_PAGE_URL, { activate: false, index: leftIndex + 1 });
+    const rightIndex = this.order.indexOf(rightId);
+    // Taken out before it goes back in, so one from before the left tab lands at the left tab's old index.
+    this.move(rightId, rightIndex > leftIndex ? leftIndex + 1 : leftIndex);
+    this.split = { leftId, rightId, ratio: this.split?.ratio ?? EVEN_SPLIT_RATIO };
+    this.activate(rightId);
+    this.applyBounds();
+    this.applyVisibility();
+    this.onChanged();
+  }
+
+  /** The split view shortcut: leaves the split in front, or makes one with a new tab. */
+  toggleSplit(): void {
+    if (isInSplit(this.split, this.activeId)) {
+      this.leaveSplit();
+      return;
+    }
+    this.splitWith(null);
+  }
+
+  /** A pair coming back after a restart: shown again as it was, without moving or choosing either tab. */
+  restoreSplit(leftId: TabId, rightId: TabId, ratio: number): void {
+    if (leftId === rightId || !this.tabs.has(leftId) || !this.tabs.has(rightId)) {
+      return;
+    }
+    this.split = { leftId, rightId, ratio: clampSplitRatio(ratio) };
+    this.applyBounds();
+    this.applyVisibility();
+    this.onChanged();
+  }
+
+  leaveSplit(): void {
+    if (!this.split) {
+      return;
+    }
+    this.split = null;
+    this.applyBounds();
+    this.applyVisibility();
+    this.onChanged();
+  }
+
+  setSplitRatio(ratio: number): void {
+    if (!this.split) {
+      return;
+    }
+    this.split = { ...this.split, ratio: clampSplitRatio(ratio) };
+    this.applyBounds();
     this.onChanged();
   }
 
@@ -717,25 +1325,71 @@ export class TabManager {
       tab.error = null;
       tab.faviconDataUrl = null;
       tab.isLoading = false;
-      if (!tab.view.webContents.isDestroyed()) {
-        tab.view.webContents.loadURL('about:blank').catch(() => {});
-      }
+      pageOf(tab)
+        ?.loadURL('about:blank')
+        .catch(() => {});
       this.applyVisibility();
       this.onChanged();
       return;
     }
 
     const settings = this.store.getSettings();
-    const resolution = resolveOmniboxInput(input, settings.searchEngine, { httpsFirst: settings.httpsFirst });
-    if (!resolution) {
+    const resolution = resolveOmniboxInput(input, settings, { httpsFirst: settings.httpsFirst });
+    if (!resolution || this.placeByOpenRule(tab, resolution.target)) {
       return;
     }
-    void this.loadUrl(tab, resolution.target);
+    // Woken without its old history, which would otherwise be restored over the address just asked for.
+    const ready = tab.isAsleep ? this.givePageBack(tab) : Promise.resolve();
+    const page = pageOf(tab);
+    const target =
+      resolution.type === 'url' && page
+        ? this.httpsFirst.typed(page.id, input, resolution.target)
+        : resolution.target;
+    void ready.then(() => this.loadUrl(tab, target));
+  }
+
+  private placementFor(place: Placement, url: string): Placement {
+    const target = openRuleFor(this.store.getSettings().openRules, url);
+    return placeByRule(place, target, (groupId) => this.store.groupFor(groupId) !== null);
+  }
+
+  /**
+   * Hands a page to a tab where its site's rule says it opens, and reports
+   * whether it did. A tab with nothing in it yet gives itself up; one with a
+   * page keeps it, as following a link never loses the page it was on.
+   */
+  private placeByOpenRule(tab: TabRecord, url: string): boolean {
+    const current: Placement = { hush: tab.isHush, groupId: tab.groupId };
+    const place = this.placementFor(current, url);
+    if (place === current) {
+      return false;
+    }
+    // Same session either way, so joining the group is enough and the page loads where it is.
+    if (
+      !place.hush &&
+      partitionFor({ isHush: false, group: this.store.groupFor(place.groupId) }, this.partitions) === tab.partition
+    ) {
+      tab.groupId = place.groupId;
+      this.onChanged();
+      return false;
+    }
+    const isEmpty = tab.isStartPage || ['', 'about:blank'].includes(pageOf(tab)?.getURL() ?? '');
+    this.create(url, {
+      index: this.order.indexOf(tab.id) + 1,
+      activate: this.activeId === tab.id,
+      hush: place.hush,
+      groupId: place.groupId,
+    });
+    if (isEmpty) {
+      // After the navigation event that asked has returned, since closing a page from inside its own event is not safe.
+      setImmediate(() => this.close(tab.id, { isReplaced: true }));
+    }
+    return true;
   }
 
   private async loadUrl(tab: TabRecord, url: string): Promise<void> {
-    const contents = tab.view.webContents;
-    if (contents.isDestroyed()) {
+    const contents = pageOf(tab);
+    if (!contents) {
       return;
     }
 
@@ -783,8 +1437,8 @@ export class TabManager {
       this.onChanged();
       return;
     }
-    const contents = tab.view.webContents;
-    if (contents.isDestroyed()) {
+    const contents = pageOf(tab);
+    if (!contents) {
       return;
     }
     tab.error = null;
@@ -823,11 +1477,9 @@ export class TabManager {
     // Remembered against the origin: a site that needs zooming needs it every
     // visit, and setting it again on every visit is the kind of small friction
     // that makes a browser tiring to use.
-    // Kept for the tab, not for the site, when the tab is Hush. Settings lists
-    // everywhere zoom was changed, so remembering it would put a site opened in
-    // a Hush tab into a list shown by name.
-    if (!tab.isStartPage && !tab.isHush) {
-      this.store.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
+    // A Hush tab keeps its zoom on the tab: Settings lists every site zoomed, so its record keeps none.
+    if (!tab.isStartPage) {
+      tab.record.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
     }
 
     this.onChanged();
@@ -838,12 +1490,13 @@ export class TabManager {
     return this.contentsFor(id);
   }
 
+  // Anything that needs the page wakes the tab first: reloading or navigating one asleep is asking for it back.
   private contentsFor(id: TabId): WebContents | null {
     const tab = this.tabs.get(id);
-    if (!tab || tab.view.webContents.isDestroyed()) {
-      return null;
+    if (tab?.isAsleep) {
+      this.wake(tab);
     }
-    return tab.view.webContents;
+    return tab ? pageOf(tab) : null;
   }
 
   // ------------------------------------------------------------------ find
@@ -912,6 +1565,11 @@ export class TabManager {
     this.contextMenuHandler = handler;
   }
 
+  /** A page took the keyboard, which is someone going back to it. */
+  onPageFocus(handler: () => void): void {
+    this.pageFocusHandler = handler;
+  }
+
   // Fetch the favicon in the web session and hand the chrome a data URL.
   private async cacheFavicon(tab: TabRecord, faviconUrl: string): Promise<void> {
     if (tab.pendingFaviconUrl === faviconUrl) {
@@ -925,22 +1583,31 @@ export class TabManager {
       this.onChanged();
     }
 
+    // The tab's own session, so a group that keeps its own logins fetches with its own cookies.
     const dataUrl = await fetchFaviconDataUrl(tab.url, faviconUrl, (url, options) =>
-      getWebSession().fetch(url, options),
+      this.prepareSession(tab.partition).fetch(url, options),
     );
     if (!dataUrl) {
       return;
     }
 
-    this.store.setFavicon(tab.url, dataUrl);
+    tab.record.keepFavicon(tab.url, dataUrl);
     tab.faviconDataUrl = dataUrl;
     this.onChanged();
+  }
+
+  // Built on first use: the store is a constructor parameter, not yet assigned when fields are.
+  private storedRecord(): BrowsingRecord {
+    this.stored ??= storedRecord(this.store, this.closedTabs);
+    return this.stored;
   }
 
   // --------------------------------------------------------------- teardown
 
   dispose(): void {
     this.isDisposed = true;
+    clearInterval(this.sleepTimer);
+    this.stopCounting();
     for (const tab of this.tabs.values()) {
       this.destroyTab(tab);
     }
@@ -948,4 +1615,74 @@ export class TabManager {
     this.order = [];
     this.activeId = null;
   }
+}
+
+// Taller than this is a page that keeps growing as it scrolls, not one anyone wants as a single picture.
+const MAX_READER_IMAGES = 40;
+const MAX_READER_IMAGE_BYTES = 4 * 1024 * 1024;
+// Past this a page is not an article, and parsing it would stall the chrome.
+const MAX_READER_DOCUMENT = 10 * 1024 * 1024;
+const MAX_SCREENSHOT_HEIGHT = 16_384;
+
+/** A PNG of the whole page, or why there is none. Through the page's own debugger, which DevTools may already hold. */
+/**
+ * Runs DevTools commands against a page without a script in it. Usually
+ * borrowed from describeTab, which keeps it attached because detaching drops
+ * the tab's identity; attached and let go here only when nobody holds it.
+ */
+async function withPageDebugger<T>(
+  contents: WebContents,
+  work: (send: (method: string, parameters?: object) => Promise<unknown>) => Promise<T>,
+): Promise<{ value: T } | { problem: string }> {
+  const debuggerSession = contents.debugger;
+  const isOurs = !debuggerSession.isAttached();
+  if (isOurs) {
+    try {
+      debuggerSession.attach('1.3');
+    } catch {
+      return { problem: t('main.dialogs.screenshot.devToolsOpen') };
+    }
+  }
+  try {
+    return { value: await work((method, parameters) => debuggerSession.sendCommand(method, parameters)) };
+  } catch (error) {
+    return { problem: error instanceof Error ? error.message : t('main.dialogs.screenshot.notWritten') };
+  } finally {
+    if (isOurs) {
+      debuggerSession.detach();
+    }
+  }
+}
+
+async function captureWholePage(contents: WebContents): Promise<Buffer | string> {
+  const outcome = await withPageDebugger(contents, async (send): Promise<Buffer | string> => {
+    const metrics: unknown = await send('Page.getLayoutMetrics');
+    const size = typeof metrics === 'object' && metrics !== null ? Reflect.get(metrics, 'cssContentSize') : null;
+    const width = Math.ceil(Number(typeof size === 'object' && size !== null ? Reflect.get(size, 'width') : 0));
+    const height = Math.ceil(Number(typeof size === 'object' && size !== null ? Reflect.get(size, 'height') : 0));
+    if (!width || !height) {
+      return t('main.dialogs.screenshot.noPage');
+    }
+    const result: unknown = await send('Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: true,
+      clip: { x: 0, y: 0, width, height: Math.min(height, MAX_SCREENSHOT_HEIGHT), scale: 1 },
+    });
+    const data = typeof result === 'object' && result !== null ? Reflect.get(result, 'data') : null;
+    return typeof data === 'string' ? Buffer.from(data, 'base64') : t('main.dialogs.screenshot.notWritten');
+  });
+  return 'value' in outcome ? outcome.value : outcome.problem;
+}
+
+/** The page as it stands now, serialised by DevTools, so reading it runs nothing in it. */
+async function documentOf(contents: WebContents): Promise<string> {
+  const outcome = await withPageDebugger(contents, async (send) => {
+    const document: unknown = await send('DOM.getDocument', { depth: 0 });
+    const root = typeof document === 'object' && document !== null ? Reflect.get(document, 'root') : null;
+    const nodeId = typeof root === 'object' && root !== null ? Reflect.get(root, 'nodeId') : null;
+    const result: unknown = typeof nodeId === 'number' ? await send('DOM.getOuterHTML', { nodeId }) : null;
+    const html = typeof result === 'object' && result !== null ? Reflect.get(result, 'outerHTML') : null;
+    return typeof html === 'string' ? html : '';
+  });
+  return 'value' in outcome && outcome.value.length <= MAX_READER_DOCUMENT ? outcome.value : '';
 }

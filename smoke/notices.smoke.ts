@@ -14,7 +14,7 @@ afterAll(async () => copacetic?.close());
  *
  * Notices are drawn by the overlay, which is a second view loaded after the
  * chrome, and like the chrome it paints before it is listening. A notice pushed
- * before then reached nobody and was gone — which is exactly the failure
+ * before then reached nobody and was gone - which is exactly the failure
  * notices exist to fix, reproduced one layer up.
  *
  * No figure is quoted for the overlay because there is nothing observable from
@@ -33,7 +33,7 @@ describe('a notice said before anyone was listening', () => {
     const outcome = await copacetic.chrome.evaluate(async () => {
       const folder = await window.copacetic.bookmarkFolders.create('Held', 'ocean', null);
       for (let index = 0; index < 12; index += 1) {
-        await window.copacetic.bookmarks.toggle(`https://example.com/held-${index}`, `Held ${index}`);
+        await window.copacetic.bookmarks.add(`Held ${index}`, `https://example.com/held-${index}`, null);
       }
       const saved = await window.copacetic.bookmarks.list();
       for (const bookmark of saved.filter((entry) => entry.url.includes('/held-'))) {
@@ -54,7 +54,7 @@ describe('a notice said before anyone was listening', () => {
    * Drawn on top of the page rather than by pushing it out of the way.
    *
    * A WebContentsView paints above all of the chrome's HTML, so a notice
-   * rendered in the chrome cannot float over a page — it can only take space
+   * rendered in the chrome cannot float over a page - it can only take space
    * from it. A view is the one thing that can sit above another view, so the
    * notice lives in one, and the chrome must not move by a pixel when it opens.
    */
@@ -72,7 +72,7 @@ describe('a notice said before anyone was listening', () => {
      *
      * The chrome above `main` moves while a page is loading and while the strip
      * takes its final shape, and this used to read once, do something else, and
-     * read again — so on a machine slower than the one it was written on the
+     * read again - so on a machine slower than the one it was written on the
      * layout finished in between and the two disagreed by nine pixels. That
      * says nothing about whether a notice moves the chrome, which is the claim.
      * Written first as a fixed four-second pause, which is the same wait made
@@ -95,14 +95,14 @@ describe('a notice said before anyone was listening', () => {
 
     /*
      * A second notice, so the measurement brackets the overlay actually
-     * changing. Before this it bracketed a read of the layer bounds — which
+     * changing. Before this it bracketed a read of the layer bounds - which
      * moves nothing, so the assertion held whatever the overlay did and only
      * ever caught the layout settling underneath it.
      */
     await copacetic.chrome.evaluate(async () => {
       const folder = await window.copacetic.bookmarkFolders.create('Second', 'plum', null);
       for (let index = 0; index < 12; index += 1) {
-        await window.copacetic.bookmarks.toggle(`https://example.com/second-${index}`, `Second ${index}`);
+        await window.copacetic.bookmarks.add(`Second ${index}`, `https://example.com/second-${index}`, null);
       }
       const saved = await window.copacetic.bookmarks.list();
       for (const bookmark of saved.filter((entry) => entry.url.includes('/second-'))) {
@@ -116,6 +116,7 @@ describe('a notice said before anyone was listening', () => {
       const window = BrowserWindow.getAllWindows()[0];
       return (
         window?.contentView.children.map((view) => ({
+          url: 'webContents' in view ? (view as Electron.WebContentsView).webContents.getURL() : '',
           bounds: view.getBounds(),
           visible: view.getVisible?.() ?? null,
         })) ?? []
@@ -126,18 +127,21 @@ describe('a notice said before anyone was listening', () => {
     // The chrome does not give up a pixel for it, which is the whole point.
     expect(after).toBe(before);
 
-    // Last in the list is last painted, which is what puts it above the page.
-    const overlay = layers.at(-1);
-    const page = layers.at(-2);
+    const overlay = layers.find((layer) => layer.url.includes('region=trailing'));
+    const page = layers.find((layer) => layer.visible && layer.url.startsWith('https://example.com'));
+    // Last painted is what puts it above the page.
+    expect(layers.findIndex((layer) => layer === overlay)).toBeGreaterThan(
+      layers.findIndex((layer) => layer === page),
+    );
     expect(overlay?.visible).toBe(true);
     expect(overlay?.bounds.height).toBeGreaterThan(0);
 
-    // Sitting exactly where the page sits, rather than anywhere else that
-    // happens to be near it: the two must be measured from the same rectangle
-    // or the overlay drifts away from the thing it is covering.
-    expect(overlay?.bounds.x).toBe(page?.bounds.x);
-    expect(overlay?.bounds.width).toBe(page?.bounds.width);
+    // Held to the page's top-right corner and no wider than the card, so the rest of the page still takes clicks.
     expect(overlay?.bounds.y).toBe(page?.bounds.y);
+    expect((overlay?.bounds.x ?? 0) + (overlay?.bounds.width ?? 0)).toBe(
+      (page?.bounds.x ?? 0) + (page?.bounds.width ?? 0),
+    );
+    expect(overlay?.bounds.width).toBeLessThan((page?.bounds.width ?? 0) / 2);
 
     const drawn = await copacetic.overlay.evaluate(
       () => document.querySelector('[role="status"]')?.textContent ?? '',
@@ -160,7 +164,7 @@ describe('a notice said before anyone was listening', () => {
 /**
  * The overlay covers the top of the page whenever it is showing anything, and a
  * transparent view still takes every click that lands on it. With nothing to
- * show it has to get out of the way entirely — otherwise the top of every page
+ * show it has to get out of the way entirely - otherwise the top of every page
  * in the browser silently stops responding, which is the kind of fault someone
  * lives with for a week before working out what is wrong.
  */

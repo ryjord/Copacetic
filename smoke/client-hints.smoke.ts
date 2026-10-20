@@ -11,7 +11,7 @@ afterAll(async () => copacetic?.close());
 /**
  * Client hints exist only in a secure context, so this has to be a real https
  * page in a real tab. Reading them anywhere else reports them missing and means
- * nothing — which is exactly the mistake that made this look impossible.
+ * nothing - which is exactly the mistake that made this look impossible.
  */
 const REPORT = `(async () => {
   const out = { secure: isSecureContext, present: typeof navigator.userAgentData };
@@ -41,9 +41,19 @@ describe('a tab describes itself consistently', () => {
     expect(seen.brands).toContain('Chromium');
   });
 
-  it('reports the same version in the hints as in the user agent', async () => {
+  // As Chrome does: the user agent is cut to the major version, and the full build is answered when asked.
+  it('reports the same major version in both, and the real build in the hints', async () => {
     const seen = await copacetic.inPage<{ uaFullVersion: string; userAgent: string }>('https://example.com/', REPORT);
-    expect(seen.userAgent).toContain(`Chrome/${seen.uaFullVersion}`);
+    const major = seen.uaFullVersion.split('.')[0];
+    expect(seen.userAgent).toContain(`Chrome/${major}.0.0.0`);
+    expect(seen.uaFullVersion).toMatch(/^\d+\.0\.[1-9]\d*\.\d+$/);
+  });
+
+  // A beta's version once left `-beta.1` in the string: a user agent nobody else sends.
+  it('says Chrome and nothing else, and only its major version', async () => {
+    const seen = await copacetic.inPage<{ userAgent: string }>('https://example.com/', REPORT);
+    expect(seen.userAgent).not.toMatch(/copacetic|electron|beta/i);
+    expect(seen.userAgent).toMatch(/Chrome\/\d+\.0\.0\.0 /);
   });
 
   // The correction is made in the main process, so page content still runs

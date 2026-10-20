@@ -4,7 +4,7 @@
  *
  * Deliberately a script someone runs, not something the app does on a timer.
  * Every other blocker fetches its lists in the background on a schedule, which
- * is a periodic request from your machine to a server — the shape of the thing
+ * is a periodic request from your machine to a server - the shape of the thing
  * being blocked. Copacetic ships the list inside the app, so updating it is a
  * commit someone made and a release someone cut, and the rules that are running
  * can be read in this repository.
@@ -25,6 +25,13 @@ const SOURCES = [
     name: 'easyprivacy',
     url: 'https://easylist.to/easylist/easyprivacy.txt',
     describe: 'Tracking and analytics, separate from advertising.',
+  },
+  // Built on its own and only its hiding rules are used: blocking consent scripts outright is what breaks sites.
+  {
+    name: 'easylist-cookie',
+    url: 'https://secure.fanboy.co.nz/fanboy-cookiemonster.txt',
+    describe: 'Cookie consent banners, hidden rather than answered.',
+    purpose: 'cookie-banners',
   },
 ];
 
@@ -59,6 +66,7 @@ async function main() {
       name: source.name,
       url: source.url,
       describe: source.describe,
+      ...(source.purpose ? { purpose: source.purpose } : {}),
       bytes: text.length,
       rules: text.split('\n').filter((line) => line && !line.startsWith('!')).length,
       sha256: createHash('sha256').update(text).digest('hex'),

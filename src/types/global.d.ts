@@ -1,4 +1,4 @@
-import type { CopaceticApi } from '@shared/api';
+import type { CopaceticApi } from '@shared/ipc/api';
 
 declare global {
   interface Window {

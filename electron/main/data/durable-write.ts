@@ -6,8 +6,8 @@ import { closeSync, fsyncSync, openSync, renameSync, writeFileSync } from 'node:
  * Lives on its own because two things need it and one of them is imported by
  * the other: the stores write through `persistence.ts`, and the record of what
  * version each store is at is written by `schema.ts`, which `persistence.ts`
- * imports. The record was written the plain way — no flush to disk, no
- * permissions, no retry — which made the note about the data safer than the
+ * imports. The record was written the plain way - no flush to disk, no
+ * permissions, no retry - which made the note about the data safer than the
  * data was not, but less safe, which is the wrong way round for the file that
  * says how to read the others.
  */
@@ -24,7 +24,7 @@ export interface DiskOperations {
  * Windows will not rename over a file another process has open, and an
  * antivirus scanner or the search indexer opens a file the moment it is
  * written. The failure is EPERM or EBUSY, it is transient, and it lands on the
- * one step that publishes the new data — so without this, a scan running at the
+ * one step that publishes the new data - so without this, a scan running at the
  * wrong moment loses the write entirely and the app reports a file it could not
  * save.
  */
@@ -56,7 +56,7 @@ export function renameOverAnyLock(from: string, to: string, rename: typeof renam
  *
  * `writeFileSync` returns once the data is in the operating system's cache, not
  * once it is on the disk. Renaming after that is atomic in the sense that
- * matters — nobody sees half a file — but a machine that loses power in between
+ * matters - nobody sees half a file - but a machine that loses power in between
  * can make the rename durable and the contents not, which publishes an empty or
  * truncated file at the real path. The whole point of writing to a temporary
  * name first is to avoid exactly that.

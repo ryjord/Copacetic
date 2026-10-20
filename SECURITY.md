@@ -15,7 +15,7 @@ a version that fixes it.
 
 Useful things to include, in rough order of usefulness:
 
-- What an attacker gains — reading a password, escaping the page sandbox,
+- What an attacker gains - reading a password, escaping the page sandbox,
   reaching the file system, making the interface say something untrue.
 - The steps to reproduce it, and the version and platform you saw it on.
 - A page or file that demonstrates it, if one is needed.
@@ -40,7 +40,7 @@ means a new version rather than a patch to an older one.
 
 ## Scope
 
-**In scope** — anything in this repository, and particularly:
+**In scope** - anything in this repository, and particularly:
 
 - Escaping a page's sandbox, or reaching the main process from page content.
 - Reading vault entries without the vault being unlocked, or getting a password
@@ -53,14 +53,14 @@ means a new version rather than a patch to an older one.
 - Reading browsing history or Hush activity from disk after it was supposed to
   have been left unwritten.
 
-**Out of scope** — not because they do not matter, but because a report here
+**Out of scope** - not because they do not matter, but because a report here
 cannot fix them:
 
 - Vulnerabilities in Chromium or Electron themselves. Report those upstream; if
   you believe Copacetic is exposing one it otherwise would not, that is in scope
   and worth saying.
 - The things the README already states plainly under
-  [Security](README.md#security) and _What it does not do_ — the builds are
+  [Security](README.md#security) and _What it does not do_ - the builds are
   unsigned, there is no extension support, and this has not been through a
   security audit. Those are known, stated, and not findings.
 - Anything requiring an attacker who already has an account on the machine and

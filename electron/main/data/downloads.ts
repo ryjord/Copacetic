@@ -1,12 +1,26 @@
+// Libs
 import { type DownloadItem, type Session, app, shell } from 'electron';
 import { createReadStream, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+
+// Types
 import type { DownloadState, DownloadStatus } from '../../shared/types';
 /** How long an answer about a file on disk is worth reusing. */
 const EXISTS_REMEMBERED_MS = 5_000;
 
-import { PersistedFile, asNumber, asString, isRecord, newId } from './persistence';
+import type { DownloadsTable } from './downloads-table';
+import { isRunnableFile } from '../../shared/downloads/download-safety';
+
+/** What the person chose about where files go. */
+export interface DownloadPreferences {
+  downloadDirectory: string | null;
+  askWhereToSave: boolean;
+}
+import { newId } from './persistence';
+import { hostOf } from '../../shared/browsing/url';
+import { sameSite } from '../../shared/data/forgetting';
+import { t } from '../../shared/i18n/translate';
 
 /** How often a download's speed sample is refreshed. */
 const SPEED_SAMPLE_MS = 700;
@@ -32,26 +46,38 @@ interface LiveDownload {
 }
 
 export class DownloadManager {
-  private readonly file: PersistedFile<DownloadState[]>;
+  /** Downloads someone chose to keep, so a later look at the same file does not ask again. */
+  private readonly kept = new Set<string>();
   private readonly live = new Map<string, LiveDownload>();
   /**
    * Downloads from a Hush tab, held here and never written.
    *
    * Hush says, in the README and on the tab itself, that nothing it does
-   * reaches the disk — and a download was writing its address, its redirect
+   * reaches the disk - and a download was writing its address, its redirect
    * chain and its time into downloads.json. The file is on disk because it was
    * asked for; the record of where it came from is browsing, and a Hush tab
    * keeps none of that.
    */
   private ephemeral: DownloadState[] = [];
+  /** Which session each download this run came from, so a retry is made in the same one. */
+  private readonly sessionOf = new Map<string, Session>();
+  private defaultSession: Session | null = null;
+  /** Finds a written-down session again after a restart, or null for one that has gone, such as a deleted group's. */
+  private sessionForPartition: (partition: string) => Session | null = () => null;
 
   constructor(
     private readonly onChanged: () => void,
+    private readonly file: DownloadsTable,
     /** Injected so a test can move time and answer for the filesystem itself. */
     private readonly clock: () => number = Date.now,
     private readonly fileExistsAt: (savePath: string) => boolean = existsSync,
+    private readonly preferences: () => DownloadPreferences = () => ({
+      downloadDirectory: null,
+      askWhereToSave: false,
+    }),
+    /** Asks whether to keep a file that runs code; the answer comes back through keep or discard. */
+    private readonly askToKeep: (download: DownloadState) => void = () => {},
   ) {
-    this.file = new PersistedFile<DownloadState[]>('downloads.json', () => [], reviveDownloads, 1_000);
     // Anything still in flight when the app last quit cannot be resumed: the
     // DownloadItem it belonged to is gone. Report that honestly rather than
     // showing a progress bar that will never move.
@@ -75,7 +101,7 @@ export class DownloadManager {
    * anything: a tab title arriving, a page finishing, a download ticking. Asking
    * the filesystem about every completed download each time meant hundreds of
    * synchronous stat calls a second on the main thread, for an answer that
-   * changes when someone moves a file — which is not something that happens
+   * changes when someone moves a file - which is not something that happens
    * hundreds of times a second.
    */
   private readonly existsChecked = new Map<string, { exists: boolean; at: number }>();
@@ -113,18 +139,32 @@ export class DownloadManager {
    * @param remember Whether this session's downloads are written down. False
    * for Hush, whose whole claim is that nothing it does is.
    */
-  attach(session: Session, remember = true): void {
+  attach(session: Session, remember = true, partition: string | null = null): void {
+    if (remember && !this.defaultSession) {
+      this.defaultSession = session;
+    }
     session.on('will-download', (_event, item) => {
       const id = newId();
-      const directory = app.getPath('downloads');
-      const savePath = uniqueSavePath(directory, sanitiseFilename(item.getFilename()));
-      item.setSavePath(savePath);
+      this.sessionOf.set(id, session);
+      const { downloadDirectory, askWhereToSave } = this.preferences();
+      // A chosen folder that has since gone falls back to the system's, rather than failing the download.
+      const directory =
+        downloadDirectory && this.fileExistsAt(downloadDirectory) ? downloadDirectory : app.getPath('downloads');
+      const suggested = uniqueSavePath(directory, sanitiseFilename(item.getFilename()));
+      // Left unset, Electron asks where with the system's own dialog; the path is known once it has been answered.
+      const savePath = askWhereToSave ? '' : suggested;
+      if (askWhereToSave) {
+        item.setSaveDialogOptions({ defaultPath: suggested });
+      } else {
+        item.setSavePath(savePath);
+      }
 
       this.live.set(id, { item, lastSampleAt: Date.now(), lastSampleBytes: 0, lastStatus: 'progressing' });
       this.upsert({
         id,
         isHush: !remember,
-        filename: path.basename(savePath),
+        isHeld: isRunnableFile(suggested),
+        filename: path.basename(suggested),
         savePath,
         url: item.getURL(),
         receivedBytes: 0,
@@ -136,11 +176,32 @@ export class DownloadManager {
         fileExists: false,
         urlChain: item.getURLChain(),
         sha256: null,
+        ...(remember && partition ? { partition } : {}),
       });
+
+      // Paused before it can finish, so a program nobody meant to download never lands ready to open.
+      const entry = this.find(id);
+      if (entry?.isHeld) {
+        item.pause();
+        this.askToKeep(entry);
+      }
 
       item.on('updated', (_updatedEvent, state) => {
         const live = this.live.get(id);
         if (!live) {
+          return;
+        }
+
+        // The name picked in the save dialog is judged again: renaming a file there must not take it past the hold.
+        const current = this.find(id);
+        const chosen = current ? this.chosenPath(item, current).savePath : undefined;
+        if (current && chosen && !current.isHeld && !this.kept.has(id) && isRunnableFile(chosen)) {
+          item.pause();
+          this.patch(id, (entry) => ({ ...entry, savePath: chosen, filename: path.basename(chosen), isHeld: true }));
+          const held = this.find(id);
+          if (held) {
+            this.askToKeep(held);
+          }
           return;
         }
 
@@ -153,7 +214,7 @@ export class DownloadManager {
         // one used to push the whole browser state to the renderer. The speed
         // sample was already throttled; the push it caused was not. A byte
         // count nobody can perceive changing is not worth a render, so the
-        // renderer hears about progress on the sample interval — and
+        // renderer hears about progress on the sample interval - and
         // immediately whenever the status itself changes, since pausing should
         // never look like it did nothing.
         const statusChanged = status !== live.lastStatus;
@@ -174,6 +235,7 @@ export class DownloadManager {
 
         this.patch(id, (entry) => ({
           ...entry,
+          ...this.chosenPath(item, entry),
           receivedBytes: received,
           totalBytes: item.getTotalBytes(),
           status,
@@ -187,6 +249,7 @@ export class DownloadManager {
           state === 'completed' ? 'completed' : state === 'cancelled' ? 'cancelled' : 'interrupted';
         this.patch(id, (entry) => ({
           ...entry,
+          ...this.chosenPath(item, entry),
           status,
           receivedBytes: item.getReceivedBytes(),
           totalBytes: item.getTotalBytes() || item.getReceivedBytes(),
@@ -224,12 +287,64 @@ export class DownloadManager {
     }
   }
 
+  /** Keeps a held file: it carries on downloading from where it was paused. */
+  keep(id: string): void {
+    const entry = this.find(id);
+    if (!entry?.isHeld) {
+      return;
+    }
+    this.kept.add(id);
+    this.patch(id, (current) => ({ ...current, isHeld: false }));
+    this.live.get(id)?.item.resume();
+  }
+
+  /** Throws a held file away before any of it can be opened. */
+  discard(id: string): void {
+    if (!this.find(id)?.isHeld) {
+      return;
+    }
+    this.live.get(id)?.item.cancel();
+  }
+
+  /** Where the person said to save it, once they have said; nothing changes until then. */
+  private chosenPath(item: DownloadItem, entry: DownloadState): Partial<DownloadState> {
+    const chosen = item.getSavePath();
+    return chosen && chosen !== entry.savePath ? { savePath: chosen, filename: path.basename(chosen) } : {};
+  }
+
+  /**
+   * Starts a failed or cancelled download again, in the session it came from.
+   *
+   * The new attempt is a new entry and the old one goes, so the list shows one
+   * download rather than a failure beside its own retry. After a restart it is
+   * found again by the partition written with it; ordinary browsing's is used
+   * only when that session has gone.
+   */
+  retry(id: string): void {
+    const entry = this.find(id);
+    if (!entry || (entry.status !== 'interrupted' && entry.status !== 'cancelled')) {
+      return;
+    }
+    const recorded = entry.partition ? this.sessionForPartition(entry.partition) : null;
+    const session = this.sessionOf.get(id) ?? recorded ?? this.defaultSession;
+    if (!session) {
+      return;
+    }
+    this.remove(id);
+    this.sessionOf.delete(id);
+    session.downloadURL(entry.url);
+  }
+
   pause(id: string): void {
     this.live.get(id)?.item.pause();
   }
 
   resume(id: string): void {
     const live = this.live.get(id);
+    // A held file is released by keeping it, never by resuming past the question.
+    if (this.find(id)?.isHeld) {
+      return;
+    }
     if (live?.item.canResume()) {
       live.item.resume();
     }
@@ -243,14 +358,14 @@ export class DownloadManager {
   async openFile(id: string): Promise<string> {
     const entry = this.find(id);
     if (!entry) {
-      return 'That download is no longer listed.';
+      return t('main.downloads.notListed');
     }
     if (entry.status !== 'completed') {
-      return 'That download has not finished.';
+      return t('main.downloads.notFinished');
     }
     if (!existsSync(entry.savePath)) {
       this.patch(id, (current) => ({ ...current, fileExists: false }));
-      return 'That file is no longer where Copacetic saved it.';
+      return t('main.downloads.fileMoved');
     }
     return shell.openPath(entry.savePath);
   }
@@ -265,6 +380,53 @@ export class DownloadManager {
       return;
     }
     shell.showItemInFolder(entry.savePath);
+  }
+
+  /** A finished entry, to put back if a removal is undone; one still running has no undo, since removing cancels it. */
+  finishedEntry(id: string): DownloadState | null {
+    if (this.live.has(id)) {
+      return null;
+    }
+    return [...this.ephemeral, ...this.file.get()].find((entry) => entry.id === id) ?? null;
+  }
+
+  restore(entry: DownloadState): void {
+    if (entry.isHush) {
+      this.ephemeral = [entry, ...this.ephemeral.filter((existing) => existing.id !== entry.id)];
+    } else {
+      this.file.update((entries) => [entry, ...entries.filter((existing) => existing.id !== entry.id)]);
+    }
+    this.onChanged();
+  }
+
+  setSessionResolver(resolve: (partition: string) => Session | null): void {
+    this.sessionForPartition = resolve;
+  }
+
+  /** Finished downloads whose address, or any address on the way to it, belongs to the site. */
+  private namingSite(site: string): (entry: DownloadState) => boolean {
+    return (entry) =>
+      !this.live.has(entry.id) &&
+      [entry.url, ...entry.urlChain].some((url) => {
+        const host = hostOf(url);
+        return host !== '' && sameSite(host, site);
+      });
+  }
+
+  countForSite(site: string): number {
+    return [...this.ephemeral, ...this.file.get()].filter(this.namingSite(site)).length;
+  }
+
+  /** The records, never the files: those stay where they were saved. Returns how many went. */
+  forgetSite(site: string): number {
+    const naming = this.namingSite(site);
+    const count = this.countForSite(site);
+    this.ephemeral = this.ephemeral.filter((entry) => !naming(entry));
+    this.file.update((entries) => entries.filter((entry) => !naming(entry)));
+    if (count > 0) {
+      this.onChanged();
+    }
+    return count;
   }
 
   remove(id: string): void {
@@ -322,8 +484,8 @@ export class DownloadManager {
     let touched = false;
 
     // A Hush download lives here and nowhere else, so it is patched here too.
-    // Falling through to the file would silently drop every update to it —
-    // progress, completion, the hash — and leave it stuck at nought bytes.
+    // Falling through to the file would silently drop every update to it -
+    // progress, completion, the hash - and leave it stuck at nought bytes.
     if (this.ephemeral.some((entry) => entry.id === id)) {
       this.ephemeral = this.ephemeral.map((entry) => (entry.id === id ? mutate(entry) : entry));
       this.onChanged();
@@ -383,40 +545,4 @@ export function uniqueSavePath(directory: string, filename: string): string {
     }
   }
   return path.join(directory, `${stem} (${Date.now()})${extension}`);
-}
-
-function reviveDownloads(raw: unknown): DownloadState[] | null {
-  if (!Array.isArray(raw)) {
-    return null;
-  }
-  const allowed: DownloadStatus[] = ['progressing', 'paused', 'completed', 'cancelled', 'interrupted'];
-  return raw.flatMap((item) => {
-    if (!isRecord(item)) {
-      return [];
-    }
-    const savePath = asString(item.savePath);
-    if (!savePath) {
-      return [];
-    }
-    const status = asString(item.status) as DownloadStatus;
-    return [
-      {
-        id: asString(item.id) || newId(),
-        filename: asString(item.filename) || path.basename(savePath),
-        savePath,
-        url: asString(item.url),
-        receivedBytes: asNumber(item.receivedBytes),
-        totalBytes: asNumber(item.totalBytes),
-        bytesPerSecond: null,
-        status: allowed.includes(status) ? status : 'interrupted',
-        startedAt: asNumber(item.startedAt, Date.now()),
-        completedAt: typeof item.completedAt === 'number' ? item.completedAt : null,
-        fileExists: false,
-        // Kept across restarts: the route a file took and what arrived are
-        // exactly what you want to check later rather than at the time.
-        urlChain: Array.isArray(item.urlChain) ? item.urlChain.filter((url) => typeof url === 'string') : [],
-        sha256: typeof item.sha256 === 'string' ? item.sha256 : null,
-      },
-    ];
-  });
 }

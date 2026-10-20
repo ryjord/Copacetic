@@ -1,13 +1,16 @@
-import type { Session, WebContents } from 'electron';
-import type { ClientHints } from '../../shared/browser-identity';
+// Utils
 import {
   CHROME_OBJECT_SCRIPT,
   acceptLanguagesFor,
   clientHintHeaders,
   clientHintsFor,
   stripElectronFromUserAgent,
-} from '../../shared/browser-identity';
+} from '../../shared/browsing/browser-identity';
 import { describeError, log } from './diagnostics';
+
+// Types
+import type { Session, WebContents } from 'electron';
+import type { ClientHints } from '../../shared/browsing/browser-identity';
 
 /**
  * Applies what `electron/shared/browser-identity.ts` decides.
@@ -22,35 +25,24 @@ import { describeError, log } from './diagnostics';
  * The half a server sees: the user agent, the languages offered with it, and
  * the client hints Chrome sends on every secure request. Electron sends no
  * hints at all, which is a plain contradiction with a user agent that says
- * Chrome — visible without a line of script, and enough on its own for a
+ * Chrome - visible without a line of script, and enough on its own for a
  * sign-in page to refuse the browser.
  *
  * Nothing here is new information: the version and platform are already in the
  * user agent this same session sends.
  */
-export function describeSession(session: Session, platform: string, locale: string): void {
+export function describeSession(session: Session, platform: string, locale: string): Record<string, string> {
   const userAgent = stripElectronFromUserAgent(session.getUserAgent());
   session.setUserAgent(userAgent, acceptLanguagesFor(locale));
 
-  const hints = clientHintsFor(userAgent, platform, process.arch);
-  if (!hints) {
-    return;
-  }
-
-  const headers = clientHintHeaders(hints);
-  session.webRequest.onBeforeSendHeaders((details, callback) => {
-    // Chrome sends these to secure origins only.
-    if (!details.url.startsWith('https://')) {
-      callback({ requestHeaders: details.requestHeaders });
-      return;
-    }
-    callback({ requestHeaders: { ...details.requestHeaders, ...headers } });
-  });
+  // Handed back rather than sent from here: a session has one request-headers listener, and it is shared.
+  const hints = clientHintsFor(userAgent, platform, process.arch, actualVersions());
+  return hints ? clientHintHeaders(hints) : {};
 }
 
 /**
  * The half a page sees, installed through the DevTools protocol rather than a
- * preload — page content still runs no script of Copacetic's, and there is
+ * preload - page content still runs no script of Copacetic's, and there is
  * nothing here for a page to reach even if it knew.
  *
  * Two things were measured rather than assumed: the debugger has to stay
@@ -70,7 +62,7 @@ export async function describeTab(contents: WebContents, platform: string): Prom
 
   try {
     const userAgent = contents.session.getUserAgent();
-    const hints = clientHintsFor(userAgent, platform, process.arch);
+    const hints = clientHintsFor(userAgent, platform, process.arch, actualVersions());
     if (!hints) {
       return;
     }
@@ -78,6 +70,13 @@ export async function describeTab(contents: WebContents, platform: string): Prom
   } catch (error) {
     log.warn('could not describe a tab as Chrome', describeError(error));
   }
+}
+
+/** The real Chromium build and system version, which Chrome answers in full when a page asks. */
+function actualVersions(): { chromium?: string; system?: string } {
+  // Electron's own additions to process, absent when this runs under plain Node in a test.
+  const system = typeof process.getSystemVersion === 'function' ? process.getSystemVersion() : undefined;
+  return { chromium: process.versions.chrome, system };
 }
 
 async function describeAsChrome(contents: WebContents, userAgent: string, hints: ClientHints): Promise<void> {

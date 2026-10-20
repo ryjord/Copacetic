@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
 
@@ -11,10 +9,7 @@ beforeAll(async () => {
 });
 afterAll(async () => copacetic?.close());
 
-const history = (): { url: string }[] => {
-  const file = path.join(copacetic.profile, 'history.json');
-  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as { url: string }[]) : [];
-};
+const history = () => copacetic.historyOnDisk();
 
 const tabs = () =>
   copacetic.chrome.evaluate(async () => {
@@ -27,8 +22,8 @@ const tabs = () =>
  *
  * The unit tests say the inheritance rule is right and that the callers pass an
  * opener. Neither can say the two are connected: a rule nothing loads passes
- * its own tests perfectly. This drives the real path — a page in a real Hush
- * tab calling `window.open`, through the security delegate, into tab creation —
+ * its own tests perfectly. This drives the real path - a page in a real Hush
+ * tab calling `window.open`, through the security delegate, into tab creation -
  * and then looks at what reached the disk.
  */
 describe('a tab opened by a page inside a Hush tab', () => {
@@ -67,7 +62,7 @@ describe('a tab opened by a page inside a Hush tab', () => {
   /*
    * The counterweight. Inheriting Hush from everything, or defaulting to it,
    * would pass the test above and quietly stop the browser recording anything
-   * at all — which is a bigger failure than the one being fixed.
+   * at all - which is a bigger failure than the one being fixed.
    */
   it('does not make ordinary tabs Hush', async () => {
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com/ordinary'));

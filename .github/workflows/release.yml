@@ -14,7 +14,7 @@ permissions:
 
 # The bucket and its address reach the shell as environment variables rather
 # than being pasted into the script text before it runs. Interpolated, whatever
-# is in a variable becomes part of the command — a quote or a semicolon in a
+# is in a variable becomes part of the command - a quote or a semicolon in a
 # repository setting is the shell's, not the string's. These are settings only
 # this repository's owner can write, so it is a small door; it is still a door,
 # and closing it costs a block.
@@ -36,8 +36,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The checks a pull request runs, on the commit being released. A tag used to
+  # publish from any commit, green or not; a stable tag also prunes apt for good
+  # and reaches every 1.4 install through its updater, so nothing, not even the
+  # GitHub release itself, is made until these pass.
+  checks:
+    name: Verify, build and smoke the tagged commit
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   guard:
     name: Check the tag matches package.json
+    needs: checks
     # A job that hangs should fail rather than hold the runner until someone looks.
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -56,10 +67,29 @@ jobs:
           fi
           echo "Releasing $pkg"
 
+      # electron-builder makes the release when it finds none, and the macOS job
+      # publishes two architectures at once: both found nothing, so 2.0.0-beta.1
+      # was made twice with the assets split between them. Made here, before any
+      # build, every publisher finds the one release.
+      - name: Create the release before anything publishes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "The release already exists."
+            exit 0
+          fi
+          # The CHANGELOG section is the notes, which the app shows before it updates; a version without one fails here.
+          node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > release-notes.md
+          case "$GITHUB_REF_NAME" in
+            *-*) gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file release-notes.md --prerelease ;;
+            *)   gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME#v}" --notes-file release-notes.md ;;
+          esac
+
       # The .deb is built with the repository URL baked in, and it is published
       # before the apt job runs. If the bucket turns out to be unusable at that
       # point, the package is already out there pointing at a source that does
-      # not work — which is exactly how 1.1.0 went wrong. So the bucket is
+      # not work - which is exactly how 1.1.0 went wrong. So the bucket is
       # checked before anything is built.
       - name: Check the package repository is usable
         if: vars.APT_REPO_URL != ''
@@ -100,7 +130,7 @@ jobs:
       fail-fast: false
       # One platform publishes at a time. Concurrently, all three ask GitHub for
       # the release, all three are told it does not exist, and more than one
-      # creates it — GitHub permits two releases on one tag, so 1.4.1 published
+      # creates it - GitHub permits two releases on one tag, so 1.4.1 published
       # as two objects with the assets split between them and neither complete.
       # Each job reported success, because each had uploaded everything it built.
       #
@@ -135,7 +165,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci
@@ -160,6 +190,13 @@ jobs:
           printf '%s' "$APT_REPO_URL" > build/keyring/copacetic-apt-source
           test -s build/keyring/copacetic-archive-keyring.gpg
           test -s build/keyring/copacetic-apt-source
+
+      # electron-builder leaves Chromium's licences out of the macOS app, and the
+      # build puts them back from Electron's own download, which is otherwise
+      # fetched only the first time Electron runs - and nothing here runs it.
+      - name: Fetch Electron for the licences it carries
+        if: matrix.os == 'macos-latest'
+        run: node node_modules/electron/install.js
 
       - name: Build and publish
         shell: bash
@@ -215,7 +252,7 @@ jobs:
                     latest.yml latest-mac.yml latest-linux.yml"
 
           # One tag, one release. GitHub permits two, and when the platforms
-          # published in parallel it got two — with the assets split between
+          # published in parallel it got two - with the assets split between
           # them, neither complete, and every job reporting success. Read as
           # "assets are missing" that is a confusing hunt; said plainly it is
           # one sentence. Checked before the assets, because it explains them.
@@ -272,7 +309,7 @@ jobs:
             exit 0
           fi
           # The repository serves one suite, `stable`, so a prerelease must not
-          # go into it — everyone on the apt source would be offered a beta as
+          # go into it - everyone on the apt source would be offered a beta as
           # if it were a release. Betas are downloaded from the release page.
           case "$GITHUB_REF_NAME" in
             *-*)
@@ -324,19 +361,21 @@ jobs:
 
       # apt only needs the versions it might install. Every package kept is
       # ~150MB against a 10GB budget, so the pool holds the newest few and the
-      # rest are dropped — including from the bucket, via the sync below.
+      # rest are dropped - including from the bucket, via the sync below.
       # The bucket this is published to has limited room and every release adds
       # a ~150MB package, so the pool cannot simply grow. Keeping the newest few
       # was wrong for the shape of the work: a run of patch releases inside one
       # minor line would evict every older line, and someone pinned to 1.3 would
       # find 1.3 had vanished from apt while 1.4.11, 1.4.12 and 1.4.13 sat there.
       #
-      # So it keeps the newest package of each minor line instead. That is one
-      # 1.2, one 1.3, one 1.4, one 1.5 — the four a person might reasonably still
-      # be on — and it stays four however many patches each line accumulates.
-      - name: Prune the pool to the newest package of each minor line
+      # So it keeps the newest package of each minor line instead, from the
+      # oldest line still supported: one 1.4, one 1.5, and so on, however many
+      # patches each line accumulates. Lines before it are dropped entirely.
+      - name: Prune the pool to the newest package of each supported minor line
         if: steps.gate.outputs.run == 'true'
         working-directory: pages/apt/pool/main
+        env:
+          OLDEST_SUPPORTED_LINE: '1.4'
         run: |
           set -eu
           if ! ls ./*.deb >/dev/null 2>&1; then
@@ -351,6 +390,11 @@ jobs:
           lines=$(ls -1 ./*.deb | sed 's/.*_\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/' | sort -u)
           keep=""
           for line in $lines; do
+            # Older than the oldest supported line when it sorts first of the two.
+            if [ "$line" != "$OLDEST_SUPPORTED_LINE" ] && \
+               [ "$(printf '%s\n%s\n' "$line" "$OLDEST_SUPPORTED_LINE" | sort -V | head -1)" = "$line" ]; then
+              continue
+            fi
             newest=$(ls -1 ./*.deb | grep "_${line}\." | sort -V | tail -1)
             keep="$keep $newest"
           done

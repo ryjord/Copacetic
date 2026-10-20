@@ -1,0 +1,203 @@
+import { describe, expect, it } from 'vitest';
+import {
+  acceptLanguagesFor,
+  clientHintHeaders,
+  clientHintsFor,
+  stripElectronFromUserAgent,
+} from '../../../../electron/shared/browsing/browser-identity';
+
+const CHROME_MAC =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.7871.224 Safari/537.36';
+
+/**
+ * The user agent says Chrome. Chromium's own client hints say Chromium and stop
+ * there. A site that compares the two sees a browser disagreeing with itself,
+ * which is what Google's sign-in refuses.
+ */
+describe('what the browser says it is', () => {
+  it('claims the Chrome brand the user agent already claims', () => {
+    const hints = clientHintsFor(CHROME_MAC, 'darwin');
+    expect(hints?.brands).toContainEqual({ brand: 'Google Chrome', version: '150' });
+    expect(hints?.brands).toContainEqual({ brand: 'Chromium', version: '150' });
+  });
+
+  it('keeps the major version for brands and the full one for versions', () => {
+    const hints = clientHintsFor(CHROME_MAC, 'darwin');
+    expect(hints?.fullVersionList).toContainEqual({ brand: 'Google Chrome', version: '150.0.7871.224' });
+    expect(hints?.fullVersion).toBe('150.0.7871.224');
+  });
+
+  // Chromium sends a filler brand so that nothing reads the list by position.
+  it('keeps the filler brand Chromium itself sends', () => {
+    expect(clientHintsFor(CHROME_MAC, 'darwin')?.brands[0]?.brand).toBe('Not;A=Brand');
+  });
+
+  /**
+   * The version is read from the user agent rather than written down anywhere,
+   * so an Electron upgrade cannot leave the two disagreeing - which is the
+   * exact fault being fixed.
+   */
+  it('follows the user agent when Chromium is upgraded', () => {
+    const later = CHROME_MAC.replace('150.0.7871.224', '151.0.8000.1');
+    const hints = clientHintsFor(later, 'darwin');
+    expect(hints?.brands).toContainEqual({ brand: 'Google Chrome', version: '151' });
+    expect(hints?.fullVersion).toBe('151.0.8000.1');
+  });
+
+  it.each([
+    ['darwin', 'macOS'],
+    ['win32', 'Windows'],
+    ['linux', 'Linux'],
+  ])('describes %s as %s', (platform, expected) => {
+    expect(clientHintsFor(CHROME_MAC, platform)?.platform).toBe(expected);
+  });
+
+  it('says it is not a phone', () => {
+    expect(clientHintsFor(CHROME_MAC, 'darwin')?.mobile).toBe(false);
+  });
+});
+
+describe('when it cannot tell', () => {
+  it('says nothing rather than guessing for a user agent without Chrome in it', () => {
+    expect(clientHintsFor('Mozilla/5.0 (X11; Linux) Gecko/20100101 Firefox/130.0', 'linux')).toBeNull();
+  });
+
+  it('says nothing for a platform it has no description of', () => {
+    expect(clientHintsFor(CHROME_MAC, 'aix')).toBeNull();
+  });
+
+  it('says nothing for an empty user agent', () => {
+    expect(clientHintsFor('', 'darwin')).toBeNull();
+  });
+});
+
+/**
+ * The headers are what a server sees without running anything. Electron sends
+ * none at all, which is a contradiction with the user agent visible before a
+ * single script executes - and the reason correcting only the page's API was
+ * not enough.
+ */
+describe('what the browser sends on the wire', () => {
+  const headers = () => clientHintHeaders(clientHintsFor(CHROME_MAC, 'darwin')!);
+
+  it('sends the brand list in the form Chrome sends it', () => {
+    expect(headers()['sec-ch-ua']).toBe('"Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150"');
+  });
+
+  // Chrome sends these only when a site asks for them through Accept-CH.
+  // Volunteering them was both unlike Chrome and more than anyone needs.
+  it.each(['sec-ch-ua-full-version-list', 'sec-ch-ua-platform-version', 'sec-ch-ua-arch'])(
+    'does not volunteer %s',
+    (header) => {
+      expect(headers()[header]).toBeUndefined();
+    },
+  );
+
+  it('sends only the three Chrome sends unprompted', () => {
+    expect(Object.keys(headers()).sort()).toEqual(['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform']);
+  });
+
+  it('says it is not a phone, in the boolean form the header uses', () => {
+    expect(headers()['sec-ch-ua-mobile']).toBe('?0');
+  });
+
+  it('quotes the platform, which the header format requires', () => {
+    expect(headers()['sec-ch-ua-platform']).toBe('"macOS"');
+  });
+
+  // The wire and the page are built from one object, so they cannot describe
+  // two different browsers however either is changed later.
+  it('agrees with what the page is told', () => {
+    const hints = clientHintsFor(CHROME_MAC, 'darwin')!;
+    const onTheWire = clientHintHeaders(hints)['sec-ch-ua'] ?? '';
+    for (const brand of hints.brands) {
+      expect(onTheWire).toContain(`"${brand.brand}";v="${brand.version}"`);
+    }
+  });
+});
+
+/**
+ * Chromium offers only the one locale it was started with. Chrome widens it to
+ * the base language and English, and a request carrying a single language where
+ * every Chrome carries three is one more way to stand out.
+ */
+describe('the languages a request offers', () => {
+  it('widens a regional English to what Chrome sends', () => {
+    expect(acceptLanguagesFor('en-GB')).toBe('en-GB,en-US,en');
+  });
+
+  it('keeps a non-English language first, with English behind it', () => {
+    expect(acceptLanguagesFor('fr-FR')).toBe('fr-FR,fr,en-US,en');
+  });
+
+  it('does not repeat a language it already has', () => {
+    expect(acceptLanguagesFor('en-US')).toBe('en-US,en');
+    expect(acceptLanguagesFor('en')).toBe('en,en-US');
+  });
+
+  it('falls back to a sensible default when there is no locale', () => {
+    expect(acceptLanguagesFor('')).toBe('en-US,en');
+  });
+});
+
+describe('what the browser tells sites it is', () => {
+  it('does not advertise Electron', () => {
+    const stripped = stripElectronFromUserAgent('Mozilla/5.0 Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36');
+    expect(stripped).not.toMatch(/electron/i);
+    expect(stripped).toMatch(/Chrome\/120/);
+  });
+
+  it('takes the whole of a prerelease token, not just its digits', () => {
+    const beta =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Copacetic/2.0.0-beta.2 Chrome/150.0.7871.224 Electron/43.4.1 Safari/537.36';
+    expect(stripElectronFromUserAgent(beta)).toBe(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+    );
+  });
+
+  it('says only the major version of Chrome, as Chrome does', () => {
+    expect(stripElectronFromUserAgent(CHROME_MAC)).toContain('Chrome/150.0.0.0 ');
+    expect(clientHintsFor(stripElectronFromUserAgent(CHROME_MAC), 'darwin')?.fullVersion).toBe('150.0.0.0');
+  });
+
+  it('leaves a user agent without Electron alone', () => {
+    const plain = 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36';
+    expect(stripElectronFromUserAgent(plain)).toBe(plain);
+  });
+});
+
+describe("the brand list's filler and order", () => {
+  const headerFor = (major: number) =>
+    clientHintHeaders(clientHintsFor(`Mozilla/5.0 (Macintosh) Chrome/${major}.0.0.0 Safari/537.36`, 'darwin')!)[
+      'sec-ch-ua'
+    ];
+
+  // As real Chrome sends them; the filler and the order change with every major version.
+  it.each([
+    [120, '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'],
+    [131, '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'],
+    [150, '"Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150"'],
+  ])('matches Chrome %s', (major, expected) => {
+    expect(headerFor(major)).toBe(expected);
+  });
+});
+
+describe('the full answers a page can ask for', () => {
+  const REDUCED =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36';
+
+  // The user agent is cut to 150.0.0.0 as Chrome's is; a zeroed build in the full list is what fraud checks look for.
+  it('gives the real build, not the reduced one in the user agent', () => {
+    const hints = clientHintsFor(REDUCED, 'darwin', 'arm64', { chromium: '150.0.7871.250' });
+    expect(hints?.fullVersion).toBe('150.0.7871.250');
+    expect(hints?.fullVersionList).toContainEqual({ brand: 'Google Chrome', version: '150.0.7871.250' });
+  });
+
+  it('ignores a build that does not match the user agent', () => {
+    expect(clientHintsFor(REDUCED, 'darwin', 'arm64', { chromium: '151.0.1.2' })?.fullVersion).toBe('150.0.0.0');
+  });
+
+  it("gives this Mac's own version of macOS", () => {
+    expect(clientHintsFor(REDUCED, 'darwin', 'arm64', { system: '26.1' })?.platformVersion).toBe('26.1.0');
+  });
+});

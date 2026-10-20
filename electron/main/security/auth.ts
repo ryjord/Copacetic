@@ -1,5 +1,5 @@
 import type { AuthPrompt } from '../../shared/types';
-import { sanitiseChromeText } from '../../shared/chrome-text';
+import { sanitiseChromeText } from '../../shared/chrome/chrome-text';
 
 const MAX_REALM = 80;
 
