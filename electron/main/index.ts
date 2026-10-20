@@ -145,8 +145,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  profiles?.prepareForQuit();
   clearCopiedSecretBeforeQuit();
+  profiles?.prepareForQuit();
 });
 
 /**
@@ -166,8 +166,9 @@ app.on('before-quit', () => {
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
     try {
-      profiles?.prepareForQuit();
+      // First, so nothing that throws below can leave a copied password behind.
       clearCopiedSecretBeforeQuit();
+      profiles?.prepareForQuit();
       markQuit(app.getPath('userData'));
     } finally {
       app.exit(0);

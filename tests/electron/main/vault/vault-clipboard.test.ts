@@ -108,6 +108,17 @@ describe('a password on the clipboard', () => {
     expect(board).toBe('a note');
   });
 
+  // The lock took the password and is still reading the clipboard back when the app quits.
+  it('is cleared on quit while an earlier clear is still reading back', async () => {
+    await copySecret('hunter2');
+    readText.mockImplementationOnce(() => new Promise<string>(() => {}));
+    const clearing = clearCopiedSecret();
+    clearCopiedSecretBeforeQuit();
+    expect(board).toBe('');
+    await vi.advanceTimersByTimeAsync(READ_BACK_TIMEOUT_MS);
+    await clearing;
+  });
+
   it('is cleared anyway when the clipboard refuses the read back', async () => {
     await copySecret('hunter2');
     readText.mockImplementation(async () => {
