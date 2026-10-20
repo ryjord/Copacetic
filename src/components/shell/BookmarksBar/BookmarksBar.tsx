@@ -63,22 +63,25 @@ export function BookmarksBar() {
   const loose = bookmarks.filter((bookmark) => bookmark.folderId === null);
   const icons = useFavicons(loose.map((bookmark) => bookmark.url));
   const itemCount = topFolders.length + loose.length;
+  // Which items, in which order: the same count can still be a different row.
+  const itemIds = [...topFolders.map((folder) => folder.id), ...loose.map((bookmark) => bookmark.id)].join(' ');
 
   useLayoutEffect(() => {
     const row = rowRef.current;
     if (!row) {
       return;
     }
+    const items = [...row.querySelectorAll<HTMLElement>('[data-bar-item]')];
     const measure = () => {
-      const items = [...row.querySelectorAll<HTMLElement>('[data-bar-item]')];
       const index = items.findIndex((item) => item.offsetLeft + item.offsetWidth > row.clientWidth);
       setFirstHidden(index === -1 ? null : index);
     };
     measure();
+    // Each item too, so a renamed bookmark or a folder's new name is measured again.
     const resizes = new ResizeObserver(measure);
-    resizes.observe(row);
+    [row, ...items].forEach((element) => resizes.observe(element));
     return () => resizes.disconnect();
-  }, [itemCount]);
+  }, [itemIds]);
 
   if (itemCount === 0) {
     return null;

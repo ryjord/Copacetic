@@ -61,6 +61,11 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);
   // Crowded once a tab is too narrow for its title: past that, finding one by its icon alone is guesswork.
   const [isCrowded, setIsCrowded] = useState(false);
+  // What decides the strip's width besides the count: which tabs sit in a group, and each group's chip.
+  const layout = [
+    tabs.map((tab) => tab.groupId ?? '').join(' '),
+    groups.map((group) => `${group.id}:${group.name}:${group.collapsed}`).join(' '),
+  ].join('|');
 
   useLayoutEffect(() => {
     const strip = stripRef.current;
@@ -75,7 +80,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
     const resizes = new ResizeObserver(measure);
     resizes.observe(strip);
     return () => resizes.disconnect();
-  }, [tabs.length]);
+  }, [tabs.length, layout]);
 
   const handleDrop = (index: number) => {
     const from = dragId ? tabs.findIndex((tab) => tab.id === dragId) : -1;

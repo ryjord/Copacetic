@@ -39,9 +39,12 @@ const originals = {
   offsetLeft: Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetLeft'),
   clientWidth: Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth'),
 };
+const observed = new Set<Element>();
 beforeAll(() => {
   globalThis.ResizeObserver = class {
-    observe() {}
+    observe(element: Element) {
+      observed.add(element);
+    }
     disconnect() {}
     unobserve() {}
   } as unknown as typeof ResizeObserver;
@@ -78,6 +81,15 @@ describe('the bookmarks bar', () => {
     fireEvent.click(await screen.findByRole('button', { name: '2 more bookmarks' }));
     expect(overflow).toEqual([[[], ['three', 'four'], 0, 0]]);
     expect(screen.getByText('three').closest('button')?.getAttribute('tabindex')).toBe('-1');
+  });
+
+  // A renamed bookmark changes no count, so only its own size says the row needs measuring again.
+  it('watches every item for a change of size, not only the row', async () => {
+    render(<BookmarksBar />);
+    await screen.findByRole('button', { name: '2 more bookmarks' });
+    const items = [...document.querySelectorAll('[data-bar-item]')];
+    expect(items).toHaveLength(4);
+    expect(items.every((item) => observed.has(item))).toBe(true);
   });
 
   it('opens every bookmark from its start', async () => {
