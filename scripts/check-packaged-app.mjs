@@ -33,7 +33,9 @@ function packagedBinary() {
   const trees = readdirSync(RELEASE);
 
   if (process.platform === 'darwin') {
-    const tree = trees.find((name) => name.startsWith('mac'));
+    // Both architectures may be built; the one that can start here is the one for this Mac.
+    const native = process.arch === 'arm64' ? 'mac-arm64' : 'mac';
+    const tree = trees.find((name) => name === native) ?? trees.find((name) => name.startsWith('mac'));
     if (!tree) {
       throw new Error(`No mac tree in release/: ${trees.join(', ')}`);
     }
