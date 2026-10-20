@@ -58,8 +58,9 @@ export function DefaultBrowserRow() {
     };
   }, []);
 
+  // Named but not answered while the system is asked, rather than a sentence saying it is being asked.
   if (!status) {
-    return <SettingRow label={t('settings.general.defaultBrowser.checking')} />;
+    return <SettingRow label={t('settings.general.defaultBrowser.title')} />;
   }
 
   const { label, action } = WORDING[status];

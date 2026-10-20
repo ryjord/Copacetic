@@ -11,6 +11,7 @@ import {
   clampZoom,
   isAccentColour,
   isAppearanceId,
+  isHistoryRetentionDays,
   isInterfaceTextSize,
   isSleepAfterMinutes,
   isThemeId,
@@ -584,6 +585,16 @@ function asClearRange(value: unknown): ClearRange {
 }
 
 /** Everything the renderer is allowed to change, checked one field at a time. */
+/** An address typed in Settings, read as the address bar reads it; anything that is not a page is the start page. */
+function pageAddressFrom(value: string | null): string | null {
+  if (value === null) {
+    return null;
+  }
+  // The engine only decides where a search goes, and a search is refused here either way.
+  const resolved = resolveOmniboxInput(value.slice(0, 8192), 'brave');
+  return resolved?.type === 'url' && isPageNavigableUrl(resolved.target) ? resolved.target : null;
+}
+
 export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (!isRecord(value)) {
     return {};
@@ -680,6 +691,15 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.restoreTabsOnLaunch === 'boolean') {
     patch.restoreTabsOnLaunch = value.restoreTabsOnLaunch;
+  }
+  if (value.startupUrl === null || typeof value.startupUrl === 'string') {
+    patch.startupUrl = pageAddressFrom(value.startupUrl);
+  }
+  if (value.homeUrl === null || typeof value.homeUrl === 'string') {
+    patch.homeUrl = pageAddressFrom(value.homeUrl);
+  }
+  if (isHistoryRetentionDays(value.historyRetentionDays)) {
+    patch.historyRetentionDays = value.historyRetentionDays;
   }
   if (typeof value.hushNoticeDismissed === 'boolean') {
     patch.hushNoticeDismissed = value.hushNoticeDismissed;

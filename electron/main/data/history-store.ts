@@ -10,7 +10,6 @@ import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
 import type { ImportedVisit } from '../import/chromium-history';
 
 export const MAX_HISTORY_ENTRIES = 10_000;
-export const MAX_HISTORY_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 // Below three characters a trigram index has nothing to match, so those searches scan instead.
 const MIN_INDEXED_QUERY = 3;
 const LEGACY_FILE = 'history.json';
@@ -41,9 +40,11 @@ export class HistoryStore {
   constructor(
     private readonly database: DatabaseSync,
     directory: string,
+    /** The oldest visit still kept, read each time so a change in Settings applies at the next prune. */
+    private readonly keptSince: () => number,
   ) {
     this.importFromJson(directory);
-    this.pruneHistory();
+    this.prune();
   }
 
   recordVisit(url: string, title: string): void {
@@ -55,7 +56,7 @@ export class HistoryStore {
         .run(newId(), url, title, now);
       this.visitsSincePrune += 1;
       if (this.visitsSincePrune >= VISITS_BETWEEN_PRUNES) {
-        this.pruneHistory();
+        this.prune();
       }
       return;
     }
@@ -80,7 +81,7 @@ export class HistoryStore {
     inTransaction(this.database, () =>
       visits.forEach((visit) => merge.run(newId(), visit.url, visit.title, visit.lastVisitedAt, visit.visitCount)),
     );
-    this.pruneHistory();
+    this.prune();
     return { added: visits.length - alreadyHad, alreadyHad };
   }
 
@@ -203,9 +204,9 @@ export class HistoryStore {
   /** Every write is already on disk; kept so the store's callers flush every part the same way. */
   flush(): void {}
 
-  private pruneHistory(): void {
+  prune(): void {
     this.visitsSincePrune = 0;
-    this.database.prepare('DELETE FROM history WHERE last_visited_at < ?').run(Date.now() - MAX_HISTORY_AGE_MS);
+    this.database.prepare('DELETE FROM history WHERE last_visited_at < ?').run(this.keptSince());
     this.database
       .prepare(
         'DELETE FROM history WHERE rowid NOT IN (SELECT rowid FROM history ORDER BY last_visited_at DESC LIMIT ?)',

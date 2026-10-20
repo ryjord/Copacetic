@@ -2,6 +2,7 @@
 import {
   isAccentColour,
   isAppearanceId,
+  isHistoryRetentionDays,
   isInterfaceTextSize,
   isSleepAfterMinutes,
   isThemeId,
@@ -12,7 +13,7 @@ import {
 } from '../../shared/types';
 import { readSpellcheckLanguages } from '../../shared/chrome/spellcheck';
 import { readShortcutOverrides } from '../../shared/chrome/shortcuts';
-import { SEARCH_ENGINES } from '../../shared/browsing/url';
+import { SEARCH_ENGINES, isPageNavigableUrl } from '../../shared/browsing/url';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/browsing/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
 
@@ -35,6 +36,9 @@ export const DEFAULT_SETTINGS: Settings = {
   httpsFirst: true,
   blockTrackers: true,
   restoreTabsOnLaunch: true,
+  startupUrl: null,
+  homeUrl: null,
+  historyRetentionDays: 90,
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
   showBookmarksBar: false,
@@ -215,6 +219,11 @@ function reviveSettings(raw: unknown): Settings | null {
     httpsFirst: asBoolean(raw.httpsFirst, DEFAULT_SETTINGS.httpsFirst),
     blockTrackers: asBoolean(raw.blockTrackers, DEFAULT_SETTINGS.blockTrackers),
     restoreTabsOnLaunch: asBoolean(raw.restoreTabsOnLaunch, DEFAULT_SETTINGS.restoreTabsOnLaunch),
+    startupUrl: pageAddressFrom(raw.startupUrl),
+    homeUrl: pageAddressFrom(raw.homeUrl),
+    historyRetentionDays: isHistoryRetentionDays(raw.historyRetentionDays)
+      ? raw.historyRetentionDays
+      : DEFAULT_SETTINGS.historyRetentionDays,
     startPageWidgets: reviveStartPageWidgets(raw),
     hushNoticeDismissed: raw.hushNoticeDismissed === true,
     showBookmarksBar: raw.showBookmarksBar === true,
@@ -265,6 +274,11 @@ function reviveZoomLevels(raw: unknown): Record<string, number> {
     levels[origin] = clamp(value, 0.25, 5);
   }
   return levels;
+}
+
+/** A page someone named, kept only if a tab could open it. */
+function pageAddressFrom(raw: unknown): string | null {
+  return typeof raw === 'string' && isPageNavigableUrl(raw) ? raw : null;
 }
 
 /** A turn of the colour wheel, wrapped rather than rejected: any number lands somewhere sensible. */

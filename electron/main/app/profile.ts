@@ -248,7 +248,7 @@ export class Profile {
       await this.reopenWindows(saved);
       return;
     }
-    const fresh = await this.openWindow();
+    const fresh = await this.openWindow({ url: this.store.getSettings().startupUrl ?? undefined });
     if (choice === 'offer') {
       fresh.notices.notify(
         {

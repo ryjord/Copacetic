@@ -27,6 +27,7 @@ import { describeError, log } from '../system/diagnostics';
 import { DownloadsTable } from './downloads-table';
 import { SiteSettingsStore } from './site-settings-store';
 import { HISTORY_PAGE_SIZE, HistoryStore, type HistoryPage } from './history-store';
+import { historyKeptSince } from '../../shared/types';
 
 // Types
 import type {
@@ -86,7 +87,7 @@ export class BrowserStore {
       this.setAsideDatabase = aside;
     });
     this.settings = new SettingsStore(new SiteSettingsStore(this.database), directory);
-    this.history = new HistoryStore(this.database, directory);
+    this.history = new HistoryStore(this.database, directory, () => this.historyKeptSince());
     this.bookmarks = new BookmarksStore(this.database, directory);
     this.bookmarkFolders = new BookmarkFoldersStore(this.database, directory);
     this.groups = new GroupsStore(directory);
@@ -176,8 +177,18 @@ export class BrowserStore {
     return this.settings.getSettings();
   }
 
+  /** The oldest visit history keeps, by the setting; imports are held to the same bound. */
+  historyKeptSince(): number {
+    return historyKeptSince(this.getSettings().historyRetentionDays, Date.now());
+  }
+
   updateSettings(patch: Partial<Settings>): Settings {
-    return this.settings.updateSettings(patch);
+    const updated = this.settings.updateSettings(patch);
+    // A shorter limit is a promise that the older visits are gone, so they go now.
+    if (patch.historyRetentionDays !== undefined) {
+      this.history.prune();
+    }
+    return updated;
   }
 
   setPermissionDecision(origin: string, kind: string, decision: PermissionDecision): void {

@@ -6,7 +6,7 @@ import { bookmarksFromHtml } from '../../shared/data/bookmark-import';
 import { credentialsFromCsv, credentialsToCsv } from '../../shared/passwords/credential-csv';
 import { fileStamp, readChosenFile, writeChosenFile } from '../system/file-dialogs';
 import { bookmarksToHtml, historyToJson } from '../data/export';
-import { MAX_HISTORY_AGE_MS, MAX_HISTORY_ENTRIES } from '../data/history-store';
+import { MAX_HISTORY_ENTRIES } from '../data/history-store';
 import { findReadableProfiles } from '../import/browser-profiles';
 import { visitsFromHistoryFile } from '../import/history-file';
 import { describeError, log } from '../system/diagnostics';
@@ -113,7 +113,7 @@ export class DataTransfer {
       return t('main.import.history.notOurs');
     }
     // Only what history would still be keeping, newest first, the same bounds as any other import.
-    const since = Date.now() - MAX_HISTORY_AGE_MS;
+    const since = this.deps.store.historyKeptSince();
     const recent = read.visits
       .filter((visit) => visit.lastVisitedAt >= since)
       .sort((aVisit, bVisit) => bVisit.lastVisitedAt - aVisit.lastVisitedAt)
@@ -162,7 +162,10 @@ export class DataTransfer {
     }
 
     try {
-      const visits = await source.readHistory({ since: Date.now() - MAX_HISTORY_AGE_MS, limit: MAX_HISTORY_ENTRIES });
+      const visits = await source.readHistory({
+        since: this.deps.store.historyKeptSince(),
+        limit: MAX_HISTORY_ENTRIES,
+      });
       if (visits) {
         const { added } = this.deps.store.importHistory(visits);
         parts.push(t('main.import.browser.historyPages', { count: added }));

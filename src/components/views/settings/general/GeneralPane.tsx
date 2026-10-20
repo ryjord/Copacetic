@@ -1,8 +1,13 @@
 'use client';
 
+// Libs
+import { useState } from 'react';
+
 // Components
 import { Button } from '@/components/ui/Button/Button';
 import { DefaultBrowserRow } from '@/components/views/settings/general/DefaultBrowserRow';
+import { PageAddressField } from '@/components/views/settings/general/PageAddressField';
+import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { SpellcheckLanguagesRow } from '@/components/views/settings/general/SpellcheckLanguagesRow';
@@ -18,7 +23,7 @@ import { updateSettings } from '@/components/views/settings/shared/options';
 
 // Types
 import { SEARCH_ENGINE_OPTIONS } from '@shared/browsing/url';
-import { isSleepAfterMinutes } from '@shared/types';
+import { isHistoryRetentionDays, isSleepAfterMinutes } from '@shared/types';
 
 const SLEEP_OPTIONS = [
   { id: '0', label: t('settings.general.memory.sleep.never') },
@@ -30,22 +35,114 @@ const SLEEP_OPTIONS = [
 
 const ENGINES = SEARCH_ENGINE_OPTIONS.map((engine) => ({ id: engine.id, label: engine.name }));
 
+type StartupChoice = 'lastTabs' | 'startPage' | 'page';
+type HomeChoice = 'startPage' | 'page';
+
+const STARTUP_OPTIONS: readonly { id: StartupChoice; label: string }[] = [
+  { id: 'lastTabs', label: t('settings.general.startup.opens.lastTabs') },
+  { id: 'startPage', label: t('settings.general.startup.opens.startPage') },
+  { id: 'page', label: t('settings.general.startup.opens.page') },
+];
+const HOME_OPTIONS: readonly { id: HomeChoice; label: string }[] = [
+  { id: 'startPage', label: t('settings.general.startup.home.startPage') },
+  { id: 'page', label: t('settings.general.startup.home.page') },
+];
+const RETENTION_OPTIONS: readonly { id: string; label: string }[] = [
+  { id: '30', label: t('settings.general.history.keep.days30') },
+  { id: '90', label: t('settings.general.history.keep.days90') },
+  { id: '365', label: t('settings.general.history.keep.days365') },
+  { id: '0', label: t('settings.general.history.keep.forever') },
+];
+
 export function GeneralPane() {
   const settings = useBrowserStore((state) => state.settings);
+  // A page chosen before its address is typed; nothing is saved until there is one.
+  const [isNamingStartupPage, setIsNamingStartupPage] = useState(false);
+  const [isNamingHomePage, setIsNamingHomePage] = useState(false);
+
+  const savedStartup: StartupChoice = settings.restoreTabsOnLaunch
+    ? 'lastTabs'
+    : settings.startupUrl
+      ? 'page'
+      : 'startPage';
+  const startup = isNamingStartupPage ? 'page' : savedStartup;
+  const home: HomeChoice = isNamingHomePage || settings.homeUrl ? 'page' : 'startPage';
+
+  const chooseStartup = (choice: StartupChoice) => {
+    setIsNamingStartupPage(choice === 'page' && !settings.startupUrl);
+    if (choice === 'lastTabs') {
+      updateSettings({ restoreTabsOnLaunch: true });
+    } else if (choice === 'startPage') {
+      updateSettings({ restoreTabsOnLaunch: false, startupUrl: null });
+    } else if (settings.startupUrl) {
+      updateSettings({ restoreTabsOnLaunch: false });
+    }
+  };
+
+  const chooseHome = (choice: HomeChoice) => {
+    setIsNamingHomePage(choice === 'page');
+    if (choice === 'startPage') {
+      updateSettings({ homeUrl: null });
+    }
+  };
 
   return (
     <>
       <SettingGroup title={t('settings.general.startup.title')}>
         <SettingRow
-          label={t('settings.general.startup.reopenTabs')}
+          label={t('settings.general.startup.opens.label')}
           control={
-            <Switch
-              label={t('settings.general.startup.reopenTabs')}
-              checked={settings.restoreTabsOnLaunch}
-              onChange={(restoreTabsOnLaunch) => updateSettings({ restoreTabsOnLaunch })}
+            <SegmentedControl
+              label={t('settings.general.startup.opens.label')}
+              options={STARTUP_OPTIONS}
+              value={startup}
+              onChange={chooseStartup}
             />
           }
         />
+        {startup === 'page' && (
+          <SettingRow
+            label={t('settings.general.startup.startupPage.label')}
+            control={
+              <PageAddressField
+                value={settings.startupUrl}
+                label={t('settings.general.startup.startupPage.field')}
+                onChange={(startupUrl) => {
+                  setIsNamingStartupPage(false);
+                  updateSettings({ restoreTabsOnLaunch: false, startupUrl });
+                }}
+              />
+            }
+          />
+        )}
+        <SettingRow
+          label={t('settings.general.startup.home.label')}
+          help={t('settings.general.startup.home.help')}
+          control={
+            <SegmentedControl
+              label={t('settings.general.startup.home.label')}
+              options={HOME_OPTIONS}
+              value={home}
+              onChange={chooseHome}
+            />
+          }
+        />
+        {home === 'page' && (
+          <SettingRow
+            label={t('settings.general.startup.home.field')}
+            control={
+              <PageAddressField
+                value={settings.homeUrl}
+                label={t('settings.general.startup.home.field')}
+                onChange={(homeUrl) => {
+                  setIsNamingHomePage(false);
+                  updateSettings({ homeUrl });
+                }}
+              />
+            }
+          />
+        )}
+        <DefaultBrowserRow />
       </SettingGroup>
 
       <SettingGroup title={t('settings.general.search.title')}>
@@ -76,6 +173,26 @@ export function GeneralPane() {
                 const sleepTabsAfterMinutes = Number(minutes);
                 if (isSleepAfterMinutes(sleepTabsAfterMinutes)) {
                   updateSettings({ sleepTabsAfterMinutes });
+                }
+              }}
+            />
+          }
+        />
+      </SettingGroup>
+
+      <SettingGroup title={t('settings.general.history.title')}>
+        <SettingRow
+          label={t('settings.general.history.keep.label')}
+          help={t('settings.general.history.keep.help')}
+          control={
+            <Select
+              label={t('settings.general.history.keep.label')}
+              options={RETENTION_OPTIONS}
+              value={String(settings.historyRetentionDays)}
+              onChange={(days) => {
+                const historyRetentionDays = Number(days);
+                if (isHistoryRetentionDays(historyRetentionDays)) {
+                  updateSettings({ historyRetentionDays });
                 }
               }}
             />
@@ -126,24 +243,6 @@ export function GeneralPane() {
             />
           }
         />
-      </SettingGroup>
-
-      <SettingGroup title={t('settings.general.bookmarks.title')}>
-        <SettingRow
-          label={t('settings.general.bookmarks.showBar.label')}
-          help={t('settings.general.bookmarks.showBar.help')}
-          control={
-            <Switch
-              label={t('settings.general.bookmarks.showBar.label')}
-              checked={settings.showBookmarksBar}
-              onChange={(showBookmarksBar) => updateSettings({ showBookmarksBar })}
-            />
-          }
-        />
-      </SettingGroup>
-
-      <SettingGroup title={t('settings.general.defaultBrowser.title')}>
-        <DefaultBrowserRow />
       </SettingGroup>
     </>
   );

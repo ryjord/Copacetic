@@ -4,6 +4,7 @@
 import { ChoiceCards } from '@/components/ui/ChoiceCards/ChoiceCards';
 import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
+import { Switch } from '@/components/ui/Switch/Switch';
 
 // Icons
 import { Check } from 'lucide-react';
@@ -107,6 +108,17 @@ export function BrowserLook({ settings }: { settings: Settings }) {
             options={densityOptions}
             value={settings.density}
             onChange={(density) => updateSettings({ density })}
+          />
+        }
+      />
+      <SettingRow
+        label={t('settings.appearance.browser.bookmarksBar.label')}
+        help={t('settings.appearance.browser.bookmarksBar.help')}
+        control={
+          <Switch
+            label={t('settings.appearance.browser.bookmarksBar.label')}
+            checked={settings.showBookmarksBar}
+            onChange={(showBookmarksBar) => updateSettings({ showBookmarksBar })}
           />
         }
       />

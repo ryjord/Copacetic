@@ -42,6 +42,7 @@ function belowButton(button: HTMLElement): { x: number; y: number } {
 export function Toolbar({ tab }: { tab: TabState | null }) {
   const isBusy = tab?.isLoading ?? false;
   const toolbarItems = useBrowserStore((state) => state.settings.toolbarItems);
+  const homeUrl = useBrowserStore((state) => state.settings.homeUrl);
   const isSplit = useBrowserStore((state) => shownSplit(state.split, state.activeTabId) !== null);
   const setSurface = useBrowserStore((state) => state.setSurface);
   const isPage = tab !== null && !tab.isStartPage;
@@ -72,8 +73,8 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       {toolbarItems.includes('home') && (
         <IconButton
           label={t('shell.toolbar.home')}
-          disabled={!tab || tab.isStartPage}
-          onClick={() => tab && send((api) => api.tabs.navigate(tab.id, START_PAGE_URL))}
+          disabled={!tab || (tab.isStartPage && homeUrl === null)}
+          onClick={() => tab && send((api) => api.tabs.navigate(tab.id, homeUrl ?? START_PAGE_URL))}
         >
           <House {...ICON} />
         </IconButton>

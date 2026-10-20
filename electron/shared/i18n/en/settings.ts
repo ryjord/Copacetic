@@ -48,8 +48,11 @@ export const settings = {
       askWhereToSave: 'Ask where to save',
       sleepingTabs: 'Sleeping tabs',
       memory: 'Memory',
-      bookmarksBar: 'Bookmarks bar',
       defaultBrowser: 'Default browser',
+      homeButton: 'Home button',
+      homePage: 'Home page',
+      history: 'History',
+      keepHistory: 'Keep history',
     },
     appearance: {
       light: 'Light',
@@ -58,6 +61,7 @@ export const settings = {
       accent: 'Accent colour',
       textSize: 'Text size',
       toolbar: 'Toolbar buttons',
+      bookmarksBar: 'Bookmarks bar',
       density: 'Density',
       startPage: 'Start page',
       wallpaper: 'Wallpaper',
@@ -158,7 +162,35 @@ export const settings = {
   general: {
     startup: {
       title: 'Startup',
-      reopenTabs: 'Reopen the tabs from last time',
+      opens: {
+        label: 'When Copacetic starts',
+        lastTabs: 'Last tabs',
+        startPage: 'Start page',
+        page: 'A page',
+      },
+      startupPage: {
+        label: 'Page to open',
+        field: 'Address of the page to open at startup',
+      },
+      home: {
+        label: 'Home button opens',
+        help: 'The Home button is shown when it is chosen in Appearance.',
+        startPage: 'Start page',
+        page: 'A page',
+        field: 'Address the Home button opens',
+      },
+      notAnAddress: 'That is not a web address. Try something like example.com.',
+    },
+    history: {
+      title: 'History',
+      keep: {
+        label: 'Keep history',
+        help: 'Older visits are deleted from this computer as they pass the limit.',
+        days30: 'For 30 days',
+        days90: 'For 90 days',
+        days365: 'For a year',
+        forever: 'Until you clear it',
+      },
     },
     search: {
       title: 'Search',
@@ -210,16 +242,8 @@ export const settings = {
         help: 'Each download asks for a place first, rather than going straight to the folder above.',
       },
     },
-    bookmarks: {
-      title: 'Bookmarks',
-      showBar: {
-        label: 'Show the bookmarks bar',
-        help: 'Top-level bookmarks and folders, under the address bar.',
-      },
-    },
     defaultBrowser: {
       title: 'Default browser',
-      checking: 'Checking the default browser',
       isDefault: 'Copacetic is your default browser',
       canAsk: 'Copacetic is not your default browser',
       makeDefault: 'Make default',
@@ -259,6 +283,10 @@ export const settings = {
         help: 'How much room the tab strip and toolbar take.',
         comfortable: 'Comfortable',
         compact: 'Compact',
+      },
+      bookmarksBar: {
+        label: 'Show the bookmarks bar',
+        help: 'Top-level bookmarks and folders, under the address bar.',
       },
       toolbar: {
         label: 'In the toolbar',

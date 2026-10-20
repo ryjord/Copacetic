@@ -11,7 +11,9 @@ const { openDatabase } = await import('../../../../electron/main/data/database')
 let dir: string;
 const historyPath = () => path.join(dir, 'history.json');
 // A new connection to the same file each time, which is what a restart is.
-const openStore = () => new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir);
+const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
+const openStore = () =>
+  new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir, () => Date.now() - NINETY_DAYS);
 
 beforeEach(() => {
   dir = mkdtempSync(path.join(tmpdir(), 'copacetic-history-'));
@@ -323,5 +325,33 @@ describe("bringing in another browser's history", () => {
     const store = openStore();
     store.importVisits([visit('https://ancient.example/', 400)]);
     expect(store.allHistory().some((entry) => entry.url === 'https://ancient.example/')).toBe(false);
+  });
+});
+
+describe('how long history is kept', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  // A shorter limit chosen in Settings is a promise that the older visits are gone.
+  it('drops what is older than the limit at the next prune', () => {
+    let keptFor = 90 * DAY;
+    const store = new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir, () => Date.now() - keptFor);
+    store.importVisits([
+      { url: 'https://old.example/', title: 'Old', lastVisitedAt: Date.now() - 60 * DAY, visitCount: 1 },
+      { url: 'https://new.example/', title: 'New', lastVisitedAt: Date.now() - DAY, visitCount: 1 },
+    ]);
+    expect(store.listHistory().entries).toHaveLength(2);
+
+    keptFor = 30 * DAY;
+    store.prune();
+    expect(store.listHistory().entries.map((entry) => entry.url)).toEqual(['https://new.example/']);
+  });
+
+  it('keeps everything when it is kept until cleared', () => {
+    const store = new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir, () => 0);
+    store.importVisits([
+      { url: 'https://ancient.example/', title: 'Ancient', lastVisitedAt: Date.now() - 900 * DAY, visitCount: 1 },
+    ]);
+    store.prune();
+    expect(store.listHistory().entries).toHaveLength(1);
   });
 });

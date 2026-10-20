@@ -375,6 +375,20 @@ export function readToolbarItems(raw: unknown): ToolbarItemId[] | null {
   return TOOLBAR_ITEMS.filter((item) => raw.includes(item));
 }
 
+/** How long history is kept, in days; zero keeps it until it is cleared. */
+export const HISTORY_RETENTION_DAYS = [30, 90, 365, 0] as const;
+
+export type HistoryRetentionDays = (typeof HISTORY_RETENTION_DAYS)[number];
+
+export function isHistoryRetentionDays(value: unknown): value is HistoryRetentionDays {
+  return (HISTORY_RETENTION_DAYS as readonly unknown[]).includes(value);
+}
+
+/** The oldest visit history still keeps, as a time; zero when it keeps everything. */
+export function historyKeptSince(days: HistoryRetentionDays, now: number): number {
+  return days === 0 ? 0 : now - days * 24 * 60 * 60 * 1000;
+}
+
 /** How far a start page photo is darkened, in percent; capped so the photo never disappears entirely. */
 export const WALLPAPER_DIM_MAX = 80;
 
@@ -541,6 +555,11 @@ export interface Settings {
   httpsFirst: boolean;
   blockTrackers: boolean;
   restoreTabsOnLaunch: boolean;
+  /** Opened at launch instead of the start page, when last time's tabs are not reopened; null for the start page. */
+  startupUrl: string | null;
+  /** Where the Home button goes; null for the start page. */
+  homeUrl: string | null;
+  historyRetentionDays: HistoryRetentionDays;
   // Which pieces the start page shows, in order.
   startPageWidgets: StartPageWidgetId[];
   /** Set once someone has read what Hush does and does not do. */
