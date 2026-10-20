@@ -105,7 +105,10 @@ jobs:
       # The runner refuses Chromium a namespace sandbox, so it falls back to this helper, which an install makes root's.
       - name: Give Chromium's sandbox helper the permissions an install gives it
         if: runner.os == 'Linux'
-        run: sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+        run: |
+          node node_modules/electron/install.js
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
 
       # Electron needs a display even to open a window it never shows.
       - name: Smoke test the built app
