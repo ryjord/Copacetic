@@ -9,6 +9,7 @@ import { Favicon } from '@/components/ui/Favicon/Favicon';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { Menu } from '@/components/ui/Menu/Menu';
 import { ShortcutDialog } from '@/components/views/start/ShortcutDialog';
+import { StartBackdrop } from '@/components/views/start/StartBackdrop';
 
 // Icons
 import { Ellipsis, EyeOff, Plus, Search } from 'lucide-react';
@@ -92,13 +93,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
   return (
     <div data-hush={isHush} className="ambient-field relative flex h-full w-full justify-center overflow-y-auto px-8">
       {wallpaper && !isHush && (
-        <>
-          {/* A data URL already in memory, in a static export with no image loader: next/image has nothing to offer. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={wallpaper} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
-          {/* So the clock and the search field stay legible over a photograph nobody vetted. */}
-          <div className="absolute inset-0 bg-base/65" aria-hidden />
-        </>
+        <StartBackdrop photo={wallpaper} dim={settings.wallpaperDim} isBlurred={settings.wallpaperBlur} />
       )}
 
       <div className="relative flex w-full max-w-[880px] flex-col gap-9 pb-12 pt-[88px]">

@@ -22,55 +22,103 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-// The staged "Keep these" step is gone: every choice applies as it is made, and the preview shows the result.
-describe('a choice applies as it is made', () => {
+describe('the browser', () => {
   it('switches light and dark', () => {
-    render(<AppearancePane info={null} openPane={() => {}} />);
+    render(<AppearancePane />);
     fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(updateSettings).toHaveBeenCalledWith({ appearance: 'dark' });
   });
 
   it('changes the density', () => {
-    render(<AppearancePane info={null} openPane={() => {}} />);
+    render(<AppearancePane />);
     fireEvent.click(screen.getByRole('radio', { name: 'Compact' }));
     expect(updateSettings).toHaveBeenCalledWith({ density: 'compact' });
   });
 
-  // A new colour is a fresh start, not the old turn applied to different colours.
-  it('starts a chosen colour unturned', () => {
-    settings = { ...DEFAULT_SETTINGS_SHAPE, ambientHue: 120 };
-    render(<AppearancePane info={null} openPane={() => {}} />);
-    fireEvent.click(screen.getByRole('radio', { name: 'Moss' }));
-    expect(updateSettings).toHaveBeenCalledWith({ theme: 'moss', ambientHue: 0 });
+  it('changes the accent', () => {
+    render(<AppearancePane />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Teal' }));
+    expect(updateSettings).toHaveBeenCalledWith({ accentColour: 'teal' });
+  });
+
+  it('changes the text size', () => {
+    render(<AppearancePane />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Larger' }));
+    expect(updateSettings).toHaveBeenCalledWith({ interfaceTextSize: 'larger' });
+  });
+
+  it('adds and removes toolbar buttons', () => {
+    render(<AppearancePane />);
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
+    expect(updateSettings).toHaveBeenCalledWith({ toolbarItems: ['bookmarks', 'profile', 'downloads', 'home'] });
+    fireEvent.click(screen.getByRole('button', { name: 'Downloads' }));
+    expect(updateSettings).toHaveBeenLastCalledWith({ toolbarItems: ['bookmarks', 'profile'] });
   });
 });
 
-describe('the start page shade', () => {
+describe('the start page background', () => {
+  // A new colour is a fresh start, not the old turn applied to different colours.
+  it('starts a chosen colour unturned', () => {
+    settings = { ...DEFAULT_SETTINGS_SHAPE, ambientHue: 120 };
+    render(<AppearancePane />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Moss' }));
+    expect(updateSettings).toHaveBeenCalledWith({ theme: 'moss', ambientHue: 0 });
+  });
+
+  it('offers the two newer colours', () => {
+    render(<AppearancePane />);
+    expect(screen.getByRole('radio', { name: 'Dusk' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Sand' })).toBeTruthy();
+  });
+
   it('shows the colour itself before anything is turned', () => {
-    render(<AppearancePane info={null} openPane={() => {}} />);
+    render(<AppearancePane />);
     expect(screen.getByLabelText('Start page colour as hex')).toHaveProperty('value', '#123043');
   });
 
   it('turns the colour when one is typed', () => {
-    render(<AppearancePane info={null} openPane={() => {}} />);
+    render(<AppearancePane />);
     fireEvent.change(screen.getByLabelText('Start page colour as hex'), { target: { value: '#43122f' } });
     const [patch] = updateSettings.mock.calls.at(-1) ?? [];
     expect((patch as { ambientHue: number }).ambientHue).toBeGreaterThan(0);
   });
 
   it('ignores what is not a colour rather than jumping somewhere', () => {
-    render(<AppearancePane info={null} openPane={() => {}} />);
+    render(<AppearancePane />);
     fireEvent.change(screen.getByLabelText('Start page colour as hex'), { target: { value: 'nonsense' } });
     expect(updateSettings).not.toHaveBeenCalled();
+  });
+
+  // A drag is one change: saving every step wrote the settings file a hundred times a second.
+  it('saves the shade when the slider is let go, not while it moves', () => {
+    render(<AppearancePane />);
+    const slider = screen.getByRole('slider', { name: 'Start page shade' });
+    fireEvent.change(slider, { target: { value: '90' } });
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Start page colour as hex')).not.toHaveProperty('value', '#123043');
+    fireEvent.pointerUp(slider);
+    expect(updateSettings).toHaveBeenCalledWith({ ambientHue: 90 });
   });
 });
 
 describe('the start page widgets', () => {
-  it('names each reorder button for the widget it moves, and disables the moves that go nowhere', () => {
-    render(<AppearancePane info={null} openPane={() => {}} />);
-    const first = settings.startPageWidgets[0];
-    const label = { clock: 'Clock', search: 'Search', topSites: 'Most visited', bookmarks: 'Bookmarks' }[first!];
-    expect(screen.getByRole('button', { name: `Move ${label} up` })).toHaveProperty('disabled', true);
-    expect(screen.getByRole('button', { name: `Move ${label} down` })).toHaveProperty('disabled', false);
+  it('names each reorder handle for the widget it moves, and moves it with the arrow keys', () => {
+    render(<AppearancePane />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Clock' }), { key: 'ArrowDown' });
+    expect(updateSettings).toHaveBeenCalledWith({ startPageWidgets: ['search', 'clock', 'topSites'] });
+  });
+
+  it('does not move the first widget further up', () => {
+    render(<AppearancePane />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Clock' }), { key: 'ArrowUp' });
+    expect(updateSettings).not.toHaveBeenCalled();
+  });
+
+  it('shows and hides a widget with its switch', () => {
+    render(<AppearancePane />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Show Bookmarks' }));
+    expect(updateSettings).toHaveBeenCalledWith({ startPageWidgets: ['clock', 'search', 'topSites', 'bookmarks'] });
+    fireEvent.click(screen.getByRole('switch', { name: 'Show Search' }));
+    expect(updateSettings).toHaveBeenLastCalledWith({ startPageWidgets: ['clock', 'topSites'] });
   });
 });

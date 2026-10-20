@@ -105,6 +105,9 @@ export interface CopaceticApi {
     removeTile(url: string): Promise<void>;
     /** A picture chosen in a dialog, as a data URL; a problem to show, or nothing when cancelled. */
     chooseIcon(): Promise<{ icon: string | null; problem: string }>;
+    /** Sites taken off the most-visited tiles, which come back only from Settings. */
+    hiddenSiteCount(): Promise<number>;
+    showHiddenSites(): Promise<void>;
   };
   translation: {
     /** Translated on this machine; the first use of a direction downloads its model from Mozilla. */

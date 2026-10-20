@@ -69,44 +69,54 @@
   }
 }
 
-/* The chosen accent, for interaction only. Blue is the default and has no rule. */
-:root[data-accent='indigo'] {
+/* The chosen accent, for interaction only. Not only on the root, so a swatch can paint an accent that is not chosen. */
+[data-accent='blue'] {
+  --accent: #4c8dff;
+  --accent-soft: rgb(76 141 255 / 16%);
+}
+
+[data-accent='indigo'] {
   --accent: #8b93ff;
   --accent-soft: rgb(139 147 255 / 16%);
 }
 
-:root[data-accent='teal'] {
+[data-accent='teal'] {
   --accent: #3cbfc6;
   --accent-soft: rgb(60 191 198 / 16%);
 }
 
-:root[data-accent='rose'] {
+[data-accent='rose'] {
   --accent: #ff7aa2;
   --accent-soft: rgb(255 122 162 / 16%);
 }
 
-:root[data-accent='graphite'] {
+[data-accent='graphite'] {
   --accent: #c3c9d0;
   --accent-soft: rgb(195 201 208 / 16%);
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-accent='indigo'] {
+  [data-accent='blue'] {
+    --accent: #2f6fe4;
+    --accent-soft: rgb(47 111 228 / 12%);
+  }
+
+  [data-accent='indigo'] {
     --accent: #4a52d1;
     --accent-soft: rgb(74 82 209 / 12%);
   }
 
-  :root[data-accent='teal'] {
+  [data-accent='teal'] {
     --accent: #0f7c84;
     --accent-soft: rgb(15 124 132 / 12%);
   }
 
-  :root[data-accent='rose'] {
+  [data-accent='rose'] {
     --accent: #c4346a;
     --accent-soft: rgb(196 52 106 / 12%);
   }
 
-  :root[data-accent='graphite'] {
+  [data-accent='graphite'] {
     --accent: #3e4650;
     --accent-soft: rgb(62 70 80 / 12%);
   }
@@ -330,6 +340,19 @@
     background:
       radial-gradient(120% 90% at 18% 0%, var(--ambient-near) 0%, transparent 55%),
       radial-gradient(110% 100% at 92% 100%, var(--ambient-far) 0%, transparent 58%), var(--color-void);
+  }
+
+  /* A colour shown before it is chosen: the element carries its own pair, and picks one by appearance like the root. */
+  .ambient-field[data-ambient-preview] {
+    --ambient-near: var(--ambient-near-dark);
+    --ambient-far: var(--ambient-far-dark);
+  }
+
+  @media (prefers-color-scheme: light) {
+    .ambient-field[data-ambient-preview] {
+      --ambient-near: var(--ambient-near-light);
+      --ambient-far: var(--ambient-far-light);
+    }
   }
 
   /* Hush is not a tint of the theme, so neither the stops nor the turn reach it. */

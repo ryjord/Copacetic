@@ -1,33 +1,36 @@
 'use client';
 
+// Components
+import { StartBackdrop } from '@/components/views/start/StartBackdrop';
+
 // Utils
+import { ambientPreviewStyle } from '@/components/views/settings/appearance/ambientPreview';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import type { StartPageWidgetId } from '@shared/types';
+import type { StartPageWidgetId, ThemeId } from '@shared/types';
+
+export type PreviewBackground =
+  { kind: 'colour'; theme: ThemeId; hue: number } | { kind: 'photo'; photo: string; dim: number; isBlurred: boolean };
 
 interface AppearancePreviewProps {
   widgets: StartPageWidgetId[];
-  wallpaper: string | null;
+  background: PreviewBackground;
 }
 
-/** The start page in miniature, painted from the same colours, so a change is seen as it is made. */
-export function AppearancePreview({ widgets, wallpaper }: AppearancePreviewProps) {
+/** The start page in miniature, painted from what is being chosen, so a change is seen before it is let go. */
+export function AppearancePreview({ widgets, background }: AppearancePreviewProps) {
+  const isColour = background.kind === 'colour';
   return (
     <div
       aria-label={t('settings.appearance.startPage.preview.label')}
-      className="relative flex h-44 flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-line bg-void p-4"
+      data-ambient-preview={isColour ? '' : undefined}
+      style={isColour ? ambientPreviewStyle(background.theme, background.hue) : undefined}
+      className="ambient-field relative flex h-44 flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-line p-4"
     >
-      {wallpaper ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={wallpaper} alt="" aria-hidden className="absolute inset-0 size-full object-cover" />
-          <div className="absolute inset-0 bg-base/65" aria-hidden />
-        </>
-      ) : (
-        <div aria-hidden className="ambient-field absolute inset-0" />
+      {background.kind === 'photo' && (
+        <StartBackdrop photo={background.photo} dim={background.dim} isBlurred={background.isBlurred} />
       )}
-
       {widgets.length === 0 ? (
         <span className="relative text-caption text-ink-dim">{t('settings.appearance.startPage.preview.empty')}</span>
       ) : (

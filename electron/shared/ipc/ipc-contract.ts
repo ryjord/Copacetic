@@ -66,6 +66,8 @@ export const CHANNELS = {
   'startPage.saveShortcut': 'start-page:save-shortcut',
   'startPage.removeTile': 'start-page:remove-tile',
   'startPage.chooseIcon': 'start-page:choose-icon',
+  'startPage.hiddenSiteCount': 'start-page:hidden-site-count',
+  'startPage.showHiddenSites': 'start-page:show-hidden-sites',
   'translation.translate': 'translation:translate',
   'translation.installedBytes': 'translation:installed-bytes',
   'translation.removeModels': 'translation:remove-models',

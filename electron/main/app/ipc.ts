@@ -132,6 +132,11 @@ export function registerIpcHandlers(profiles: Profiles): void {
       browser.profile.broadcast(PUSH.dataChanged, 'startTiles');
     });
   });
+  handle('startPage.hiddenSiteCount', (browser) => browser.store.hiddenStartSites().length);
+  handle('startPage.showHiddenSites', (browser) => {
+    browser.store.showStartSites();
+    browser.profile.broadcast(PUSH.dataChanged, 'startTiles');
+  });
   handle('startPage.chooseIcon', async (browser) => {
     const chosen = await readChosenImage(browser.window, {
       title: t('main.startPage.chooseIcon'),

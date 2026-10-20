@@ -32,6 +32,11 @@ import {
 // Types
 import { ASKABLE_PERMISSIONS, type AskablePermission, type PermissionDefault } from '@shared/types';
 
+const ZOOM_LEVELS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2].map((level) => ({
+  id: String(level),
+  label: `${Math.round(level * 100)}%`,
+}));
+
 const DEFAULT_OPTIONS: readonly { id: PermissionDefault; label: string }[] = [
   { id: 'ask', label: t('settings.sites.defaults.ask') },
   { id: 'block', label: t('settings.sites.defaults.block') },
@@ -54,6 +59,7 @@ export function SitesPane() {
     return (
       <>
         <PermissionDefaults sites={sites} onShowSites={setKindShown} />
+        <DefaultZoom />
         <AddSiteRule settings={settings} />
         <SettingGroup title={t('settings.sites.list.empty.title')}>
           <SettingRow label={t('settings.sites.list.empty.label')} help={t('settings.sites.list.empty.help')} />
@@ -65,6 +71,7 @@ export function SitesPane() {
   return (
     <>
       <PermissionDefaults sites={sites} onShowSites={setKindShown} />
+      <DefaultZoom />
       <AddSiteRule settings={settings} />
       <SearchField value={query} onChange={setQuery} label={t('settings.sites.list.search')} />
       {kindShown && (
@@ -90,6 +97,27 @@ export function SitesPane() {
         ))}
       </SettingGroup>
     </>
+  );
+}
+
+/** Beside the sites that have their own zoom, which is where someone looking for it goes. */
+function DefaultZoom() {
+  const defaultZoomFactor = useBrowserStore((state) => state.settings.defaultZoomFactor);
+  return (
+    <SettingGroup title={t('settings.sites.zoom.title')}>
+      <SettingRow
+        label={t('settings.sites.zoom.default.label')}
+        help={t('settings.sites.zoom.default.help')}
+        control={
+          <Select
+            label={t('settings.sites.zoom.default.label')}
+            options={ZOOM_LEVELS}
+            value={String(defaultZoomFactor)}
+            onChange={(level) => updateSettings({ defaultZoomFactor: Number(level) })}
+          />
+        }
+      />
+    </SettingGroup>
   );
 }
 

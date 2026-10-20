@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accentColour: 'blue',
   interfaceTextSize: 'default',
   toolbarItems: ['bookmarks', 'profile', 'downloads'],
-  wallpaperDim: 0,
+  wallpaperDim: 65,
   wallpaperBlur: false,
   httpsFirst: true,
   blockTrackers: true,
