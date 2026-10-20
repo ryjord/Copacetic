@@ -12,10 +12,11 @@ afterAll(async () => copacetic?.close());
 // Followed by id: the last tab in the strip may still be the previous test's, already settled.
 const loads = async (url: string): Promise<'loaded' | 'failed'> => {
   const tabId = await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
+  // A new tab has its fallback title before Chromium starts loading; only a stopped load or an error is an answer.
   const settledTab = () =>
     copacetic.chrome.evaluate(async (id) => {
       const tab = (await window.copacetic.chrome.getState()).tabs.find((candidate) => candidate.id === id);
-      return tab && !tab.isLoading && (tab.error || tab.title) ? tab : null;
+      return tab && !tab.isLoading && (tab.error || tab.loadMs !== null) ? tab : null;
     }, tabId);
   const deadline = Date.now() + 40_000;
   let tab = await settledTab();
