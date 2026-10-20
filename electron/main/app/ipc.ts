@@ -54,7 +54,7 @@ import {
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
 import { showProfileMenu } from '../menus/profile-menu';
-import { showBookmarksMenu } from '../menus/bookmarks-menu';
+import { showBookmarkOverflowMenu, showBookmarksMenu } from '../menus/bookmarks-menu';
 import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
@@ -299,6 +299,15 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('bookmarks.openContextMenu', (browser, _event, id) => showBookmarkContextMenu(browser, asString(id)));
   handle('bookmarks.openMenu', (browser, _event, x, y) =>
     showBookmarksMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
+  );
+  handle('bookmarks.openOverflowMenu', (browser, _event, folderIds, bookmarkIds, x, y) =>
+    showBookmarkOverflowMenu(
+      browser,
+      asIdList(folderIds),
+      asIdList(bookmarkIds),
+      Math.round(asNumber(x, 0)),
+      Math.round(asNumber(y, 0)),
+    ),
   );
   handle('history.traces', (browser, _event, address) => browser.sites.traces(asString(address)));
   handle('history.totalBlocked', (browser) => browser.store.totalBlocked());
@@ -696,6 +705,10 @@ function keptRestorer(kind: KeptKind, before: Settings): ((now: Settings) => Par
     case 'downloads':
       return null;
   }
+}
+
+function asIdList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string').slice(0, 1000) : [];
 }
 
 function asHistoryFilter(value: unknown): HistoryFilter {

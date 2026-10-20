@@ -119,6 +119,7 @@ export const CHANNELS = {
   'bookmarks.openContextMenu': 'bookmarks:open-context-menu',
   'bookmarks.file': 'bookmarks:file',
   'bookmarks.openMenu': 'bookmarks:open-menu',
+  'bookmarks.openOverflowMenu': 'bookmarks:open-overflow-menu',
 
   'bookmarkFolders.list': 'bookmark-folders:list',
   'bookmarkFolders.create': 'bookmark-folders:create',

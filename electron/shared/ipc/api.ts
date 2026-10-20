@@ -201,6 +201,8 @@ export interface CopaceticApi {
     file(id: string, folderId: string | null): Promise<void>;
     /** Every folder and bookmark as a menu, opened from the toolbar at this point. */
     openMenu(x: number, y: number): Promise<void>;
+    /** The bookmarks bar's folders and bookmarks that did not fit, as a menu at this point. */
+    openOverflowMenu(folderIds: string[], bookmarkIds: string[], x: number, y: number): Promise<void>;
   };
 
   bookmarkFolders: {

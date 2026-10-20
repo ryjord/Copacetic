@@ -41,6 +41,11 @@ export const shell = {
   surfaceShell: {
     close: 'Close {title}',
   },
+  bookmarksBar: {
+    label: 'Bookmarks bar',
+    all: 'All bookmarks',
+    more: { one: '1 more bookmark', other: '{count} more bookmarks' },
+  },
   toolbar: {
     back: 'Back',
     forward: 'Forward',

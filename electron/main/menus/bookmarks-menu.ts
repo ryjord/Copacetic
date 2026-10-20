@@ -67,6 +67,32 @@ export function bookmarksMenuItems(browser: Browser): MenuItemConstructorOptions
   ];
 }
 
+/** What the bookmarks bar had no room for, in the order the bar shows them: its folders, then its bookmarks. */
+export function showBookmarkOverflowMenu(
+  browser: Browser,
+  folderIds: readonly string[],
+  bookmarkIds: readonly string[],
+  x: number,
+  y: number,
+): void {
+  const folders = browser.store.listBookmarkFolders();
+  const bookmarks = browser.store.listBookmarks();
+  const items: MenuItemConstructorOptions[] = [
+    ...folders
+      .filter((folder) => folderIds.includes(folder.id))
+      .map((folder) => ({ label: folder.name, submenu: itemsIn(browser, folder.id, folders, bookmarks) })),
+    ...bookmarks
+      .filter((bookmark) => bookmarkIds.includes(bookmark.id))
+      .map((bookmark) => ({
+        label: labelFor(bookmark),
+        click: (_item: unknown, _window: unknown, event: KeyboardEvent) => open(browser, bookmark, event),
+      })),
+  ];
+  if (items.length > 0) {
+    Menu.buildFromTemplate(items).popup({ window: browser.window, x, y });
+  }
+}
+
 export function showBookmarksMenu(browser: Browser, x: number, y: number): void {
   Menu.buildFromTemplate(bookmarksMenuItems(browser)).popup({ window: browser.window, x, y });
 }
