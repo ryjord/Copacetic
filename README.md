@@ -312,17 +312,17 @@ machine, so run the script for your own.
 
 |                                       |                         |
 | ------------------------------------- | ----------------------- |
-| Start to a visible window             | 466 ms                  |
-| Start to a window that responds       | 650 ms                  |
-| Blocking engine, loaded on launch     | 5 ms, for 165,663 rules |
-| Blocking engine, built from the lists | 296 ms                  |
-| Memory, just the start page           | 768 MB                  |
-| Memory, five pages open               | 1,398 MB, 126 MB a page |
+| Start to a visible window             | 402 ms                  |
+| Start to a window that responds       | 588 ms                  |
+| Blocking engine, loaded on launch     | 4 ms, for 165,663 rules |
+| Blocking engine, built from the lists | 226 ms                  |
+| Memory, just the start page           | 785 MB                  |
+| Memory, five pages open               | 1,413 MB, 126 MB a page |
 
-`Apple M4 Pro, 14 cores, 48 GB RAM, Electron 43.4.1, macOS arm64, 2.0.0-beta.2 in development.`
+`Apple M4 Pro, 14 cores, 48 GB RAM, Electron 43.4.1, macOS arm64, the production build of 2.0.0-beta.4 before release.`
 
 The engine is compiled when the app is packaged and read back on launch, which
-is why loading it takes 5 ms rather than the 296 ms building it would. Memory
+is why loading it takes 4 ms rather than the 226 ms building it would. Memory
 is every process the app runs added together, because that is what the machine
 gives up; most of it is Chromium, and most of each page's cost is its own
 renderer process, the price of pages not sharing one.
