@@ -265,7 +265,7 @@ export const views = {
       working: 'Translating',
       showOriginal: 'Show original',
       showTranslation: 'Show translation',
-      hint: 'Runs on this machine. The first translation from or into a language downloads its model from Mozilla once, about 35 MB.',
+      hint: "Runs on this machine, with each language's model fetched from Mozilla the first time, about 35 MB.",
       failed: 'The translation did not finish.',
     },
     imagesFetched:

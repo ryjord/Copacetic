@@ -3,7 +3,7 @@ export const about = {
   platform: 'Platform',
   copyDetails: {
     label: 'Details for a bug report',
-    help: 'The versions above and this platform, ready to paste. Nothing else is included.',
+    help: 'The versions above and this platform, and nothing else, ready to paste.',
     action: 'Copy',
     copied: 'Copied.',
   },

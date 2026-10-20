@@ -807,15 +807,15 @@ export const settings = {
     summary: {
       leaves: {
         title: 'What leaves',
-        line: 'No analytics, telemetry or account. The update check, filter lists, dictionaries and translation models are fetched only as described.',
+        line: 'The update check, filter lists, dictionaries and translation models, and no analytics, telemetry or account.',
       },
       kept: {
         title: 'What is kept',
-        line: 'History, bookmarks, settings and passwords, in your profile folder on this machine. A Hush tab keeps nothing.',
+        line: 'History, bookmarks, settings and passwords, in your profile folder on this machine, and nothing from a Hush tab.',
       },
       runs: {
         title: 'What runs in pages',
-        line: 'A placeholder some sign-in pages need, and Fill password when you choose it. Nothing watches what you type.',
+        line: 'A placeholder some sign-in pages need and Fill password when you choose it, and nothing that watches what you type.',
       },
       more: 'Read more',
     },
