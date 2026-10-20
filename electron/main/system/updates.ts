@@ -1,13 +1,11 @@
 // Libs
 import { app, net, shell } from 'electron';
-import { createHash } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
-import { rm } from 'node:fs/promises';
 import path from 'node:path';
 
 // Utils
 import { compareVersions, isNewerVersion, parseVersion } from '../../shared/version';
 import { t } from '../../shared/i18n/translate';
+import { writeVerified } from './installer-download';
 import { installerFor, plainReleaseNotes, readManifestFiles } from './update-manifest';
 
 // Types
@@ -112,6 +110,7 @@ export class UpdateManager {
   private lastCheckedAt: number | null = null;
   private timer: NodeJS.Timeout | null = null;
   private inFlight = false;
+  private isFetchingInstaller = false;
   private found: ReleaseFound | null = null;
   // A beta build is always offered newer betas: it was chosen by someone who wanted them.
   private includesBetas = isBetaVersion(app.getVersion());
@@ -272,9 +271,11 @@ export class UpdateManager {
    * is the one that was published.
    */
   async downloadInstaller(): Promise<void> {
-    if (this.status.state !== 'available' || !this.getState().canOpenInstaller) {
+    // Marked at once: a second press while the manifest is still coming would write the same file twice over.
+    if (this.isFetchingInstaller || this.status.state !== 'available' || !this.getState().canOpenInstaller) {
       return;
     }
+    this.isFetchingInstaller = true;
     const { version } = this.status;
     try {
       const manifest = await net.fetch(downloadUrlFor(version, 'latest-mac.yml'));
@@ -294,6 +295,8 @@ export class UpdateManager {
       }
     } catch (error) {
       this.setStatus({ state: 'error', message: messageFor(error) });
+    } finally {
+      this.isFetchingInstaller = false;
     }
   }
 
@@ -302,39 +305,12 @@ export class UpdateManager {
     if (!response.ok || !response.body) {
       throw new Error(t('main.updates.githubAnswered', { status: response.status }));
     }
-    const hash = createHash('sha512');
-    const file = createWriteStream(target);
-    const reader = response.body.getReader();
-    let received = 0;
-    try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
-        hash.update(value);
-        received += value.length;
-        if (!file.write(value)) {
-          await new Promise<void>((resolve) => file.once('drain', () => resolve()));
-        }
-        const percent = Math.min(100, Math.round((received / size) * 100));
-        // Once per percent: a status per chunk would push the whole state thousands of times.
-        if (this.status.state !== 'downloading' || this.status.percent !== percent) {
-          this.setStatus({ state: 'downloading', percent });
-        }
+    await writeVerified(response.body, target, { sha512, size }, (percent) => {
+      // Once per percent: a status per chunk would push the whole state thousands of times.
+      if (this.status.state !== 'downloading' || this.status.percent !== percent) {
+        this.setStatus({ state: 'downloading', percent });
       }
-      await new Promise<void>((resolve, reject) =>
-        file.end((error?: Error | null) => (error ? reject(error) : resolve())),
-      );
-    } catch (error) {
-      file.destroy();
-      await rm(target, { force: true });
-      throw error;
-    }
-    if (hash.digest('base64') !== sha512) {
-      await rm(target, { force: true });
-      throw new Error(t('main.updates.installerMismatch'));
-    }
+    });
   }
 
   private setStatus(status: UpdateStatus): void {
