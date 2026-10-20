@@ -621,7 +621,7 @@ export const settings = {
     },
     compatibility: {
       label: 'What works',
-      help: 'Extensions that change pages, such as Dark Reader, and those with a toolbar popup, such as password managers. Ad blockers do not, because Electron does not apply their rules; Copacetic blocks trackers itself.',
+      help: 'Extensions that change pages, such as Dark Reader, and those with a toolbar popup, such as password managers. Ad blockers do not, because Electron does not apply their rules; Copacetic blocks trackers itself. On Linux, started with --no-sandbox, an extension cannot see tabs or change its toolbar button.',
     },
   },
   updates: {

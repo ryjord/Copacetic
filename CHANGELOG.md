@@ -78,6 +78,8 @@ the four betas in full.
   cookies are not sealed with a key tied to the app, and macOS installs updates
   by hand.
 - English only, until a second language has been checked by someone fluent.
+- Extensions are a beta: ad blockers do not block, and on Linux, started with
+  `--no-sandbox`, an extension cannot see tabs or change its toolbar button.
 
 ## 2.0.0-beta.4 - 20 October 2026
 

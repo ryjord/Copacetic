@@ -322,7 +322,9 @@ extension and does nothing in a website's worker. None of it reaches Hush.
   GitHub and can be turned off.
 - **Extensions are a beta.** Ad blockers do not block, an extension's page
   opened in a tab lacks the parts of the API Copacetic supplies, and some
-  extensions will not work.
+  extensions will not work. On Linux, started with `--no-sandbox`, an
+  extension cannot see tabs or change its toolbar button: Electron gives an
+  extension's worker Copacetic's script only in a sandboxed process.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
 - **What Electron cannot do.** Cookies, site data and the cache clear for all
   time, not for an hour or a day; find in page has no whole-word option; on
