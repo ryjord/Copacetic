@@ -104,7 +104,8 @@ async function checkAppImage() {
 }
 
 async function checkWindows() {
-  const setup = only(/^Copacetic-Setup-.*\.exe$/);
+  // Spaces as electron-builder writes it, dashes as GitHub serves it.
+  const setup = only(/^Copacetic[ -]Setup[ -].*\.exe$/);
   // The per-user, one-click installer: no administrator, the way most people will install it.
   run(setup, ['/S']);
   const programs = path.join(process.env.LOCALAPPDATA ?? '', 'Programs');
