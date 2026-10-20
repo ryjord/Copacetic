@@ -14,7 +14,7 @@ updates:
     groups:
       # react and react-dom check each other's version when they load and refuse
       # to run at all when they differ, so a pull request moving one without the
-      # other cannot pass — it is one update, not two, and splitting it produced
+      # other cannot pass - it is one update, not two, and splitting it produced
       # two guaranteed-red pull requests. Listed before the routine group because
       # the first matching group wins.
       react:
@@ -30,8 +30,8 @@ updates:
         exclude-patterns: ['electron', 'electron-builder', 'electron-updater', 'next']
         update-types: [minor, patch]
     ignore:
-      # ESLint 10 installs and the config loads, but eslint-plugin-react — pulled
-      # in by eslint-config-next — calls an API it removed:
+      # ESLint 10 installs and the config loads, but eslint-plugin-react - pulled
+      # in by eslint-config-next - calls an API it removed:
       # `contextOrFilename.getFilename is not a function`, while loading
       # react/display-name. 7.37.5 is the latest published version of that plugin
       # and it peers on `eslint ^3 || ... || ^9.7`, so there is nothing to move
@@ -51,7 +51,7 @@ updates:
         versions: ['>=7']
       # @types/node describes the APIs of a Node it is versioned against, and
       # types ahead of the runtime let code compile against functions that will
-      # not exist when it runs — a failure typecheck cannot see. Pinned to the
+      # not exist when it runs - a failure typecheck cannot see. Pinned to the
       # major we build on; raise this deliberately when that moves.
       - dependency-name: '@types/node'
         versions: ['>=25']

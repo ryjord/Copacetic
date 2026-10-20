@@ -1,7 +1,7 @@
 /**
  * The only code Copacetic ever runs inside a page, injected once when you ask
  * it to fill a password and never otherwise. It reads no page content, returns
- * only whether it found a field, and leaves nothing behind — there is no
+ * only whether it found a field, and leaves nothing behind - there is no
  * listener, no global, and nothing the page can call afterwards.
  *
  * It runs in the page's own world, so the page could observe the value being

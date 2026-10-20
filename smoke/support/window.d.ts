@@ -1,4 +1,4 @@
-import type { CopaceticApi } from '../../electron/shared/api';
+import type { CopaceticApi } from '../../electron/shared/ipc/api';
 
 // The bridge the preload installs. Declared once so every smoke spec reaches it
 // with the real type rather than a hand-written copy that can drift from it.

@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
 
@@ -11,10 +9,7 @@ beforeAll(async () => {
 });
 afterAll(async () => copacetic?.close());
 
-const written = (): { url: string }[] => {
-  const file = path.join(copacetic.profile, 'downloads.json');
-  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as { url: string }[]) : [];
-};
+const written = () => copacetic.downloadsOnDisk();
 
 const listed = () =>
   copacetic.chrome.evaluate(async () => {
@@ -31,7 +26,7 @@ const listed = () =>
  * The claim, in the README and on the Hush tab itself: nothing it does reaches
  * the disk, and closing it leaves nothing to delete because nothing was
  * written. A download was writing its address, its redirect chain and its time
- * into downloads.json — measured, not suspected.
+ * into downloads.json - measured, not suspected.
  *
  * The file is on disk because it was asked for. The record of where it came
  * from is browsing, and a Hush tab keeps none of that.

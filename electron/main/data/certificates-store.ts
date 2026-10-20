@@ -1,18 +1,18 @@
-import { sameSite } from '../../shared/forgetting';
-import type { RememberedCertificate } from '../../shared/certificate-changes';
+import { sameSite } from '../../shared/data/forgetting';
+import type { RememberedCertificate } from '../../shared/browsing/certificate-changes';
 import { PersistedFile, isRecord } from './persistence';
 
 /**
- * What each site presented last time. Nothing here is secret — it is what the
- * site handed out publicly — but without it a chain that starts ending at a
+ * What each site presented last time. Nothing here is secret - it is what the
+ * site handed out publicly - but without it a chain that starts ending at a
  * locally-installed root cannot be noticed at all.
  */
 export class CertificatesStore {
-  private readonly file = new PersistedFile<Record<string, RememberedCertificate>>(
-    'certificates.json',
-    () => ({}),
-    reviveCertificates,
-  );
+  private readonly file: PersistedFile<Record<string, RememberedCertificate>>;
+
+  constructor(directory?: string) {
+    this.file = new PersistedFile('certificates.json', () => ({}), reviveCertificates, { directory });
+  }
 
   for(origin: string): RememberedCertificate | null {
     return this.file.get()[origin] ?? null;
@@ -58,8 +58,8 @@ export class CertificatesStore {
  * dropping what is not.
  *
  * It was cast rather than read: `raw as Record<string, RememberedCertificate>`
- * asserts a shape without looking at it, so a single malformed entry — a hand
- * edit, a truncated write from an older version, anything at all — reached the
+ * asserts a shape without looking at it, so a single malformed entry - a hand
+ * edit, a truncated write from an older version, anything at all - reached the
  * comparison as a string or a number. Comparing a fingerprint that is not there
  * makes every certificate look changed, or makes none of them look changed, and
  * this is the feature that exists to notice interception.

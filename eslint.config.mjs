@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
+import { importGroups } from './tools/eslint/import-groups.mjs';
 
 const eslintConfig = defineConfig([
   globalIgnores(['.next/**', 'out/**', 'dist/**', 'release/**', 'build/**', 'node_modules/**', 'next-env.d.ts']),
@@ -20,6 +21,12 @@ const eslintConfig = defineConfig([
       // `any` defeats every other check in this file.
       '@typescript-eslint/no-explicit-any': 'error',
     },
+  },
+  {
+    // The application's own source; tests and scripts read their imports as a list.
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.ts'],
+    plugins: { copacetic: { rules: { 'import-groups': importGroups } } },
+    rules: { 'copacetic/import-groups': 'error' },
   },
 ]);
 

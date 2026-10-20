@@ -58,7 +58,7 @@ describe('the app starts', () => {
   });
 
   it('starts with no error dialog and one window', async () => {
-    expect(await copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+    expect(await copacetic.read(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   });
 });
 
@@ -75,9 +75,12 @@ describe('the Settings item in the menu bar', () => {
     expect(await copacetic.waitForReady()).toBe(true);
 
     expect(await pressMenuItem('Settings…')).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const opened = await copacetic.chrome.evaluate(() =>
-      document.body.innerText.includes('Everything here is stored'),
+
+    // Waited for rather than slept through: the push crosses a process boundary
+    // and then React renders, and a fixed pause is a guess about how long that
+    // takes on a machine nobody has measured.
+    const opened = await copacetic.waitForChrome(() =>
+      Boolean(document.querySelector('[role="dialog"][aria-label="Settings"]')),
     );
     expect(opened).toBe(true);
 
@@ -93,7 +96,7 @@ describe('the Settings item in the menu bar', () => {
  * the test.
  *
  * The chrome is a page, and the window paints before anything in it is
- * listening — about 190ms apart on the machine `npm run measure` reports, and
+ * listening - about 190ms apart on the machine `npm run measure` reports, and
  * further into a cold start, which is slower throughout. A push sent inside that window
  * reaches a renderer with no listeners attached and is simply gone, so Cmd+, during startup did nothing and looked identical to a
  * menu item that is broken. The request is now held in the main process and
@@ -102,7 +105,7 @@ describe('the Settings item in the menu bar', () => {
  * This presses the item after hydration, because the race cannot be forced from
  * out here. What it proves is the part that a unit test cannot: that the
  * channel is registered, the preload exposes it, and the main process really is
- * keeping the request — a rule with nothing wired to it passes its own tests
+ * keeping the request - a rule with nothing wired to it passes its own tests
  * perfectly.
  */
 describe('a surface asked for before the chrome is listening', () => {
@@ -145,7 +148,9 @@ describe('a surface asked for before the chrome is listening', () => {
     // to settle. The failure this catches happens after hydration, not during.
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    const showing = await copacetic.chrome.evaluate(() => document.body.innerText.includes('Kept on this machine'));
+    const showing = await copacetic.chrome.evaluate(() =>
+      Boolean(document.querySelector('[role="dialog"][aria-label="History"]')),
+    );
     expect(showing).toBe(true);
 
     await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
@@ -206,3 +211,13 @@ describe('where the page goes', () => {
     expect(asPlaced?.width).toBe(asDrawn.width);
   }, 90_000);
 });
+
+/**
+ * macOS keeps an application running after its last window closes, and clicking
+ * the dock icon is how a person asks for it back.
+ *
+ * The handler for that returned early when the window was gone, so the app sat
+ * in the dock, alive, with no window and no way to open one - usable only by
+ * force-quitting it. Everywhere else the last window closing quits, so this is
+ * the one platform where it matters and the one platform it was broken on.
+ */

@@ -1,69 +1,79 @@
-import { type BookmarkFolder, wouldCycle } from '../../shared/bookmark-folders';
-import { GROUP_COLOURS, type GroupColourId } from '../../shared/tab-groups';
-import { PersistedFile, asString, isRecord, newId } from './persistence';
+// Utils
+import { type BookmarkFolder, wouldCycle } from '../../shared/data/bookmark-folders';
+import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
+import { inTransaction } from './database';
+import { importLegacyFile } from './legacy-import';
+import { asString, isRecord, newId } from './persistence';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { DatabaseSync } from 'node:sqlite';
 
 const MAX_NAME = 60;
+const LEGACY_FILE = 'bookmark-folders.json';
 
-/**
- * The folders bookmarks are filed in.
- *
- * Kept in their own file rather than nested inside bookmarks.json, for the same
- * reason groups are kept out of the session: a tree written inline has to be
- * rewritten whole every time one bookmark moves, and a half-written tree is the
- * one shape from which nothing can be recovered.
- */
+/** The folders bookmarks are filed in, each holding its parent's id, so moving one bookmark never rewrites the tree. */
 export class BookmarkFoldersStore {
-  private readonly file = new PersistedFile<BookmarkFolder[]>('bookmark-folders.json', () => [], reviveFolders);
+  constructor(
+    private readonly database: DatabaseSync,
+    directory: string,
+  ) {
+    importLegacyFile(database, directory, LEGACY_FILE, reviveFolders, (folders) => this.write(folders));
+  }
 
   list(): BookmarkFolder[] {
-    return this.file.get();
+    return this.database
+      .prepare('SELECT id, name, colour, parent_id, collapsed FROM bookmark_folders ORDER BY position')
+      .all()
+      .map(toFolder);
   }
 
   find(id: string): BookmarkFolder | null {
-    return this.file.get().find((folder) => folder.id === id) ?? null;
+    const row = this.database
+      .prepare('SELECT id, name, colour, parent_id, collapsed FROM bookmark_folders WHERE id = ?')
+      .get(id);
+    return row ? toFolder(row) : null;
   }
 
   create(name: string, colour: GroupColourId, parentId: string | null): BookmarkFolder {
-    // A parent that has gone leaves the folder at the top level rather than
-    // out of reach: an id nothing resolves would hide it from every view.
+    // A parent that has gone leaves the folder at the top level rather than out of reach.
     const parent = parentId && this.find(parentId) ? parentId : null;
     const folder: BookmarkFolder = {
       id: newId(),
-      name: name.trim().slice(0, MAX_NAME) || 'Folder',
+      name: name.trim().slice(0, MAX_NAME) || t('main.import.bookmarks.unnamedFolder'),
       colour,
       parentId: parent,
       collapsed: false,
     };
-    this.file.update((folders) => [...folders, folder]);
+    const last = this.database.prepare('SELECT coalesce(max(position), -1) AS position FROM bookmark_folders').get();
+    this.insert(folder, Number(last?.position) + 1);
     return folder;
   }
 
   /** Everything about a folder can be changed except where it sits, which is a move. */
   update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
-    this.file.update((folders) =>
-      folders.map((folder) =>
-        folder.id === id
-          ? {
-              ...folder,
-              ...(changes.name !== undefined ? { name: changes.name.trim().slice(0, MAX_NAME) || folder.name } : {}),
-              ...(changes.colour !== undefined ? { colour: changes.colour } : {}),
-              ...(changes.collapsed !== undefined ? { collapsed: changes.collapsed } : {}),
-            }
-          : folder,
-      ),
-    );
+    const folder = this.find(id);
+    if (!folder) {
+      return;
+    }
+    this.database
+      .prepare('UPDATE bookmark_folders SET name = ?, colour = ?, collapsed = ? WHERE id = ?')
+      .run(
+        changes.name !== undefined ? changes.name.trim().slice(0, MAX_NAME) || folder.name : folder.name,
+        changes.colour ?? folder.colour,
+        (changes.collapsed ?? folder.collapsed) ? 1 : 0,
+        id,
+      );
   }
 
   /**
    * Moves a folder under another, and reports whether it went.
    *
    * A move that would make a folder its own ancestor is refused here as well as
-   * in the interface. The interface refuses it so a drop can be shown as
-   * impossible while the cursor is still over it; this refuses it because the
-   * interface is not the only thing that can ask.
+   * in the interface, because the interface is not the only thing that can ask.
    */
   move(id: string, parentId: string | null): boolean {
-    const folders = this.file.get();
+    const folders = this.list();
     if (!folders.some((folder) => folder.id === id)) {
       return false;
     }
@@ -73,18 +83,40 @@ export class BookmarkFoldersStore {
     if (wouldCycle(folders, id, parentId)) {
       return false;
     }
-    this.file.update((current) => current.map((folder) => (folder.id === id ? { ...folder, parentId } : folder)));
+    this.database.prepare('UPDATE bookmark_folders SET parent_id = ? WHERE id = ?').run(parentId, id);
     return true;
   }
 
   /** Replaces the whole tree, which is how a delete promotes what was inside. */
   replace(folders: readonly BookmarkFolder[]): void {
-    this.file.update(() => [...folders]);
+    inTransaction(this.database, () => this.write(folders));
   }
 
-  flush(): void {
-    this.file.flush();
+  /** Every write is already on disk; kept so the store's callers flush every part the same way. */
+  flush(): void {}
+
+  private insert(folder: BookmarkFolder, position: number): void {
+    this.database
+      .prepare(
+        'INSERT INTO bookmark_folders (id, position, name, colour, parent_id, collapsed) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(folder.id, position, folder.name, folder.colour, folder.parentId, folder.collapsed ? 1 : 0);
   }
+
+  private write(folders: readonly BookmarkFolder[]): void {
+    this.database.exec('DELETE FROM bookmark_folders');
+    folders.forEach((folder, position) => this.insert(folder, position));
+  }
+}
+
+function toFolder(row: Record<string, unknown>): BookmarkFolder {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    colour: String(row.colour) as GroupColourId,
+    parentId: typeof row.parent_id === 'string' ? row.parent_id : null,
+    collapsed: row.collapsed === 1,
+  };
 }
 
 export function reviveFolders(raw: unknown): BookmarkFolder[] | null {
@@ -106,7 +138,7 @@ export function reviveFolders(raw: unknown): BookmarkFolder[] | null {
     return [
       {
         id,
-        name: asString(item.name).trim().slice(0, MAX_NAME) || 'Folder',
+        name: asString(item.name).trim().slice(0, MAX_NAME) || t('main.import.bookmarks.unnamedFolder'),
         // An unknown colour is a colour this build does not have. Falling back
         // keeps the folder; refusing it would lose what someone filed.
         colour: (colours.has(colour) ? colour : GROUP_COLOURS[0].id) as GroupColourId,

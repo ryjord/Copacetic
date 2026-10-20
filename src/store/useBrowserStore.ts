@@ -1,10 +1,16 @@
 'use client';
 
+// Libs
 import { create } from 'zustand';
-import type { ChromeSurface } from '@shared/channels';
+
+// Utils
+import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
+import { keepIfSame, stabiliseState } from '@/lib/state/stableState';
+
+// Types
+import type { ChromeSurface } from '@shared/ipc/channels';
+import type { BrowserStatePatch } from '@shared/ipc/state-slices';
 import type { BrowserState, Settings, TabState } from '@shared/types';
-import { DEFAULT_SETTINGS_SHAPE } from '@/lib/defaults';
-import { keepIfSame, stabiliseState } from '@/lib/stableState';
 
 interface BrowserStoreState extends BrowserState {
   /** False until the first snapshot arrives, so nothing renders half-built. */
@@ -17,17 +23,15 @@ interface BrowserStoreState extends BrowserState {
   surface: ChromeSurface;
   /** Incremented to ask the omnibox to take focus and select its contents. */
   omniboxFocusToken: number;
-  // Whether the connection panel is open.
-  isConnectionPanelOpen: boolean;
-  // When the panel was opened, so it can say how long a certificate has left without reading the clock during render.
-  connectionPanelOpenedAt: number | null;
+  /** The settings pane to open on, when something asked for one; settings opens on its first pane otherwise. */
+  settingsPane: string | null;
 
-  applyState(next: BrowserState): void;
+  /** The whole state on first load, then only the parts that changed. */
+  applyState(next: BrowserStatePatch): void;
   setSurface(surface: ChromeSurface): void;
   toggleSurface(surface: Exclude<ChromeSurface, 'none'>): void;
+  openSettings(paneId: string): void;
   requestOmniboxFocus(): void;
-  toggleConnectionPanel(): void;
-  closeConnectionPanel(): void;
 }
 
 const EMPTY_STATE: BrowserState = {
@@ -41,13 +45,23 @@ const EMPTY_STATE: BrowserState = {
   authPrompts: [],
   settings: DEFAULT_SETTINGS_SHAPE,
   hasClosedTabs: false,
+  siteInfo: null,
+  bookmarkSheet: null,
+  split: null,
+  namedSessions: [],
   update: {
     status: { state: 'idle' },
     delivery: 'unsupported',
     manualReason: null,
     lastCheckedAt: null,
     releasesUrl: 'https://github.com/ryjord/Copacetic/releases/latest',
+    releaseNotes: null,
+    currentVersion: '',
+    includesBetas: false,
+    canOpenInstaller: false,
   },
+  profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },
+  profiles: [],
 };
 
 export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
@@ -57,16 +71,15 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   activeTab: null,
   surface: 'none',
   omniboxFocusToken: 0,
-  isConnectionPanelOpen: false,
-  connectionPanelOpenedAt: null,
+  settingsPane: null,
 
   applyState: (incoming) => {
     const current = get();
-    // The main process sends the whole state on every change, freshly
-    // deserialised, so everything is a new object even when nothing differs.
-    // Selectors compare by reference, so without this a download's byte
-    // counter re-renders every tab several times a second.
-    const next = stabiliseState(current, incoming);
+    // A push carries only the parts that changed, and those arrive freshly
+    // deserialised, so a changed slice is all new objects even where most of it
+    // is the same. Selectors compare by reference, so without this one tab's
+    // title re-renders every other tab.
+    const next = stabiliseState(current, { ...current, ...incoming });
 
     const byId = new Map(next.tabs.map((tab) => [tab.id, tab]));
     const orderedTabs = keepIfSame(
@@ -85,20 +98,13 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
     });
   },
 
-  setSurface: (surface) => set({ surface }),
+  setSurface: (surface) => set({ surface, settingsPane: null }),
 
-  toggleSurface: (surface) => set({ surface: get().surface === surface ? 'none' : surface }),
+  toggleSurface: (surface) => set({ surface: get().surface === surface ? 'none' : surface, settingsPane: null }),
+
+  openSettings: (paneId) => set({ surface: 'settings', settingsPane: paneId }),
 
   requestOmniboxFocus: () => set({ omniboxFocusToken: get().omniboxFocusToken + 1 }),
-
-  toggleConnectionPanel: () =>
-    set({ isConnectionPanelOpen: !get().isConnectionPanelOpen, connectionPanelOpenedAt: Date.now() }),
-
-  closeConnectionPanel: () => {
-    if (get().isConnectionPanelOpen) {
-      set({ isConnectionPanelOpen: false });
-    }
-  },
 }));
 
 export function selectSettings(state: BrowserStoreState): Settings {
@@ -108,4 +114,17 @@ export function selectSettings(state: BrowserStoreState): Settings {
 export function selectActiveDownloadCount(state: BrowserStoreState): number {
   return state.downloads.filter((download) => download.status === 'progressing' || download.status === 'paused')
     .length;
+}
+
+/** How far the unfinished downloads have got together, or null while any of them has no known size. */
+export function selectDownloadProgress(state: BrowserStoreState): number | null {
+  const active = state.downloads.filter(
+    (download) => download.status === 'progressing' || download.status === 'paused',
+  );
+  if (active.length === 0 || active.some((download) => download.totalBytes <= 0)) {
+    return null;
+  }
+  const received = active.reduce((sum, download) => sum + download.receivedBytes, 0);
+  const total = active.reduce((sum, download) => sum + download.totalBytes, 0);
+  return Math.min(1, received / total);
 }

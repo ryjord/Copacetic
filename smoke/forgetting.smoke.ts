@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
 
@@ -13,15 +11,10 @@ beforeAll(async () => {
 });
 afterAll(async () => copacetic?.close());
 
-const onDisk = <T>(file: string): T | null => {
-  const full = path.join(copacetic.profile, file);
-  return existsSync(full) ? (JSON.parse(readFileSync(full, 'utf8')) as T) : null;
-};
-
 /**
  * Counted as it happens, not when the visit is recorded.
  *
- * A visit is recorded when the title arrives, which is early — most trackers
+ * A visit is recorded when the title arrives, which is early - most trackers
  * have not been refused yet. Sampling then reports almost nothing on every page
  * in the browser, and the number looks plausible enough that nobody checks it.
  */
@@ -43,7 +36,7 @@ describe('what a page refused', () => {
     );
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    const entries = onDisk<{ url: string; blockedCount?: number }[]>('history.json') ?? [];
+    const entries = copacetic.historyOnDisk();
     const page = entries.find((entry) => entry.url.includes('example.com'));
     expect(page?.blockedCount).toBeGreaterThanOrEqual(3);
 
@@ -54,7 +47,7 @@ describe('what a page refused', () => {
   /*
    * Counted once, and checked against the blocker's own number rather than a
    * bound. The blocker reports a running total per tab, so adding it whole on
-   * every refusal sums 1+2+3 instead of 3 — quadratic, and still small enough
+   * every refusal sums 1+2+3 instead of 3 - quadratic, and still small enough
    * to look plausible. An earlier version of this asserted "fewer than ten" and
    * passed with exactly that bug in place.
    */
@@ -70,7 +63,7 @@ describe('what a page refused', () => {
       return total;
     });
 
-    const entries = onDisk<{ url: string; blockedCount?: number }[]>('history.json') ?? [];
+    const entries = copacetic.historyOnDisk();
     const counted = entries.reduce((total, entry) => total + (entry.blockedCount ?? 0), 0);
 
     expect(refusedByBlocker).toBeGreaterThan(0);
@@ -113,20 +106,21 @@ describe('forgetting one site', () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const history = onDisk<{ url: string }[]>('history.json') ?? [];
-    expect(history.some((entry) => entry.url.includes('example.com'))).toBe(false);
+    expect(copacetic.historyOnDisk().some((entry) => entry.url.includes('example.com'))).toBe(false);
+    // Gone from the bytes too, not just from the table: a deleted row lingers in free pages and the log otherwise.
+    expect(copacetic.databaseBytes()).not.toContain('example.com');
 
-    const settings = onDisk<{ zoomLevels: Record<string, number>; blockerAllowlist: string[] }>('settings.json');
-    expect(Object.keys(settings?.zoomLevels ?? {})).toEqual([]);
+    // Kept in the database now, so that is where forgetting is checked, not in settings.json.
+    expect(copacetic.tableOnDisk('site_zoom')).toEqual([]);
     // The counterweight: forgetting one site must not forget the others.
-    expect(settings?.blockerAllowlist).toEqual(['keep-me.example']);
+    expect(copacetic.tableOnDisk('tracker_exceptions').map((row) => row.site)).toEqual(['keep-me.example']);
   }, 90_000);
 });
 
 /**
  * What survives a clear, listed rather than left to be found.
  *
- * These are kept on purpose — someone set them — but they name the sites, and
+ * These are kept on purpose - someone set them - but they name the sites, and
  * a list nobody is shown is a list nobody can act on.
  */
 describe('what clearing does not touch', () => {

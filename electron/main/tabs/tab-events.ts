@@ -1,21 +1,28 @@
-import type { ContextMenuParams } from 'electron';
-import type { TabId } from '../../shared/types';
+// Utils
 import { clampZoom } from '../../shared/types';
-import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/url';
-import type { ContentBlocker } from '../security/blocker';
-import type { BrowserStore } from '../data/store';
+import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/browsing/url';
+import { canAcceptRefused } from '../security/certificate-exceptions';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';
+import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { ContextMenuParams } from 'electron';
+import type { TabId } from '../../shared/types';
+import type { ContentBlocker } from '../security/blocker';
+import type { HttpsFirst } from '../security/https-first';
+import type { BrowserStore } from '../data/store';
 import type { TabRecord } from './tab-record';
 
 /**
  * What the page can tell us about itself. Everything here is reported by the
- * tab's own web contents, so it arrives whenever the page decides — long after
+ * tab's own web contents, so it arrives whenever the page decides - long after
  * the navigation that caused it, and sometimes for a tab already closed.
  */
 export interface TabEventDeps {
   store: BrowserStore;
   blocker: ContentBlocker;
+  httpsFirst: HttpsFirst;
   /** Forgets what has been written to history for a tab, when its page changes. */
   forgetBlockedCount: (webContentsId: number) => void;
   onChanged: () => void;
@@ -91,12 +98,12 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
    *
    * A stylesheet on purpose. Hiding elements is what other blockers use an
    * injected script for, and page content in this browser gets no script of
-   * ours — a promise made early and not spent since. insertCSS needs no
+   * ours - a promise made early and not spent since. insertCSS needs no
    * preload and adds nothing a page can call.
    *
    * It reaches the top document only. Electron's insertCSS takes a webContents
    * and there is no equivalent on a frame, so collapsing space inside an iframe
-   * would mean running a script in it — which is the promise above. Requests
+   * would mean running a script in it - which is the promise above. Requests
    * made from inside frames are still refused, because webRequest sees every
    * frame; what is left uncollapsed is the space a blocked advert had inside
    * one, and Settings says so rather than pretending otherwise.
@@ -105,7 +112,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     if (!url.startsWith('http')) {
       return;
     }
-    const styles = deps.blocker.cosmeticStylesFor(url);
+    const styles = deps.blocker.cosmeticStylesFor(url, contents.session, deps.store.getSettings().hideCookieBanners);
     if (styles) {
       void contents.insertCSS(styles).catch(() => {
         // A page that navigated away before this landed is not a failure.
@@ -115,7 +122,10 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
 
   contents.on('dom-ready', () => hideWhatWasBlocked(contents.getURL()));
 
-  contents.on('did-navigate', (_event, url) => commitNavigation(url, false));
+  contents.on('did-navigate', (_event, url, responseCode) => {
+    deps.httpsFirst.committed(contents.id, responseCode);
+    commitNavigation(url, false);
+  });
   contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
     if (isMainFrame) {
       commitNavigation(url, true);
@@ -125,18 +135,14 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   contents.on('page-title-updated', (_event, title) => {
     tab.title = title;
     if (!tab.isStartPage && !tab.error && tab.url.startsWith('http')) {
-      // The whole point of a Hush tab: no record of where it went.
-      if (!tab.isHush) {
-        deps.store.recordVisit(tab.url, title);
-      }
+      tab.record.recordVisit(tab.url, title);
     }
     changed();
   });
 
   contents.on('page-favicon-updated', (_event, favicons) => {
     const [faviconUrl] = favicons;
-    // A cached favicon is a list of sites visited, stored by another name.
-    if (faviconUrl && !tab.isHush) {
+    if (faviconUrl) {
       deps.cacheFavicon(tab, faviconUrl);
     }
   });
@@ -155,6 +161,9 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       name: info.name,
       description: info.description,
       url: validatedURL || tab.url,
+      plainUrl: deps.httpsFirst.fallbackFor(contents.id, validatedURL || tab.url),
+      canAcceptCertificate:
+        info.name.startsWith('ERR_CERT') && canAcceptRefused(contents.id, validatedURL || tab.url),
     };
     tab.url = validatedURL || tab.url;
     deps.applyVisibility();
@@ -166,10 +175,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     tab.error = {
       code: 0,
       name: `RENDERER_${details.reason.toUpperCase().replace(/-/g, '_')}`,
-      description:
-        details.reason === 'oom'
-          ? 'This page ran out of memory. Reloading usually recovers it.'
-          : 'The process rendering this page stopped unexpectedly.',
+      description: details.reason === 'oom' ? t('main.tabs.crash.outOfMemory') : t('main.tabs.crash.stopped'),
       url: tab.url,
     };
     deps.applyVisibility();

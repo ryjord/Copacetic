@@ -18,7 +18,7 @@ const cookiesFor = (domain: string) =>
 
 /**
  * `domain` set means a cookie scoped across every subdomain, which Chromium
- * stores with a leading dot — the shape a sign-in cookie actually has, and the
+ * stores with a leading dot - the shape a sign-in cookie actually has, and the
  * one the first version of this spec never created.
  */
 const setCookie = (url: string, name: string, domain?: string) =>
@@ -36,7 +36,7 @@ const setCookie = (url: string, name: string, domain?: string) =>
 
 /**
  * "Forget this site" cleared history, icons, certificates, zoom, permissions and
- * blocking exceptions, and did not touch the session — so the one thing someone
+ * blocking exceptions, and did not touch the session - so the one thing someone
  * would check afterwards, whether they were still signed in, was untouched. The
  * method's own docstring said it removed everything the browser knew about the
  * site, and the menu item read "Forget example.com".
@@ -46,7 +46,7 @@ const setCookie = (url: string, name: string, domain?: string) =>
  */
 describe('forgetting a site', () => {
   it('takes its cookies, which is what kept you signed in', async () => {
-    // Host-only, and — the one that matters — scoped to every subdomain.
+    // Host-only, and - the one that matters - scoped to every subdomain.
     await setCookie('https://example.com/', 'preferences');
     await setCookie('https://example.com/', 'session_token', 'example.com');
     expect((await cookiesFor('example.com')).sort()).toEqual(['preferences', 'session_token']);

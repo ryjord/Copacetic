@@ -19,6 +19,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/types/global.d.ts", "vitest.config.ts"],
+  "include": [
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "src/types/global.d.ts",
+    "src/types/css-custom-properties.d.ts",
+    "vitest.config.ts"
+  ],
   "exclude": ["node_modules"]
 }

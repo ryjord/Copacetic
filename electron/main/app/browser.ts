@@ -1,256 +1,224 @@
-import {
-  type KeptAboutSites,
-  type KeptKind,
-  type SiteTraces,
-  describeTraces,
-  sameSite,
-  siteOf,
-} from '../../shared/forgetting';
-import {
-  type BrowserWindow,
-  app,
-  dialog,
-  session as electronSession,
-  type Session,
-  safeStorage,
-  shell,
-  systemPreferences,
-  type WebFrameMain,
-} from 'electron';
+// Libs
+import { type BrowserWindow, type WebContents, type WebFrameMain, app, dialog } from 'electron';
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
-import { PUSH, type ChromeSurface } from '../../shared/channels';
-import { sanitiseChromeText } from '../../shared/chrome-text';
-import type {
-  AppInfo,
-  BrowserState,
-  ClearRange,
-  ConnectionEntry,
-  ExportKind,
-  PermissionDecision,
-  PermissionKind,
-  PermissionPrompt,
-  Settings,
-  TabId,
-  VaultFacts,
-  VaultLock,
-} from '../../shared/types';
-import { START_PAGE_URL, buildSearchUrl, isNavigableUrl, isPageNavigableUrl } from '../../shared/url';
-import { describeAuthPrompt, isPromptWorthy } from '../security/auth';
-import { ContentBlocker } from '../security/blocker';
-import { forgetCertificates } from '../security/certificates';
-import { forgetLocalCertificates } from '../security/local-certificates';
-import { bookmarksToHtml, historyToJson } from '../data/export';
-import { bookmarksFromHtml } from '../../shared/bookmark-import';
-import { offerFor } from '../../shared/credential-matching';
-import { fillScriptFor } from '../system/fill-script';
-import { credentialsFromCsv, credentialsToCsv } from '../../shared/credential-csv';
-import { Vault } from '../data/vault';
-import {
-  chooseWallpaper,
-  clearWallpaper,
-  commitStagedChanges,
-  discardStagedWallpaper,
-  hasWallpaper,
-  stageWallpaperRemoval,
-} from '../system/wallpaper';
-import { DownloadManager } from '../data/downloads';
-import { chromeEntryUrl, isDevelopment, filtersRoot } from './env';
-import {
-  HUSH_PARTITION,
-  type SecurityDelegate,
-  WEB_PARTITION,
-  getWebSession,
-  hardenChromeSession,
-  hardenWebSession,
-  remembersDownloads,
-} from '../security/security';
-import { BrowserStore } from '../data/store';
+
+// Utils
+import { PUSH, type ChromeSurface } from '../../shared/ipc/channels';
+import { START_PAGE_URL } from '../../shared/browsing/url';
+import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/tabs/surfaces';
+import { focusContents, showWindow } from '../system/launch-mode';
 import { type ContentInsets } from '../tabs/tab-layout';
 import { TabManager } from '../tabs/tabs';
-import { PendingPrompts } from './pending-prompts';
-import type { GroupColourId } from '../../shared/tab-groups';
-import { type BookmarkFolder, descendantsOf } from '../../shared/bookmark-folders';
-import {
-  OPEN_WITHOUT_ASKING,
-  type Notice,
-  admit,
-  dismiss as dismissNotice,
-  openFolderMessage,
-  savedGroupMessage,
-} from '../../shared/notices';
-import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/surfaces';
-import { OverlayLayer } from './overlay';
-import { VaultSession } from './vault-session';
-import { log } from '../system/diagnostics';
-import { fileStamp, readChosenFile, writeChosenFile } from './file-dialogs';
-import { UpdateManager } from '../system/updates';
-import { createChromeWindow } from './window';
+import { StatePublisher } from '../state/state-publisher';
+import { NoticeCentre } from '../notices/notice-centre';
+import { BookmarkCommands } from '../workflows/bookmarks';
+import { DataTransfer } from '../workflows/data-transfer';
+import { GroupCommands } from '../workflows/groups';
+import { PasswordFill } from '../workflows/password-fill';
+import { SiteData } from '../workflows/site-data';
+import { TabCommands } from '../workflows/tab-commands';
+import { OverlayLayer } from '../window/overlay';
+import { createChromeWindow } from '../window/window';
+import { groundColour, surfaceColour, titleBarOverlayFor } from '../window/appearance';
+import { showPageContextMenu } from '../menus/context-menu';
+import { chromeEntryUrl, isDevelopment } from './env';
+import { t } from '../../shared/i18n/translate';
+import { defaultSessionName } from '../../shared/data/named-sessions';
+import { pageReportFileName, pageReportFrom } from '../../shared/browsing/page-report';
+import { writeChosenFile } from '../system/file-dialogs';
 
-const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
-
-// Schemes that are never passed to `shell.openExternal`, whatever the user answers to the confirmation dialog.
-const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
+// Types
+import type {
+  AppInfo,
+  BookmarkSheetState,
+  BrowserState,
+  ConnectionEntry,
+  PermissionDecision,
+  PermissionKind,
+  Settings,
+  SiteInfoState,
+  TabId,
+} from '../../shared/types';
+import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
+import type { SuggestionView } from '../../shared/browsing/suggestion-view';
+import type { ContentBlocker } from '../security/blocker';
+import type { DownloadManager } from '../data/downloads';
+import type { BrowserStore } from '../data/store';
+import type { SessionSnapshot } from '../data/session-store';
+import type { Wallpaper } from '../system/wallpaper';
+import type { UpdateManager } from '../system/updates';
+import type { Vault } from '../vault/vault';
+import type { VaultSession } from '../vault/vault-session';
+import type { Profile } from './profile';
 
 /**
- * Everything refused for navigation reaches the external-open path too, so
- * without this the schemes the security model rejects would just be handed to
- * whichever application the OS associates with them — routing around the
- * refusal rather than enforcing it.
+ * One browser window: its tabs, the layers drawn over its pages, and the verbs
+ * its menus, shortcuts and chrome call into.
+ *
+ * What outlives a window - the store, the vault, downloads, sessions - is the
+ * profile's, and is reached through it, so every window sees the same.
  */
-export function mayBeHandedToOs(url: string): boolean {
-  const scheme = safeScheme(url);
-  if (!scheme) {
-    return false;
-  }
-  return !NEVER_HANDED_TO_OS.has(`${scheme}:`);
-}
-
-/** Owns every long-lived piece of the browser and exposes the verbs that menus, shortcuts and IPC all call into. */
 export class Browser {
   readonly window: BrowserWindow;
-  readonly store: BrowserStore;
-  private readonly vaultSession: VaultSession;
-
-  /** The vault itself, for the callers that read entries rather than the lock. */
-  get vault(): Vault {
-    return this.vaultSession.vault;
-  }
-  readonly blocker: ContentBlocker;
-  readonly downloads: DownloadManager;
   readonly tabs: TabManager;
-  readonly updates: UpdateManager;
+  readonly notices: NoticeCentre;
+  readonly bookmarks: BookmarkCommands;
+  readonly groups: GroupCommands;
+  readonly sites: SiteData;
+  readonly transfer: DataTransfer;
+  readonly passwords: PasswordFill;
+  readonly commands: TabCommands;
 
-  private readonly prompts = new PendingPrompts();
-  private pushQueued = false;
-  private isQuitting = false;
+  private readonly overlays: Record<OverlayRegion, OverlayLayer>;
+  private readonly publisher: StatePublisher;
+  private siteInfo: SiteInfoState | null = null;
+  private bookmarkSheet: BookmarkSheetState | null = null;
+  /** A surface asked for before the chrome was listening. See `shared/surfaces.ts` for why it is bounded. */
+  private requestedSurface: SurfaceRequest | null = null;
 
-  constructor() {
-    this.store = new BrowserStore();
-    // safeStorage is only reachable after app.ready, which is why the keychain
-    // is asked at each call rather than captured once here.
-    this.vaultSession = new VaultSession(
-      {
-        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
-        encryptString: (plainText) => safeStorage.encryptString(plainText),
-        decryptString: (cipherText) => safeStorage.decryptString(cipherText),
-        platform: process.platform,
-        canPromptTouchID: () => systemPreferences.canPromptTouchID?.() ?? false,
-        promptTouchID: (reason) => systemPreferences.promptTouchID(reason),
-        userDataPath: () => app.getPath('userData'),
+  get store(): BrowserStore {
+    return this.profile.store;
+  }
+
+  get vaultSession(): VaultSession {
+    return this.profile.vaultSession;
+  }
+
+  get wallpaper(): Wallpaper {
+    return this.profile.wallpaper;
+  }
+
+  get vault(): Vault {
+    return this.profile.vault;
+  }
+
+  get blocker(): ContentBlocker {
+    return this.profile.blocker;
+  }
+
+  get downloads(): DownloadManager {
+    return this.profile.downloads;
+  }
+
+  get updates(): UpdateManager {
+    return this.profile.updates;
+  }
+
+  constructor(readonly profile: Profile) {
+    this.window = createChromeWindow(profile.settings().density);
+    this.publisher = new StatePublisher({
+      snapshot: () => this.getState(),
+      send: (patch) => {
+        this.window.webContents.send(PUSH.state, patch);
+        this.eachOverlay((overlay) => overlay.send(PUSH.state, patch));
       },
-      () => this.scheduleStatePush(),
-    );
-    this.blocker = new ContentBlocker(this.store.getSettings().blockTrackers);
-    this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
-    // Built into the release rather than fetched. Every other blocker asks a
-    // server for its lists on a timer, which is a periodic request from your
-    // machine — the shape of the thing being blocked. A failure here is
-    // survivable: the curated hostnames are still there, and blocking less is
-    // better than not starting.
-    // A list fetched on request is preferred to the one that shipped, and the
-    // shipped one is the floor when there is none.
-    if (!this.blocker.loadShippedLists(path.join(app.getPath('userData'), 'filters'))) {
-      this.blocker.loadShippedLists(filtersRoot());
-    }
-    this.downloads = new DownloadManager(() => this.scheduleStatePush());
-    this.updates = new UpdateManager(() => this.scheduleStatePush());
+      canSend: () => !this.window.isDestroyed() && !this.window.webContents.isDestroyed(),
+      // The tabs changed often enough to tell the interface, which is when they are worth writing down.
+      beforeSend: () => {
+        this.profile.saveSession();
+        this.profile.extensions.tabsChanged();
+      },
+    });
 
-    hardenChromeSession(electronSession.defaultSession);
-
-    // Web and Hush are prepared up front because they exist from launch. Every
-    // other partition — a group that keeps its own browsing — is prepared the
-    // first time a tab asks for it, through the same method.
-    this.prepareSession(WEB_PARTITION);
-    this.prepareSession(HUSH_PARTITION);
-
-    this.window = createChromeWindow();
     this.tabs = new TabManager(
       this.window,
       this.store,
       this.blocker,
-      this.securityDelegate(),
-      // No tab is born in a partition this has not hardened first.
-      (partition) => this.prepareSession(partition),
+      profile.httpsFirst,
+      profile.securityDelegate,
+      profile.partitions,
+      profile.closedTabs,
+      // No tab is born in a partition the registry has not hardened first.
+      (partition) => profile.sessions.prepare(partition),
       () => this.scheduleStatePush(),
-      (tabId) => this.dropPermissionsForTab(tabId),
-      // Anything drawn over the page has to follow the page. The rectangle
-      // moves whenever a row of the chrome opens or closes, not only on a
-      // resize, and an overlay refreshed only with its own height stayed where
-      // it was while the page moved out from under it.
-      (bounds) => this.overlay?.setContentBounds(bounds),
+      (tabId) => profile.dropPermissionsForTab(tabId),
+      // Anything drawn over the page has to follow the page, which moves whenever a row of the chrome does.
+      (bounds) => this.eachOverlay((overlay) => overlay.setContentBounds(bounds)),
     );
+    this.overlays = {
+      leading: new OverlayLayer(this.window, 'leading'),
+      trailing: new OverlayLayer(this.window, 'trailing'),
+    };
+    this.eachOverlay((overlay) => overlay.setContentBounds(this.tabs.contentBounds()));
+    // Clicking back into the page is done with the card, as it is with any popover.
+    this.tabs.onPageFocus(() => {
+      this.closeSiteInfo();
+      this.closeBookmarkSheet();
+      this.profile.extensions.closePopup();
+    });
+    this.tabs.onPageContextMenu((tabId, params) => showPageContextMenu(this, tabId, params));
 
-    this.overlay = new OverlayLayer(this.window);
-    this.overlay.setContentBounds(this.tabs.contentBounds());
+    const changed = () => this.scheduleStatePush();
+    const push = (channel: string, payload?: unknown) => this.pushToChrome(channel, payload);
+    // Saved bookmarks are shown in every window, so a change to them is told to every window.
+    const pushEverywhere = (channel: string, payload?: unknown) => profile.broadcast(channel, payload);
+    this.notices = new NoticeCentre({ overlay: this.overlays.trailing });
+    this.bookmarks = new BookmarkCommands({ store: this.store, changed, push: pushEverywhere });
+    this.groups = new GroupCommands({
+      store: this.store,
+      tabs: this.tabs,
+      sessions: profile.sessions,
+      notices: this.notices,
+      bookmarks: this.bookmarks,
+      changed,
+      push,
+    });
+    this.sites = new SiteData({
+      store: this.store,
+      sessions: profile.sessions,
+      blocking: profile.blocking,
+      downloads: this.downloads,
+      notices: this.notices,
+      changed: () => profile.scheduleStatePush(),
+    });
+    this.transfer = new DataTransfer({
+      window: this.window,
+      store: this.store,
+      vaultSession: this.vaultSession,
+      bookmarks: this.bookmarks,
+      changed,
+    });
+    this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
+    this.commands = new TabCommands({ store: this.store, tabs: this.tabs, notices: this.notices, changed, push });
 
-    this.attachAuthHandler();
     this.window.on('closed', () => this.dispose());
-    this.window.webContents.on('did-finish-load', () => this.scheduleStatePush());
+    // A chrome that loaded again, after a crash or a reload, has nothing yet.
+    this.window.webContents.on('did-finish-load', () => {
+      this.publisher.forgetWhatWasSent();
+      this.scheduleStatePush();
+    });
   }
 
-  /** Partitions already hardened, so the work happens once per session. */
-  private readonly preparedSessions = new Set<string>();
-
-  /**
-   * The session for a partition, with every guard installed before anything can
-   * run in it.
-   *
-   * There are three kinds of session, not two, and only two of them were ever
-   * set up. A group that keeps its own browsing gets
-   * `persist:copacetic-group-<id>`, and nothing hardened it: no permission
-   * request handler, so Electron's default applied and the default is to
-   * approve; no tracker blocking, while the address bar went on reporting a
-   * blocked count of zero, which reads as a clean page rather than an
-   * unprotected one; and no download manager, so filenames skipped the
-   * right-to-left override and path stripping the README promises.
-   *
-   * The guards were never the problem. Calling them in two places by hand was.
-   * Everything goes through here now, so a fourth kind of session cannot be
-   * added without being protected — there is nowhere else to make one.
-   */
-  private prepareSession(partition: string): Session {
-    const session = electronSession.fromPartition(partition);
-    if (this.preparedSessions.has(partition)) {
-      return session;
-    }
-    this.preparedSessions.add(partition);
-
-    hardenWebSession(session, this.securityDelegate());
-    this.blocker.attach(session);
-    // Everything but Hush is remembered. A Hush download's address, redirect
-    // chain and time are browsing, and the tab's whole claim is that none of
-    // that is written down.
-    this.downloads.attach(session, remembersDownloads(partition));
-    return session;
-  }
-
-  // ------------------------------------------------------------------ start
-
-  async start(): Promise<void> {
+  /** Opens with the tabs a saved window had, a single address, or a new tab. */
+  async start(options: { tabs?: SessionSnapshot; url?: string; isHush?: boolean } = {}): Promise<void> {
     await this.window.loadURL(chromeEntryUrl());
-    this.window.show();
-    this.restoreTabs();
-    this.updates.start(this.store.getSettings().checkForUpdates);
+    showWindow(this.window);
+    if (options.tabs) {
+      this.restoreTabs(options.tabs);
+    } else {
+      this.tabs.create(options.url ?? START_PAGE_URL, { hush: options.isHush === true });
+    }
     if (isDevelopment()) {
       this.window.webContents.openDevTools({ mode: 'detach' });
     }
   }
 
-  private restoreTabs(): void {
-    const settings = this.store.getSettings();
-    const session = this.store.getSession();
-
-    if (!settings.restoreTabsOnLaunch || session.tabs.length === 0) {
-      this.tabs.create(START_PAGE_URL);
-      return;
+  private restoreTabs(session: SessionSnapshot): void {
+    // A group whose tabs were all Hush comes back empty and is left alone: nothing that was in it was written down.
+    const ids = session.tabs.map((tab, index) =>
+      this.tabs.create(tab.url, {
+        activate: index === session.activeIndex,
+        groupId: tab.groupId,
+        pinned: tab.isPinned === true,
+        history: tab.history,
+      }),
+    );
+    const { split } = session;
+    const leftId = split ? ids[split.leftIndex] : undefined;
+    const rightId = split ? ids[split.rightIndex] : undefined;
+    if (split && leftId && rightId) {
+      this.tabs.restoreSplit(leftId, rightId, split.ratio);
     }
-
-    // A group whose tabs were all Hush comes back empty and is left alone: the
-    // group is remembered, and nothing that was in it was ever written down.
-    session.tabs.forEach((tab, index) => {
-      this.tabs.create(tab.url, { activate: index === session.activeIndex, groupId: tab.groupId });
-    });
     if (this.tabs.tabCount === 0) {
       this.tabs.create(START_PAGE_URL);
     }
@@ -259,1081 +227,424 @@ export class Browser {
   // ------------------------------------------------------------------ state
 
   getState(): BrowserState {
-    const { tabs, tabOrder, activeTabId } = this.tabs.snapshot();
+    const { tabs, tabOrder, activeTabId, split } = this.tabs.snapshot();
     return {
       tabs,
       tabOrder,
       activeTabId,
+      split,
+      namedSessions: this.store.listNamedSessions(),
       groups: this.store.listGroups(),
       downloads: this.downloads.list(),
       find: this.tabs.getFindState(),
-      permissionPrompts: this.prompts.permissionPrompts(),
-      authPrompts: this.prompts.authPrompts(),
-      settings: { ...this.store.getSettings(), hasWallpaper: hasWallpaper() },
+      permissionPrompts: this.profile.prompts.permissionPrompts(),
+      authPrompts: this.profile.prompts.authPrompts(),
+      settings: { ...this.profile.settings(), hasWallpaper: this.wallpaper.isSet() },
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
+      siteInfo: this.siteInfo,
+      bookmarkSheet: this.bookmarkSheet,
+      profile: this.profile.summary(),
+      profiles: this.profile.allProfiles(),
     };
   }
 
-  // Navigation fires many events in quick succession.
+  /** Something this window shows changed. Pushed shortly, together with anything else that changes meanwhile. */
   scheduleStatePush(): void {
-    if (this.pushQueued || this.isQuitting) {
-      return;
-    }
-    this.pushQueued = true;
-    setImmediate(() => {
-      this.pushQueued = false;
-      if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
-        return;
-      }
-      // The tabs changed often enough to be worth telling the interface about,
-      // which is exactly when they are worth writing down. The session file has
-      // its own longer debounce, so this is not a write per change.
-      this.saveSession();
-      this.window.webContents.send(PUSH.state, this.getState());
-    });
+    this.publisher.schedule();
   }
 
-  private pushToChrome(channel: string, payload?: unknown): void {
+  stopPublishing(): void {
+    this.publisher.stop();
+  }
+
+  pushToChrome(channel: string, payload?: unknown): void {
     if (this.window.isDestroyed() || this.window.webContents.isDestroyed()) {
       return;
     }
     this.window.webContents.send(channel, payload);
   }
 
+  /** Painted again in the colours of the current appearance. */
+  repaint(): void {
+    if (!this.window.isDestroyed()) {
+      this.window.setBackgroundColor(groundColour());
+      if (process.platform !== 'darwin') {
+        this.window.setTitleBarOverlay(titleBarOverlayFor(this.profile.settings().density));
+      }
+    }
+    this.tabs.setBackgroundColor(surfaceColour());
+  }
+
+  /** Whether this is the chrome or one of the overlays of this window, which is what may ask it for anything. */
+  owns(contents: WebContents): boolean {
+    if (this.window.isDestroyed()) {
+      return false;
+    }
+    return (
+      contents === this.window.webContents || Object.values(this.overlays).some((overlay) => overlay.holds(contents))
+    );
+  }
+
+  /**
+   * Whether a frame asking for something is one of this window's own.
+   *
+   * The chrome and the overlays are trusted chrome with the same preload;
+   * every page in every tab is not, and has no preload to ask with.
+   */
+  isOwnFrame(frame: WebFrameMain | null): boolean {
+    return frame === this.window.webContents.mainFrame || this.overlayFor(frame) !== null;
+  }
+
+  // ------------------------------------------------------- profile verbs
+
   getAppInfo(): AppInfo {
-    return {
-      version: app.getVersion(),
-      electronVersion: process.versions.electron ?? 'unknown',
-      chromeVersion: process.versions.chrome ?? 'unknown',
-      platform: process.platform,
-      isDevelopment: isDevelopment(),
-      blockerRuleCount: this.blocker.ruleCount,
-      filterLists: this.blocker.loadedLists(),
-    };
+    return this.profile.getAppInfo();
   }
 
-  // -------------------------------------------------------------- security
-
-  private securityDelegate(): SecurityDelegate {
-    return {
-      requestPermission: (input) =>
-        new Promise<PermissionDecision>((resolve) => {
-          const tabId = this.tabs.tabIdForWebContentsId(input.webContentsId);
-          if (!tabId) {
-            resolve('deny');
-            return;
-          }
-          const prompt: PermissionPrompt = {
-            id: randomUUID(),
-            tabId,
-            origin: input.origin,
-            kind: input.kind,
-            description: input.description,
-          };
-          this.prompts.addPermission(prompt, resolve);
-          this.scheduleStatePush();
-        }),
-
-      openInNewTab: (url, options) => {
-        // Page-initiated, so the strict set: `window.open('file:///…')` must
-        // not become a tab.
-        if (!isPageNavigableUrl(url)) {
-          return;
-        }
-        this.tabs.create(url, {
-          activate: options.activate,
-          openerWebContentsId: options.openerWebContentsId,
-        });
-      },
-
-      confirmExternalOpen: async (url) => {
-        const scheme = safeScheme(url);
-        if (!scheme || !mayBeHandedToOs(url)) {
-          return false;
-        }
-        const { response } = await dialog.showMessageBox(this.window, {
-          type: 'question',
-          buttons: ['Open', 'Cancel'],
-          defaultId: 1,
-          cancelId: 1,
-          title: 'Leave Copacetic?',
-          message: `Open this link in another application?`,
-          detail: `This page wants to hand a ${scheme} link to whichever app handles it on this machine.\n\n${sanitiseChromeText(url, 240)}`,
-          noLink: true,
-        });
-        if (response !== 0) {
-          return false;
-        }
-        await shell.openExternal(url);
-        return true;
-      },
-
-      getStoredDecision: (origin, kind) => this.store.getPermissionDecision(origin, kind),
-      rememberDecision: (origin, kind, decision) => this.store.setPermissionDecision(origin, kind, decision),
-    };
+  updateSettings(patch: Partial<Settings>): Settings {
+    return this.profile.updateSettings(patch);
   }
 
-  // HTTP Basic, Digest and friends.
-  private attachAuthHandler(): void {
-    app.on('login', (event, webContents, details, authInfo, callback) => {
-      // Only challenges a person can actually evaluate. A subresource buried in
-      // a cross-origin frame gives the user nothing to judge, so it is left to
-      // fail the way Chromium would leave it.
-      const tabId = webContents ? this.tabs.tabIdForWebContentsId(webContents.id) : null;
-      const tabUrl = tabId ? this.tabs.urlFor(tabId) : null;
+  updateFilterLists(): Promise<{ ok: boolean; message: string }> {
+    return this.profile.updateFilterLists();
+  }
 
-      if (!isPromptWorthy({ isProxy: authInfo.isProxy, challengeUrl: details.url, tabUrl })) {
-        return;
-      }
+  revealDiagnostics(): void {
+    this.profile.revealDiagnostics();
+  }
 
-      // Taking the event means Copacetic owns the answer; without this
-      // Chromium cancels the challenge itself.
-      event.preventDefault();
+  /** Asks for a folder with the system's own dialog; only a folder picked there ever becomes where files go. */
+  async chooseDownloadFolder(): Promise<string | null> {
+    const { canceled, filePaths } = await dialog.showOpenDialog(this.window, {
+      title: t('main.dialogs.downloadFolder.title'),
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    const [folder] = filePaths;
+    if (canceled || !folder) {
+      return null;
+    }
+    this.profile.updateSettings({ downloadDirectory: folder });
+    return folder;
+  }
 
-      const id = randomUUID();
+  openNewWindow(): void {
+    void this.profile.openWindow();
+  }
 
-      let settled = false;
-      const respond = (username?: string, password?: string) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        this.prompts.forgetAuth(id);
-        // Calling back with nothing cancels the challenge, which is what the
-        // user asked for when they dismissed the prompt.
-        if (username === undefined) {
-          callback();
-        } else {
-          callback(username, password);
-        }
-        this.scheduleStatePush();
-      };
+  /**
+   * Moves a tab into a window of its own, Hush staying Hush.
+   *
+   * Reopened there rather than carried across, so the page loads again and its
+   * back history stays behind; the tab it came from closes.
+   */
+  moveTabToNewWindow(tabId: TabId): void {
+    const url = this.tabs.urlFor(tabId);
+    if (!url) {
+      return;
+    }
+    const isHush = this.tabs.isHush(tabId);
+    void this.profile.openWindow({ url, isHush }).then(() => this.tabs.close(tabId));
+  }
 
-      this.prompts.addAuth(
-        describeAuthPrompt({
-          id,
-          tabId,
-          isProxy: authInfo.isProxy,
-          host: authInfo.host,
-          port: authInfo.port,
-          realm: authInfo.realm,
-          scheme: authInfo.scheme,
-        }),
-        respond,
-      );
-      this.scheduleStatePush();
+  openDownloadsFolder(): void {
+    this.profile.openDownloadsFolder();
+  }
+
+  saveTabsAsSession(): void {
+    const tabs = this.tabs.namedSessionTabs();
+    if (tabs.length === 0) {
+      this.notices.notify({
+        id: 'session-empty',
+        key: 'session-empty',
+        tone: 'info',
+        message: t('main.notices.sessionEmpty'),
+      });
+      return;
+    }
+    const saved = this.store.saveNamedSession(defaultSessionName(tabs), tabs);
+    this.notices.notify({
+      id: `session-saved-${saved.id}`,
+      key: 'session-saved',
+      tone: 'info',
+      message: t('main.notices.sessionSaved', {
+        pages: t('main.notices.pages', { count: saved.tabCount }),
+        name: saved.name,
+      }),
+    });
+    this.profile.scheduleStatePush();
+  }
+
+  /** In a window of its own, so opening a session never disturbs the tabs already open. */
+  openNamedSession(id: string): void {
+    const tabs = this.store.namedSessionTabs(id);
+    if (tabs.length === 0) {
+      return;
+    }
+    void this.profile.openWindow({
+      tabs: { tabs: tabs.map((tab) => ({ url: tab.url, groupId: null })), activeIndex: 0 },
     });
   }
 
-  respondToAuth(id: string, username: string, password: string): void {
-    this.prompts.respondToAuth(id, username, password);
+  renameNamedSession(id: string, name: string): void {
+    this.store.renameNamedSession(id, name);
+    this.profile.scheduleStatePush();
   }
 
-  cancelAuth(id: string): void {
-    this.prompts.cancelAuth(id);
+  removeNamedSession(id: string): void {
+    const summary = this.store.listNamedSessions().find((session) => session.id === id);
+    const tabs = this.store.namedSessionTabs(id);
+    this.store.removeNamedSession(id);
+    this.profile.scheduleStatePush();
+    if (summary) {
+      this.offerUndo(t('main.undo.session', { name: summary.name }), () => {
+        this.store.restoreNamedSession(summary, tabs);
+        this.profile.scheduleStatePush();
+      });
+    }
   }
 
-  respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
-    const prompt = this.prompts.resolvePermission(id, decision);
-    if (!prompt) {
+  /**
+   * The star, wherever it is pressed: removing offers Undo, and adding opens the
+   * sheet that names and files it, so a bookmark never lands nowhere unseen.
+   */
+  toggleBookmark(url: string, title: string): void {
+    const existing = this.store.listBookmarks().find((bookmark) => bookmark.url === url);
+    if (existing) {
+      this.closeBookmarkSheet();
+      this.removeBookmarks([existing.id]);
       return;
     }
-    if (remember) {
-      this.store.setPermissionDecision(prompt.origin, prompt.kind, decision);
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    // Saving writes the address to disk, which is the one thing a Hush tab promises not to do.
+    const active = tabs.find((tab) => tab.id === activeTabId);
+    if (active?.isHush && active.url === url) {
+      this.notices.notify({
+        id: 'hush-not-bookmarked',
+        key: 'hush-not-bookmarked',
+        tone: 'info',
+        message: t('main.notices.hushNotBookmarked'),
+      });
+      return;
+    }
+    this.store.toggleBookmark(url, title);
+    const added = this.store.listBookmarks().find((bookmark) => bookmark.url === url);
+    this.bookmarks.changed();
+    if (added && activeTabId) {
+      this.bookmarkSheet = { tabId: activeTabId, bookmarkId: added.id };
+      this.overlays.trailing.takeFocus();
     }
     this.scheduleStatePush();
   }
 
-  private dropPermissionsForTab(tabId: TabId): void {
-    if (this.prompts.dropForTab(tabId)) {
-      this.scheduleStatePush();
-    }
-  }
-
-  forgetPermission(origin: string, kind: PermissionKind): void {
-    const decisions = { ...this.store.getSettings().permissionDecisions };
-    delete decisions[`${origin}|${kind}`];
-    this.store.updateSettings({ permissionDecisions: decisions });
-    this.scheduleStatePush();
-  }
-
-  // -------------------------------------------------------------- commands
-
-  newTab(url: string = START_PAGE_URL): void {
-    this.tabs.create(url);
-    this.pushToChrome(PUSH.focusOmnibox);
-  }
-
-  newHushTab(): void {
-    this.tabs.create(START_PAGE_URL, { hush: true });
-    this.pushToChrome(PUSH.focusOmnibox);
-  }
-
-  closeActiveTab(): void {
-    const active = this.tabs.getActiveTabId();
-    if (active) {
-      this.tabs.close(active);
-    }
-  }
-
-  reopenClosedTab(): void {
-    this.tabs.reopenClosed();
-  }
-
-  cycleTab(offset: number): void {
-    const { tabOrder, activeTabId } = this.tabs.snapshot();
-    if (tabOrder.length === 0 || !activeTabId) {
-      return;
-    }
-    const index = tabOrder.indexOf(activeTabId);
-    const next = tabOrder[(index + offset + tabOrder.length) % tabOrder.length];
-    if (next) {
-      this.tabs.activate(next);
-    }
-  }
-
-  /** `index` is zero-based; `-1` selects the last tab, matching every browser. */
-  selectTabAt(index: number): void {
-    const { tabOrder } = this.tabs.snapshot();
-    const target = index === -1 ? tabOrder[tabOrder.length - 1] : tabOrder[index];
-    if (target) {
-      this.tabs.activate(target);
-    }
-  }
-
-  withActiveTab(action: (tabId: TabId) => void): void {
-    const active = this.tabs.getActiveTabId();
-    if (active) {
-      action(active);
-    }
-  }
-
-  navigateActive(input: string): void {
-    this.withActiveTab((tabId) => this.tabs.navigate(tabId, input));
-  }
-
-  goHome(): void {
-    this.withActiveTab((tabId) => this.tabs.navigate(tabId, START_PAGE_URL));
-  }
-
-  adjustZoom(direction: 'in' | 'out' | 'reset'): void {
-    this.withActiveTab((tabId) => {
-      const tab = this.tabs.snapshot().tabs.find((candidate) => candidate.id === tabId);
-      if (!tab) {
-        return;
-      }
-      if (direction === 'reset') {
-        this.tabs.setZoom(tabId, this.store.getSettings().defaultZoomFactor);
-        return;
-      }
-      const currentIndex = nearestZoomIndex(tab.zoomFactor);
-      const nextIndex = Math.min(ZOOM_STEPS.length - 1, Math.max(0, currentIndex + (direction === 'in' ? 1 : -1)));
-      this.tabs.setZoom(tabId, ZOOM_STEPS[nextIndex] ?? 1);
-    });
+  /** The tab in front as extensions number it, by its page; null when there is none or it is Hush. */
+  activeChromeTabId(): number | null {
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    const active = tabs.find((tab) => tab.id === activeTabId);
+    return active && !active.isHush && activeTabId ? (this.tabs.webContentsIdFor(activeTabId) ?? null) : null;
   }
 
   toggleBookmarkForActiveTab(): void {
     const { tabs, activeTabId } = this.tabs.snapshot();
     const tab = tabs.find((candidate) => candidate.id === activeTabId);
-    if (!tab || tab.isStartPage) {
+    if (tab && !tab.isStartPage) {
+      this.toggleBookmark(tab.url, tab.title);
+    }
+  }
+
+  closeBookmarkSheet(): void {
+    if (!this.bookmarkSheet) {
       return;
     }
-    this.store.toggleBookmark(tab.url, tab.title);
+    this.bookmarkSheet = null;
+    this.tabs.focusActive();
     this.scheduleStatePush();
   }
 
-  /**
-   * A surface asked for before the chrome was listening.
-   *
-   * Kept because pushing to a renderer that has not hydrated reaches nobody,
-   * and the menu item then looks broken. See `shared/surfaces.ts` for why it is
-   * bounded and why closing is never held.
-   */
-  private requestedSurface: SurfaceRequest | null = null;
+  /** Bookmarks removed with one Undo for all of them, from the panel, a selection or a bookmark's own menu alike. */
+  removeBookmarks(ids: readonly string[]): void {
+    // Every position read before anything goes, so putting them back in that order lands each where it was.
+    const snapshots = ids
+      .map((id) => this.store.bookmarkSnapshot(id))
+      .filter((snapshot) => snapshot !== null)
+      .toSorted((aSnapshot, bSnapshot) => aSnapshot.position - bSnapshot.position);
+    snapshots.forEach((snapshot) => this.store.removeBookmark(snapshot.bookmark.id));
+    this.bookmarks.changed();
+    this.scheduleStatePush();
+    const first = snapshots[0];
+    if (!first) {
+      return;
+    }
+    const message =
+      snapshots.length === 1
+        ? t('main.undo.bookmark', { title: first.bookmark.title })
+        : t('main.undo.bookmarkMany', { count: snapshots.length });
+    this.offerUndo(message, () => {
+      snapshots.forEach((snapshot) => this.store.restoreBookmark(snapshot));
+      this.bookmarks.changed();
+      this.scheduleStatePush();
+    });
+  }
+
+  /** Says something was removed, with a few seconds in which to put it back. */
+  offerUndo(message: string, restore: () => void): void {
+    // Keyed by its own id: two removals that read the same are still two things to put back.
+    const id = `undo-${randomUUID()}`;
+    this.notices.notify({ id, key: id, tone: 'undo', message, confirm: t('main.undo.action') }, restore);
+  }
+
+  openExternal(url: string): Promise<void> {
+    return this.profile.openExternal(url);
+  }
+
+  respondToAuth(id: string, username: string, password: string): void {
+    this.profile.respondToAuth(id, username, password);
+  }
+
+  cancelAuth(id: string): void {
+    this.profile.cancelAuth(id);
+  }
+
+  respondToPermission(id: string, decision: PermissionDecision, remember: boolean): void {
+    this.profile.respondToPermission(id, decision, remember);
+  }
+
+  forgetPermission(origin: string, kind: PermissionKind): void {
+    this.profile.forgetPermission(origin, kind);
+  }
+
+  // ------------------------------------------------------------- surfaces
 
   openSurface(surface: ChromeSurface): void {
     this.requestedSurface = worthHolding(surface) ? { surface, askedAt: Date.now() } : null;
     this.pushToChrome(PUSH.openSurface, surface);
   }
 
+  openSettingsPane(paneId: string): void {
+    this.closeSiteInfo();
+    this.pushToChrome(PUSH.openSettingsPane, paneId);
+  }
+
   /** What was asked for before anyone was listening, collected as the chrome starts. */
   pendingSurface(): ChromeSurface | null {
     const surface = stillWanted(this.requestedSurface, Date.now());
-    // Handed over once. A second chrome asking is a reload, not the person
-    // asking again.
+    // Handed over once. A second chrome asking is a reload, not the person asking again.
     this.requestedSurface = null;
     return surface;
   }
 
   focusOmnibox(): void {
+    // Focusing the field inside the chrome does not take the keyboard from a page view; this does.
+    if (!this.window.isDestroyed()) {
+      focusContents(this.window.webContents);
+    }
     this.pushToChrome(PUSH.focusOmnibox);
   }
 
-  toggleTabDevTools(): void {
-    this.withActiveTab((tabId) => this.tabs.toggleDevTools(tabId));
-  }
+  // ------------------------------------------------------------- overlays
 
-  printActiveTab(): void {
-    this.withActiveTab((tabId) => this.tabs.print(tabId));
-  }
-
-  updateSettings(patch: Partial<Settings>): Settings {
-    const next = this.store.updateSettings(patch);
-    if (patch.blockTrackers !== undefined) {
-      this.blocker.setEnabled(patch.blockTrackers);
-    }
-    if (patch.blockerAllowlist !== undefined) {
-      this.blocker.setAllowlist(next.blockerAllowlist);
-    }
-    if (patch.checkForUpdates !== undefined) {
-      this.updates.start(patch.checkForUpdates);
-    }
-    this.scheduleStatePush();
-    return next;
-  }
-
-  async clearBrowsingData(range: ClearRange): Promise<void> {
-    this.store.clearHistory(range);
-    if (range === 'all') {
-      // Certificate summaries are browsing data too: they name every host
-      // visited this session.
-      forgetCertificates();
-      forgetLocalCertificates();
-      await getWebSession().clearStorageData();
-      await getWebSession().clearCache();
-    }
-    this.scheduleStatePush();
-  }
-
-  /** What could be filled into the page in this tab, or why nothing can be. */
-  fillOfferFor(tabId: TabId): { entries: { id: string; username: string }[]; refusal: string } {
-    const url = this.tabs.urlFor(tabId) ?? '';
-    const offer = offerFor(url, this.vaultSession.vault.state().entries);
-    return { entries: offer.entries.map(({ id, username }) => ({ id, username })), refusal: offer.refusal };
-  }
-
-  /**
-   * The only time Copacetic runs code inside a page, and only because you asked
-   * for it by name. The offer is checked again here rather than trusted from the
-   * renderer: the page may have navigated since the menu was built, and filling
-   * into wherever it went now would be handing a password to whoever asked.
-   */
-  async fillPassword(tabId: TabId, entryId: string): Promise<string> {
-    const url = this.tabs.urlFor(tabId) ?? '';
-    const offer = offerFor(url, this.vaultSession.vault.state().entries);
-    const entry = offer.entries.find((candidate) => candidate.id === entryId);
-    if (!entry) {
-      return offer.refusal || 'That password does not belong to this page.';
-    }
-
-    const password = this.vaultSession.vault.reveal(entryId);
-    if (password === null) {
-      return 'The vault is locked, or that password cannot be decrypted on this machine.';
-    }
-
-    const contents = this.tabs.contentsForTab(tabId);
-    if (!contents) {
-      return 'There is no page here to fill.';
-    }
-
-    try {
-      const result = (await contents.executeJavaScript(fillScriptFor(entry.username, password), true)) as {
-        filled: boolean;
-        exact?: boolean;
-      };
-      if (!result?.filled) {
-        return 'No password box was found on this page.';
-      }
-      if (result.exact === false) {
-        return 'Filled, but this password contains a line break and the box on this page cannot hold one. Sign-in will fail; paste it yourself.';
-      }
-      return '';
-    } catch {
-      return 'The page would not accept it.';
+  private eachOverlay(action: (overlay: OverlayLayer) => void): void {
+    // Unset while the tab manager is being built, which reports bounds before the overlays exist.
+    if (this.overlays) {
+      Object.values(this.overlays).forEach(action);
     }
   }
 
-  /** Everything the honesty page claims, read from where it actually is rather than written out. */
-  vaultFacts(): VaultFacts {
-    return this.vaultSession.facts();
+  private overlayFor(frame: WebFrameMain | null): OverlayLayer | null {
+    return Object.values(this.overlays).find((overlay) => overlay.ownsFrame(frame)) ?? null;
   }
 
-  vaultLock(): VaultLock {
-    return this.vaultSession.lockInfo();
+  /** How large an overlay's own content is, which only that overlay can measure. */
+  setOverlaySize(frame: WebFrameMain | null, width: number, height: number): void {
+    const overlay = this.overlayFor(frame);
+    overlay?.setContentBounds(this.tabs.contentBounds());
+    overlay?.setSize(width, height);
   }
 
-  unlockVault(): Promise<string> {
-    return this.vaultSession.unlock();
-  }
-
-  lockVault(): void {
-    this.vaultSession.lock();
-  }
-
-  async exportVault(): Promise<string> {
-    if (!this.vaultSession.isOpen()) {
-      return 'Your vault is locked. Unlock it, then try exporting again.';
-    }
-
-    const { credentials, unreadable } = this.vaultSession.vault.exportAll();
-    if (credentials.length === 0) {
-      return unreadable > 0
-        ? `None of your ${unreadable} saved passwords could be decrypted on this machine, so there was nothing to write.`
-        : 'There are no saved passwords to export.';
-    }
-
-    const written = await writeChosenFile(
-      this.window,
-      {
-        title: 'Export passwords',
-        defaultPath: `copacetic-passwords-${fileStamp(Date.now())}.csv`,
-        filters: [{ name: 'Passwords', extensions: ['csv'] }],
-      },
-      () => credentialsToCsv(credentials),
-    );
-    if (written.value === null) {
-      return written.message;
-    }
-
-    // A short count has to be explained, or it reads as everything.
-    return unreadable > 0
-      ? `Wrote ${credentials.length}. ${unreadable} could not be decrypted on this machine and were left out.`
-      : '';
-  }
-
-  /**
-   * Reads the bookmark file every browser exports. Reading a live Chrome or
-   * Firefox database would mean shipping a SQLite dependency inside the app for
-   * a once-ever operation; this needs nothing and works for all of them.
-   */
-  async importBookmarks(): Promise<string> {
-    const chosen = await readChosenFile(this.window, {
-      title: 'Import bookmarks',
-      filters: [{ name: 'Bookmarks', extensions: ['html', 'htm'] }],
-    });
-    if (chosen.value === null) {
-      return chosen.message;
-    }
-    const html = chosen.value;
-
-    const { bookmarks, skipped } = bookmarksFromHtml(html);
-    if (bookmarks.length === 0) {
-      return skipped > 0
-        ? `Nothing in that file could be imported. ${skipped} entries were not ordinary web addresses.`
-        : 'No bookmarks were found in that file.';
-    }
-
-    const { added, alreadyHad } = this.store.addBookmarks(bookmarks);
-    // An import adds bookmarks without touching a tab, so nothing else would
-    // tell a surface that is already open that its list is now wrong.
-    this.bookmarksChanged();
-    this.scheduleStatePush();
-
-    const parts = [`added ${added}`];
-    if (alreadyHad > 0) {
-      parts.push(`${alreadyHad} you already had`);
-    }
-    if (skipped > 0) {
-      parts.push(`${skipped} refused for not being web addresses`);
-    }
-    return `Imported: ${parts.join(', ')}.`;
-  }
-
-  async importVault(): Promise<string> {
-    const chosen = await readChosenFile(this.window, {
-      title: 'Import passwords',
-      filters: [{ name: 'Passwords', extensions: ['csv'] }],
-    });
-    if (chosen.value === null) {
-      return chosen.message;
-    }
-    const text = chosen.value;
-
-    const { credentials, skipped: unusable } = credentialsFromCsv(text);
-    if (credentials.length === 0) {
-      return 'No passwords were found in that file. It needs a header row naming a url and a password column.';
-    }
-
-    const { added, updated, skipped } = this.vaultSession.vault.importMany(credentials);
-    const parts = [];
-    if (added > 0) {
-      parts.push(`added ${added}`);
-    }
-    if (updated > 0) {
-      parts.push(`updated ${updated}`);
-    }
-    const ignored = skipped + unusable;
-    if (ignored > 0) {
-      parts.push(`ignored ${ignored} that had no site or no password`);
-    }
-    return parts.length > 0 ? `Imported: ${parts.join(', ')}.` : 'Nothing in that file could be imported.';
-  }
-
-  async exportData(kind: ExportKind): Promise<string> {
-    const now = Date.now();
-    const stamp = fileStamp(now);
-    const isBookmarks = kind === 'bookmarks';
-
-    const written = await writeChosenFile(
-      this.window,
-      {
-        title: isBookmarks ? 'Export bookmarks' : 'Export history',
-        defaultPath: isBookmarks ? `copacetic-bookmarks-${stamp}.html` : `copacetic-history-${stamp}.json`,
-        filters: isBookmarks
-          ? [{ name: 'Bookmarks', extensions: ['html'] }]
-          : [{ name: 'History', extensions: ['json'] }],
-      },
-      () =>
-        isBookmarks ? bookmarksToHtml(this.store.listBookmarks(), now) : historyToJson(this.store.allHistory(), now),
-    );
-    return written.value === null ? written.message : '';
-  }
-
-  /** Resolves empty on success, or with a sentence for the user. */
-  async chooseWallpaper(): Promise<string> {
-    const error = await chooseWallpaper(this.window);
-    this.scheduleStatePush();
-    return error;
-  }
-
-  /** Applies what the pane staged. Returns what to say if it could not be written. */
-  keepWallpaper(): string {
-    const failure = commitStagedChanges();
-    this.scheduleStatePush();
-    return failure;
-  }
-
-  /** A removal waits with everything else, so Discard can undo it. */
-  removeWallpaper(): void {
-    stageWallpaperRemoval();
-    this.scheduleStatePush();
-  }
-
-  /** Forgets it, leaving whatever was there before exactly as it was. */
-  discardWallpaper(): void {
-    discardStagedWallpaper();
-    this.scheduleStatePush();
-  }
-
-  clearWallpaper(): void {
-    clearWallpaper();
-    this.scheduleStatePush();
-  }
-
-  /** The log is only worth keeping if the person it belongs to can find it. */
-  revealDiagnostics(): void {
-    const file = log.path();
-    if (file) {
-      shell.showItemInFolder(file);
-    }
-  }
-
-  // -------------------------------------------------------------------- groups
-
-  /** Makes a group and puts the tab that asked for it inside. */
-  createGroup(tabId: TabId, name: string, colour: GroupColourId, ownSession: boolean): string {
-    const group = this.store.createGroup(name, colour, ownSession);
-    this.tabs.setGroup(tabId, group.id);
-    this.scheduleStatePush();
-    return group.id;
-  }
-
-  /**
-   * Opens everything in a bookmark folder as one tab group.
-   *
-   * A folder is the resting form of a group — the same name, the same palette,
-   * the same set of pages — so the two convert rather than merely resembling
-   * each other. Everything nested inside comes too, which is why anything that
-   * offers this names the number it is about to open.
-   *
-   * The group does not inherit its own session. That is decided when a group is
-   * made and never afterwards, so a folder cannot smuggle one in.
-   */
-  openFolderAsGroup(id: string): { opened: number; asked: boolean } {
-    const folders = this.store.listBookmarkFolders();
-    const folder = this.store.folderFor(id);
-    if (!folder) {
-      return { opened: 0, asked: false };
-    }
-
-    const within = new Set([id, ...descendantsOf(folders, id).map((entry) => entry.id)]);
-    const urls = this.store
-      .listBookmarks()
-      .filter((bookmark) => bookmark.folderId !== null && within.has(bookmark.folderId))
-      .map((bookmark) => bookmark.url);
-
-    if (urls.length === 0) {
-      return { opened: 0, asked: false };
-    }
-
-    // Naming the number on a button is not the same as consenting to it: a
-    // folder of two hundred pages opens two hundred tabs from one click, and
-    // no window survives that in a state anyone can use.
-    if (urls.length > OPEN_WITHOUT_ASKING) {
-      this.notify(
-        {
-          id: `open-folder-${id}`,
-          tone: 'ask',
-          key: `open-folder-${id}`,
-          message: openFolderMessage(urls.length, folder.name),
-          confirm: `Open ${urls.length} tabs`,
-        },
-        () => this.openTabsAsGroup(urls, folder.name, folder.colour),
-      );
-      return { opened: 0, asked: true };
-    }
-
-    this.openTabsAsGroup(urls, folder.name, folder.colour);
-    return { opened: urls.length, asked: false };
-  }
-
-  private openTabsAsGroup(urls: readonly string[], name: string, colour: GroupColourId): void {
-    const [first, ...rest] = urls;
-    if (!first) {
+  /** Opens site information for the active tab, or closes it if it is already open. */
+  toggleSiteInfo(): void {
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    const activeTab = tabs.find((tab) => tab.id === activeTabId);
+    if (this.siteInfo || !activeTab || activeTab.isStartPage) {
+      this.closeSiteInfo();
       return;
     }
-    const founding = this.tabs.create(first, { activate: true });
-    const groupId = this.createGroup(founding, name, colour, false);
-    for (const url of rest) {
-      this.tabs.create(url, { groupId });
-    }
+    this.siteInfo = { tabId: activeTab.id, openedAt: Date.now() };
+    this.overlays.leading.takeFocus();
     this.scheduleStatePush();
   }
 
-  /**
-   * Saves a tab group as a bookmark folder, which is the same conversion the
-   * other way round.
-   *
-   * A Hush tab is never saved. Hush makes one promise — that nothing it does
-   * reaches the disk — and a bookmark is a disk. The count of what was left out
-   * comes back so it can be said plainly rather than discovered later.
-   *
-   * A page already bookmarked is filed where it is, not saved again. It keeps
-   * the title and date it had, because neither is what this was asked to change.
-   */
-  saveGroupAsFolder(id: string): { saved: number; skippedHush: number } {
-    const group = this.store.groupFor(id);
-    if (!group) {
-      return { saved: 0, skippedHush: 0 };
-    }
-
-    const folder = this.store.createBookmarkFolder(group.name, group.colour, null);
-    let saved = 0;
-    let skippedHush = 0;
-
-    for (const tab of this.tabs.tabsInGroup(id)) {
-      if (tab.isHush) {
-        skippedHush += 1;
-        continue;
-      }
-      // Not toggled: a tab whose page was already bookmarked would have had
-      // that bookmark deleted, and the count would not even have said so.
-      const bookmark = this.store.ensureBookmark(tab.url, tab.title);
-      this.store.fileBookmark(bookmark.id, folder.id);
-      saved += 1;
-    }
-
-    this.bookmarksChanged();
-    this.scheduleStatePush();
-    this.notify({
-      id: `saved-group-${folder.id}`,
-      tone: skippedHush > 0 ? 'info' : 'done',
-      key: 'saved-group',
-      message: savedGroupMessage(saved, skippedHush, folder.name),
-    });
-    return { saved, skippedHush };
-  }
-
-  updateGroup(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
-    // A collapsed group hides its tabs, and one of them may be the tab being
-    // looked at — its page would stay on screen with nothing in the strip
-    // pointing at it. Activation steps out of the group first, and the group
-    // refuses to collapse at all when there is nowhere for it to step to.
-    if (changes.collapsed === true && !this.tabs.leaveCollapsingGroup(id)) {
+  closeSiteInfo(): void {
+    if (!this.siteInfo) {
       return;
     }
-    this.store.updateGroup(id, changes);
+    this.siteInfo = null;
+    this.tabs.focusActive();
     this.scheduleStatePush();
   }
 
-  /** The group goes; its tabs stay open with nothing to belong to. */
-  removeGroup(id: string): void {
-    for (const tab of this.tabs.tabsInGroup(id)) {
-      this.tabs.setGroup(tab.id, null);
-    }
-    this.store.removeGroup(id);
-    this.scheduleStatePush();
+  /** Drawn by the leading overlay, under the address field the chrome keeps the keyboard in. */
+  showSuggestions(view: SuggestionView | null): void {
+    this.overlays.leading.send(PUSH.omniboxSuggestions, view);
   }
 
-  /** Closes everything in a group and the group with it. */
-  closeGroup(id: string): void {
-    for (const tab of this.tabs.tabsInGroup(id)) {
-      this.tabs.close(tab.id);
-    }
-    this.store.removeGroup(id);
-    this.scheduleStatePush();
-  }
-
-  /**
-   * Opens a saved address in the tab someone is looking at, or a new one.
-   *
-   * A bookmark opened from the bar replaces what is in front of you, the way
-   * clicking a link does; with no tab to replace, it makes one rather than
-   * doing nothing.
-   */
-  openInActiveTab(url: string): void {
-    const activeId = this.tabs.getActiveTabId();
-    if (activeId) {
-      this.tabs.navigate(activeId, url);
-    } else {
-      this.tabs.create(url, { activate: true });
-    }
-    this.scheduleStatePush();
-  }
-
-  /** Questions waiting on an answer, by the id the notice carries. */
-  private readonly pendingAnswers = new Map<string, () => void>();
-
-  /**
-   * Notices that have been said but not yet taken.
-   *
-   * The chrome is a page, and a page is listening some time after the window
-   * paints — about 190ms on the machine in the README, and the whole launch is
-   * slower than that again on a cold start. Anything said before then reached
-   * nobody: a notice pushed during startup was simply lost, which is the whole
-   * failure notices exist to fix. They are kept here until the chrome collects
-   * them.
-   */
-  private outstanding: Notice[] = [];
-
-  /** The only layer in this window that can be drawn on top of a page. */
-  private readonly overlay: OverlayLayer;
-
-  /**
-   * Tells the person something, once.
-   *
-   * The main process is where most things finish — a menu click, an import, a
-   * list update — and until now none of them could say so: each ended at a
-   * count that nothing read.
-   */
-  notify(notice: Notice, onConfirm?: () => void): void {
-    if (onConfirm) {
-      this.pendingAnswers.set(notice.id, onConfirm);
-    }
-    this.outstanding = admit(this.outstanding, notice);
-    // A question is answered with a button, and the overlay is a view of its
-    // own: without this the keyboard cannot reach it at all.
-    if (notice.tone === 'ask') {
-      this.overlay.takeFocus();
-    }
-    // Said to the overlay, which is the renderer that draws notices. Pushing
-    // to the chrome window reaches every renderer except that one.
-    this.overlay.send(PUSH.notice, notice);
-  }
-
-  /**
-   * Whether a frame asking for something is one of this browser's own.
-   *
-   * The chrome window and the overlay are both trusted chrome with the same
-   * preload; everything else — every page in every tab — is not, and has no
-   * preload to ask with in the first place.
-   */
-  isOwnFrame(frame: WebFrameMain | null): boolean {
-    return frame === this.window.webContents.mainFrame || this.overlay.ownsFrame(frame);
-  }
-
-  /**
-   * Fetches the filter lists, because someone asked.
-   *
-   * Named plainly in the interface before it is pressed: this is the one thing
-   * in the browser that talks to a server nobody navigated to, and it happens
-   * once, when asked.
-   */
-  async updateFilterLists(): Promise<{ ok: boolean; message: string }> {
-    const outcome = await this.blocker.fetchNewerLists(app.getPath('userData'), async (url) => {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(String(response.status));
-      }
-      return response.text();
-    });
-
-    const message = outcome.ok
-      ? `Filter lists updated — ${outcome.rules.toLocaleString()} rules, from ${outcome.lists.map((list) => list.name).join(' and ')}.`
-      : outcome.reason;
-
-    this.notify({ id: 'filters-update', tone: outcome.ok ? 'done' : 'info', key: 'filters-update', message });
-    this.scheduleStatePush();
-    return { ok: outcome.ok, message };
-  }
-
-  /** How tall the overlay's own content is, which only the overlay can measure. */
-  setOverlayHeight(height: number): void {
-    this.overlay.setContentBounds(this.tabs.contentBounds());
-    this.overlay.setHeight(height);
-  }
-
-  /** What was said before anyone was listening, asked for as the chrome starts. */
-  pendingNotices(): Notice[] {
-    return this.outstanding;
-  }
-
-  /** Answers a question a notice asked. Anything but a yes simply drops it. */
-  answerNotice(id: string, confirmed: boolean): void {
-    const act = this.pendingAnswers.get(id);
-    this.pendingAnswers.delete(id);
-    this.outstanding = dismissNotice(this.outstanding, id);
-    // The overlay draws notices and keeps its own copy, so an answer given
-    // anywhere else — the API, another window — would leave it on screen with
-    // nothing behind it. It has to be told the question is settled.
-    this.overlay.send(PUSH.noticeSettled, id);
-    if (confirmed) {
-      act?.();
+  /** Committed by the address field itself, so a click and the Enter key take the same path. */
+  chooseSuggestion(target: string): void {
+    if (target) {
+      this.pushToChrome(PUSH.omniboxChosen, target);
     }
   }
 
-  /**
-   * Says that the saved things changed.
-   *
-   * Filing a bookmark or recolouring a folder changes no tab, so the tab
-   * snapshot the chrome already watches says nothing about it — a surface
-   * watching only that shows a stale tree until something unrelated happens.
-   */
-  bookmarksChanged(): void {
-    this.pushToChrome(PUSH.bookmarksChanged);
+  /** Hands the keyboard to the overlay asking for it; a frame that is not an overlay gets nothing. */
+  focusOverlay(frame: WebFrameMain | null): void {
+    this.overlayFor(frame)?.takeFocus();
   }
 
-  /** Asks the surface to put the folder's name into an editable field. */
-  renameBookmarkFolder(id: string): void {
-    this.pushToChrome(PUSH.renameBookmarkFolder, id);
+  /** Opens find, or brings the keyboard back to it if it is already open. */
+  openFind(): void {
+    this.tabs.openFind();
+    this.overlays.trailing.takeFocus();
+    this.overlays.trailing.send(PUSH.focusFind);
   }
 
-  createBookmarkFolder(name: string, colour: GroupColourId, parentId: string | null): BookmarkFolder {
-    const folder = this.store.createBookmarkFolder(name, colour, parentId);
-    this.bookmarksChanged();
-    return folder;
+  stopFind(): void {
+    this.tabs.stopFind();
+    // The field that had the keyboard is gone, so it goes back to the page it was searching.
+    this.tabs.focusActive();
   }
 
-  moveBookmarkFolder(id: string, parentId: string | null): boolean {
-    const moved = this.store.moveBookmarkFolder(id, parentId);
-    this.bookmarksChanged();
-    return moved;
-  }
+  // ---------------------------------------------------------------- pages
 
-  updateBookmarkFolder(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): void {
-    this.store.updateBookmarkFolder(id, changes);
-    this.bookmarksChanged();
-  }
-
-  /**
-   * Removes everything known about one site, and says what went.
-   *
-   * Said afterwards as well as before, because something that vanished quietly
-   * is indistinguishable from something that did not work.
-   */
-  /**
-   * Everything this browser knows about one site, including the part that kept
-   * you signed in to it.
-   *
-   * The store forgets what it wrote down — history, icons, certificates, zoom,
-   * permissions, blocking exceptions. None of that is the session, and the
-   * session is where the sign-in lives: someone told a site had been forgotten
-   * could open it and still be logged in, which made the whole sentence a lie.
-   *
-   * Cookies and site storage go from every session this window has prepared,
-   * which is ordinary browsing, Hush, and each group that keeps its own — a
-   * group's cookies are still that site's cookies.
-   */
-  async forgetSite(address: string): Promise<SiteTraces> {
-    // Read before the store forgets, because afterwards nothing names them.
-    const known = this.store.originsForSite(address);
-    const removed = this.store.forgetSite(address);
-    const cookies = await this.forgetSiteInSessions(address, known);
-    // The allowlist may have lost an entry, and the blocker holds its own copy.
-    this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
-
-    const complete = { ...removed, cookies };
-    this.notify({
-      id: `forget-${siteOf(address)}`,
-      tone: 'done',
-      key: 'forget-site',
-      message: `Forgot ${siteOf(address)} — ${describeTraces(complete).toLowerCase()}`,
-    });
-    this.scheduleStatePush();
-    return complete;
-  }
-
-  /**
-   * Removes the site's cookies and storage from every prepared session, and
-   * reports how many cookies went.
-   *
-   * Cookies are matched by the site they belong to rather than by origin: a
-   * cookie set on `.example.com` is example.com's, and clearing by exact origin
-   * would leave it. Storage is cleared by origin because that is what the API
-   * takes, using the origins the cookies themselves name.
-   */
-  private async forgetSiteInSessions(address: string, known: string[] = []): Promise<number> {
-    const site = siteOf(address);
-    if (!site) {
-      return 0;
-    }
-
-    let removed = 0;
-    for (const { session, cookies } of await this.cookiesForSite(site)) {
-      // `clearData` matches an origin exactly, so every origin the site is known
-      // to have has to be named: the ones a cookie points at, the ones this
-      // browser saw an icon or a certificate for, and the two obvious spellings.
-      // A subdomain that kept storage without a cookie, an icon or a certificate
-      // is not reachable from here and is not cleared.
-      const origins = new Set<string>([`https://${site}`, `https://www.${site}`, ...known]);
-      for (const cookie of cookies) {
-        const host = (cookie.domain ?? '').replace(/^\./, '');
-        const scheme = cookie.secure ? 'https' : 'http';
-        origins.add(`${scheme}://${host}`);
-        try {
-          await session.cookies.remove(`${scheme}://${host}${cookie.path ?? '/'}`, cookie.name);
-          removed += 1;
-        } catch {
-          // A cookie the session will not give up is not a reason to abandon
-          // the rest of them, and the count reports what actually went.
-        }
-      }
-
-      try {
-        await session.clearData({ origins: [...origins] });
-      } catch {
-        // An in-memory session can refuse this. The cookies are already gone,
-        // which is the part someone would notice.
-      }
-    }
-    return removed;
-  }
-
-  /**
-   * The site's cookies in every session this window has prepared.
-   *
-   * Matched by the site a cookie belongs to rather than by origin: a cookie set
-   * on `.example.com` is example.com's, and matching exact origins would leave
-   * it behind. Used both to count before anything is removed and to remove.
-   */
-  private async cookiesForSite(site: string): Promise<{ session: Session; cookies: Electron.Cookie[] }[]> {
-    const found: { session: Session; cookies: Electron.Cookie[] }[] = [];
-    for (const partition of this.preparedSessions) {
-      const session = electronSession.fromPartition(partition);
-      try {
-        const all = await session.cookies.get({});
-        found.push({ session, cookies: all.filter((cookie) => sameSite(cookie.domain ?? '', site)) });
-      } catch {
-        found.push({ session, cookies: [] });
-      }
-    }
-    return found;
-  }
-
-  /**
-   * What will go, said before it goes.
-   *
-   * The store counts what it wrote down and cannot see a session, so the cookies
-   * are added here. Without them the warning understated what forgetting does by
-   * exactly the thing people care about — and then the sentence afterwards named
-   * a number the sentence before had not mentioned.
-   */
-  async tracesOf(address: string): Promise<SiteTraces> {
-    const site = siteOf(address);
-    const found = this.store.tracesOf(address);
-    if (!site) {
-      return found;
-    }
-    const perSession = await this.cookiesForSite(site);
-    return { ...found, cookies: perSession.reduce((total, entry) => total + entry.cookies.length, 0) };
-  }
-
-  /** Clears one kind of thing kept about sites, and says it happened. */
-  /**
-   * What survives a clear, counted where it actually lives.
-   *
-   * The store owns most of it and the download manager owns the rest, so the
-   * two are put together here. Downloads were in neither list: clearing history
-   * left downloads.json holding every address and redirect chain, and the pane
-   * that exists to say what a clear does not touch did not mention it.
-   */
-  keptAboutSites(): KeptAboutSites {
-    return { ...this.store.keptAboutSites(), downloads: this.downloads.remembered() };
-  }
-
-  clearKept(kind: KeptKind): void {
-    if (kind === 'downloads') {
-      // The files stay where they were saved. What goes is the record of where
-      // they came from, which is browsing.
-      this.downloads.clearCompleted();
-      this.scheduleStatePush();
-      return;
-    }
-    this.store.clearKept(kind);
-    if (kind === 'blockingOff') {
-      this.blocker.setAllowlist(this.store.getSettings().blockerAllowlist);
-    }
-    this.scheduleStatePush();
-  }
-
-  fileBookmark(id: string, folderId: string | null): void {
-    this.store.fileBookmark(id, folderId);
-    this.bookmarksChanged();
-    this.scheduleStatePush();
-  }
-
-  removeBookmark(id: string): void {
-    this.store.removeBookmark(id);
-    this.bookmarksChanged();
-    this.scheduleStatePush();
-  }
-
-  /** Deletes a folder, keeping everything that was in it, and says what moved. */
-  deleteBookmarkFolder(id: string): { folders: number; bookmarks: number } {
-    const moved = this.store.deleteBookmarkFolder(id);
-    this.bookmarksChanged();
-    this.scheduleStatePush();
-    return moved;
-  }
-
-  /** Asks the chrome to put the group's name into an editable field in the strip. */
-  renameGroup(id: string): void {
-    this.pushToChrome(PUSH.renameGroup, id);
-  }
-
-  setTabGroup(tabId: TabId, groupId: string | null): void {
-    this.tabs.setGroup(tabId, groupId);
-    this.scheduleStatePush();
-  }
-
-  openDownloadsFolder(): void {
-    void shell.openPath(app.getPath('downloads'));
-  }
-
-  downloadUrl(url: string): void {
-    if (!isNavigableUrl(url)) {
-      return;
-    }
-    this.tabs.downloadUrl(url);
-  }
-
-  searchUrlFor(query: string): string {
-    return buildSearchUrl(query, this.store.getSettings().searchEngine);
-  }
-
-  /** Hand a link to the system browser. Only ever https, never a local path. */
-  async openExternal(url: string): Promise<void> {
-    if (!url.startsWith('https://')) {
-      return;
-    }
-    await shell.openExternal(url);
-  }
-
-  /** Every host a tab has contacted since its last page load. */
   connectionsFor(tabId: TabId): ConnectionEntry[] {
     const webContentsId = this.tabs.webContentsIdFor(tabId);
     return webContentsId === undefined ? [] : this.blocker.connectionsFor(webContentsId);
+  }
+
+  /** Saves what a page contacted as a file anyone can read; answers with a problem to show, or nothing. */
+  async exportPageReport(tabId: TabId): Promise<string> {
+    const url = this.tabs.urlFor(tabId);
+    if (!url) {
+      return t('main.pageReport.noPage');
+    }
+    const now = Date.now();
+    const report = pageReportFrom({
+      url,
+      title: this.tabs.titleFor(tabId),
+      now,
+      version: app.getVersion(),
+      isBlocking: this.profile.settings().blockTrackers,
+      entries: this.connectionsFor(tabId),
+    });
+    const written = await writeChosenFile(
+      this.window,
+      {
+        title: t('main.pageReport.title'),
+        defaultPath: pageReportFileName(url, now),
+        filters: [{ name: t('main.pageReport.fileType'), extensions: ['json'] }],
+      },
+      () => `${JSON.stringify(report, null, 2)}\n`,
+    );
+    return written.value === null ? written.message : '';
   }
 
   setContentInsets(insets: ContentInsets): void {
@@ -1342,57 +653,9 @@ export class Browser {
 
   // -------------------------------------------------------------- teardown
 
-  /**
-   * Records the tabs that are open.
-   *
-   * Called whenever they change rather than only at quit. Writing the session
-   * once, on the way out, meant a crash or a kill lost every open tab — the one
-   * thing someone notices immediately, and the one thing that cannot be
-   * reconstructed. The session file flushes on its own longer debounce, so
-   * saying so on every change costs a write about once a second at worst.
-   */
-  saveSession(): void {
-    this.store.saveSession(this.tabs.sessionSnapshot());
-  }
-
-  prepareForQuit(): void {
-    this.vaultSession.flush();
-    if (this.isQuitting) {
-      return;
-    }
-    this.isQuitting = true;
-    this.saveSession();
-    this.downloads.cancelAllInFlight();
-    this.downloads.flush();
-    this.store.flushAll();
-  }
-
   private dispose(): void {
-    this.prepareForQuit();
-    this.updates.stop();
-    this.overlay.dispose();
+    this.publisher.stop();
+    this.eachOverlay((overlay) => overlay.dispose());
     this.tabs.dispose();
-    this.prompts.settleAll();
-  }
-}
-
-function nearestZoomIndex(zoomFactor: number): number {
-  let bestIndex = ZOOM_STEPS.indexOf(1);
-  let bestDistance = Number.POSITIVE_INFINITY;
-  ZOOM_STEPS.forEach((step, index) => {
-    const distance = Math.abs(step - zoomFactor);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  });
-  return bestIndex;
-}
-
-function safeScheme(url: string): string | null {
-  try {
-    return new URL(url).protocol.replace(/:$/, '');
-  } catch {
-    return null;
   }
 }

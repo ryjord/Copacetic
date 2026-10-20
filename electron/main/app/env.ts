@@ -32,6 +32,17 @@ export function filtersRoot(): string {
   return path.join(app.getAppPath(), 'dist', 'electron', 'filters');
 }
 
+/** Bergamot's worker, kept outside the asar so a worker thread can load it as a file. */
+export function translationEngineRoot(): string {
+  return path.join(
+    app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'),
+    'dist',
+    'electron',
+    'translation',
+    'engine',
+  );
+}
+
 export function preloadPath(): string {
   // From the app root rather than by counting `../` off __dirname, so moving
   // this file between folders cannot quietly break the preload path.

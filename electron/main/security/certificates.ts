@@ -1,5 +1,6 @@
 import type { Certificate, Session } from 'electron';
 import type { CertificateSummary } from '../../shared/types';
+import { t } from '../../shared/i18n/translate';
 
 // The only value this may ever return: 0 means accept, which would treat every expired,
 // self-signed and wrong-hostname certificate as valid. Observing must never become deciding.
@@ -64,7 +65,7 @@ export function forgetCertificates(): void {
 /** Electron reports validity in seconds since the epoch; everything else in this codebase works in milliseconds. */
 export function summariseCertificate(certificate: Certificate, isIssuedByKnownRoot = true): CertificateSummary {
   return {
-    issuer: certificate.issuerName || certificate.issuer?.commonName || 'Unknown',
+    issuer: certificate.issuerName || certificate.issuer?.commonName || t('main.certificates.unknownIssuer'),
     subject: certificate.subjectName || certificate.subject?.commonName || '',
     validFrom: (certificate.validStart ?? 0) * 1000,
     validTo: (certificate.validExpiry ?? 0) * 1000,

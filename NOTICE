@@ -1,4 +1,4 @@
-Copacetic — third-party notices
+Copacetic - third-party notices
 ===============================
 
 Copacetic itself is MIT licensed; see LICENSE. It redistributes the material
@@ -7,7 +7,7 @@ below, which is not, and which keeps its own terms.
 If you fork, repackage or sell this software, these terms travel with the files
 and are yours to honour. This file records what is here and under what licence;
 it is not legal advice, and it does not elect between the two licences the lists
-offer — that choice has not been made, and it should be made deliberately, with
+offer - that choice has not been made, and it should be made deliberately, with
 advice, before this is sold. CC BY-SA 3.0 asks for attribution and share-alike
 on the list itself; GPLv3 is the alternative and reaches further.
 
@@ -42,6 +42,43 @@ EasyPrivacy
               https://easylist.to/pages/licence.html
 
 Tracking and analytics filters, maintained separately from advertising.
+
+
+EasyList Cookie List
+--------------------
+
+    Files:    electron/main/security/filters/easylist-cookie.txt
+              and the compiled engine built from its hiding rules at
+              package time
+    Source:   https://secure.fanboy.co.nz/fanboy-cookiemonster.txt
+    Home:     https://easylist.to
+    Licence:  Creative Commons Attribution 3.0 Unported, as the list's own
+              header states.
+              https://creativecommons.org/licenses/by/3.0/
+    Credit:   The EasyList authors (https://easylist.to/).
+
+Cookie consent banners. Only the list's hiding rules are used, so a banner is
+hidden while the site's own scripts still run; nothing is accepted or refused
+on the person's behalf.
+
+
+Bergamot translator
+-------------------
+
+    Files:    dist/electron/translation/engine/, copied at build time from
+              the npm package @browsermt/bergamot-translator 0.4.9
+    Source:   https://github.com/browsermt/bergamot-translator
+    Licence:  Mozilla Public License 2.0
+              https://www.mozilla.org/MPL/2.0/
+
+The engine that translates in reader view, compiled to WebAssembly and run in a
+worker thread of the main process. One file is changed, at build time, by
+scripts/build-translation-engine.mjs: two lines of worker/translator-worker.js
+that build file addresses by hand now use Node's fileURLToPath and
+pathToFileURL, so the engine finds its own files on Windows. The source of
+every original file is at the address above. The language models it runs are not shipped: they are
+downloaded from Mozilla when someone first translates a language, under
+Mozilla's own terms.
 
 
 Everything else

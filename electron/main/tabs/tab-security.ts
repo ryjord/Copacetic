@@ -1,12 +1,13 @@
-import { START_PAGE_URL, hostOf, isLoopbackHost } from '../../shared/url';
+import { START_PAGE_URL, hostOf, isLoopbackHost } from '../../shared/browsing/url';
 import type { CertificateSummary, SecurityState } from '../../shared/types';
+import { t } from '../../shared/i18n/translate';
 
 export function describeSecurity(
   url: string,
   certificate: CertificateSummary | null = null,
   certificateChange = '',
-  /** Set when this page loaded on a certificate Copacetic accepted because it came from this machine. */
-  trustedLocally = false,
+  /** How this page's certificate was accepted when Chromium refused it: from this machine, or by the person. */
+  exception: 'local' | 'accepted' | null = null,
   /** Set when the page did not load. */
   failed = false,
 ): SecurityState {
@@ -22,7 +23,7 @@ export function describeSecurity(
       level: 'internal',
       scheme: 'copacetic',
       host: 'start',
-      detail: 'A Copacetic page. Nothing here touches the network.',
+      detail: t('main.security.internalPage'),
       certificate: null,
       certificateChange: '',
     };
@@ -38,7 +39,7 @@ export function describeSecurity(
       level: 'unknown',
       scheme,
       host,
-      detail: 'This page did not load, so there is nothing to say about the connection.',
+      detail: t('main.security.failed'),
       certificate: null,
       certificateChange: '',
     };
@@ -49,7 +50,7 @@ export function describeSecurity(
       level: 'internal',
       scheme,
       host,
-      detail: 'A Copacetic page. Nothing here touches the network.',
+      detail: t('main.security.internalPage'),
       certificate: null,
       certificateChange: '',
     };
@@ -59,21 +60,32 @@ export function describeSecurity(
     return {
       level: 'internal',
       scheme,
-      host: hostOf(url) || 'local file',
-      detail: 'A file on this machine. It was never sent over a network.',
+      host: hostOf(url) || t('main.security.localFile.host'),
+      detail: t('main.security.localFile.detail'),
       certificate: null,
       certificateChange: '',
     };
   }
 
-  if (scheme === 'https' && trustedLocally) {
+  // Encrypted, but to whom is exactly the question that went unanswered.
+  if (scheme === 'https' && exception === 'accepted') {
+    return {
+      level: 'insecure',
+      scheme,
+      host,
+      detail: t('main.security.acceptedException'),
+      certificate: null,
+      certificateChange: '',
+    };
+  }
+
+  if (scheme === 'https' && exception === 'local') {
     return {
       level: 'secure',
       scheme,
       host,
       // Not the usual claim, because the usual check did not happen.
-      detail:
-        'Encrypted to a server on this machine. Its certificate was not checked against any authority — Copacetic accepts those from loopback so local development works, and this traffic never leaves your machine.',
+      detail: t('main.security.localException'),
       certificate: null,
       certificateChange: '',
     };
@@ -84,7 +96,7 @@ export function describeSecurity(
       level: 'secure',
       scheme,
       host,
-      detail: 'Encrypted. Chromium checked this site’s certificate against your system’s trusted authorities.',
+      detail: t('main.security.secure'),
       certificate,
       certificateChange,
     };
@@ -95,7 +107,7 @@ export function describeSecurity(
       level: 'secure',
       scheme,
       host,
-      detail: 'Loopback connection. This traffic never leaves your machine.',
+      detail: t('main.security.loopback'),
       certificate: null,
       certificateChange: '',
     };
@@ -106,7 +118,7 @@ export function describeSecurity(
       level: 'insecure',
       scheme,
       host,
-      detail: 'Not encrypted. Anyone on this network can read this page and change it before you see it.',
+      detail: t('main.security.insecure'),
       certificate: null,
       certificateChange: '',
     };
@@ -116,7 +128,7 @@ export function describeSecurity(
     level: 'unknown',
     scheme,
     host,
-    detail: 'Copacetic cannot describe this connection.',
+    detail: t('main.security.unknown'),
     certificate: null,
     certificateChange: '',
   };

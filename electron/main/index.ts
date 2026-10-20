@@ -1,25 +1,26 @@
-import { app, nativeImage } from 'electron';
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
-import { Browser } from './app/browser';
-import { showPageContextMenu } from './menus/context-menu';
+// Libs
+import { app, dialog, nativeImage } from 'electron';
+import { existsSync } from 'node:fs';
+
+// Utils
+import { Profiles } from './app/profiles';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
-import { applyDnsSwitches, applyPrivacySwitches, readDnsPreference } from './app/command-line';
+import { applyPrivacySwitches } from './system/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
-import { allowLocalCertificates } from './security/local-certificates';
-import { urlFromArguments } from './app/default-browser';
-import { isPageNavigableUrl } from '../shared/url';
+import { applyLaunchMode } from './system/launch-mode';
+import { markQuit, markRunning } from './system/exit-marker';
+import { clearCopiedSecret } from './vault/vault-clipboard';
+import { watchCertificateErrors } from './security/certificate-exceptions';
+import { urlFromArguments } from './system/default-browser';
+import { isPageNavigableUrl } from '../shared/browsing/url';
+import { t } from '../shared/i18n/translate';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
 applyPrivacySwitches(app.commandLine);
-applyDnsSwitches(
-  app.commandLine,
-  readDnsPreference(path.join(app.getPath('userData'), 'settings.json'), (file) => readFileSync(file, 'utf8')),
-);
 registerAppProtocolScheme();
 
 // A browser with two copies of itself running would fight over the session
@@ -27,10 +28,26 @@ registerAppProtocolScheme();
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  void start();
+  // A rejected start used to disappear: no window, no message, no log line, and
+  // an application in the dock doing nothing. Whatever failed is written down
+  // and said out loud, because a browser that will not open is the one failure
+  // nobody can work around.
+  start().catch((error: unknown) => {
+    console.error('[copacetic] failed to start', error);
+    log.error('failed to start', describeError(error));
+    dialog.showErrorBox(t('main.startup.couldNotStart'), sentenceFor(error));
+    app.exit(1);
+  });
 }
 
-let browser: Browser | null = null;
+/** What to put in front of a person when something failed before they could act. */
+function sentenceFor(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.trim() || t('main.startup.generic');
+}
+
+// One for the life of the app; profiles and their windows come and go inside it.
+let profiles: Profiles | null = null;
 
 async function start(): Promise<void> {
   app.setName('Copacetic');
@@ -41,13 +58,15 @@ async function start(): Promise<void> {
   let pendingUrl: string | null = null;
 
   const openUrl = (url: string) => {
-    // macOS keeps the app alive with no window, and this arrives regardless.
-    if (browser && !browser.window.isDestroyed()) {
+    if (!profiles) {
+      pendingUrl = url;
+      return;
+    }
+    // macOS keeps the app alive with no window, and this arrives regardless, so it may need one.
+    void profiles.focusedOrNew().then((browser) => {
       browser.tabs.create(url, { activate: true });
       browser.window.focus();
-    } else {
-      pendingUrl = url;
-    }
+    });
   };
 
   // macOS never puts the address on the command line; it sends this instead.
@@ -59,53 +78,61 @@ async function start(): Promise<void> {
   });
 
   app.on('second-instance', (_event, argv) => {
-    if (!browser || browser.window.isDestroyed()) {
-      return;
-    }
-    if (browser.window.isMinimized()) {
-      browser.window.restore();
-    }
-    browser.window.focus();
     const url = urlFromArguments(argv);
+    const browser = profiles?.focused();
+    if (browser) {
+      if (browser.window.isMinimized()) {
+        browser.window.restore();
+      }
+      browser.window.focus();
+    }
+    // Through the same path as every other address, which holds it when there
+    // is nowhere to put it yet. Opening a link while this app is still starting
+    // used to drop it silently - the second copy exits, the first has no window
+    // yet, and the address is gone.
     if (url) {
-      browser.tabs.create(url, { activate: true });
+      openUrl(url);
     }
   });
 
   await app.whenReady();
+  applyLaunchMode();
   // Before anything else that can fail, so that when it does there is a record.
   startDiagnostics(app.getPath('userData'));
-  allowLocalCertificates();
+  watchCertificateErrors();
   log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
   handleAppProtocol();
 
-  browser = new Browser();
-  browser.tabs.onPageContextMenu((tabId, params) => {
-    if (browser) {
-      showPageContextMenu(browser, tabId, params);
-    }
-  });
-  registerIpcHandlers(browser);
-  installApplicationMenu(browser);
-
-  await browser.start();
+  const didLastRunEndBadly = markRunning(app.getPath('userData'));
+  profiles = new Profiles();
+  registerIpcHandlers(profiles);
+  installApplicationMenu(profiles);
+  // The menu lists the profiles, so it is built again when they change.
+  profiles.whenListChanges(() => profiles && installApplicationMenu(profiles));
+  profiles.whenShortcutsChange(() => profiles && installApplicationMenu(profiles));
+  profiles.start();
+  await profiles.restoreWindows(didLastRunEndBadly);
 
   // Cold start: the address is either on the command line, or was handed over
   // by the system before there was a window to put it in.
   const requested = pendingUrl ?? urlFromArguments(process.argv);
   pendingUrl = null;
   if (requested) {
-    browser.tabs.create(requested, { activate: true });
+    openUrl(requested);
   }
 
   app.on('activate', () => {
-    if (!browser) {
+    if (!profiles || profiles.allWindows().length > 0) {
       return;
     }
-    if (browser.window.isDestroyed()) {
-      return;
-    }
-    browser.window.show();
+    // macOS keeps an application running after its last window closes, and
+    // clicking the dock icon is how a person asks for it back. Returning early
+    // here left the app alive with no window and no way to open one - running,
+    // in the dock, and unusable until it was force-quit.
+    void profiles.first.openWindow().catch((error: unknown) => {
+      log.error('could not reopen the window', describeError(error));
+      dialog.showErrorBox(t('main.startup.couldNotOpenWindow'), sentenceFor(error));
+    });
   });
 }
 
@@ -118,7 +145,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  browser?.prepareForQuit();
+  profiles?.prepareForQuit();
+  clearCopiedSecret();
 });
 
 /**
@@ -138,7 +166,8 @@ app.on('before-quit', () => {
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
     try {
-      browser?.prepareForQuit();
+      profiles?.prepareForQuit();
+      markQuit(app.getPath('userData'));
     } finally {
       app.exit(0);
     }
@@ -147,6 +176,10 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
 
 app.on('will-quit', () => {
   removeIpcHandlers();
+  // Only once there is a profile: a second copy that quits at once must not clear the first one's mark.
+  if (profiles) {
+    markQuit(app.getPath('userData'));
+  }
 });
 
 // Unpackaged runs have no bundle for macOS to read an icon out of, so the dock falls back to the Electron atom.

@@ -9,7 +9,7 @@ let copacetic: SmokeApp;
  * A window of its own, and nothing else in it.
  *
  * The claim is that a site opened in a Hush tab is named nowhere on disk. That
- * only means anything in a profile where nothing else has been near the site —
+ * only means anything in a profile where nothing else has been near the site -
  * an earlier test that downloaded from it, or simply visited it in an ordinary
  * tab, writes the same name for entirely legitimate reasons and the check would
  * be reading its own leftovers.
@@ -24,7 +24,7 @@ afterAll(async () => copacetic?.close());
  * The claim as a whole, rather than one write path at a time.
  *
  * Three separate leaks have been found here by looking: the favicon cache, the
- * download record, and the certificate store — each written automatically, each
+ * download record, and the certificate store - each written automatically, each
  * surviving the tab, each against the same sentence. Rather than add a fourth
  * specific test, this visits a page in a Hush tab and then reads everything the
  * browser keeps, asking whether any of it names the site. A write path added
@@ -53,15 +53,23 @@ describe('everything a Hush tab writes', () => {
         await window.copacetic.tabs.setZoom(hush.id, 1.75);
       }
     });
+    // And starred, which a Hush tab refuses rather than write a bookmark.
+    const isBookmarked = await copacetic.chrome.evaluate(async () => {
+      const state = await window.copacetic.chrome.getState();
+      const hush = state.tabs.find((tab) => tab.isHush);
+      return hush ? window.copacetic.bookmarks.toggle(hush.url, hush.title) : null;
+    });
+    expect(isBookmarked).toBe(false);
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
     const named: string[] = [];
     for (const name of readdirSync(copacetic.profile)) {
-      if (!name.endsWith('.json')) {
+      // The JSON files and the database with its log, read as bytes, since a row can be in a page the app has not written yet.
+      if (!name.endsWith('.json') && !name.startsWith('copacetic.db')) {
         continue;
       }
       try {
-        if (readFileSync(path.join(copacetic.profile, name), 'utf8').includes('example.com')) {
+        if (readFileSync(path.join(copacetic.profile, name)).toString('latin1').includes('example.com')) {
           named.push(name);
         }
       } catch {
@@ -80,9 +88,13 @@ describe('everything a Hush tab writes', () => {
    */
   it('but an ordinary tab is written down', async () => {
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com/ordinary-visit'));
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    const history = readFileSync(path.join(copacetic.profile, 'history.json'), 'utf8');
-    expect(history).toContain('example.com');
+    // Polled: a slow runner can take longer than a fixed pause to load the page and write the visit.
+    const deadline = Date.now() + 30_000;
+    let isWritten = false;
+    while (!isWritten && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      isWritten = copacetic.historyOnDisk().some((entry) => entry.url.includes('example.com'));
+    }
+    expect(isWritten).toBe(true);
   }, 120_000);
 });

@@ -57,7 +57,7 @@ const tryFetch = (url: string) => `
 describe('what a page is allowed to fetch', () => {
   /*
    * These two hosts are in the curated set as well as the lists, so this passes
-   * with the lists switched off entirely — it is the floor, and it is here to
+   * with the lists switched off entirely - it is the floor, and it is here to
    * say the floor still holds.
    */
   it('refuses an advertising endpoint the curated set names', async () => {
@@ -72,7 +72,7 @@ describe('what a page is allowed to fetch', () => {
   /*
    * This one is the feature. The curated set is 122 hostnames; EasyPrivacy
    * alone carries 47,263 plain host rules, and bat.bing.com is in the second
-   * and not the first — so nothing but the shipped lists can refuse it, and a
+   * and not the first - so nothing but the shipped lists can refuse it, and a
    * release that failed to build or load them fails here and nowhere else.
    */
   it('refuses a tracker only the shipped lists know about', async () => {
@@ -91,7 +91,7 @@ describe('what a page is allowed to fetch', () => {
 
   /*
    * The switch has to switch. A blocker whose setting did nothing would look
-   * identical from the outside — the refusals above would still pass — and the
+   * identical from the outside - the refusals above would still pass - and the
    * only person who would find out is someone who turned it off to fix a broken
    * site and watched it stay broken.
    */
@@ -144,4 +144,28 @@ describe('hiding what blocking leaves behind', () => {
     expect(found.ordinary).toBe('block');
     expect(found.copaceticGlobals).toEqual([]);
   }, 90_000);
+});
+
+// Hidden by the same user-origin stylesheet, so nothing in the page answers the banner or runs on its behalf.
+describe('hiding cookie banners', () => {
+  const bannerDisplay = `
+    (() => {
+      const banner = document.createElement('div');
+      banner.id = 'onetrust-banner-sdk';
+      document.body.appendChild(banner);
+      return getComputedStyle(banner).display;
+    })()
+  `;
+
+  it('hides a consent banner the cookie list names, and shows it once switched off', async () => {
+    const hidden = await copacetic.inPage<string>('https://example.com/?banners=on', bannerDisplay);
+
+    await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ hideCookieBanners: false }));
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const shown = await copacetic.inPage<string>('https://example.com/?banners=off', bannerDisplay);
+    await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ hideCookieBanners: true }));
+
+    expect(hidden).toBe('none');
+    expect(shown).toBe('block');
+  }, 120_000);
 });
