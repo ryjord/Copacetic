@@ -7,7 +7,7 @@ vi.mock('electron', () => ({
   shell: {},
 }));
 
-const { clampToVisibleDisplay } = await import('../../../../electron/main/window/window');
+const { cascadedPosition, clampToVisibleDisplay } = await import('../../../../electron/main/window/window');
 
 const LAPTOP = { x: 0, y: 0, width: 1440, height: 900 };
 const EXTERNAL = { x: 1440, y: 0, width: 2560, height: 1440 };
@@ -64,5 +64,17 @@ describe('restoring a window onto the displays that exist now', () => {
     const clamped = clampToVisibleDisplay(saved(9000, 9000), [LAPTOP]);
     expect(clamped.width).toBe(1200);
     expect(clamped.height).toBe(800);
+  });
+});
+
+describe('a second window', () => {
+  const area = { x: 0, y: 0, width: 1440, height: 900 };
+
+  it('opens a step down and right of the last, not on top of it', () => {
+    expect(cascadedPosition({ x: 100, y: 80 }, { width: 1000, height: 700 }, area)).toEqual({ x: 128, y: 108 });
+  });
+
+  it('starts again at the corner rather than leave the screen', () => {
+    expect(cascadedPosition({ x: 420, y: 180 }, { width: 1000, height: 700 }, area)).toEqual({ x: 28, y: 28 });
   });
 });

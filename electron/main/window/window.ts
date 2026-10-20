@@ -29,20 +29,32 @@ export interface WindowBounds {
 const DEFAULT_BOUNDS: WindowBounds = { width: 1280, height: 820, x: null, y: null, isMaximized: false };
 const MIN_WIDTH = 720;
 const MIN_HEIGHT = 480;
+// Far enough to see there are two, near enough that the new one is where the old one was.
+const CASCADE_STEP = 28;
+
+/** Every chrome window still open, newest last, so a new one can be placed against the last. */
+const openWindows: BrowserWindow[] = [];
 
 export function createChromeWindow(density: DensityId): BrowserWindow {
   const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, {
     flushDelayMs: 600,
   });
-  const saved = clampToVisibleDisplay(
-    boundsFile.get(),
-    screen.getAllDisplays().map((display) => display.workArea),
-  );
+  const workAreas = screen.getAllDisplays().map((display) => display.workArea);
+  const saved = clampToVisibleDisplay(boundsFile.get(), workAreas);
+  // A second window opens down and to the right of the last, rather than exactly on top of it.
+  const previous = openWindows.at(-1);
+  const placed =
+    previous && !previous.isDestroyed() && !previous.isMaximized()
+      ? {
+          ...saved,
+          ...cascadedPosition(previous.getBounds(), saved, screen.getDisplayMatching(previous.getBounds()).workArea),
+        }
+      : saved;
 
   const window = new BrowserWindow({
-    width: saved.width,
-    height: saved.height,
-    ...(saved.x !== null && saved.y !== null ? { x: saved.x, y: saved.y } : {}),
+    width: placed.width,
+    height: placed.height,
+    ...(placed.x !== null && placed.y !== null ? { x: placed.x, y: placed.y } : {}),
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     backgroundColor: groundColour(),
@@ -73,6 +85,8 @@ export function createChromeWindow(density: DensityId): BrowserWindow {
     window.maximize();
   }
   guardChromeWebContents(window.webContents);
+  openWindows.push(window);
+  window.on('closed', () => openWindows.splice(openWindows.indexOf(window), 1));
 
   const persist = () => {
     if (window.isDestroyed() || window.isMinimized() || window.isFullScreen()) {
@@ -99,6 +113,18 @@ export function createChromeWindow(density: DensityId): BrowserWindow {
   window.on('close', () => boundsFile.flush());
 
   return window;
+}
+
+/** One step down and right of the window before, starting again at the corner when that would leave the screen. */
+export function cascadedPosition(
+  previous: { x: number; y: number },
+  size: { width: number; height: number },
+  workArea: WorkArea,
+): { x: number; y: number } {
+  const x = previous.x + CASCADE_STEP;
+  const y = previous.y + CASCADE_STEP;
+  const fits = x + size.width <= workArea.x + workArea.width && y + size.height <= workArea.y + workArea.height;
+  return fits ? { x, y } : { x: workArea.x + CASCADE_STEP, y: workArea.y + CASCADE_STEP };
 }
 
 /** A window restored onto a display that no longer exists is invisible and unrecoverable without editing config by hand. */
