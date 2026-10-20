@@ -10,6 +10,7 @@ import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow'
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { TextField } from '@/components/ui/TextField/TextField';
 import { GeneratorOptions } from '@/components/views/settings/passwords/GeneratorOptions';
+import { SavedPasswords } from '@/components/views/settings/passwords/SavedPasswords';
 
 // Utils
 import { ask } from '@/lib/bridge/bridge';
@@ -26,8 +27,10 @@ const OPEN: VaultLock = { isUnlocked: true, method: 'none', detail: '' };
 export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'openPane'>>) {
   const [vault, setVault] = useState<VaultState>(NOTHING_SAVED);
   const [lock, setLock] = useState<VaultLock>(OPEN);
-  const [message, setMessage] = useState('');
-  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  // Each said beside what was pressed, rather than at the top of the pane away from it.
+  const [lockMessage, setLockMessage] = useState('');
+  const [listMessage, setListMessage] = useState('');
+  const [transferMessage, setTransferMessage] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [removing, setRemoving] = useState<VaultEntry | null>(null);
   const [isConfirmingExport, setIsConfirmingExport] = useState(false);
@@ -42,30 +45,15 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
   // Auto-lock fires on its own timer in the main process, so this polls rather than going stale.
   useEffect(() => {
     const interval = setInterval(() => {
-      void ask((api) => api.vault.lockState(), OPEN).then((next) => {
-        setLock(next);
-        if (!next.isUnlocked) {
-          setRevealed({});
-        }
-      });
+      void ask((api) => api.vault.lockState(), OPEN).then(setLock);
     }, 15_000);
     return () => clearInterval(interval);
   }, []);
 
-  const toggleReveal = (id: string) => {
-    if (revealed[id] !== undefined) {
-      setRevealed(({ [id]: _hidden, ...rest }) => rest);
-      return;
-    }
-    void ask((api) => api.vault.reveal(id), null).then((password) => {
-      setRevealed((current) => ({ ...current, [id]: password ?? '' }));
-    });
-  };
-
-  const run = (action: Promise<string>) => {
-    setMessage('');
+  const run = (action: Promise<string>, say: (message: string) => void) => {
+    say('');
     void action.then((result) => {
-      setMessage(result);
+      say(result);
       refresh();
     });
   };
@@ -105,7 +93,7 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
         )}
         <SettingRow
           label={lock.isUnlocked ? t('settings.passwords.lock.unlocked') : t('settings.passwords.lock.locked')}
-          help={lock.detail}
+          help={lockMessage ? <span role="status">{lockMessage}</span> : lock.detail}
           control={
             lock.isUnlocked ? (
               <Button size="sm" onClick={() => void ask((api) => api.vault.lock(), undefined).then(refresh)}>
@@ -113,19 +101,21 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
               </Button>
             ) : (
               // Never "Unlock with Touch ID": macOS may ask for the login password instead.
-              <Button size="sm" onClick={() => run(ask((api) => api.vault.unlock(), ''))}>
+              <Button
+                size="sm"
+                onClick={() =>
+                  run(
+                    ask((api) => api.vault.unlock(), ''),
+                    setLockMessage,
+                  )
+                }
+              >
                 {t('settings.passwords.lock.unlock')}
               </Button>
             )
           }
         />
       </SettingGroup>
-
-      {message && (
-        <p className="px-0.5 text-body-sm text-ink-dim" role="status">
-          {message}
-        </p>
-      )}
 
       <SettingGroup
         title={
@@ -135,49 +125,23 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
         }
       >
         {vault.entries.length === 0 && !isAdding && <SettingRow label={t('settings.passwords.saved.empty')} />}
-        {vault.entries.map((entry) => (
-          <SettingRow
-            key={entry.id}
-            // Which site it was for is sealed with it, so a row this machine cannot open has no site to show.
-            label={
-              entry.origin ? entry.origin.replace(/^https?:\/\//, '') : t('settings.passwords.saved.unreadableEntry')
-            }
-            help={
-              revealed[entry.id] !== undefined ? (
-                <span className="font-mono text-ink select-text">
-                  {revealed[entry.id] || t('settings.passwords.saved.emptyValue')}
-                </span>
-              ) : (
-                entry.username || t('settings.passwords.saved.noUsername')
-              )
-            }
-            control={
-              <>
-                {!entry.isReadable && (
-                  <StatusPill status="warning">{t('settings.passwords.availability.unreadable')}</StatusPill>
-                )}
-                {entry.isReadable && lock.isUnlocked && (
-                  <Button size="sm" variant="ghost" onClick={() => toggleReveal(entry.id)}>
-                    {revealed[entry.id] === undefined
-                      ? t('settings.passwords.saved.show')
-                      : t('settings.passwords.saved.hide')}
-                  </Button>
-                )}
-                {lock.isUnlocked && (
-                  <Button size="sm" variant="ghost" onClick={() => setRemoving(entry)}>
-                    {t('settings.passwords.saved.remove')}
-                  </Button>
-                )}
-              </>
-            }
-          />
-        ))}
+        {listMessage && (
+          <div role="status">
+            <SettingRow label={listMessage} />
+          </div>
+        )}
+        <SavedPasswords
+          entries={vault.entries}
+          isUnlocked={lock.isUnlocked}
+          onRemove={setRemoving}
+          onChanged={refresh}
+        />
         {isUsable &&
           (isAdding ? (
             <AddPasswordForm
               onDone={(result) => {
                 setIsAdding(false);
-                setMessage(result);
+                setListMessage(result);
                 refresh();
               }}
               onCancel={() => setIsAdding(false)}
@@ -192,6 +156,11 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
       </SettingGroup>
 
       <SettingGroup title={t('settings.passwords.transfer.title')}>
+        {transferMessage && (
+          <div role="status">
+            <SettingRow label={transferMessage} />
+          </div>
+        )}
         <SettingRow
           label={t('settings.passwords.transfer.export.label')}
           help={t('settings.passwords.transfer.export.help')}
@@ -205,7 +174,15 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
           label={t('settings.passwords.transfer.import.label')}
           help={t('settings.passwords.transfer.import.help')}
           control={
-            <Button size="sm" onClick={() => run(ask((api) => api.vault.importFile(), ''))}>
+            <Button
+              size="sm"
+              onClick={() =>
+                run(
+                  ask((api) => api.vault.importFile(), ''),
+                  setTransferMessage,
+                )
+              }
+            >
               {t('settings.passwords.transfer.import.action')}
             </Button>
           }
@@ -224,7 +201,7 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
           if (entry) {
             // The answer is shown rather than dropped: refusing quietly is how a button looks broken.
             void ask((api) => api.vault.remove(entry.id), null).then((result) => {
-              setMessage(result ? result.error : '');
+              setListMessage(result ? result.error : '');
               refresh();
             });
           }
@@ -241,7 +218,12 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
         onOpenChange={setIsConfirmingExport}
         title={t('settings.passwords.exportDialog.title')}
         confirmLabel={t('settings.passwords.exportDialog.confirm')}
-        onConfirm={() => run(ask((api) => api.vault.exportAll(), ''))}
+        onConfirm={() =>
+          run(
+            ask((api) => api.vault.exportAll(), ''),
+            setTransferMessage,
+          )
+        }
       >
         {t('settings.passwords.exportDialog.body')}
       </ConfirmDialog>

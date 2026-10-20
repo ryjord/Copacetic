@@ -272,6 +272,8 @@ export interface CopaceticApi {
     remove(id: string): Promise<{ error: string } | null>;
     /** One password, by id, only when asked. Never part of the listed state. */
     reveal(id: string): Promise<string | null>;
+    /** Copied in the main process; a password is cleared from the clipboard after 30 seconds. Resolves false when locked. */
+    copy(id: string, field: 'username' | 'password'): Promise<boolean>;
     /** Writes a plain-text CSV where the user chooses. Resolves empty, or with what to tell them. */
     exportAll(): Promise<string>;
     /** Reads a CSV another manager wrote. Resolves with a summary of what came of it. */

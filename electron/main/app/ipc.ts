@@ -38,6 +38,7 @@ import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
 import { routeFor } from '../../shared/translation/languages';
 import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start-tiles';
 import { readChosenImage } from '../system/file-dialogs';
+import { copySecret, copyText } from '../vault/vault-clipboard';
 import { t } from '../../shared/i18n/translate';
 import { siteOf as siteOfAddress } from '../../shared/data/forgetting';
 import { withSiteRestored, withoutSite } from '../../shared/data/site-settings';
@@ -403,6 +404,22 @@ export function registerIpcHandlers(profiles: Profiles): void {
   });
   handle('vault.remove', (browser, _event, id) => browser.vault.remove(asString(id)));
   handle('vault.reveal', (browser, _event, id) => browser.vault.reveal(asString(id)));
+  handle('vault.copy', (browser, _event, id, field) => {
+    if (field === 'password') {
+      const secret = browser.vault.reveal(asString(id));
+      if (secret === null) {
+        return false;
+      }
+      copySecret(secret);
+      return true;
+    }
+    const entry = browser.vault.state().entries.find((candidate) => candidate.id === asString(id));
+    if (!entry?.isReadable) {
+      return false;
+    }
+    copyText(entry.username);
+    return true;
+  });
   handle('vault.exportAll', (browser) => browser.transfer.exportPasswords());
   handle('vault.importFile', (browser) => browser.transfer.importPasswords());
   handle('vault.lockState', (browser) => browser.vaultSession.lockInfo());

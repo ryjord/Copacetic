@@ -166,6 +166,7 @@ export const CHANNELS = {
   'vault.update': 'vault:update',
   'vault.remove': 'vault:remove',
   'vault.reveal': 'vault:reveal',
+  'vault.copy': 'vault:copy',
   'vault.exportAll': 'vault:export',
   'vault.importFile': 'vault:import',
   'vault.generate': 'vault:generate',

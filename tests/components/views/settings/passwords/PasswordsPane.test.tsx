@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { VaultState } from '../../../../../electron/shared/types';
 
+const copied = vi.fn();
 let vaultState: VaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };
 
 vi.mock('@/lib/bridge/bridge', () => ({
@@ -11,6 +12,10 @@ vi.mock('@/lib/bridge/bridge', () => ({
       vault: {
         list: async () => vaultState,
         reveal: async () => 'hunter2',
+        copy: async (id: string, field: string) => {
+          copied(id, field);
+          return true;
+        },
         add: async () => ({ id: 'new' }),
         remove: async () => null,
         lockState: async () => ({ isUnlocked: true, method: 'none', detail: '' }),
@@ -110,5 +115,57 @@ describe('the passwords pane', () => {
     vaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };
     render(<PasswordsPane />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add password' })).toBeTruthy());
+  });
+});
+
+describe('working with a saved password', () => {
+  const two = () => ({
+    availability: 'ready' as const,
+    detail: '',
+    entries: [
+      { ...entry('a', true), origin: 'https://zebra.example', updatedAt: 2 },
+      { ...entry('b', true), origin: 'https://apple.example', updatedAt: 1 },
+    ],
+    unreadableCount: 0,
+  });
+
+  it('sorts by site, or by what changed last', async () => {
+    vaultState = two();
+    render(<PasswordsPane />);
+    await waitFor(() => expect(screen.getByText('apple.example')).toBeTruthy());
+    const order = () => screen.getAllByText(/\.example$/).map((element) => element.textContent);
+    expect(order()).toEqual(['apple.example', 'zebra.example']);
+    fireEvent.click(screen.getByRole('radio', { name: 'Recently changed' }));
+    expect(order()).toEqual(['zebra.example', 'apple.example']);
+  });
+
+  it('finds a password by site', async () => {
+    vaultState = two();
+    render(<PasswordsPane />);
+    await waitFor(() => expect(screen.getByText('apple.example')).toBeTruthy());
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search passwords' }), { target: { value: 'zeb' } });
+    expect(screen.queryByText('apple.example')).toBeNull();
+  });
+
+  // Copied in the main process, which clears the clipboard; the row says so.
+  it('copies a password and says it will be cleared', async () => {
+    vaultState = { availability: 'ready', detail: '', entries: [entry('a', true)], unreadableCount: 0 };
+    render(<PasswordsPane />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy password' }));
+    await waitFor(() => expect(copied).toHaveBeenCalledWith('a', 'password'));
+    expect(await screen.findByText(/cleared from the clipboard in 30 seconds/)).toBeTruthy();
+  });
+
+  it('hides a shown password by itself', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vaultState = { availability: 'ready', detail: '', entries: [entry('a', true)], unreadableCount: 0 };
+    render(<PasswordsPane />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show' }));
+    expect(await screen.findByText('hunter2')).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(screen.queryByText('hunter2')).toBeNull();
+    vi.useRealTimers();
   });
 });
