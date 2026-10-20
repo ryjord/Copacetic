@@ -2,6 +2,54 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.0.0-beta.4 - unreleased
+
+The fourth beta of 2.0: fixes from a review of beta-3, most of them about
+what is kept after you ask for it to go.
+
+### Fixed
+
+- Undo could put back what was forgotten or cleared since: an entry removed
+  just before Forget this site or Clear browsing data came back with Undo.
+  Forgetting and clearing now withdraw every pending Undo, and an entry past
+  the history limit stays gone.
+- Shortening how long history is kept left the old titles and addresses in
+  the search index on disk.
+- A shown password stayed in memory after the vault locked, and a copied one
+  stayed on the clipboard if the vault locked or the app quit within 30
+  seconds.
+- Arrowing through the start page backgrounds deleted the photo or opened the
+  file chooser; the arrows now only move, and Space chooses.
+- A slow history search could replace a newer one, and any change to history
+  sent the list back to its first page.
+- The bookmarks bar and tab strip did not notice a renamed bookmark or group,
+  leaving the » menu or the crowded tab strip out of date.
+- A name typed into the bookmark sheet was lost if the sheet was dismissed
+  rather than closed with Done.
+- Two presses of Download and open on macOS could corrupt the installer, and
+  a download was not held to its published size.
+- A custom search engine could put the search words in the host it sends them
+  to.
+- An undone bookmark whose folder had been deleted showed nowhere.
+- Going back to an older version twice overwrote the copy of the data kept
+  from the first time.
+- Reader view fetched an article's images all at once; it now fetches a few
+  at a time within a budget.
+- Translation models and profile pictures are checked more strictly before
+  they touch the disk, and a cached model's hash is checked once a run.
+- Show, Hide and the copy buttons for each saved password now name the site,
+  the command palette groups its commands properly for screen readers, and a
+  slider saves only on the keys that move it.
+
+### Changed
+
+- The star is off in a Hush tab, since a bookmark writes the page's address to
+  disk.
+- What Copacetic sends now names the third script it runs in pages: a page
+  left in full screen when you switch tabs is asked to leave it.
+- A tag publishes only after CI passes on the tagged commit.
+- A title changing in one tab no longer re-renders every tab.
+
 ## 2.0.0-beta.3 - 20 October 2026
 
 The third beta of 2.0: Settings rebuilt pane by pane, filter and sort for the
