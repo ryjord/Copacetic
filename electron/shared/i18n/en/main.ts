@@ -174,6 +174,21 @@ export const main = {
     fileType: 'Connection report',
     noPage: 'There is no page here to report on.',
   },
+  extensions: {
+    install: {
+      notAnExtension: 'That file is not a Chrome extension.',
+      badSignature: 'The extension’s signature does not check out, so it was not installed.',
+      notFromStore: 'That extension was not signed by the Chrome Web Store, so it was not installed.',
+      wrongExtension: 'The store sent a different extension from the one asked for, so it was not installed.',
+      tooLarge: 'That extension is larger than any extension should be.',
+      unsafePath: 'The extension holds a file that would land outside its own folder, so it was not installed.',
+      notMv3: 'Only Manifest V3 extensions are supported, and this one is not.',
+      badManifest: 'The extension’s manifest cannot be read.',
+      notAStoreAddress: 'That is not a Chrome Web Store address or an extension id.',
+      storeAnswered: 'The Chrome Web Store answered {status}.',
+      inHush: 'Extensions do not run in Hush tabs, and none can be added from one.',
+    },
+  },
   translation: {
     refused: 'That is not something Copacetic can translate.',
     failed: 'The translation did not finish.',
