@@ -144,6 +144,7 @@ export class Browser {
     this.tabs.onPageFocus(() => {
       this.closeSiteInfo();
       this.closeBookmarkSheet();
+      this.profile.extensions.closePopup();
     });
     this.tabs.onPageContextMenu((tabId, params) => showPageContextMenu(this, tabId, params));
 

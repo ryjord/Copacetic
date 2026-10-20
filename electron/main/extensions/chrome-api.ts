@@ -163,6 +163,9 @@ export class ChromeApi {
         return this.permissions(grant, member, args);
       case 'commands':
         return member === 'getAll' ? [] : null;
+      // Never file pages, and never Hush, which is the incognito Chrome means.
+      case 'extension':
+        return member.startsWith('isAllowed') ? false : null;
       case 'idle':
         if (member === 'queryState') {
           return this.surfaces.idleState(asNumber(args[0]) ?? 60);

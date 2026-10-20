@@ -421,7 +421,7 @@ export class ExtensionHost {
   }
 
   closePopup(): void {
-    this.popup.close();
+    this.popup.close('the page was clicked');
   }
 
   openOptions(id: string): void {
@@ -785,7 +785,7 @@ export class ExtensionHost {
   }
 
   quit(): void {
-    this.popup.close();
+    this.popup.close('quitting');
   }
 }
 

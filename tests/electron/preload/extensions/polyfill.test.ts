@@ -35,6 +35,16 @@ describe("the parts of Chrome's API Electron leaves out", () => {
     expect(chrome.tabs?.sendMessage).toBe(sendMessage);
   });
 
+  // Electron's own tabs.query and action know nothing of Copacetic's tabs or toolbar, so ours stand in for them.
+  it('replaces the tabs and toolbar calls Electron has its own versions of', () => {
+    const query = () => 'native';
+    const setBadgeText = () => 'native';
+    const chrome: Record<string, Record<string, unknown>> = { tabs: { query }, action: { setBadgeText } };
+    world(chrome);
+    expect(chrome.tabs?.query).not.toBe(query);
+    expect(chrome.action?.setBadgeText).not.toBe(setBadgeText);
+  });
+
   it('answers a callback as well as a promise, for older extensions', async () => {
     const chrome: Record<string, Record<string, unknown>> = { tabs: {} };
     world(chrome);

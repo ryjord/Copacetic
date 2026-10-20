@@ -148,6 +148,7 @@ export function installChromePolyfill(): void {
       events: ['onAdded', 'onRemoved'],
     },
     commands: { methods: ['getAll'], events: ['onCommand'] },
+    extension: { methods: ['isAllowedFileSchemeAccess', 'isAllowedIncognitoAccess', 'setUpdateUrlData'], events: [] },
     notifications: {
       methods: ['create', 'update', 'clear', 'getAll', 'getPermissionLevel'],
       events: ['onClicked', 'onClosed', 'onButtonClicked', 'onPermissionLevelChanged', 'onShowSettings'],

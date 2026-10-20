@@ -1,6 +1,9 @@
 // Libs
 import { type BrowserWindow, type Session, type WebContents, WebContentsView } from 'electron';
 
+// Utils
+import { log } from '../system/diagnostics';
+
 // The smallest and largest Chrome lets an extension popup be.
 const SMALLEST = { width: 25, height: 25 };
 const LARGEST = { width: 800, height: 600 };
@@ -35,14 +38,21 @@ interface PopupOptions {
 export class ActionPopup {
   private view: WebContentsView | null = null;
   private window: BrowserWindow | null = null;
-  private readonly closeOnResize = () => this.close();
+  private readonly closeOnResize = () => this.close('the window was resized');
+  private readonly closeOnLeaving = () => this.close('the window was left');
+  // A press in the browser's own interface; focus moving there on its own, as an extension asking for its window does, is not one.
+  private readonly closeOnPress = (_event: Electron.Event, input: Electron.InputEvent) => {
+    if (input.type === 'mouseDown') {
+      this.close('the browser was pressed');
+    }
+  };
 
   get isOpen(): boolean {
     return this.view !== null;
   }
 
   open(options: PopupOptions): void {
-    this.close();
+    this.close('another popup opened');
     const view = new WebContentsView({
       webPreferences: {
         session: options.session,
@@ -85,14 +95,18 @@ export class ActionPopup {
     });
     contents.on('before-input-event', (_event, input) => {
       if (input.type === 'keyDown' && input.key === 'Escape') {
-        this.close();
+        this.close('Escape');
       }
     });
-    // Closed by losing focus only once it has had it: a window behind others can blur a popup before it ever had focus.
-    let hasHadFocus = false;
-    contents.on('focus', () => (hasHadFocus = true));
-    contents.on('blur', () => hasHadFocus && this.close());
+    // As in Chrome: it goes when the window is left or resized, or something else in it is pressed; a click into
+    // the page is reported by the window's owner. Not on its own blur, which a window behind others sends before
+    // the popup has ever been used.
     options.window.on('resize', this.closeOnResize);
+    // Only a window that was in front can be left; one behind others blurs as the popup takes focus.
+    if (options.window.isFocused()) {
+      options.window.on('blur', this.closeOnLeaving);
+    }
+    options.window.webContents.on('input-event', this.closeOnPress);
 
     // Added last, so it paints over the page and every other view the window holds.
     options.window.contentView.addChildView(view);
@@ -103,14 +117,19 @@ export class ActionPopup {
     });
   }
 
-  close(): void {
+  close(reason: string): void {
     const { view, window } = this;
     this.view = null;
     this.window = null;
     if (!view) {
       return;
     }
+    log.info('an extension popup closed', { reason });
     window?.off('resize', this.closeOnResize);
+    window?.off('blur', this.closeOnLeaving);
+    if (window && !window.isDestroyed()) {
+      window.webContents.off('input-event', this.closeOnPress);
+    }
     if (window && !window.isDestroyed()) {
       window.contentView.removeChildView(view);
     }
