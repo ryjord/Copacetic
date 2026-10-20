@@ -2,6 +2,83 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.0.0 - 20 October 2026
+
+Copacetic 2.0: a new interface, several windows and profiles, split view,
+reader view with translation, passwords filled when you ask, and Chrome
+extensions as a beta. This is everything since 1.4; the CHANGELOG lists each of
+the four betas in full.
+
+**Before you install it, coming from 1.4:**
+
+- The first launch moves your history, bookmarks, icons, downloads and site
+  settings into one database, which 1.4 cannot read. The files it changes are
+  copied into a `before-2.0` folder in Copacetic's data folder first; to go
+  back, quit, copy them back and delete `copacetic.db`.
+- The builds are still not code-signed. Windows and the AppImage update
+  themselves; on macOS, Download and open fetches the installer and checks it
+  against the release before opening it; Debian and Ubuntu update through apt.
+- The apt repository now keeps the newest package of 1.4 and of 2.0. The 1.3.3
+  package is removed from it; anyone still on 1.3 should install 2.0 or 1.4.1.
+
+### New
+
+- **Several windows and profiles.** Every window comes back after a restart,
+  and each profile keeps its own history, bookmarks, passwords, cookies,
+  settings, wallpaper and picture.
+- **Tabs that do more:** pinned and sleeping tabs, split view, saved sessions,
+  groups that can keep their own sign-ins, open rules for Hush or a group, tab
+  search, and a command palette that reaches every command, bookmark, page of
+  history and setting.
+- **Reader view** with its own text size, typeface and line length, and
+  **translation** of an article on this machine with Mozilla's models.
+- **Passwords** filled when you press the key in the address bar, generated to
+  the length you choose, searched, edited and copied; a copied password is
+  cleared after 30 seconds or when the vault locks, and marked concealed on
+  macOS.
+- **Chrome extensions, as a beta,** from the Chrome Web Store or a folder, with
+  toolbar buttons, popups and the parts of the extension API Electron lacks
+  supplied by Copacetic. Never in Hush; ad blockers do not block.
+- **Sign-in pop-ups that work**, such as Sign in with Google, opened as a tab
+  that stays linked to the page that opened it.
+- **Settings rebuilt** in four groups with a search that lands on the setting,
+  appearance for the browser and the start page, site settings in one table,
+  and a page that says what Copacetic sends and keeps.
+- **Undo** for every removal that can be put back, and filter, sort and select
+  in History, Bookmarks and Downloads.
+- **Import from Chrome, Brave, Edge, Vivaldi, Chromium, Arc and Firefox**, with
+  folders kept; Safari's bookmarks from the file it exports; passwords from the
+  CSV each browser exports.
+
+### Changed
+
+- **Privacy:** third-party cookies blocked, including on a site's service
+  workers; tracking parameters taken off links; cookie banners hidden; HTTPS
+  first; encrypted DNS; WebRTC kept from revealing your local address; a link
+  to another app only after a real click or key press.
+- **What a page sees** is consistent with Chrome down to the full version, so
+  sign-in pages that check have nothing to refuse.
+- **Back still works after a restart**, keeping addresses and titles but not
+  what was typed into forms.
+- **Each installer is installed, started and removed in CI before a release**,
+  and a release publishes only after CI passes on the tagged commit.
+
+### Fixed
+
+- The .deb installed without the AppArmor profile a clean Ubuntu 24.04 needs
+  before the app can start.
+- Everything the betas fixed, listed under each below.
+
+### Limits, stated rather than hidden
+
+- Cookies, site data and the cache clear for all time, not by the hour; find
+  has no whole-word option; macOS spelling follows System Settings. All three
+  are Electron's.
+- Unsigned builds: updates on Windows and as an AppImage carry no signature,
+  cookies are not sealed with a key tied to the app, and macOS installs updates
+  by hand.
+- English only, until a second language has been checked by someone fluent.
+
 ## 2.0.0-beta.4 - 20 October 2026
 
 The fourth beta of 2.0: fixes from a review of beta-3, most of them about
@@ -647,38 +724,6 @@ Batch 1 of the September audit.
 ### Changed
 
 - Electron 43.4.1, Next 16.3.2, esbuild 0.28.2. Patch level only.
-
-## 1.3.2 - 2026-08-12
-
-### Added
-
-- **Copacetic can make you a password.** Twenty characters by default, drawn
-  from the operating system's cryptographic source. `l` `I` `1` `O` `0` are left
-  out, because a password that cannot be read off a screen gets written down
-  somewhere worse than the vault.
-
-  The care is in the drawing. Taking a random byte modulo the alphabet size is
-  the usual shortcut and it makes the earlier characters come up more often -
-  every password produced is weaker and nothing about it looks different. Bytes
-  that would land unevenly are discarded and redrawn instead.
-
-- **The vault locks.** After five minutes, or whenever you ask it to. While it
-  is locked no password can be read and nothing can be exported, though what is
-  saved stays listed - locked is not the same as gone.
-
-  On a Mac, unlocking asks Touch ID. **Everywhere else it is a single click,
-  and Settings says so**, because Electron gives Copacetic no way to check who
-  you are on Windows or Linux and inventing a password of its own would be a
-  lock built here and got wrong. Even with Touch ID this protects against
-  someone at your screen, not someone with your disk: the key is in the
-  keychain, and anything running as you can ask for it.
-
-- **A section saying what the vault does not protect you from.** It shows the
-  real path of the file so you can go and look; you will find the sites and
-  usernames readable and the passwords not. It says that an update can cost the
-  keychain entry while the builds are unsigned, and that it will never fill
-  passwords into pages, because doing so means running Copacetic's code inside
-  them and this browser ships without any.
 
 ## 1.3.2 - 2026-08-13
 
