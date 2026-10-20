@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { DownloadState } from '@shared/types';
 
+const sent: unknown[][] = [];
 vi.mock('@/lib/bridge/bridge', () => ({
-  send: () => {},
+  send: (call: (api: unknown) => unknown) =>
+    call({
+      downloads: {
+        discard: (id: string) => sent.push(['discard', id]),
+        removeMany: (ids: string[]) => sent.push(['removeMany', ids]),
+        clearCompleted: () => sent.push(['clearCompleted']),
+        openFolder: () => sent.push(['openFolder']),
+      },
+    }),
   ask: async (_action: unknown, fallback: unknown) => fallback,
   getBridge: () => null,
   isRunningInShell: () => false,
@@ -17,7 +26,10 @@ vi.mock('@/store/useBrowserStore', () => ({
 
 const { DownloadsSurface } = await import('@/components/views/downloads/DownloadsSurface');
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  sent.length = 0;
+});
 
 const download = (overrides: Partial<DownloadState> = {}): DownloadState => ({
   id: 'one',
@@ -82,5 +94,61 @@ describe('what a download tells you about itself', () => {
     render(<DownloadsSurface />);
     expect(screen.getByText('Missing')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Show in folder' })).toBeNull();
+  });
+});
+
+describe('narrowing and acting on the list', () => {
+  const several = () => [
+    download({ id: 'a', filename: 'zebra.pdf', totalBytes: 10, receivedBytes: 10, startedAt: 3 }),
+    download({ id: 'b', filename: 'apple.zip', totalBytes: 900, receivedBytes: 900, startedAt: 2 }),
+    download({ id: 'c', filename: 'broken.iso', status: 'interrupted', startedAt: 1 }),
+  ];
+
+  it('shows only the failed ones when asked', () => {
+    downloads = several();
+    render(<DownloadsSurface />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Failed' }));
+    expect(screen.queryByText('zebra.pdf')).toBeNull();
+    expect(screen.getByText('broken.iso')).toBeTruthy();
+  });
+
+  it('finds a download by the site it came from', () => {
+    downloads = [
+      download(),
+      download({ id: 'two', filename: 'notes.txt', url: 'https://files.other.org/notes.txt' }),
+    ];
+    render(<DownloadsSurface />);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search by name or site' }), {
+      target: { value: 'other.org' },
+    });
+    expect(screen.queryByText('installer.dmg')).toBeNull();
+    expect(screen.getByText('notes.txt')).toBeTruthy();
+  });
+
+  it('says how many it will clear', () => {
+    downloads = several();
+    render(<DownloadsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear 3 finished' }));
+    expect(sent).toEqual([['clearCompleted']]);
+  });
+
+  it('removes a selection from the list at once', () => {
+    downloads = several();
+    render(<DownloadsSurface />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select zebra.pdf' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select apple.zip' }));
+    fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: 'Remove from list' }));
+    expect(sent).toEqual([['removeMany', ['a', 'b']]]);
+  });
+
+  // A program waiting on the person, said in a sentence, and thrown away only once confirmed.
+  it('explains a held file and confirms before deleting it', async () => {
+    downloads = [download({ status: 'progressing', isHeld: true, completedAt: null })];
+    render(<DownloadsSurface />);
+    expect(screen.getByText(/is a program or installer, so it is held/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete it' }));
+    expect(sent).toEqual([]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete it' }));
+    expect(sent).toEqual([['discard', 'one']]);
   });
 });

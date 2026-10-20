@@ -135,6 +135,8 @@ export const CHANNELS = {
   'downloads.openFile': 'downloads:open-file',
   'downloads.revealFile': 'downloads:reveal-file',
   'downloads.remove': 'downloads:remove',
+  'downloads.removeMany': 'downloads:remove-many',
+  'downloads.openFolder': 'downloads:open-folder',
   'downloads.clearCompleted': 'downloads:clear-completed',
   'downloads.retry': 'downloads:retry',
   'downloads.keep': 'downloads:keep',

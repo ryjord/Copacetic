@@ -59,7 +59,14 @@ import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 // Types
-import type { ClearRange, HistoryFilter, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
+import type {
+  ClearRange,
+  DownloadState,
+  HistoryFilter,
+  PermissionDecision,
+  PermissionKind,
+  Settings,
+} from '../../shared/types';
 import type { Browser } from './browser';
 import type { Profiles } from './profiles';
 
@@ -367,18 +374,26 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('downloads.cancel', (browser, _event, id) => browser.downloads.cancel(asString(id)));
   handle('downloads.openFile', (browser, _event, id) => browser.downloads.openFile(asString(id)));
   handle('downloads.revealFile', (browser, _event, id) => browser.downloads.revealFile(asString(id)));
-  handle('downloads.remove', (browser, _event, id) => {
-    const entry = browser.downloads.finishedEntry(asString(id));
-    browser.downloads.remove(asString(id));
-    if (entry) {
-      browser.offerUndo(t('main.undo.download', { name: entry.filename }), () => browser.downloads.restore(entry));
-    }
-  });
+  handle('downloads.remove', (browser, _event, id) => removeDownloads(browser, [asString(id)]));
+  handle('downloads.removeMany', (browser, _event, ids) =>
+    removeDownloads(
+      browser,
+      Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string').slice(0, 1000) : [],
+    ),
+  );
+  handle('downloads.openFolder', (browser) => browser.openDownloadsFolder());
   handle('downloads.retry', (browser, _event, id) => browser.downloads.retry(asString(id)));
   handle('downloads.keep', (browser, _event, id) => browser.downloads.keep(asString(id)));
   handle('downloads.discard', (browser, _event, id) => browser.downloads.discard(asString(id)));
   handle('downloads.chooseFolder', (browser) => browser.chooseDownloadFolder());
-  handle('downloads.clearCompleted', (browser) => browser.downloads.clearCompleted());
+  handle('downloads.clearCompleted', (browser) => {
+    const finished = browser.downloads
+      .list()
+      .map((download) => browser.downloads.finishedEntry(download.id))
+      .filter((entry) => entry !== null);
+    browser.downloads.clearCompleted();
+    offerDownloadsBack(browser, finished);
+  });
 
   // ------------------------------------------------------------------- find
 
@@ -687,6 +702,26 @@ function asHistoryFilter(value: unknown): HistoryFilter {
   const filter = isRecord(value) ? value : {};
   const range = HISTORY_RANGES.find((candidate) => candidate === filter.range) ?? 'all';
   return { range, order: filter.order === 'visits' ? 'visits' : 'recent' };
+}
+
+/** Off the list, never off the disk: the files stay where they were saved. */
+function removeDownloads(browser: Browser, ids: readonly string[]): void {
+  const entries = ids.map((id) => browser.downloads.finishedEntry(id)).filter((entry) => entry !== null);
+  ids.forEach((id) => browser.downloads.remove(id));
+  offerDownloadsBack(browser, entries);
+}
+
+function offerDownloadsBack(browser: Browser, entries: readonly DownloadState[]): void {
+  const first = entries[0];
+  if (!first) {
+    return;
+  }
+  const message =
+    entries.length === 1
+      ? t('main.undo.download', { name: first.filename })
+      : t('main.undo.downloadMany', { count: entries.length });
+  // Each goes back to the top of the list, so the oldest is put back first to land them in their old order.
+  browser.offerUndo(message, () => entries.toReversed().forEach((entry) => browser.downloads.restore(entry)));
 }
 
 /** An address typed in Settings, read as the address bar reads it; anything that is not a page is the start page. */

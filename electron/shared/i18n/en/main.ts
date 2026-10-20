@@ -339,6 +339,10 @@ export const main = {
     history: 'Removed “{title}” from history.',
     historyMany: { one: 'Removed 1 page from history.', other: 'Removed {count} pages from history.' },
     download: 'Removed {name} from the list. The file is still there.',
+    downloadMany: {
+      one: 'Removed 1 download from the list. The file is still there.',
+      other: 'Removed {count} downloads from the list. The files are still there.',
+    },
     session: 'Deleted the saved session “{name}”.',
     tile: 'Removed from the start page.',
     site: 'Forgot what was kept about {site}.',

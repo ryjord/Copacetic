@@ -225,7 +225,10 @@ export interface CopaceticApi {
     openFile(id: DownloadId): Promise<string>;
     revealFile(id: DownloadId): Promise<void>;
     remove(id: DownloadId): Promise<void>;
+    /** Off the list, with one Undo; the files stay where they are. */
+    removeMany(ids: DownloadId[]): Promise<void>;
     clearCompleted(): Promise<void>;
+    openFolder(): Promise<void>;
     /** Starts a failed or cancelled download again, from where it came from, in place of the old entry. */
     retry(id: DownloadId): Promise<void>;
     /** Lets a held file, one that runs code, finish downloading. */
