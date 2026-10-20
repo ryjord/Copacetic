@@ -1,5 +1,5 @@
 // Libs
-import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, dialog, shell } from 'electron';
+import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, dialog, shell } from 'electron';
 
 // Utils
 import { cleanUrl } from '../../shared/browsing/link-cleaning';
@@ -11,19 +11,12 @@ import { isInSplit } from '../../shared/tabs/split-view';
 import { groupIdOf, groupTarget, openRuleFor } from '../../shared/tabs/open-rules';
 import { countIn, pathOf } from '../../shared/data/bookmark-folders';
 import { countTraces, describeTraces, siteOf } from '../../shared/data/forgetting';
-import { describeError, log } from '../system/diagnostics';
+import { copyText } from '../system/clipboard';
 
 // Types
 import type { TabId } from '../../shared/types';
 import type { OpenTarget } from '../../shared/tabs/open-rules';
 import type { Browser } from '../app/browser';
-
-/** Every copy in these menus, so a write the clipboard refuses is logged rather than left unhandled. */
-function copyToClipboard(text: string): void {
-  clipboard
-    .writeText(text)
-    .catch((error: unknown) => log.warn('could not copy to the clipboard', describeError(error)));
-}
 
 /** Where this tab's site always opens: offered for a page, never for Hush, which already keeps nothing. */
 function openRuleItems(browser: Browser, tabId: TabId): MenuItemConstructorOptions[] {
@@ -116,7 +109,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     }
     // The address someone shares is the clean one, when they asked for links to be cleaned.
     const shareable = browser.profile.settings().cleanLinks ? (cleanUrl(linkUrl) ?? linkUrl) : linkUrl;
-    push({ label: t('main.menu.context.copyLinkAddress'), click: () => copyToClipboard(shareable) });
+    push({ label: t('main.menu.context.copyLinkAddress'), click: () => void copyText(shareable) });
     push({ label: t('main.menu.context.downloadLinkedFile'), click: () => browser.commands.downloadUrl(linkUrl) });
     separate();
   }
@@ -134,7 +127,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
       label: t('main.menu.context.copyImage'),
       click: () => browser.tabs.copyImageAt(tabId, params.x, params.y),
     });
-    push({ label: t('main.menu.context.copyImageAddress'), click: () => copyToClipboard(imageUrl) });
+    push({ label: t('main.menu.context.copyImageAddress'), click: () => void copyText(imageUrl) });
     push({ label: t('main.menu.context.saveImage'), click: () => browser.commands.downloadUrl(imageUrl) });
     separate();
   }
@@ -209,7 +202,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     separate();
     push({
       label: t('main.menu.context.copyPageAddress'),
-      click: () => copyToClipboard(browser.tabs.urlFor(tabId) ?? ''),
+      click: () => void copyText(browser.tabs.urlFor(tabId) ?? ''),
     });
     push({
       label: t('main.menu.bookmarks.bookmarkThisPage'),
@@ -304,7 +297,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     {
       label: t('main.menu.context.copyAddress'),
       enabled: url !== null,
-      click: () => copyToClipboard(url ?? ''),
+      click: () => void copyText(url ?? ''),
     },
     {
       label: t('main.menu.context.openInDefaultBrowser'),
@@ -631,7 +624,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
       label: t('main.menu.context.openInNewWindow'),
       click: () => void browser.profile.openWindow({ url: bookmark.url }),
     },
-    { label: t('main.menu.context.copyAddress'), click: () => copyToClipboard(bookmark.url) },
+    { label: t('main.menu.context.copyAddress'), click: () => void copyText(bookmark.url) },
     { type: 'separator' },
     {
       label: t('main.menu.context.moveToFolder'),
@@ -682,7 +675,7 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
       label: t('main.menu.context.openInNewWindow'),
       click: () => void browser.profile.openWindow({ url: address }),
     },
-    { label: t('main.menu.context.copyAddress'), click: () => copyToClipboard(address) },
+    { label: t('main.menu.context.copyAddress'), click: () => void copyText(address) },
     { type: 'separator' },
     {
       label: t('main.menu.context.forgetSite', { site }),

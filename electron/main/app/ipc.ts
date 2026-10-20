@@ -40,7 +40,8 @@ import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
 import { routeFor } from '../../shared/translation/languages';
 import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start-tiles';
 import { readChosenImage } from '../system/file-dialogs';
-import { clearCopiedSecret, copySecret, copyText } from '../vault/vault-clipboard';
+import { clearCopiedSecret, copySecret } from '../vault/vault-clipboard';
+import { copyText } from '../system/clipboard';
 import { t } from '../../shared/i18n/translate';
 import { webStoreIdFrom } from '../../shared/extensions/extensions';
 import { describeKept, isKeptKind, siteOf as siteOfAddress, type KeptKind } from '../../shared/data/forgetting';
@@ -489,8 +490,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
     if (!entry?.isReadable) {
       return false;
     }
-    await copyText(entry.username);
-    return true;
+    return copyText(entry.username);
   });
   handle('vault.exportAll', (browser) => browser.transfer.exportPasswords());
   handle('vault.importFile', (browser) => browser.transfer.importPasswords());

@@ -42,16 +42,22 @@ export async function copySecret(secret: string): Promise<void> {
   }
 }
 
-/** Clears a copied password now rather than at the end of its half minute, as the vault locks. */
-export async function clearCopiedSecret(): Promise<void> {
+// Stops the half-minute timer and hands back what was pending, so both ways of clearing start the same.
+function takePending(): string | null {
   if (!pending) {
-    return;
+    return null;
   }
   const { secret, timer } = pending;
   clearTimeout(timer);
   pending = null;
+  return secret;
+}
+
+/** Clears a copied password now rather than at the end of its half minute, as the vault locks. */
+export async function clearCopiedSecret(): Promise<void> {
+  const secret = takePending();
   // Checked again after the read: a password copied meanwhile is the one on the clipboard now.
-  if ((await stillHolds(secret)) && isCleared()) {
+  if (secret !== null && (await stillHolds(secret)) && isCleared()) {
     clipboard.clear();
   }
 }
@@ -63,14 +69,7 @@ export async function clearCopiedSecret(): Promise<void> {
  * running the clipboard is cleared whatever is on it.
  */
 export function clearCopiedSecretBeforeQuit(): void {
-  if (!pending) {
-    return;
+  if (takePending() !== null) {
+    clipboard.clear();
   }
-  clearTimeout(pending.timer);
-  pending = null;
-  clipboard.clear();
-}
-
-export function copyText(text: string): Promise<void> {
-  return clipboard.writeText(text);
 }
