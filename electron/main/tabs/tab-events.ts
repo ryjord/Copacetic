@@ -199,12 +199,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   });
 }
 
-/**
- * Marks a tab as loading from the moment a page is asked for.
- *
- * Chromium's did-start-loading comes a moment later, and in between a tab with
- * a title and nothing loading read as a page already loaded.
- */
+/** Marks a tab loading from the moment a page is asked for, ahead of Chromium's did-start-loading. */
 export function markLoadRequested(tab: Pick<TabRecord, 'isLoading'>): void {
   tab.isLoading = true;
 }
