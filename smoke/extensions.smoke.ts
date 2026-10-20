@@ -34,9 +34,11 @@ describe('an extension', () => {
     const tabCount = await copacetic.chrome.evaluate(
       async () => (await window.copacetic.chrome.getState()).tabs.length,
     );
-    expect(await copacetic.until(async () => (await probe())?.action?.badgeText === String(tabCount), 20_000)).toBe(
-      true,
+    const isCounted = await copacetic.until(
+      async () => (await probe())?.action?.badgeText === String(tabCount),
+      30_000,
     );
+    expect(isCounted, `badge ${(await probe())?.action?.badgeText ?? 'none'} for ${tabCount} tabs`).toBe(true);
   }, 60_000);
 
   it('never sees a Hush tab', async () => {

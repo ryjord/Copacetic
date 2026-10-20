@@ -525,8 +525,9 @@ export class ExtensionHost {
         return;
       }
       const forThis = args(grant);
+      // As Chrome does: a worker gone to sleep is woken for an event it added a listener for, and only then.
       if (forThis) {
-        this.emitTo(entry.id, name, forThis);
+        this.emitTo(entry.id, name, forThis, { wake: this.listening.get(entry.id)?.has(name) === true });
       }
     });
   }

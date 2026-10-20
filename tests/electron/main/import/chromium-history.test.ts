@@ -10,6 +10,8 @@ const day = 24 * 60 * 60 * 1000;
 
 let directory = '';
 let historyFile = '';
+// When the fixture was written, which its visits are measured from; the time the test runs is later by however long the runner takes.
+let writtenAt = 0;
 
 beforeEach(() => {
   directory = mkdtempSync(path.join(tmpdir(), 'copacetic-chromium-history-'));
@@ -23,6 +25,7 @@ beforeEach(() => {
     'INSERT INTO urls (url, title, visit_count, last_visit_time, hidden) VALUES (?, ?, ?, (? + ?) * 1000, ?)',
   );
   const now = Date.now();
+  writtenAt = now;
   insert.run('https://recent.example/', 'Recent', 7, now - day, WINDOWS_EPOCH_OFFSET_MS, 0);
   insert.run('https://older.example/', 'Older', 2, now - 3 * day, WINDOWS_EPOCH_OFFSET_MS, 0);
   insert.run('https://ancient.example/', 'Ancient', 9, now - 400 * day, WINDOWS_EPOCH_OFFSET_MS, 0);
@@ -41,7 +44,7 @@ describe("a Chromium profile's history", () => {
   it('reads the pages inside the window, newest first, at the right time', async () => {
     const visits = await read();
     expect(visits.map((visit) => visit.url)).toEqual(['https://recent.example/', 'https://older.example/']);
-    expect(Math.abs(visits[0]!.lastVisitedAt - (Date.now() - day))).toBeLessThan(1000);
+    expect(Math.abs(visits[0]!.lastVisitedAt - (writtenAt - day))).toBeLessThanOrEqual(1);
     expect(visits[0]?.visitCount).toBe(7);
   });
 
