@@ -14,7 +14,12 @@ interface ProfilesFile {
   openAtQuit: string[];
 }
 
-const FIRST_PROFILE: ProfileSummary = { id: FIRST_PROFILE_ID, name: t('main.profiles.firstName'), colour: 'ocean' };
+const FIRST_PROFILE: ProfileSummary = {
+  id: FIRST_PROFILE_ID,
+  name: t('main.profiles.firstName'),
+  colour: 'ocean',
+  pictureVersion: null,
+};
 
 // Part of a folder name and a partition name, so lowercase hex only: nothing a disk could fold together.
 const PROFILE_ID = /^[0-9a-f]{12}$/;
@@ -34,7 +39,12 @@ export class ProfilesStore {
   }
 
   add(name: string, colour: GroupColourId): ProfileSummary {
-    const profile: ProfileSummary = { id: randomBytes(6).toString('hex'), name: nameFrom(name), colour };
+    const profile: ProfileSummary = {
+      id: randomBytes(6).toString('hex'),
+      name: nameFrom(name),
+      colour,
+      pictureVersion: null,
+    };
     this.file.update((current) => ({ ...current, profiles: [...current.profiles, profile] }));
     return profile;
   }
@@ -51,6 +61,13 @@ export class ProfilesStore {
             }
           : profile,
       ),
+    }));
+  }
+
+  setPictureVersion(id: string, pictureVersion: number | null): void {
+    this.file.update((current) => ({
+      ...current,
+      profiles: current.profiles.map((profile) => (profile.id === id ? { ...profile, pictureVersion } : profile)),
     }));
   }
 
@@ -83,6 +100,10 @@ function nameFrom(value: string): string {
   return value.trim().slice(0, MAX_PROFILE_NAME) || t('main.profiles.fallbackName');
 }
 
+function pictureVersionFrom(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function isGroupColour(value: unknown): value is GroupColourId {
   return GROUP_COLOURS.some((colour) => colour.id === value);
 }
@@ -110,11 +131,13 @@ export function reviveProfiles(raw: unknown): ProfilesFile | null {
       ...FIRST_PROFILE,
       name: typeof first?.name === 'string' ? nameFrom(first.name) : FIRST_PROFILE.name,
       colour: isGroupColour(first?.colour) ? first.colour : FIRST_PROFILE.colour,
+      pictureVersion: pictureVersionFrom(first?.pictureVersion),
     },
     ...others.map((entry) => ({
       id: String(entry.id),
       name: typeof entry.name === 'string' ? nameFrom(entry.name) : t('main.profiles.fallbackName'),
       colour: isGroupColour(entry.colour) ? entry.colour : FIRST_PROFILE.colour,
+      pictureVersion: pictureVersionFrom(entry.pictureVersion),
     })),
   ];
   const openAtQuit = Array.isArray(raw.openAtQuit)

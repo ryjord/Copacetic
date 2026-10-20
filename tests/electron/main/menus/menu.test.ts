@@ -77,7 +77,7 @@ const profileWithWindow = (shortcuts: { overrides?: Record<string, string>; isRe
     focused: () => recorder(''),
     focusedOrNew: async () => recorder(''),
     first: recorder('profile'),
-    summaries: () => [{ id: 'default', name: 'Personal', colour: 'ocean' }],
+    summaries: () => [{ id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null }],
     openWindow: async () => recorder(''),
   }) as unknown as Parameters<typeof buildApplicationMenu>[0];
 buildApplicationMenu(profileWithWindow());

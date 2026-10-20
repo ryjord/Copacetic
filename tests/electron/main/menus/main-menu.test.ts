@@ -27,7 +27,7 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
     profile: {
       id: 'default',
       settings: () => ({ shortcutOverrides: { find: 'Alt+CmdOrCtrl+F' } }),
-      allProfiles: () => [{ id: 'default', name: 'Personal', colour: 'ocean' }],
+      allProfiles: () => [{ id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null }],
       openWindowIn: async () => {},
     },
   } as never;

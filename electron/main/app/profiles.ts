@@ -7,6 +7,7 @@ import path from 'node:path';
 import { hostResolverFor } from '../../shared/browsing/dns';
 import { FIRST_PROFILE_ID } from '../../shared/data/partitions';
 import { profileDirectory, sweepRemovedProfiles } from '../data/profile-folders';
+import { readPicture, removePicture, squarePicture, writePicture } from '../data/profile-pictures';
 import { ProfilesStore } from '../data/profiles-store';
 import { ContentBlocker } from '../security/blocker';
 import { hardenChromeSession } from '../security/security';
@@ -16,6 +17,9 @@ import { applyAppearance, onAppearanceChange } from '../window/appearance';
 import { filtersRoot, translationEngineRoot } from './env';
 import { TranslationService, translationModelsDirectory } from '../translation/translation-service';
 import { Profile, type ProfileHost } from './profile';
+import { readChosenImage } from '../system/file-dialogs';
+import { t } from '../../shared/i18n/translate';
+import { MAX_PROFILE_PICTURE_BYTES } from '../../shared/data/profiles';
 
 // Types
 import type { AppWideSetting, ProfileSummary } from '../../shared/data/profiles';
@@ -199,6 +203,43 @@ export class Profiles {
   update(id: string, changes: { name?: string; colour?: GroupColourId }): void {
     this.list.update(id, changes);
     this.listChanged();
+  }
+
+  /** Asks for a photo and makes it the profile's picture. Resolves empty, or with what went wrong. */
+  async choosePicture(window: BrowserWindow, id: string): Promise<string> {
+    if (!this.list.find(id)) {
+      return '';
+    }
+    const chosen = await readChosenImage(window, {
+      title: t('main.profiles.choosePicture'),
+      maxBytes: MAX_PROFILE_PICTURE_BYTES,
+      tooLarge: t('main.profiles.pictureTooLarge'),
+    });
+    if (!chosen.value) {
+      return chosen.message;
+    }
+    const png = squarePicture(chosen.value);
+    if (!png) {
+      return t('main.files.notAnImage');
+    }
+    try {
+      writePicture(profileDirectory(app.getPath('userData'), id), png);
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    this.list.setPictureVersion(id, Date.now());
+    this.listChanged();
+    return '';
+  }
+
+  removePicture(id: string): void {
+    removePicture(profileDirectory(app.getPath('userData'), id));
+    this.list.setPictureVersion(id, null);
+    this.listChanged();
+  }
+
+  picture(id: string): string | null {
+    return this.list.find(id)?.pictureVersion ? readPicture(profileDirectory(app.getPath('userData'), id)) : null;
   }
 
   /**

@@ -188,6 +188,8 @@ export interface CopaceticApi {
     openContextMenu(id: string): Promise<void>;
     /** Files a bookmark in a folder, or unfiles it with null. */
     file(id: string, folderId: string | null): Promise<void>;
+    /** Every folder and bookmark as a menu, opened from the toolbar at this point. */
+    openMenu(x: number, y: number): Promise<void>;
   };
 
   bookmarkFolders: {
@@ -289,6 +291,12 @@ export interface CopaceticApi {
     openWindow(id: string): Promise<void>;
     /** The profile menu, opened from the toolbar at this point. */
     openMenu(x: number, y: number): Promise<void>;
+    /** A photo chosen in a dialog becomes the picture. Resolves empty, or with what to say if it failed. */
+    choosePicture(id: string): Promise<string>;
+    /** Back to initials. */
+    removePicture(id: string): Promise<void>;
+    /** The picture as a data URL, or null for initials. Asked for when its version changes, never pushed. */
+    picture(id: string): Promise<string | null>;
   };
   groups: {
     /** Makes a group and puts a tab in it. Returns the new group's id. */

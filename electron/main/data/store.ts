@@ -599,6 +599,10 @@ export class BrowserStore {
     if (!query) {
       return [];
     }
+    // Typing * first asks for bookmarks and nothing else, as a way to reach them without a panel.
+    if (query.startsWith(BOOKMARKS_ONLY_PREFIX)) {
+      return this.bookmarkSuggestions(query.slice(BOOKMARKS_ONLY_PREFIX.length).trim().toLowerCase(), limit);
+    }
 
     const settings = this.getSettings();
     const needle = query.toLowerCase();
@@ -654,16 +658,43 @@ export class BrowserStore {
       faviconDataUrl: null,
     });
 
+    // Bookmarks first, including ones never visited, which history alone would never offer.
+    const ranked = [
+      ...scored.filter((suggestion) => suggestion.kind === 'bookmark'),
+      ...this.bookmarkSuggestions(needle, limit),
+      ...scored.filter((suggestion) => suggestion.kind === 'history'),
+    ];
     const seen = new Set<string>();
-    return [...head, ...scored].filter((suggestion) => {
-      if (seen.has(suggestion.target)) {
-        return false;
-      }
-      seen.add(suggestion.target);
-      return true;
-    });
+    return [...head, ...ranked]
+      .filter((suggestion) => {
+        if (seen.has(suggestion.target)) {
+          return false;
+        }
+        seen.add(suggestion.target);
+        return true;
+      })
+      .slice(0, limit + head.length - 1);
+  }
+
+  /** Bookmarks whose name or address holds the query, newest first; an empty query is every bookmark. */
+  private bookmarkSuggestions(needle: string, limit: number): Suggestion[] {
+    return this.bookmarks
+      .list()
+      .filter((bookmark) => !needle || `${bookmark.title} ${bookmark.url}`.toLowerCase().includes(needle))
+      .sort((aBookmark, bBookmark) => bBookmark.createdAt - aBookmark.createdAt)
+      .slice(0, limit)
+      .map<Suggestion>((bookmark) => ({
+        id: `bookmark:${bookmark.id}`,
+        kind: 'bookmark',
+        target: bookmark.url,
+        title: bookmark.title || hostOf(bookmark.url),
+        subtitle: bookmark.url,
+        faviconDataUrl: this.getFavicon(bookmark.url),
+      }));
   }
 }
+
+const BOOKMARKS_ONLY_PREFIX = '*';
 
 // The most recent matches ranked; only a one or two letter query ever has more, and recency decides those anyway.
 const MAX_CANDIDATES = 2_000;

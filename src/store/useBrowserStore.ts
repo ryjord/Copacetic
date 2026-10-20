@@ -50,7 +50,7 @@ const EMPTY_STATE: BrowserState = {
     lastCheckedAt: null,
     releasesUrl: 'https://github.com/ryjord/Copacetic/releases/latest',
   },
-  profile: { id: 'default', name: 'Personal', colour: 'ocean' },
+  profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },
   profiles: [],
 };
 

@@ -483,6 +483,9 @@ export const settings = {
       colourOf: 'Colour of {name}',
       openWindow: 'Open window',
       remove: 'Remove…',
+      choosePicture: 'Choose a photo…',
+      useInitials: 'Use initials',
+      pictureHelp: 'Kept on this machine with the profile, never uploaded.',
     },
     add: {
       title: 'Add a profile',

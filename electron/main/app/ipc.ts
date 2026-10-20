@@ -44,6 +44,7 @@ import {
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
 import { showProfileMenu } from '../menus/profile-menu';
+import { showBookmarksMenu } from '../menus/bookmarks-menu';
 import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
@@ -256,6 +257,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
   });
   handle('bookmarks.openInActiveTab', (browser, _event, url) => browser.commands.openInActiveTab(asString(url)));
   handle('bookmarks.openContextMenu', (browser, _event, id) => showBookmarkContextMenu(browser, asString(id)));
+  handle('bookmarks.openMenu', (browser, _event, x, y) =>
+    showBookmarksMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
+  );
   handle('history.traces', (browser, _event, address) => browser.sites.traces(asString(address)));
   handle('history.totalBlocked', (browser) => browser.store.totalBlocked());
   handle('data.kept', (browser) => browser.sites.kept());
@@ -427,6 +431,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('profiles.openMenu', (browser, _event, x, y) =>
     showProfileMenu(browser, Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
+  handle('profiles.choosePicture', (browser, _event, id) => profiles.choosePicture(browser.window, asString(id)));
+  handle('profiles.removePicture', (_browser, _event, id) => profiles.removePicture(asString(id)));
+  handle('profiles.picture', (_browser, _event, id) => profiles.picture(asString(id)));
 
   // ------------------------------------------------------------------ groups
 

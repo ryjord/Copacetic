@@ -165,6 +165,7 @@ export class Profile {
         id: this.id,
         name: t('main.profiles.fallbackName'),
         colour: 'ocean',
+        pictureVersion: null,
       }
     );
   }

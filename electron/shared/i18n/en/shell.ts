@@ -51,6 +51,11 @@ export const shell = {
     switchProfile: 'Switch profile',
     downloads: 'Downloads',
     downloadsActive: 'Downloads, {count} in progress',
+    home: 'Start page',
+    bookmarks: 'Bookmarks',
+    reader: 'Reader view',
+    split: 'Split view',
+    leaveSplit: 'Leave split view',
   },
   omnibox: {
     placeholder: 'Search or enter address',

@@ -120,3 +120,38 @@ describe('omnibox suggestions', () => {
     expect(perKeystroke).toBeLessThan(25);
   });
 });
+
+describe('bookmarks in the address bar', () => {
+  it('offers a bookmark that was never visited', () => {
+    seedHistory([]);
+    const store = new BrowserStore();
+    store.toggleBookmark('https://docs.example.com/guide', 'Getting started');
+
+    const suggestion = store.suggest('getting').find((candidate) => candidate.kind === 'bookmark');
+    expect(suggestion?.target).toBe('https://docs.example.com/guide');
+  });
+
+  it('ranks bookmarks above history', () => {
+    seedHistory([entry('a', 'https://morning.example.com/', 'Morning routine', 0, 40)]);
+    const store = new BrowserStore();
+    store.toggleBookmark('https://news.example.com/', 'The Morning Brief');
+
+    const kinds = store
+      .suggest('morn')
+      .filter((candidate) => candidate.kind === 'bookmark' || candidate.kind === 'history')
+      .map((candidate) => candidate.kind);
+    expect(kinds).toEqual(['bookmark', 'history']);
+  });
+
+  // No search and no address to go to: * is a way to list bookmarks, not something to look up.
+  it('lists only bookmarks after a *', () => {
+    seedHistory([entry('a', 'https://brief.example.com/', 'Brief history')]);
+    const store = new BrowserStore();
+    store.toggleBookmark('https://news.example.com/', 'The Morning Brief');
+    store.toggleBookmark('https://docs.example.com/', 'Docs');
+
+    expect(store.suggest('* brief').map((candidate) => candidate.target)).toEqual(['https://news.example.com/']);
+    expect(store.suggest('*').every((candidate) => candidate.kind === 'bookmark')).toBe(true);
+    expect(store.suggest('*')).toHaveLength(2);
+  });
+});

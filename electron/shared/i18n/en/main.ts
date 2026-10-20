@@ -519,6 +519,8 @@ export const main = {
   profiles: {
     fallbackName: 'Profile',
     firstName: 'Personal',
+    choosePicture: 'Choose a profile picture',
+    pictureTooLarge: 'That picture is over 10 MB. Try a smaller one.',
   },
   netErrors: {
     failed: {

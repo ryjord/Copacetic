@@ -20,9 +20,9 @@ vi.mock('@/lib/bridge/bridge', () => ({
   isRunningInShell: () => false,
 }));
 
-const PERSONAL = { id: 'default', name: 'Personal', colour: 'ocean' } as const;
-const WORK = { id: 'aaaaaaaaaaaa', name: 'Work', colour: 'moss' } as const;
-const FAMILY = { id: 'bbbbbbbbbbbb', name: 'Family', colour: 'clay' } as const;
+const PERSONAL = { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null } as const;
+const WORK = { id: 'aaaaaaaaaaaa', name: 'Work', colour: 'moss', pictureVersion: null } as const;
+const FAMILY = { id: 'bbbbbbbbbbbb', name: 'Family', colour: 'clay', pictureVersion: null } as const;
 
 afterEach(() => {
   cleanup();

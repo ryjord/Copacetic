@@ -113,6 +113,7 @@ export const CHANNELS = {
   'bookmarks.openInActiveTab': 'bookmarks:open',
   'bookmarks.openContextMenu': 'bookmarks:open-context-menu',
   'bookmarks.file': 'bookmarks:file',
+  'bookmarks.openMenu': 'bookmarks:open-menu',
 
   'bookmarkFolders.list': 'bookmark-folders:list',
   'bookmarkFolders.create': 'bookmark-folders:create',
@@ -176,6 +177,9 @@ export const CHANNELS = {
   'profiles.remove': 'profile:remove',
   'profiles.openWindow': 'profile:open-window',
   'profiles.openMenu': 'profile:open-menu',
+  'profiles.choosePicture': 'profile:choose-picture',
+  'profiles.removePicture': 'profile:remove-picture',
+  'profiles.picture': 'profile:picture',
   'groups.create': 'group:create',
   'groups.update': 'group:update',
   'groups.remove': 'group:remove',

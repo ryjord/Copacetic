@@ -67,7 +67,7 @@ const state = (downloads: DownloadState[]): BrowserState => ({
   siteInfo: null,
   split: null,
   namedSessions: [],
-  profile: { id: 'default', name: 'Personal', colour: 'ocean' },
+  profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },
   profiles: [],
   downloads,
   find: { isOpen: false, query: '', activeMatch: 0, totalMatches: 0, matchCase: false },
