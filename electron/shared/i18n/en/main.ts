@@ -338,6 +338,7 @@ export const main = {
     session: 'Deleted the saved session “{name}”.',
     tile: 'Removed from the start page.',
     site: 'Forgot what was kept about {site}.',
+    kept: 'Cleared: {what}.',
   },
   startPage: {
     chooseIcon: 'Choose an icon',

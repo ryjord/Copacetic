@@ -172,6 +172,12 @@ export interface Bookmark {
   folderId: string | null;
 }
 
+/** What an import from another browser would bring in, counted before anything is kept. */
+export interface ImportPreview {
+  bookmarks: number;
+  historyPages: number;
+}
+
 /** Another browser's profile on this computer that bookmarks and history can be brought in from. */
 export interface ImportSource {
   id: string;

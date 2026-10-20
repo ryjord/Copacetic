@@ -51,6 +51,13 @@ export const KEPT_KINDS = [
 
 export type KeptKind = (typeof KEPT_KINDS)[number]['id'];
 
+export function isKeptKind(value: unknown): value is KeptKind {
+  return KEPT_KINDS.some((kind) => kind.id === value);
+}
+
+/** Kept in settings, so clearing them can be undone; the rest are asked about first. */
+export const UNDOABLE_KEPT_KINDS: readonly KeptKind[] = ['zoom', 'permissions', 'blockingOff'];
+
 export function describeKept(kind: KeptKind, count: number): string {
   return t(`main.forgetting.kept.${kind}`, { count });
 }

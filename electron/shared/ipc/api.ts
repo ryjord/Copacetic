@@ -15,6 +15,7 @@ import type {
   DefaultBrowserStatus,
   Bookmark,
   BookmarkEditResult,
+  ImportPreview,
   ImportSource,
   BrowserState,
   ClearRange,
@@ -347,6 +348,8 @@ export interface CopaceticApi {
     importSources(): Promise<ImportSource[]>;
     /** Brings in one profile's bookmarks and recent history. Resolves with a summary. */
     importFromBrowser(sourceId: string): Promise<string>;
+    /** What that import would bring in, or null when the profile is gone. Nothing is kept. */
+    previewFromBrowser(sourceId: string): Promise<ImportPreview | null>;
   };
   auth: {
     /** Answer a challenge. Credentials go straight to the request, unstored. */

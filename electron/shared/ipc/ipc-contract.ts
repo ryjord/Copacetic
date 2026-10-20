@@ -203,6 +203,7 @@ export const CHANNELS = {
   'data.importBookmarks': 'data:import-bookmarks',
   'data.importSources': 'data:import-sources',
   'data.importFromBrowser': 'data:import-from-browser',
+  'data.previewFromBrowser': 'data:preview-from-browser',
   'data.kept': 'data:kept',
   'data.clearKept': 'data:clear-kept',
 

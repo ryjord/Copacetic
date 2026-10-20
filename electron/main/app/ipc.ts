@@ -40,7 +40,7 @@ import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start
 import { readChosenImage } from '../system/file-dialogs';
 import { copySecret, copyText } from '../vault/vault-clipboard';
 import { t } from '../../shared/i18n/translate';
-import { siteOf as siteOfAddress } from '../../shared/data/forgetting';
+import { describeKept, isKeptKind, siteOf as siteOfAddress, type KeptKind } from '../../shared/data/forgetting';
 import { withSiteRestored, withoutSite } from '../../shared/data/site-settings';
 import {
   showBookmarkContextMenu,
@@ -58,7 +58,6 @@ import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 // Types
-import type { KeptKind } from '../../shared/data/forgetting';
 import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import type { Browser } from './browser';
 import type { Profiles } from './profiles';
@@ -271,7 +270,19 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('history.blockedThisWeek', (browser) => browser.store.blockedThisWeek());
   handle('data.kept', (browser) => browser.sites.kept());
   handle('history.openContextMenu', (browser, _event, address) => showSiteContextMenu(browser, asString(address)));
-  handle('data.clearKept', (browser, _event, kind) => browser.sites.clearKept(asString(kind) as KeptKind));
+  handle('data.clearKept', (browser, _event, kind) => {
+    if (!isKeptKind(kind)) {
+      return;
+    }
+    const count = browser.sites.kept()[kind];
+    const restorer = keptRestorer(kind, browser.store.getSettings());
+    browser.sites.clearKept(kind);
+    if (restorer) {
+      browser.offerUndo(t('main.undo.kept', { what: describeKept(kind, count) }), () =>
+        browser.updateSettings(restorer(browser.store.getSettings())),
+      );
+    }
+  });
   handle('history.forgetSite', (browser, _event, address) => browser.sites.forget(asString(address)));
   handle('notices.answer', (browser, _event, id, confirmed) =>
     browser.notices.answer(asString(id), confirmed === true),
@@ -489,6 +500,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('data.importBookmarks', (browser) => browser.transfer.importBookmarks());
   handle('data.importHistory', (browser) => browser.transfer.importHistory());
   handle('data.importSources', (browser) => browser.transfer.importSources());
+  handle('data.previewFromBrowser', (browser, _event, sourceId) =>
+    browser.transfer.previewFromBrowser(asString(sourceId)),
+  );
   handle('data.importFromBrowser', (browser, _event, sourceId) =>
     browser.transfer.importFromBrowser(asString(sourceId)),
   );
@@ -615,6 +629,24 @@ function asClearRange(value: unknown): ClearRange {
 }
 
 /** Everything the renderer is allowed to change, checked one field at a time. */
+/**
+ * How to put back what clearing one kind removed, merged over whatever is kept now. Null for the kinds that do
+ * not live in settings, which the renderer confirms before clearing instead.
+ */
+function keptRestorer(kind: KeptKind, before: Settings): ((now: Settings) => Partial<Settings>) | null {
+  switch (kind) {
+    case 'zoom':
+      return (now) => ({ zoomLevels: { ...now.zoomLevels, ...before.zoomLevels } });
+    case 'permissions':
+      return (now) => ({ permissionDecisions: { ...now.permissionDecisions, ...before.permissionDecisions } });
+    case 'blockingOff':
+      return (now) => ({ blockerAllowlist: [...new Set([...now.blockerAllowlist, ...before.blockerAllowlist])] });
+    case 'certificates':
+    case 'downloads':
+      return null;
+  }
+}
+
 /** An address typed in Settings, read as the address bar reads it; anything that is not a page is the start page. */
 function pageAddressFrom(value: string | null): string | null {
   if (value === null) {

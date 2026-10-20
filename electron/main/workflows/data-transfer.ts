@@ -14,7 +14,7 @@ import { t } from '../../shared/i18n/translate';
 
 // Types
 import type { BrowserWindow } from 'electron';
-import type { ExportKind, ImportSource } from '../../shared/types';
+import type { ExportKind, ImportPreview, ImportSource } from '../../shared/types';
 import type { VaultSession } from '../vault/vault-session';
 import type { Machine } from '../import/chromium-profiles';
 import type { BrowserStore } from '../data/store';
@@ -137,6 +137,19 @@ export class DataTransfer {
   }
 
   /** Bookmarks and the history this browser keeps, from another browser's profile. Passwords stay where they are. */
+  /** What another browser's profile holds that an import would bring in, read but not yet kept. */
+  async previewFromBrowser(sourceId: string): Promise<ImportPreview | null> {
+    const source = findReadableProfiles(THIS_MACHINE()).find((profile) => profile.id === sourceId);
+    if (!source) {
+      return null;
+    }
+    const read = await source.readBookmarks().catch(() => null);
+    const visits = await source
+      .readHistory({ since: this.deps.store.historyKeptSince(), limit: MAX_HISTORY_ENTRIES })
+      .catch(() => null);
+    return { bookmarks: read?.bookmarks.length ?? 0, historyPages: visits?.length ?? 0 };
+  }
+
   async importFromBrowser(sourceId: string): Promise<string> {
     const source = findReadableProfiles(THIS_MACHINE()).find((profile) => profile.id === sourceId);
     if (!source) {

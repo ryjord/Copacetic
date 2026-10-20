@@ -4,12 +4,17 @@
 import { useCallback, useEffect, useState } from 'react';
 
 // Components
+import { BrowserImportRow } from '@/components/views/settings/data/BrowserImportRow';
 import { ClearBrowsingDialog } from '@/components/views/clearing/ClearBrowsingDialog';
 import { Button } from '@/components/ui/Button/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { SavedSessions } from '@/components/views/settings/data/SavedSessions';
 import { TranslationModels } from '@/components/views/settings/data/TranslationModels';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { ask } from '@/lib/bridge/bridge';
@@ -18,15 +23,35 @@ import { t } from '@shared/i18n/translate';
 
 // Types
 import type { ClearRange, ExportKind, ImportSource } from '@shared/types';
-import { KEPT_KINDS, type KeptAboutSites, describeKept } from '@shared/data/forgetting';
+import {
+  KEPT_KINDS,
+  UNDOABLE_KEPT_KINDS,
+  type KeptAboutSites,
+  type KeptKind,
+  describeKept,
+} from '@shared/data/forgetting';
 
+/** A result said under the group whose button caused it. */
+function ResultRow({ message }: { message: string }) {
+  if (!message) {
+    return null;
+  }
+  return (
+    <div role="status">
+      <SettingRow label={message} />
+    </div>
+  );
+}
+
+/** In the order people come here for it: bring things in or take them out, then clear, then what clearing keeps. */
 export function DataPane() {
+  const historyRetentionDays = useBrowserStore((state) => state.settings.historyRetentionDays);
   const [kept, setKept] = useState<KeptAboutSites | null>(null);
   const [range, setRange] = useState<ClearRange>('hour');
   const [isConfirming, setIsConfirming] = useState(false);
-  const [message, setMessage] = useState('');
+  const [confirmingKind, setConfirmingKind] = useState<KeptKind | null>(null);
+  const [transferMessage, setTransferMessage] = useState('');
   const [sources, setSources] = useState<ImportSource[]>([]);
-  const [chosenSourceId, setChosenSourceId] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     void ask((api) => api.data.kept(), null).then(setKept);
@@ -38,21 +63,76 @@ export function DataPane() {
     void ask((api) => api.data.importSources(), []).then(setSources);
   }, []);
 
-  const chosenSource = sources.find((source) => source.id === chosenSourceId) ?? sources[0];
+  const transfer = (action: Promise<string>) => {
+    setTransferMessage('');
+    void action.then(setTransferMessage);
+  };
 
-  const exportData = (kind: ExportKind) => {
-    setMessage('');
-    void ask((api) => api.data.export(kind), '').then(setMessage);
+  const exportData = (kind: ExportKind) => transfer(ask((api) => api.data.export(kind), ''));
+
+  // Counted again once it is gone, not while it is still going.
+  const clearKept = async (kind: KeptKind) => {
+    await ask((api) => api.data.clearKept(kind), undefined);
+    reload();
   };
 
   const keptKinds = KEPT_KINDS.filter((entry) => (kept?.[entry.id] ?? 0) > 0);
+  const describe = (kind: KeptKind) => describeKept(kind, kept?.[kind] ?? 0);
 
   return (
     <>
+      <SettingGroup title={t('settings.data.import.title')}>
+        <BrowserImportRow sources={sources} onResult={setTransferMessage} />
+        <SettingRow
+          label={t('settings.data.import.bookmarks.label')}
+          help={t('settings.data.import.bookmarks.help')}
+          control={
+            <Button size="sm" onClick={() => transfer(ask((api) => api.data.importBookmarks(), ''))}>
+              {t('settings.data.import.action')}
+            </Button>
+          }
+        />
+        <SettingRow
+          label={t('settings.data.import.history.label')}
+          help={t('settings.data.import.history.help')}
+          control={
+            <Button size="sm" onClick={() => transfer(ask((api) => api.data.importHistory(), ''))}>
+              {t('settings.data.import.action')}
+            </Button>
+          }
+        />
+        <ResultRow message={transferMessage} />
+      </SettingGroup>
+
+      <SettingGroup title={t('settings.data.export.title')}>
+        <SettingRow
+          label={t('settings.data.export.bookmarks.label')}
+          help={t('settings.data.export.bookmarks.help')}
+          control={
+            <Button size="sm" onClick={() => exportData('bookmarks')}>
+              {t('settings.data.export.action')}
+            </Button>
+          }
+        />
+        <SettingRow
+          label={t('settings.data.export.history.label')}
+          help={t('settings.data.export.history.help')}
+          control={
+            <Button size="sm" onClick={() => exportData('history')}>
+              {t('settings.data.export.action')}
+            </Button>
+          }
+        />
+      </SettingGroup>
+
       <SettingGroup title={t('settings.data.browsing.title')}>
         <SettingRow
           label={t('settings.data.browsing.label')}
-          help={t('settings.data.browsing.help')}
+          help={
+            historyRetentionDays === 0
+              ? t('settings.data.browsing.helpForever')
+              : t('settings.data.browsing.helpKept', { days: historyRetentionDays })
+          }
           control={
             <>
               <Select
@@ -76,16 +156,15 @@ export function DataPane() {
           keptKinds.map((entry) => (
             <SettingRow
               key={entry.id}
-              label={describeKept(entry.id, kept?.[entry.id] ?? 0)}
+              label={describe(entry.id)}
               control={
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={async () => {
-                    // Counted again once it is gone, not while it is still going.
-                    await ask((api) => api.data.clearKept(entry.id), undefined);
-                    reload();
-                  }}
+                  // What can be put back is cleared at once with Undo; what cannot is asked about first.
+                  onClick={() =>
+                    UNDOABLE_KEPT_KINDS.includes(entry.id) ? void clearKept(entry.id) : setConfirmingKind(entry.id)
+                  }
                 >
                   {t('settings.data.kept.clear')}
                 </Button>
@@ -99,91 +178,6 @@ export function DataPane() {
 
       <TranslationModels />
 
-      <SettingGroup title={t('settings.data.export.title')}>
-        <SettingRow
-          label={t('settings.data.export.bookmarks.label')}
-          help={t('settings.data.export.bookmarks.help')}
-          control={
-            <Button size="sm" onClick={() => exportData('bookmarks')}>
-              {t('settings.data.export.action')}
-            </Button>
-          }
-        />
-        <SettingRow
-          label={t('settings.data.export.history.label')}
-          help={t('settings.data.export.history.help')}
-          control={
-            <Button size="sm" onClick={() => exportData('history')}>
-              {t('settings.data.export.action')}
-            </Button>
-          }
-        />
-      </SettingGroup>
-
-      <SettingGroup title={t('settings.data.import.title')}>
-        <SettingRow
-          label={t('settings.data.import.bookmarks.label')}
-          help={t('settings.data.import.bookmarks.help')}
-          control={
-            <Button
-              size="sm"
-              onClick={() => {
-                setMessage('');
-                void ask((api) => api.data.importBookmarks(), '').then(setMessage);
-              }}
-            >
-              {t('settings.data.import.action')}
-            </Button>
-          }
-        />
-        <SettingRow
-          label={t('settings.data.import.history.label')}
-          help={t('settings.data.import.history.help')}
-          control={
-            <Button
-              size="sm"
-              onClick={() => {
-                setMessage('');
-                void ask((api) => api.data.importHistory(), '').then(setMessage);
-              }}
-            >
-              {t('settings.data.import.action')}
-            </Button>
-          }
-        />
-        <SettingRow
-          label={t('settings.data.import.browser.label')}
-          help={chosenSource ? t('settings.data.import.browser.help') : t('settings.data.import.browser.none')}
-          control={
-            chosenSource && (
-              <>
-                <Select
-                  label={t('settings.data.import.browser.choose')}
-                  options={sources}
-                  value={chosenSource.id}
-                  onChange={setChosenSourceId}
-                />
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setMessage('');
-                    void ask((api) => api.data.importFromBrowser(chosenSource.id), '').then(setMessage);
-                  }}
-                >
-                  {t('settings.data.import.action')}
-                </Button>
-              </>
-            )
-          }
-        />
-      </SettingGroup>
-
-      {message && (
-        <p className="px-0.5 text-body-sm text-ink-dim" role="status">
-          {message}
-        </p>
-      )}
-
       <ClearBrowsingDialog
         key={range}
         range={range}
@@ -194,6 +188,25 @@ export function DataPane() {
           reload();
         }}
       />
+
+      <ConfirmDialog
+        open={confirmingKind !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setConfirmingKind(null);
+          }
+        }}
+        title={t('settings.data.kept.confirmTitle')}
+        confirmLabel={t('settings.data.kept.confirm')}
+        isDestructive
+        onConfirm={() => {
+          if (confirmingKind) {
+            void clearKept(confirmingKind);
+          }
+        }}
+      >
+        {confirmingKind && t('settings.data.kept.confirmBody', { what: describe(confirmingKind) })}
+      </ConfirmDialog>
     </>
   );
 }
