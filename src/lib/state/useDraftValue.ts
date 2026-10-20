@@ -12,6 +12,10 @@ import { useState } from 'react';
  */
 export function useDraftValue(saved: number): [number, (draft: number) => void] {
   const [draft, setDraft] = useState<{ value: number; startedFrom: number } | null>(null);
+  // Dropped, not only ignored, so a saved value that later returns to where the draft began does not bring it back.
+  if (draft && draft.startedFrom !== saved) {
+    setDraft(null);
+  }
   const shown = draft?.startedFrom === saved ? draft.value : saved;
   return [shown, (value: number) => setDraft({ value, startedFrom: saved })];
 }
