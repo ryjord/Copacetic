@@ -5,6 +5,7 @@ import path from 'node:path';
 // Types
 import type { LanguagePair } from '../../shared/translation/languages';
 import type { ModelBuffers } from './translation-models';
+import { t } from '../../shared/i18n/translate';
 
 interface WorkerReply {
   id: number;
@@ -60,7 +61,7 @@ export class TranslationEngine {
     this.worker = null;
     this.ready = null;
     this.loaded.clear();
-    this.waiting.forEach(({ reject }) => reject(new Error('The translation engine stopped.')));
+    this.waiting.forEach(({ reject }) => reject(new Error(t('main.translation.engineStopped'))));
     this.waiting.clear();
   }
 
@@ -71,7 +72,7 @@ export class TranslationEngine {
         const pending = this.waiting.get(reply.id);
         this.waiting.delete(reply.id);
         if (reply.error) {
-          pending?.reject(new Error(reply.error.message ?? 'The translation engine failed.'));
+          pending?.reject(new Error(reply.error.message ?? t('main.translation.engineFailed')));
         } else {
           pending?.resolve(reply.result);
         }
@@ -92,7 +93,7 @@ export class TranslationEngine {
   private call(name: string, args: readonly unknown[]): Promise<unknown> {
     const worker = this.worker;
     if (!worker) {
-      return Promise.reject(new Error('The translation engine is not running.'));
+      return Promise.reject(new Error(t('main.translation.engineNotRunning')));
     }
     const id = this.nextId++;
     return new Promise((resolve, reject) => {

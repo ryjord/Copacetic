@@ -9,15 +9,16 @@ import { Translator } from './translator';
 
 // Types
 import type { ModelFetch } from './translation-models';
+import { t } from '../../shared/i18n/translate';
 
 /** The response body, read only as far as the cap allows. */
 async function readCapped(response: Response, maxBytes: number): Promise<Buffer> {
   if (!response.ok) {
-    throw new Error(`Mozilla answered ${response.status}.`);
+    throw new Error(t('main.translation.mozillaAnswered', { status: response.status }));
   }
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error('Mozilla sent nothing.');
+    throw new Error(t('main.translation.mozillaSentNothing'));
   }
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -29,7 +30,7 @@ async function readCapped(response: Response, maxBytes: number): Promise<Buffer>
     total += value.byteLength;
     if (total > maxBytes) {
       await reader.cancel();
-      throw new Error('Mozilla sent more than any model should be.');
+      throw new Error(t('main.translation.mozillaSentTooMuch'));
     }
     chunks.push(value);
   }

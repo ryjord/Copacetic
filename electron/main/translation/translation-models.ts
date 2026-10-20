@@ -17,6 +17,7 @@ import { type ModelFileKind, type ModelRecord, isModelRecord, modelFilesFor } fr
 
 // Types
 import type { LanguagePair } from '../../shared/translation/languages';
+import { t } from '../../shared/i18n/translate';
 
 export const RECORDS_URL =
   'https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/translations-models/records';
@@ -56,7 +57,7 @@ export class TranslationModels {
   async buffersFor(pair: LanguagePair): Promise<ModelBuffers> {
     const found = modelFilesFor(await this.recordList(), pair.from, pair.to);
     if (!found) {
-      throw new Error(`No model translates ${pair.from} into ${pair.to}.`);
+      throw new Error(t('main.translation.noModel', { from: pair.from, to: pair.to }));
     }
     const folder = path.join(this.directory, `${pair.from}-${pair.to}`, found.version);
     const read = async (kind: ModelFileKind) => {
@@ -67,7 +68,7 @@ export class TranslationModels {
       (['model', 'lex', 'vocab', 'srcvocab', 'trgvocab'] as const).map(read),
     );
     if (!model || !shortlist) {
-      throw new Error(`The ${pair.from} to ${pair.to} model is incomplete.`);
+      throw new Error(t('main.translation.incompleteModel', { from: pair.from, to: pair.to }));
     }
     const vocabs = vocab ? [vocab] : [sourceVocab, targetVocab].filter((entry): entry is Buffer => entry !== null);
     return { model, shortlist, vocabs };
@@ -117,12 +118,12 @@ export class TranslationModels {
       rmSync(target, { force: true });
     }
     if (file.size > MAX_MODEL_FILE_BYTES) {
-      throw new Error(`${file.filename} is larger than any model should be.`);
+      throw new Error(t('main.translation.fileTooLarge', { file: file.filename }));
     }
     const body = await this.fetchModel.bytes(`${ATTACHMENTS_URL}${file.location}`, MAX_MODEL_FILE_BYTES);
     const digest = createHash('sha256').update(body).digest('hex');
     if (body.length !== file.size || digest !== file.hash) {
-      throw new Error(`${file.filename} did not arrive as Mozilla published it.`);
+      throw new Error(t('main.translation.fileNotAsPublished', { file: file.filename }));
     }
     mkdirSync(folder, { recursive: true });
     const temporary = `${target}.partial`;

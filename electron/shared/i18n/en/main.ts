@@ -177,6 +177,17 @@ export const main = {
   translation: {
     refused: 'That is not something Copacetic can translate.',
     failed: 'The translation did not finish.',
+    mozillaAnswered: 'Mozilla answered {status}.',
+    mozillaSentNothing: 'Mozilla sent nothing.',
+    mozillaSentTooMuch: 'Mozilla sent more than any model should be.',
+    engineStopped: 'The translation engine stopped.',
+    engineFailed: 'The translation engine failed.',
+    engineNotRunning: 'The translation engine is not running.',
+    noModel: 'No model translates {from} into {to}.',
+    incompleteModel: 'The {from} to {to} model is incomplete.',
+    fileTooLarge: '{file} is larger than any model should be.',
+    fileNotAsPublished: '{file} did not arrive as Mozilla published it.',
+    cannotTranslate: 'Copacetic cannot translate {from} into {to}.',
   },
   sessions: {
     untitled: 'Untitled',
