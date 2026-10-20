@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { attachTabEvents, type TabEventDeps } from '../../../../electron/main/tabs/tab-events';
+import { attachTabEvents, settleUnstartedLoad, type TabEventDeps } from '../../../../electron/main/tabs/tab-events';
 import type { TabRecord } from '../../../../electron/main/tabs/tab-record';
 import { HUSH_RECORD, storedRecord } from '../../../../electron/main/tabs/browsing-record';
 
@@ -119,5 +119,35 @@ describe('what a page reports about itself is not trusted to be sensible', () =>
     const { contents, deps } = setup({ error: { code: -105, name: 'x', description: 'y', url: 'z' } });
     contents.emit('page-title-updated', {}, 'Cannot reach');
     expect(deps.store.recordVisit).not.toHaveBeenCalled();
+  });
+});
+
+describe('a load that ends without Chromium starting it', () => {
+  const contentsThat = (state: { isDestroyed?: boolean; isLoading?: boolean }) => ({
+    isDestroyed: () => state.isDestroyed ?? false,
+    isLoading: () => state.isLoading ?? false,
+  });
+
+  it('stops the tab reading as loading once nothing is', () => {
+    const tab = { isLoading: true };
+    expect(settleUnstartedLoad(tab, contentsThat({}))).toBe(true);
+    expect(tab.isLoading).toBe(false);
+  });
+
+  // A newer navigation took over while this load was being asked for; its spinner is not ours to clear.
+  it('leaves a tab alone while another load is under way', () => {
+    const tab = { isLoading: true };
+    expect(settleUnstartedLoad(tab, contentsThat({ isLoading: true }))).toBe(false);
+    expect(tab.isLoading).toBe(true);
+  });
+
+  it('leaves a tab that already settled', () => {
+    const tab = { isLoading: false };
+    expect(settleUnstartedLoad(tab, contentsThat({}))).toBe(false);
+  });
+
+  it('leaves a tab whose page has gone', () => {
+    const tab = { isLoading: true };
+    expect(settleUnstartedLoad(tab, contentsThat({ isDestroyed: true }))).toBe(false);
   });
 });

@@ -198,3 +198,20 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     deps.onContextMenu(tab.id, params);
   });
 }
+
+/**
+ * Settles a tab whose load ended without Chromium ever starting it.
+ *
+ * A tab reads as loading from the moment a page is asked for, but a load
+ * refused before it starts sends no did-stop-loading. Says whether it changed.
+ */
+export function settleUnstartedLoad(
+  tab: Pick<TabRecord, 'isLoading'>,
+  contents: { isDestroyed(): boolean; isLoading(): boolean },
+): boolean {
+  if (!tab.isLoading || contents.isDestroyed() || contents.isLoading()) {
+    return false;
+  }
+  tab.isLoading = false;
+  return true;
+}

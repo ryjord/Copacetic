@@ -66,7 +66,7 @@ import {
 import { describeTab } from '../system/browser-identity';
 import { log } from '../system/diagnostics';
 import { surfaceColour } from '../window/appearance';
-import { attachTabEvents } from './tab-events';
+import { attachTabEvents, settleUnstartedLoad } from './tab-events';
 import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
 import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
@@ -1414,9 +1414,7 @@ export class TabManager {
         console.error('[tabs] loadURL rejected', url, error);
       }
     }
-    // A load refused before Chromium started it sends no did-stop-loading to settle the tab.
-    if (tab.isLoading && !contents.isDestroyed() && !contents.isLoading()) {
-      tab.isLoading = false;
+    if (settleUnstartedLoad(tab, contents)) {
       this.onChanged();
     }
   }
