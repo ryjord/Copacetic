@@ -252,7 +252,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.bookmarks.bookmarkThisPage'),
         accelerator: key('bookmark'),
-        click: () => inWindow((browser) => browser.commands.toggleBookmarkForActiveTab()),
+        click: () => inWindow((browser) => browser.toggleBookmarkForActiveTab()),
       },
       {
         label: t('main.menu.bookmarks.showAll'),

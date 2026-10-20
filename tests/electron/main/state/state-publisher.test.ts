@@ -42,6 +42,7 @@ const state = (over: Partial<BrowserState> = {}): BrowserState => ({
   tabOrder: ['one', 'two'],
   activeTabId: 'one',
   siteInfo: null,
+  bookmarkSheet: null,
   split: null,
   namedSessions: [],
   profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },

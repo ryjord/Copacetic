@@ -108,6 +108,15 @@ export const shell = {
     },
   },
   overlay: {
+    bookmarkSheet: {
+      label: 'Bookmark added',
+      title: 'Bookmark added',
+      name: 'Name',
+      folder: 'Folder',
+      unfiled: 'Unfiled',
+      remove: 'Remove',
+      done: 'Done',
+    },
     finishedDownload: {
       done: 'Downloaded, {size}',
       failed: 'The download did not finish.',

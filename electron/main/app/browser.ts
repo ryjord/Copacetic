@@ -30,6 +30,7 @@ import { writeChosenFile } from '../system/file-dialogs';
 // Types
 import type {
   AppInfo,
+  BookmarkSheetState,
   BrowserState,
   ConnectionEntry,
   PermissionDecision,
@@ -71,6 +72,7 @@ export class Browser {
   private readonly overlays: Record<OverlayRegion, OverlayLayer>;
   private readonly publisher: StatePublisher;
   private siteInfo: SiteInfoState | null = null;
+  private bookmarkSheet: BookmarkSheetState | null = null;
   /** A surface asked for before the chrome was listening. See `shared/surfaces.ts` for why it is bounded. */
   private requestedSurface: SurfaceRequest | null = null;
 
@@ -135,7 +137,10 @@ export class Browser {
     };
     this.eachOverlay((overlay) => overlay.setContentBounds(this.tabs.contentBounds()));
     // Clicking back into the page is done with the card, as it is with any popover.
-    this.tabs.onPageFocus(() => this.closeSiteInfo());
+    this.tabs.onPageFocus(() => {
+      this.closeSiteInfo();
+      this.closeBookmarkSheet();
+    });
     this.tabs.onPageContextMenu((tabId, params) => showPageContextMenu(this, tabId, params));
 
     const changed = () => this.scheduleStatePush();
@@ -232,6 +237,7 @@ export class Browser {
       hasClosedTabs: this.tabs.hasClosedTabs(),
       update: this.updates.getState(),
       siteInfo: this.siteInfo,
+      bookmarkSheet: this.bookmarkSheet,
       profile: this.profile.summary(),
       profiles: this.profile.allProfiles(),
     };
@@ -390,6 +396,45 @@ export class Browser {
         this.profile.scheduleStatePush();
       });
     }
+  }
+
+  /**
+   * The star, wherever it is pressed: removing offers Undo, and adding opens the
+   * sheet that names and files it, so a bookmark never lands nowhere unseen.
+   */
+  toggleBookmark(url: string, title: string): void {
+    const existing = this.store.listBookmarks().find((bookmark) => bookmark.url === url);
+    if (existing) {
+      this.closeBookmarkSheet();
+      this.removeBookmarks([existing.id]);
+      return;
+    }
+    this.store.toggleBookmark(url, title);
+    const added = this.store.listBookmarks().find((bookmark) => bookmark.url === url);
+    const { activeTabId } = this.tabs.snapshot();
+    this.bookmarks.changed();
+    if (added && activeTabId) {
+      this.bookmarkSheet = { tabId: activeTabId, bookmarkId: added.id };
+      this.overlays.trailing.takeFocus();
+    }
+    this.scheduleStatePush();
+  }
+
+  toggleBookmarkForActiveTab(): void {
+    const { tabs, activeTabId } = this.tabs.snapshot();
+    const tab = tabs.find((candidate) => candidate.id === activeTabId);
+    if (tab && !tab.isStartPage) {
+      this.toggleBookmark(tab.url, tab.title);
+    }
+  }
+
+  closeBookmarkSheet(): void {
+    if (!this.bookmarkSheet) {
+      return;
+    }
+    this.bookmarkSheet = null;
+    this.tabs.focusActive();
+    this.scheduleStatePush();
   }
 
   /** Bookmarks removed with one Undo for all of them, from the panel, a selection or a bookmark's own menu alike. */

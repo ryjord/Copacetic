@@ -695,6 +695,8 @@ export interface BrowserState {
   update: UpdateState;
   /** The site information card, open for one tab, or null. */
   siteInfo: SiteInfoState | null;
+  /** The sheet that names and files a bookmark just added, open for one tab, or null. */
+  bookmarkSheet: BookmarkSheetState | null;
   /** Two tabs paired side by side, shown while either is in front. */
   split: SplitView | null;
   /** Sets of tabs kept by name, newest first. */
@@ -703,6 +705,11 @@ export interface BrowserState {
   profile: ProfileSummary;
   /** Every profile, to switch between and to manage. */
   profiles: ProfileSummary[];
+}
+
+export interface BookmarkSheetState {
+  tabId: TabId;
+  bookmarkId: string;
 }
 
 export interface SiteInfoState {

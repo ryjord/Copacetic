@@ -30,8 +30,8 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSle
       newTab: record('newTab'),
       newHushTab: record('newHushTab'),
       reopenClosedTab: record('reopenClosedTab'),
-      toggleBookmarkForActiveTab: record('toggleBookmark'),
     },
+    toggleBookmarkForActiveTab: record('toggleBookmark'),
     scheduleStatePush: record('scheduleStatePush'),
     store: {
       listNamedSessions: () => [],

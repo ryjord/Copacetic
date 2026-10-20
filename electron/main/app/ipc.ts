@@ -260,10 +260,8 @@ export function registerIpcHandlers(profiles: Profiles): void {
 
   handle('bookmarks.list', (browser) => browser.store.listBookmarks());
   handle('bookmarks.toggle', (browser, _event, url, title) => {
-    const bookmarked = browser.store.toggleBookmark(asString(url), asString(title));
-    browser.bookmarks.changed();
-    browser.scheduleStatePush();
-    return bookmarked;
+    browser.toggleBookmark(asString(url), asString(title));
+    return browser.store.isBookmarked(asString(url));
   });
   handle('bookmarks.remove', (browser, _event, id) => browser.removeBookmarks([asString(id)]));
   handle('bookmarks.removeMany', (browser, _event, ids) =>
@@ -340,6 +338,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('chrome.focusOverlay', (browser, event) => browser.focusOverlay(event.senderFrame));
   handle('chrome.toggleSiteInfo', (browser) => browser.toggleSiteInfo());
   handle('chrome.closeSiteInfo', (browser) => browser.closeSiteInfo());
+  handle('chrome.closeBookmarkSheet', (browser) => browser.closeBookmarkSheet());
   handle('chrome.openSettingsPane', (browser, _event, paneId) => {
     const id = asString(paneId);
     // A pane's id, never anything the chrome would treat as more than a name.

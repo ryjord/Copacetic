@@ -146,6 +146,7 @@ export function Chrome() {
       return;
     }
     send((api) => api.chrome.closeSiteInfo());
+    send((api) => api.chrome.closeBookmarkSheet());
     setSurface('none');
   }, [activeTabId, setSurface]);
 

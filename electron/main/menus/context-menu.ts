@@ -193,7 +193,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     });
     push({
       label: t('main.menu.bookmarks.bookmarkThisPage'),
-      click: () => browser.commands.toggleBookmarkForActiveTab(),
+      click: () => browser.toggleBookmarkForActiveTab(),
     });
     push({ label: t('main.menu.file.savePageAs'), click: () => browser.commands.savePage(tabId) });
     push({ label: t('main.menu.file.screenshot'), click: () => browser.commands.saveScreenshot(tabId) });

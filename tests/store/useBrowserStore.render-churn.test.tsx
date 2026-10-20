@@ -65,6 +65,7 @@ const state = (downloads: DownloadState[]): BrowserState => ({
   tabOrder: ['one', 'two', 'three'],
   activeTabId: 'one',
   siteInfo: null,
+  bookmarkSheet: null,
   split: null,
   namedSessions: [],
   profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },

@@ -134,6 +134,7 @@ export interface CopaceticApi {
     focusOverlay(): Promise<void>;
     toggleSiteInfo(): Promise<void>;
     closeSiteInfo(): Promise<void>;
+    closeBookmarkSheet(): Promise<void>;
     /** Settings, opened at one pane; from the site card, which cannot reach the chrome's own state. */
     openSettingsPane(paneId: string): Promise<void>;
     getState(): Promise<BrowserState>;

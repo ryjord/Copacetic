@@ -58,7 +58,7 @@ export function bookmarksMenuItems(browser: Browser): MenuItemConstructorOptions
     {
       label: active?.isBookmarked ? t('main.menu.context.removeBookmark') : t('main.menu.bookmarks.bookmarkThisPage'),
       enabled: active !== undefined && !active.isStartPage,
-      click: () => browser.commands.toggleBookmarkForActiveTab(),
+      click: () => browser.toggleBookmarkForActiveTab(),
     },
     { type: 'separator' },
     ...(hasAny ? itemsIn(browser, null, folders, bookmarks) : []),

@@ -97,16 +97,6 @@ export class TabCommands {
     });
   }
 
-  toggleBookmarkForActiveTab(): void {
-    const { tabs, activeTabId } = this.deps.tabs.snapshot();
-    const tab = tabs.find((candidate) => candidate.id === activeTabId);
-    if (!tab || tab.isStartPage) {
-      return;
-    }
-    this.deps.store.toggleBookmark(tab.url, tab.title);
-    this.deps.changed();
-  }
-
   toggleTabDevTools(): void {
     this.withActiveTab((tabId) => this.deps.tabs.toggleDevTools(tabId));
   }

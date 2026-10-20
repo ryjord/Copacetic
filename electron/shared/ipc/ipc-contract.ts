@@ -82,6 +82,7 @@ export const CHANNELS = {
   'chrome.focusOverlay': 'chrome:focus-overlay',
   'chrome.toggleSiteInfo': 'chrome:toggle-site-info',
   'chrome.closeSiteInfo': 'chrome:close-site-info',
+  'chrome.closeBookmarkSheet': 'chrome:close-bookmark-sheet',
   'chrome.openSettingsPane': 'chrome:open-settings-pane',
   'chrome.getState': 'chrome:get-state',
   'chrome.pendingSurface': 'surface:pending',

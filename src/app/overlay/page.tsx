@@ -4,6 +4,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 // Components
+import { BookmarkSheet } from '@/components/overlay/BookmarkSheet/BookmarkSheet';
 import { FindBar } from '@/components/overlay/FindBar/FindBar';
 import { FinishedDownloads } from '@/components/overlay/Downloads/FinishedDownloads';
 import { NoticeStrip } from '@/components/overlay/Notices/NoticeStrip';
@@ -111,8 +112,13 @@ function LeadingRegion() {
 
 function TrailingRegion() {
   const find = useBrowserStore((state) => state.find);
+  const activeTabId = useBrowserStore((state) => state.activeTabId);
+  const bookmarkSheet = useBrowserStore((state) => state.bookmarkSheet);
   return (
     <>
+      {bookmarkSheet && bookmarkSheet.tabId === activeTabId && (
+        <BookmarkSheet key={bookmarkSheet.bookmarkId} bookmarkId={bookmarkSheet.bookmarkId} />
+      )}
       {find.isOpen && <FindBar find={find} />}
       <NoticeStrip />
       <FinishedDownloads />
