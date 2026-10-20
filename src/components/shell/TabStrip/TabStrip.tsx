@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, type ReactNode, memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // Components
 import { Favicon } from '@/components/ui/Favicon/Favicon';
@@ -82,17 +82,29 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
     return () => resizes.disconnect();
   }, [tabs.length, layout]);
 
+  // Read when a drop lands rather than closed over, so one tab's new title leaves every other tab's handlers alone.
+  const latestTabs = useRef(tabs);
+  useEffect(() => {
+    latestTabs.current = tabs;
+  });
+
   const handleDrop = (index: number) => {
-    const from = dragId ? tabs.findIndex((tab) => tab.id === dragId) : -1;
+    const current = latestTabs.current;
+    const from = dragId ? current.findIndex((tab) => tab.id === dragId) : -1;
     // A tab dropped where it already was has not been moved, so nothing about
     // it should be re-decided: a tab parked between two of a group's tabs would
     // otherwise be swallowed by the group on the smallest twitch of the mouse.
     if (dragId && from !== -1 && from !== index) {
       // Where it lands decides which group it is in, not just where it sits.
-      const groupId = groupForDrop(tabs, from, index);
+      const groupId = groupForDrop(current, from, index);
       send((api) => api.tabs.move(dragId, index));
       send((api) => api.groups.setForTab(dragId, groupId));
     }
+    setDragId(null);
+    setDropIndex(null);
+  };
+
+  const endDrag = () => {
     setDragId(null);
     setDropIndex(null);
   };
@@ -167,16 +179,14 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
               <Tab
                 key={tab.id}
                 tab={tab}
+                index={index}
                 isActive={tab.id === activeTabId}
                 isDragging={dragId === tab.id}
                 showDropBefore={dropIndex === index && dragId !== tab.id}
-                onDragStart={() => setDragId(tab.id)}
-                onDragEnd={() => {
-                  setDragId(null);
-                  setDropIndex(null);
-                }}
-                onDragOver={() => setDropIndex(index)}
-                onDrop={() => handleDrop(index)}
+                onDragStart={setDragId}
+                onDragEnd={endDrag}
+                onDragOver={setDropIndex}
+                onDrop={handleDrop}
               />
             );
           });
@@ -222,13 +232,15 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
 
 interface TabProps {
   tab: TabState;
+  /** Where it sits in the strip, which is where a drop on it lands. */
+  index: number;
   isActive: boolean;
   isDragging: boolean;
   showDropBefore: boolean;
-  onDragStart: () => void;
+  onDragStart: (tabId: string) => void;
   onDragEnd: () => void;
-  onDragOver: () => void;
-  onDrop: () => void;
+  onDragOver: (index: number) => void;
+  onDrop: (index: number) => void;
 }
 
 // One pass: rebuilding the list with a spread at every run made this grow with the square of the tabs.
@@ -241,7 +253,18 @@ function startsOf(runs: readonly { tabs: readonly unknown[] }[]): number[] {
   return starts;
 }
 
-function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd, onDragOver, onDrop }: TabProps) {
+// Memoised, with handlers that take the tab or its index, so a title changing in one tab re-renders that tab alone.
+const Tab = memo(function Tab({
+  tab,
+  index,
+  isActive,
+  isDragging,
+  showDropBefore,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+}: TabProps) {
   const title = tab.isStartPage ? t('shell.tabStrip.newTab') : tab.title;
   const ref = useRef<HTMLDivElement>(null);
   const isSplit = useBrowserStore((state) => isInSplit(state.split, tab.id));
@@ -296,15 +319,15 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
           'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-active',
       )}
       draggable
-      onDragStart={onDragStart}
+      onDragStart={() => onDragStart(tab.id)}
       onDragEnd={onDragEnd}
       onDragOver={(event) => {
         event.preventDefault();
-        onDragOver();
+        onDragOver(index);
       }}
       onDrop={(event) => {
         event.preventDefault();
-        onDrop();
+        onDrop(index);
       }}
       onClick={() => send((api) => api.tabs.activate(tab.id))}
       onAuxClick={(event) => {
@@ -392,7 +415,7 @@ function Tab({ tab, isActive, isDragging, showDropBefore, onDragStart, onDragEnd
       </div>
     </div>
   );
-}
+});
 
 /** A group's own mark, and the only place its colour appears: never filling a tab keeps Hush the strongest tint. */
 function GroupRun({ group, holdsHush, children }: { group: TabGroup; holdsHush: boolean; children: ReactNode }) {
