@@ -6,7 +6,13 @@ import { asNumber, asString, isRecord, newId } from './persistence';
 
 // Types
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
-import type { ClearRange, HistoryEntry, TopSite } from '../../shared/types';
+import {
+  historyRangeBounds,
+  type ClearRange,
+  type HistoryEntry,
+  type HistoryFilter,
+  type TopSite,
+} from '../../shared/types';
 import type { ImportedVisit } from '../import/chromium-history';
 
 export const MAX_HISTORY_ENTRIES = 10_000;
@@ -86,14 +92,24 @@ export class HistoryStore {
   }
 
   // A page of history, and how many entries there are in total.
-  listHistory(query = '', limit = HISTORY_PAGE_SIZE, offset = 0): HistoryPage {
+  listHistory(
+    query = '',
+    limit = HISTORY_PAGE_SIZE,
+    offset = 0,
+    filter: HistoryFilter = { range: 'all', order: 'recent' },
+  ): HistoryPage {
     const { where, parameters } = matching(query);
+    const { since, until } = historyRangeBounds(filter.range, new Date());
+    // The search clause is wrapped, so its OR cannot swallow the range.
+    const clause = `WHERE ${where ? `(${where.slice('WHERE '.length)}) AND ` : ''}last_visited_at >= ? AND last_visited_at < ?`;
+    const bounded = [...parameters, since, until];
     const total = Number(
-      this.database.prepare(`SELECT count(*) AS total FROM history ${where}`).get(...parameters)?.total ?? 0,
+      this.database.prepare(`SELECT count(*) AS total FROM history ${clause}`).get(...bounded)?.total ?? 0,
     );
+    const order = filter.order === 'visits' ? 'visit_count DESC, last_visited_at DESC' : 'last_visited_at DESC';
     const rows = this.database
-      .prepare(`SELECT ${COLUMNS} FROM history ${where} ORDER BY last_visited_at DESC LIMIT ? OFFSET ?`)
-      .all(...parameters, limit, offset);
+      .prepare(`SELECT ${COLUMNS} FROM history ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`)
+      .all(...bounded, limit, offset);
     return { entries: rows.map(toEntry), total };
   }
 

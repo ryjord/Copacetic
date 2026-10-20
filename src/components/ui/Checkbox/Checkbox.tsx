@@ -9,9 +9,11 @@ interface CheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
+  /** For a box whose row already says what it is, such as one selecting a list item. */
+  isLabelHidden?: boolean;
 }
 
-export function Checkbox({ checked, onChange, label }: CheckboxProps) {
+export function Checkbox({ checked, onChange, label, isLabelHidden = false }: CheckboxProps) {
   const id = useId();
   return (
     <span className="no-drag inline-flex items-center gap-2">
@@ -28,7 +30,7 @@ export function Checkbox({ checked, onChange, label }: CheckboxProps) {
           <Check size={12} strokeWidth={2.5} className="text-accent-ink" />
         </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Root>
-      <label htmlFor={id} className="text-body-sm text-ink-dim">
+      <label htmlFor={id} className={isLabelHidden ? 'sr-only' : 'text-body-sm text-ink-dim'}>
         {label}
       </label>
     </span>

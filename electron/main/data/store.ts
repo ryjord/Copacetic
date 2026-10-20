@@ -36,6 +36,7 @@ import type {
   BookmarkEditResult,
   ClearRange,
   HistoryEntry,
+  HistoryFilter,
   PermissionDecision,
   Settings,
   Suggestion,
@@ -218,8 +219,8 @@ export class BrowserStore {
     this.history.recordVisit(url, title);
   }
 
-  listHistory(query = '', limit = HISTORY_PAGE_SIZE, offset = 0): HistoryPage {
-    return this.history.listHistory(query, limit, offset);
+  listHistory(query = '', limit = HISTORY_PAGE_SIZE, offset = 0, filter?: HistoryFilter): HistoryPage {
+    return this.history.listHistory(query, limit, offset, filter);
   }
 
   /** Everything matching, for the export, which must never be a partial one. */

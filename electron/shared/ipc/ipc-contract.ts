@@ -93,6 +93,7 @@ export const CHANNELS = {
 
   'history.list': 'history:list',
   'history.remove': 'history:remove',
+  'history.removeMany': 'history:remove-many',
   'history.traces': 'history:traces',
   'history.forgetSite': 'history:forget-site',
   'history.totalBlocked': 'history:total-blocked',

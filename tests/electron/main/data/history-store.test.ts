@@ -355,3 +355,44 @@ describe('how long history is kept', () => {
     expect(store.listHistory().entries).toHaveLength(1);
   });
 });
+
+describe('narrowing and ordering the list', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it('shows only the days asked for', () => {
+    const store = new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir, () => 0);
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    store.importVisits([
+      { url: 'https://today.example/', title: 'Today', lastVisitedAt: midnight + 60_000, visitCount: 1 },
+      { url: 'https://yesterday.example/', title: 'Yesterday', lastVisitedAt: midnight - 60_000, visitCount: 1 },
+      { url: 'https://old.example/', title: 'Old', lastVisitedAt: midnight - 40 * DAY, visitCount: 1 },
+    ]);
+    const urls = (range: 'today' | 'yesterday' | 'week' | 'all') =>
+      store.listHistory('', 50, 0, { range, order: 'recent' }).entries.map((entry) => entry.url);
+    expect(urls('today')).toEqual(['https://today.example/']);
+    expect(urls('yesterday')).toEqual(['https://yesterday.example/']);
+    expect(urls('week')).toEqual(['https://today.example/', 'https://yesterday.example/']);
+    expect(urls('all')).toHaveLength(3);
+  });
+
+  // A search with a range must not leak entries outside it through its OR.
+  it('keeps the range when searching', () => {
+    const store = new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir, () => 0);
+    store.importVisits([
+      { url: 'https://ab.example/', title: 'ab', lastVisitedAt: Date.now() - 400 * DAY, visitCount: 1 },
+    ]);
+    expect(store.listHistory('ab', 50, 0, { range: 'today', order: 'recent' }).total).toBe(0);
+  });
+
+  it('puts the most visited first when asked', () => {
+    const store = new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir, () => 0);
+    store.importVisits([
+      { url: 'https://often.example/', title: 'Often', lastVisitedAt: Date.now() - DAY, visitCount: 40 },
+      { url: 'https://once.example/', title: 'Once', lastVisitedAt: Date.now(), visitCount: 1 },
+    ]);
+    expect(store.listHistory('', 50, 0, { range: 'all', order: 'visits' }).entries[0]?.url).toBe(
+      'https://often.example/',
+    );
+  });
+});

@@ -556,6 +556,36 @@ export interface VaultState {
 
 export type ClearRange = 'hour' | 'day' | 'week' | 'all';
 
+/** Which days of history a list shows. */
+export type HistoryRange = 'all' | 'today' | 'yesterday' | 'week' | 'month';
+
+export type HistoryOrder = 'recent' | 'visits';
+
+export interface HistoryFilter {
+  range: HistoryRange;
+  order: HistoryOrder;
+}
+
+export const HISTORY_RANGES: readonly HistoryRange[] = ['all', 'today', 'yesterday', 'week', 'month'];
+
+/** The visits a range covers, as times, read against this machine's own calendar. */
+export function historyRangeBounds(range: HistoryRange, now: Date): { since: number; until: number } {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const day = 24 * 60 * 60 * 1000;
+  switch (range) {
+    case 'today':
+      return { since: midnight, until: Number.MAX_SAFE_INTEGER };
+    case 'yesterday':
+      return { since: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime(), until: midnight };
+    case 'week':
+      return { since: midnight - 6 * day, until: Number.MAX_SAFE_INTEGER };
+    case 'month':
+      return { since: new Date(now.getFullYear(), now.getMonth(), 1).getTime(), until: Number.MAX_SAFE_INTEGER };
+    case 'all':
+      return { since: 0, until: Number.MAX_SAFE_INTEGER };
+  }
+}
+
 export type ExportKind = 'bookmarks' | 'history';
 
 export interface Settings {

@@ -173,6 +173,12 @@ export class TabCommands {
    * clicking a link does; with no tab to replace, it makes one rather than
    * doing nothing.
    */
+  /** A saved address in a tab of its own, in front; it comes from history or a bookmark, so no page opened it. */
+  openInNewTab(url: string): void {
+    this.deps.tabs.create(url, { activate: true });
+    this.deps.changed();
+  }
+
   openInActiveTab(url: string): void {
     const activeId = this.deps.tabs.getActiveTabId();
     if (activeId) {

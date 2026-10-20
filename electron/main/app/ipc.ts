@@ -9,6 +9,7 @@ import { resolverFor } from '../../shared/browsing/dns';
 import { generatePassword, readRecipe } from '../../shared/passwords/password-generator';
 import {
   clampZoom,
+  HISTORY_RANGES,
   isAccentColour,
   isAppearanceId,
   isHistoryRetentionDays,
@@ -58,7 +59,7 @@ import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
 
 // Types
-import type { ClearRange, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
+import type { ClearRange, HistoryFilter, PermissionDecision, PermissionKind, Settings } from '../../shared/types';
 import type { Browser } from './browser';
 import type { Profiles } from './profiles';
 
@@ -210,9 +211,26 @@ export function registerIpcHandlers(profiles: Profiles): void {
 
   // ---------------------------------------------------------------- history
 
-  handle('history.list', (browser, _event, query, offset) =>
-    browser.store.listHistory(asString(query), HISTORY_PAGE_SIZE, asBoundedInteger(offset, 0, 0, 1_000_000)),
+  handle('history.list', (browser, _event, query, offset, filter) =>
+    browser.store.listHistory(
+      asString(query),
+      HISTORY_PAGE_SIZE,
+      asBoundedInteger(offset, 0, 0, 1_000_000),
+      asHistoryFilter(filter),
+    ),
   );
+  handle('history.removeMany', (browser, _event, ids) => {
+    const wanted = Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string').slice(0, 1000) : [];
+    const entries = wanted.map((id) => browser.store.historyEntry(id)).filter((entry) => entry !== null);
+    entries.forEach((entry) => browser.store.removeHistory(entry.id));
+    browser.scheduleStatePush();
+    if (entries.length > 0) {
+      browser.offerUndo(t('main.undo.historyMany', { count: entries.length }), () => {
+        entries.forEach((entry) => browser.store.restoreHistory(entry));
+        browser.profile.broadcast(PUSH.dataChanged, 'history');
+      });
+    }
+  });
   handle('history.remove', (browser, _event, id) => {
     const entry = browser.store.historyEntry(asString(id));
     browser.store.removeHistory(asString(id));
@@ -653,6 +671,12 @@ function keptRestorer(kind: KeptKind, before: Settings): ((now: Settings) => Par
     case 'downloads':
       return null;
   }
+}
+
+function asHistoryFilter(value: unknown): HistoryFilter {
+  const filter = isRecord(value) ? value : {};
+  const range = HISTORY_RANGES.find((candidate) => candidate === filter.range) ?? 'all';
+  return { range, order: filter.order === 'visits' ? 'visits' : 'recent' };
 }
 
 /** An address typed in Settings, read as the address bar reads it; anything that is not a page is the start page. */

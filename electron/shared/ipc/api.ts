@@ -22,6 +22,7 @@ import type {
   ConnectionEntry,
   DownloadId,
   ExportKind,
+  HistoryFilter,
   HistoryPage,
   PermissionDecision,
   PermissionKind,
@@ -149,7 +150,7 @@ export interface CopaceticApi {
     choose(target: string): Promise<void>;
   };
   history: {
-    list(query?: string, offset?: number): Promise<HistoryPage>;
+    list(query?: string, offset?: number, filter?: HistoryFilter): Promise<HistoryPage>;
     /** What is kept about the site an address belongs to, counted before anything goes. */
     traces(address: string): Promise<SiteTraces>;
     /** Removes everything known about that site, and reports what went. */
@@ -161,6 +162,8 @@ export interface CopaceticApi {
     /** Requests refused on pages visited in the last seven days. */
     blockedThisWeek(): Promise<number>;
     remove(id: string): Promise<void>;
+    /** Several at once, with one Undo for all of them. */
+    removeMany(ids: string[]): Promise<void>;
     /** History in the range; cookies, site data and the cache, if chosen, entirely. */
     clear(range: ClearRange, choice?: ClearChoice): Promise<void>;
     topSites(limit?: number): Promise<TopSite[]>;

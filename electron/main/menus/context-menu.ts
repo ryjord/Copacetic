@@ -559,6 +559,12 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
     { label: site, enabled: false },
     { type: 'separator' },
     { label: t('main.menu.context.open'), click: () => browser.commands.openInActiveTab(address) },
+    { label: t('main.menu.context.openInNewTab'), click: () => browser.commands.openInNewTab(address) },
+    {
+      label: t('main.menu.context.openInNewWindow'),
+      click: () => void browser.profile.openWindow({ url: address }),
+    },
+    { label: t('main.menu.context.copyAddress'), click: () => clipboard.writeText(address) },
     { type: 'separator' },
     {
       label: t('main.menu.context.forgetSite', { site }),
