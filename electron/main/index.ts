@@ -12,7 +12,7 @@ import { handleAppProtocol, registerAppProtocolScheme } from './security/protoco
 import { describeError, log, startDiagnostics } from './system/diagnostics';
 import { applyLaunchMode } from './system/launch-mode';
 import { markQuit, markRunning } from './system/exit-marker';
-import { clearCopiedSecret, hasCopiedSecret } from './vault/vault-clipboard';
+import { clearCopiedSecretBeforeQuit } from './vault/vault-clipboard';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/browsing/url';
@@ -144,14 +144,9 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', (event) => {
-  // Reading the clipboard back is asynchronous, so the quit waits for a copied password to go first.
-  if (hasCopiedSecret()) {
-    event.preventDefault();
-    void clearCopiedSecret().finally(() => app.quit());
-    return;
-  }
+app.on('before-quit', () => {
   profiles?.prepareForQuit();
+  clearCopiedSecretBeforeQuit();
 });
 
 /**
@@ -172,6 +167,7 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
     try {
       profiles?.prepareForQuit();
+      clearCopiedSecretBeforeQuit();
       markQuit(app.getPath('userData'));
     } finally {
       app.exit(0);

@@ -22,7 +22,7 @@ vi.mock('../../../../electron/main/vault/concealed-clipboard', () => ({
   writeConcealed: (secret: string) => writeConcealed(secret),
 }));
 
-const { CLEAR_SECRET_AFTER_MS, READ_BACK_TIMEOUT_MS, clearCopiedSecret, copySecret, hasCopiedSecret } =
+const { CLEAR_SECRET_AFTER_MS, READ_BACK_TIMEOUT_MS, clearCopiedSecret, clearCopiedSecretBeforeQuit, copySecret } =
   await import('../../../../electron/main/vault/vault-clipboard');
 
 beforeEach(async () => {
@@ -50,7 +50,7 @@ describe('a password on the clipboard', () => {
     expect(board).toBe('a note');
   });
 
-  it('is cleared at once when the vault locks or the app quits', async () => {
+  it('is cleared at once when the vault locks', async () => {
     await copySecret('hunter2');
     await clearCopiedSecret();
     expect(board).toBe('');
@@ -91,13 +91,42 @@ describe('a password on the clipboard', () => {
     expect(board).toBe('');
   });
 
-  // The quit waits on this, so it has to say whether there is anything to wait for.
-  it('says whether a copied password is still waiting to be cleared', async () => {
-    expect(hasCopiedSecret()).toBe(false);
+  // Quitting cannot wait for a read back, so it clears whatever is there while the half minute runs.
+  it('is cleared at once on quit, without reading the clipboard back', async () => {
     await copySecret('hunter2');
-    expect(hasCopiedSecret()).toBe(true);
+    readText.mockClear();
+    clearCopiedSecretBeforeQuit();
+    expect(board).toBe('');
+    expect(readText).not.toHaveBeenCalled();
+  });
+
+  it('leaves the clipboard alone on quit once the half minute is over', async () => {
+    await copySecret('hunter2');
+    await vi.advanceTimersByTimeAsync(CLEAR_SECRET_AFTER_MS);
+    board = 'a note';
+    clearCopiedSecretBeforeQuit();
+    expect(board).toBe('a note');
+  });
+
+  it('is cleared anyway when the clipboard refuses the read back', async () => {
+    await copySecret('hunter2');
+    readText.mockImplementation(async () => {
+      throw new Error('refused');
+    });
     await clearCopiedSecret();
-    expect(hasCopiedSecret()).toBe(false);
+    expect(board).toBe('');
+  });
+
+  // The lock's read back is still out when another password is copied; that one is what the person wants.
+  it('keeps a password copied while an earlier one was being cleared', async () => {
+    await copySecret('hunter2');
+    let answerRead: (text: string) => void = () => {};
+    readText.mockImplementationOnce(() => new Promise<string>((resolve) => (answerRead = resolve)));
+    const clearing = clearCopiedSecret();
+    await copySecret('correct horse');
+    answerRead('hunter2');
+    await clearing;
+    expect(board).toBe('correct horse');
   });
 
   it('is cleared anyway when the clipboard never answers the read back', async () => {
