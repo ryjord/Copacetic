@@ -487,6 +487,11 @@ export const settings = {
       block: 'Block',
       showSites: 'Show sites',
       byDefault: '{permission} by default',
+      columns: {
+        kind: 'Permission',
+        answered: 'Sites with their own answer',
+        default: 'By default',
+      },
     },
     list: {
       empty: {
@@ -495,6 +500,14 @@ export const settings = {
         help: 'Permissions you answer with Remember, zoom levels you change, sites you let show trackers and sites you always open in Hush or a group appear here.',
       },
       search: 'Search sites',
+      filters: {
+        label: 'Show sites',
+        all: 'All',
+        permissions: 'Permissions',
+        zoom: 'Zoom',
+        trackers: 'Trackers allowed',
+        opensIn: 'Opens in Hush or a group',
+      },
       filtered: 'Sites with an answer for {permission}',
       showEvery: 'Show every site',
       title: 'Sites ({count})',
@@ -503,7 +516,8 @@ export const settings = {
     site: {
       done: 'Done',
       change: 'Change',
-      reset: 'Reset',
+      reset: 'Forget this site',
+      more: 'More for {site}',
       allowed: 'Allowed',
       blocked: 'Blocked',
       askAgain: 'Ask again',

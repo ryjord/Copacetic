@@ -237,6 +237,8 @@ export interface CopaceticApi {
   settings: {
     get(): Promise<Settings>;
     update(patch: Partial<Settings>): Promise<Settings>;
+    /** Forgets everything kept about one site, offering to put it back. */
+    resetSite(site: string): Promise<void>;
   };
   permissions: {
     respond(id: string, decision: PermissionDecision, remember: boolean): Promise<void>;

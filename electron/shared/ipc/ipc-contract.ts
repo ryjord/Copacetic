@@ -146,6 +146,7 @@ export const CHANNELS = {
 
   'settings.get': 'settings:get',
   'settings.update': 'settings:update',
+  'settings.resetSite': 'settings:reset-site',
 
   'permissions.respond': 'permissions:respond',
   'permissions.forget': 'permissions:forget',

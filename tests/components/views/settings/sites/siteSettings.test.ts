@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sitesFrom, summaryOf, withoutSite, originFromInput } from '@/components/views/settings/sites/siteSettings';
+import { sitesFrom, summaryOf, originFromInput } from '@/components/views/settings/sites/siteSettings';
 
 const kept = {
   permissionDecisions: {
@@ -41,28 +41,6 @@ describe('what is kept about each site', () => {
   it('says in one line what is kept', () => {
     const example = sitesFrom(kept).find((site) => site.site === 'example.com')!;
     expect(summaryOf(example)).toBe('Location allowed · Notifications blocked · Zoom 125%');
-  });
-});
-
-describe('resetting one site', () => {
-  it('forgets everything about that site and nothing about any other', () => {
-    const patch = withoutSite(kept, 'example.com');
-    expect(Object.keys(patch.permissionDecisions)).toEqual([
-      'https://news.example.org|notifications',
-      'https://broken|nonsense',
-    ]);
-    expect(patch.zoomLevels).toEqual({});
-    expect(patch.blockerAllowlist).toEqual(['shop.example.net']);
-    expect(patch.openRules).toEqual({ 'bank.example': 'hush' });
-  });
-
-  it('lets a site open anywhere again when its rule was all there was', () => {
-    expect(sitesFrom(kept).find((site) => site.site === 'bank.example')?.opensIn).toBe('hush');
-    expect(withoutSite(kept, 'bank.example').openRules).toEqual({});
-  });
-
-  it('forgets a tracker exception when that is all there was', () => {
-    expect(withoutSite(kept, 'shop.example.net').blockerAllowlist).toEqual([]);
   });
 });
 

@@ -2,8 +2,8 @@
 import { t } from '@shared/i18n/translate';
 
 // Types
-import { PERMISSION_LABELS, type PermissionDecision, type PermissionKind, type Settings } from '@shared/types';
-import { hostOf, registrableDomainOf } from '@shared/browsing/url';
+import { PERMISSION_LABELS, type PermissionDecision, type PermissionKind } from '@shared/types';
+import { siteOfOrigin, type SiteKeys } from '@shared/data/site-settings';
 import type { OpenTarget } from '@shared/tabs/open-rules';
 
 export interface SitePermission {
@@ -20,8 +20,6 @@ export interface SiteSettings {
   allowsTrackers: boolean;
   opensIn: OpenTarget | null;
 }
-
-type SiteKeys = Pick<Settings, 'permissionDecisions' | 'zoomLevels' | 'blockerAllowlist' | 'openRules'>;
 
 /** What each permission is called in a list of them, where the full sentence would not fit. */
 export const PERMISSION_NAMES: Record<PermissionKind, string> = {
@@ -50,12 +48,6 @@ export function originFromInput(input: string): string | null {
   }
 }
 
-/** The site an origin belongs to, so a subdomain is listed with the site rather than as a stranger. */
-export function siteOf(origin: string): string {
-  const host = hostOf(origin);
-  return registrableDomainOf(host) ?? (host || origin);
-}
-
 function permissionsFrom(decisions: SiteKeys['permissionDecisions']): SitePermission[] {
   return Object.entries(decisions)
     .map(([key, decision]) => {
@@ -80,10 +72,10 @@ export function sitesFrom(settings: SiteKeys): SiteSettings[] {
   };
 
   permissionsFrom(settings.permissionDecisions).forEach((permission) =>
-    entryFor(siteOf(permission.origin)).permissions.push(permission),
+    entryFor(siteOfOrigin(permission.origin)).permissions.push(permission),
   );
   Object.entries(settings.zoomLevels).forEach(([origin, zoomFactor]) =>
-    entryFor(siteOf(origin)).zoomLevels.push({ origin, zoomFactor }),
+    entryFor(siteOfOrigin(origin)).zoomLevels.push({ origin, zoomFactor }),
   );
   // Kept by site already, which is what the blocker matches against.
   settings.blockerAllowlist.forEach((site) => {
@@ -124,20 +116,6 @@ export function describeDefault(
   }
   const sentence = parts.join(', ');
   return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`;
-}
-
-/** The patch that forgets everything kept about one site, and nothing about any other. */
-export function withoutSite(settings: SiteKeys, site: string): SiteKeys {
-  return {
-    permissionDecisions: Object.fromEntries(
-      Object.entries(settings.permissionDecisions).filter(
-        ([key]) => siteOf(key.slice(0, key.lastIndexOf('|'))) !== site,
-      ),
-    ),
-    zoomLevels: Object.fromEntries(Object.entries(settings.zoomLevels).filter(([origin]) => siteOf(origin) !== site)),
-    blockerAllowlist: settings.blockerAllowlist.filter((entry) => entry !== site),
-    openRules: Object.fromEntries(Object.entries(settings.openRules).filter(([key]) => key !== site)),
-  };
 }
 
 /** One line saying what is kept, for a row that has room for one. */

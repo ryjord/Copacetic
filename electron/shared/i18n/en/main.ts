@@ -337,6 +337,7 @@ export const main = {
     download: 'Removed {name} from the list. The file is still there.',
     session: 'Deleted the saved session “{name}”.',
     tile: 'Removed from the start page.',
+    site: 'Forgot what was kept about {site}.',
   },
   startPage: {
     chooseIcon: 'Choose an icon',

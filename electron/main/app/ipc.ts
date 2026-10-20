@@ -40,6 +40,7 @@ import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start
 import { readChosenImage } from '../system/file-dialogs';
 import { t } from '../../shared/i18n/translate';
 import { siteOf as siteOfAddress } from '../../shared/data/forgetting';
+import { withSiteRestored, withoutSite } from '../../shared/data/site-settings';
 import {
   showBookmarkContextMenu,
   showSiteContextMenu,
@@ -345,6 +346,14 @@ export function registerIpcHandlers(profiles: Profiles): void {
 
   handle('settings.get', (browser) => browser.profile.settings());
   handle('settings.update', (browser, _event, patch) => browser.updateSettings(asSettingsPatch(patch)));
+  handle('settings.resetSite', (browser, _event, site) => {
+    const name = asString(site);
+    const before = browser.store.getSettings();
+    browser.updateSettings(withoutSite(before, name));
+    browser.offerUndo(t('main.undo.site', { site: name }), () =>
+      browser.updateSettings(withSiteRestored(browser.store.getSettings(), before, name)),
+    );
+  });
 
   // ------------------------------------------------------------ permissions
 

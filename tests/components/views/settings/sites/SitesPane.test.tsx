@@ -10,7 +10,10 @@ vi.mock('@/components/views/settings/shared/options', () => ({
 const sent = vi.fn();
 vi.mock('@/lib/bridge/bridge', () => ({
   send: (call: (api: unknown) => void) =>
-    call({ permissions: { forget: (origin: string, kind: string) => sent(origin, kind) } }),
+    call({
+      permissions: { forget: (origin: string, kind: string) => sent(origin, kind) },
+      settings: { resetSite: (site: string) => sent(site) },
+    }),
 }));
 
 let settings: Settings = DEFAULT_SETTINGS_SHAPE;
@@ -41,15 +44,14 @@ describe('the site settings pane', () => {
     expect(screen.getByText('shop.example.net')).toBeTruthy();
   });
 
-  it('resets one site, leaving the others', () => {
+  // Forgotten in the main process, which offers to put it back; one menu away rather than a button in the row.
+  it('forgets one site from its menu', async () => {
     render(<SitesPane />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Reset' })[0]!);
-    expect(updateSettings).toHaveBeenCalledWith({
-      permissionDecisions: {},
-      zoomLevels: {},
-      blockerAllowlist: ['shop.example.net'],
-      openRules: {},
-    });
+    const more = screen.getByRole('button', { name: 'More for example.com' });
+    fireEvent.pointerDown(more, { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Forget this site' }));
+    expect(sent).toHaveBeenCalledWith('example.com');
+    expect(updateSettings).not.toHaveBeenCalled();
   });
 
   it('asks a site again about one permission, from its own row', () => {
@@ -100,7 +102,7 @@ describe('the site settings pane', () => {
     };
     render(<SitesPane />);
     expect(screen.getByText('Refused without asking, allowed on 1 site, blocked on 1 site.')).toBeTruthy();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Show sites' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: '2 sites' }));
     expect(screen.getByText('example.com')).toBeTruthy();
     expect(screen.getByText('example.org')).toBeTruthy();
     expect(screen.queryByText('example.net')).toBeNull();
@@ -125,5 +127,17 @@ describe('the site settings pane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(updateSettings).not.toHaveBeenCalled();
     expect(screen.getByText(/not a web address/)).toBeTruthy();
+  });
+});
+
+describe('narrowing the list', () => {
+  it('shows only the sites with what was asked for', () => {
+    render(<SitesPane />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Trackers allowed' }));
+    expect(screen.queryByText('example.com')).toBeNull();
+    expect(screen.getByText('shop.example.net')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Zoom' }));
+    expect(screen.getByText('example.com')).toBeTruthy();
+    expect(screen.queryByText('shop.example.net')).toBeNull();
   });
 });

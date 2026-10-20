@@ -11,7 +11,8 @@ import { TextField } from '@/components/ui/TextField/TextField';
 
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
-import { PERMISSION_NAMES, originFromInput, siteOf } from '@/components/views/settings/sites/siteSettings';
+import { PERMISSION_NAMES, originFromInput } from '@/components/views/settings/sites/siteSettings';
+import { siteOfOrigin } from '@shared/data/site-settings';
 import { t } from '@shared/i18n/translate';
 
 // Types
@@ -43,7 +44,7 @@ export function AddSiteRule({ settings }: { settings: Pick<Settings, 'permission
       return;
     }
     if (kind === 'trackers') {
-      const site = siteOf(origin);
+      const site = siteOfOrigin(origin);
       const others = settings.blockerAllowlist.filter((entry) => entry !== site);
       updateSettings({ blockerAllowlist: answer === 'allow' ? [...others, site] : others });
     } else {

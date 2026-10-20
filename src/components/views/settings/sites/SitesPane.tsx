@@ -5,11 +5,17 @@ import { useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
+import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { Menu } from '@/components/ui/Menu/Menu';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { SearchField } from '@/components/ui/TextField/TextField';
+import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { Select } from '@/components/ui/Select/Select';
 import { AddSiteRule } from '@/components/views/settings/sites/AddSiteRule';
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
+
+// Icons
+import { Ellipsis } from 'lucide-react';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -26,7 +32,6 @@ import {
   describeDefault,
   sitesFrom,
   summaryOf,
-  withoutSite,
 } from '@/components/views/settings/sites/siteSettings';
 
 // Types
@@ -36,6 +41,31 @@ const ZOOM_LEVELS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2].map((leve
   id: String(level),
   label: `${Math.round(level * 100)}%`,
 }));
+
+type SiteFilter = 'all' | 'permissions' | 'zoom' | 'trackers' | 'opensIn';
+
+const FILTER_OPTIONS: readonly { id: SiteFilter; label: string }[] = [
+  { id: 'all', label: t('settings.sites.list.filters.all') },
+  { id: 'permissions', label: t('settings.sites.list.filters.permissions') },
+  { id: 'zoom', label: t('settings.sites.list.filters.zoom') },
+  { id: 'trackers', label: t('settings.sites.list.filters.trackers') },
+  { id: 'opensIn', label: t('settings.sites.list.filters.opensIn') },
+];
+
+function matchesFilter(site: SiteSettings, filter: SiteFilter): boolean {
+  switch (filter) {
+    case 'permissions':
+      return site.permissions.length > 0;
+    case 'zoom':
+      return site.zoomLevels.length > 0;
+    case 'trackers':
+      return site.allowsTrackers;
+    case 'opensIn':
+      return site.opensIn !== null;
+    case 'all':
+      return true;
+  }
+}
 
 const DEFAULT_OPTIONS: readonly { id: PermissionDefault; label: string }[] = [
   { id: 'ask', label: t('settings.sites.defaults.ask') },
@@ -48,12 +78,14 @@ export function SitesPane() {
   const [query, setQuery] = useState('');
   const [openSite, setOpenSite] = useState<string | null>(null);
   const [kindShown, setKindShown] = useState<AskablePermission | null>(null);
+  const [filter, setFilter] = useState<SiteFilter>('all');
 
   const sites = sitesFrom(settings);
   const needle = query.trim().toLowerCase();
   const shown = sites
     .filter((site) => !needle || site.site.includes(needle))
-    .filter((site) => !kindShown || site.permissions.some((permission) => permission.kind === kindShown));
+    .filter((site) => !kindShown || site.permissions.some((permission) => permission.kind === kindShown))
+    .filter((site) => matchesFilter(site, filter));
 
   if (sites.length === 0) {
     return (
@@ -73,7 +105,17 @@ export function SitesPane() {
       <PermissionDefaults sites={sites} onShowSites={setKindShown} />
       <DefaultZoom />
       <AddSiteRule settings={settings} />
-      <SearchField value={query} onChange={setQuery} label={t('settings.sites.list.search')} />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-56 flex-1">
+          <SearchField value={query} onChange={setQuery} label={t('settings.sites.list.search')} />
+        </div>
+        <SegmentedControl
+          label={t('settings.sites.list.filters.label')}
+          options={FILTER_OPTIONS}
+          value={filter}
+          onChange={setFilter}
+        />
+      </div>
       {kindShown && (
         <SettingRow
           label={t('settings.sites.list.filtered', { permission: PERMISSION_NAMES[kindShown].toLowerCase() })}
@@ -92,7 +134,7 @@ export function SitesPane() {
             site={site}
             isOpen={openSite === site.site}
             onToggle={() => setOpenSite((current) => (current === site.site ? null : site.site))}
-            onReset={() => updateSettings(withoutSite(settings, site.site))}
+            onReset={() => send((api) => api.settings.resetSite(site.site))}
           />
         ))}
       </SettingGroup>
@@ -121,7 +163,7 @@ function DefaultZoom() {
   );
 }
 
-/** What a site you have not answered gets; a site you answered keeps its answer. */
+/** What a site you have not answered gets, one line per kind; a site you answered keeps its answer. */
 function PermissionDefaults({
   sites,
   onShowSites,
@@ -132,32 +174,45 @@ function PermissionDefaults({
   const defaults = useBrowserStore((state) => state.settings.permissionDefaults);
   return (
     <SettingGroup title={t('settings.sites.defaults.title')}>
-      {ASKABLE_PERMISSIONS.map((kind) => {
-        const answers = answersFor(sites, kind);
-        const hasAnswers = answers.allowed + answers.blocked > 0;
-        return (
-          <SettingRow
-            key={kind}
-            label={PERMISSION_NAMES[kind]}
-            help={describeDefault(answers, defaults[kind] === 'block')}
-            control={
-              <>
-                {hasAnswers && (
-                  <Button size="sm" variant="ghost" onClick={() => onShowSites(kind)}>
-                    {t('settings.sites.defaults.showSites')}
-                  </Button>
-                )}
-                <Select
-                  label={t('settings.sites.defaults.byDefault', { permission: PERMISSION_NAMES[kind] })}
-                  options={DEFAULT_OPTIONS}
-                  value={defaults[kind] ?? 'ask'}
-                  onChange={(answer) => updateSettings({ permissionDefaults: { ...defaults, [kind]: answer } })}
-                />
-              </>
-            }
-          />
-        );
-      })}
+      <table className="w-full text-reading">
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">{t('settings.sites.defaults.columns.kind')}</th>
+            <th scope="col">{t('settings.sites.defaults.columns.answered')}</th>
+            <th scope="col">{t('settings.sites.defaults.columns.default')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {ASKABLE_PERMISSIONS.map((kind) => {
+            const answers = answersFor(sites, kind);
+            const answered = answers.allowed + answers.blocked;
+            const description = describeDefault(answers, defaults[kind] === 'block');
+            return (
+              <tr key={kind} data-setting-row>
+                <th scope="row" className="px-4 py-2 text-left font-medium text-ink">
+                  {PERMISSION_NAMES[kind]}
+                  {description && <div className="text-body font-normal text-ink-dim">{description}</div>}
+                </th>
+                <td className="px-2 py-2 text-right">
+                  {answered > 0 && (
+                    <Button size="sm" variant="ghost" onClick={() => onShowSites(kind)}>
+                      {t('settings.sites.siteCount', { count: answered })}
+                    </Button>
+                  )}
+                </td>
+                <td className="w-0 py-2 pr-4">
+                  <Select
+                    label={t('settings.sites.defaults.byDefault', { permission: PERMISSION_NAMES[kind] })}
+                    options={DEFAULT_OPTIONS}
+                    value={defaults[kind] ?? 'ask'}
+                    onChange={(answer) => updateSettings({ permissionDefaults: { ...defaults, [kind]: answer } })}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </SettingGroup>
   );
 }
@@ -184,12 +239,18 @@ function SiteRows({
         help={summaryOf(site)}
         control={
           <>
-            <Button size="sm" variant="ghost" aria-expanded={isOpen} onClick={onToggle}>
+            <Button size="sm" aria-expanded={isOpen} onClick={onToggle}>
               {isOpen ? t('settings.sites.site.done') : t('settings.sites.site.change')}
             </Button>
-            <Button size="sm" onClick={onReset}>
-              {t('settings.sites.site.reset')}
-            </Button>
+            {/* Out of the row's reach: forgetting a site is one click from a menu, with Undo after. */}
+            <Menu
+              trigger={
+                <IconButton label={t('settings.sites.site.more', { site: site.site })}>
+                  <Ellipsis size={16} />
+                </IconButton>
+              }
+              items={[{ label: t('settings.sites.site.reset'), isDestructive: true, onSelect: onReset }]}
+            />
           </>
         }
       />
