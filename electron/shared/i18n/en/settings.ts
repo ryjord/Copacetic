@@ -812,7 +812,7 @@ export const settings = {
       },
       import: {
         label: 'Import passwords',
-        help: 'From a CSV file exported by another browser or password manager.',
+        help: 'From the CSV file Chrome, Edge, Firefox and Safari each export from their own password settings, or one from a password manager.',
         action: 'Import',
       },
     },
@@ -1007,7 +1007,7 @@ export const settings = {
       onPurpose: {
         question: 'What does it leave out on purpose?',
         answer:
-          'A restored tab keeps where Back goes but not how far down the page you were, because the page state that holds that also holds what was typed into its forms. HTTPS-first upgrades the page you go to, not the frames inside it, as Chrome does. A site’s permissions are the same in every group of a profile, as they are across Firefox containers. The tab strip’s arrow keys, Home, End and Delete follow the standard pattern for tabs and cannot be moved.',
+          'A restored tab keeps where Back goes but not how far down the page you were, because the page state that holds that also holds what was typed into its forms. HTTPS-first upgrades the page you go to, not the frames inside it, as Chrome does. A site’s permissions are the same in every group of a profile, as they are across Firefox containers. The tab strip’s arrow keys, Home, End and Delete follow the standard pattern for tabs and cannot be moved. A bookmark for a site you have never visited shows its first letter, since fetching its icon would contact the site unasked.',
       },
       unsupported: {
         question: 'What does it not support?',

@@ -48,7 +48,8 @@ thing worth looking at.
 
 **Privacy you can check, not take on trust.** Settings has a page that lists
 every request Copacetic makes for itself and everything it keeps. Pages run no
-script of Copacetic's beyond three that are named there. Blocking counts are real
+script of Copacetic's beyond three that are named there, and an extension runs
+only what you added it to run. Blocking counts are real
 counts. Where something cannot be done, the interface says so rather than
 implying it was.
 
@@ -116,8 +117,26 @@ machine. There are no accounts and no telemetry.
   `Cmd/Ctrl+K` that reaches every command, bookmark, page of history and
   setting, and teaches each command's shortcut.
 - **Reopen what you closed.** `Cmd/Ctrl+Shift+T` brings back the last tab, or a
-  whole group as a group, and Recently closed lists the rest in the main menu
-  and beside the new tab button.
+  whole group as a group, pinned if it was, from any window, and Recently
+  closed lists the rest in the main menu and beside the new tab button.
+- **Back still works after a restart.** Each tab keeps where Back and Forward go,
+  as addresses and titles only.
+- **Sign-in pop-ups that work.** "Sign in with Google" and its like open as a
+  tab that stays linked to the page that opened it, never as a window.
+
+### Extensions (beta)
+
+- **From the Chrome Web Store**, checked against the store's own signature
+  before anything is unpacked, or from a folder while you build one. Settings
+  says what each could do, in the words Chrome's warnings use, before it is
+  added.
+- **Toolbar buttons and popups**, extension items in the page menu, and the
+  parts of Chrome's extension API Electron leaves out, supplied by Copacetic
+  itself: tabs and their events, windows, navigation events, notifications.
+- **Per profile, and never in Hush.** An extension sees a page's address only
+  with leave to, as in Chrome. Dark Reader, Bitwarden and uBlock Origin Lite
+  run; ad blockers do not block, because Electron does not apply their rules,
+  and Copacetic's own blocker does that job.
 
 ### Reading and saving
 
@@ -138,8 +157,9 @@ machine. There are no accounts and no telemetry.
 
 - **Import** bookmarks, folders and recent history from Chrome, Brave, Edge,
   Vivaldi, Chromium, Arc and Firefox, read from a copy of their files on this
-  machine. **Export** bookmarks in the format every browser reads and history
-  as plain JSON.
+  machine, and Safari's bookmarks from the file it exports. Passwords come in
+  from the CSV file each browser exports itself. **Export** bookmarks in the
+  format every browser reads and history as plain JSON.
 - **Passwords** kept in a vault sealed with your system keychain, generated to
   the length and character set you choose, and filled only when you ask: a key
   in the address bar fills a saved one in one click. They can be searched,
@@ -247,7 +267,7 @@ one this repository built can be answered for free. Every release is attested by
 GitHub, naming the commit and workflow run it came from:
 
 ```bash
-gh attestation verify Copacetic-2.0.0-beta.3-arm64.dmg --repo ryjord/Copacetic
+gh attestation verify Copacetic-2.0.0-arm64.dmg --repo ryjord/Copacetic
 ```
 
 A file tampered with in transit, or served from anywhere but this repository,
@@ -289,20 +309,39 @@ without it. Fill password runs once, when you choose it. And a page left in full
 screen when you switch to another tab is asked to leave it, with one call that
 reads nothing.
 
+An extension you add runs its own code, in the pages it asks for, as it would in
+Chrome. Once one is added, Copacetic gives every service worker in that profile
+a script of its own, which supplies the missing parts of the extension API to an
+extension and does nothing in a website's worker. None of it reaches Hush.
+
 ## What it does not do
 
 - **No accounts, sync or cloud.** Everything lives on this machine, and Settings
   writes it back out in open formats, so that is a statement you can check. The
   only scheduled request is the update check, which reads a version number from
   GitHub and can be turned off.
-- **No extensions.** Chrome extensions are not loaded.
+- **Extensions are a beta.** Ad blockers do not block, an extension's page
+  opened in a tab lacks the parts of the API Copacetic supplies, and some
+  extensions will not work.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
+- **What Electron cannot do.** Cookies, site data and the cache clear for all
+  time, not for an hour or a day; find in page has no whole-word option; on
+  macOS spelling follows the languages in System Settings.
+- **Left out on purpose.** A restored tab does not keep its scroll position,
+  since the page state that holds it also holds what was typed into forms.
+  HTTPS-first upgrades the page, not the frames inside it, as Chrome does. A
+  bookmark for a site never visited shows its first letter rather than fetch an
+  icon from the site unasked.
+- **English only.** Every word is in one catalogue, ready for a second language
+  once someone fluent has checked it.
 - **Translation in reader view only.** An article is translated on this
   machine; a whole page, with its layout, is not.
 - **Certificate inspection is Chromium's.** The badge reports the certificate
   Chromium accepted; it does no chain analysis of its own.
 - **Not code-signed, and not audited.** A personal project built to a high
-  standard, not a browser that has been through a security review.
+  standard, not a browser that has been through a security review. Without a
+  certificate, updates on Windows and as an AppImage carry no signature, cookies
+  are not sealed with a key tied to the app, and macOS installs updates by hand.
 
 ## Performance
 
@@ -312,17 +351,17 @@ machine, so run the script for your own.
 
 |                                       |                         |
 | ------------------------------------- | ----------------------- |
-| Start to a visible window             | 402 ms                  |
-| Start to a window that responds       | 588 ms                  |
-| Blocking engine, loaded on launch     | 4 ms, for 165,663 rules |
-| Blocking engine, built from the lists | 226 ms                  |
-| Memory, just the start page           | 785 MB                  |
-| Memory, five pages open               | 1,413 MB, 126 MB a page |
+| Start to a visible window             | 483 ms                  |
+| Start to a window that responds       | 658 ms                  |
+| Blocking engine, loaded on launch     | 5 ms, for 165,663 rules |
+| Blocking engine, built from the lists | 305 ms                  |
+| Memory, just the start page           | 784 MB                  |
+| Memory, five pages open               | 1,428 MB, 129 MB a page |
 
-`Apple M4 Pro, 14 cores, 48 GB RAM, Electron 43.4.1, macOS arm64, the production build of 2.0.0-beta.4 before release.`
+`Apple M4 Pro, 14 cores, 48 GB RAM, Electron 43.8.1, macOS arm64, the production build of 2.0.0.`
 
 The engine is compiled when the app is packaged and read back on launch, which
-is why loading it takes 4 ms rather than the 226 ms building it would. Memory
+is why loading it takes 5 ms rather than the 305 ms building it would. Memory
 is every process the app runs added together, because that is what the machine
 gives up; most of it is Chromium, and most of each page's cost is its own
 renderer process, the price of pages not sharing one.
@@ -343,6 +382,7 @@ electron/
     import/       reading other browsers' profiles from a copy
     menus/        application and context menus, the shortcut table
     vault/        the password vault and its keychain key
+    extensions/   installing, loading and the chrome.* API Electron lacks
     window/       the window, its appearance and overlay regions
     workflows/    commands that span several of the above
   preload/        the only bridge, built from one channel table
