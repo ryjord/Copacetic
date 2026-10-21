@@ -59,6 +59,7 @@ import {
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
 import { showProfileMenu } from '../menus/profile-menu';
+import { showExtensionsMenu } from '../menus/extensions-menu';
 import { showBookmarkOverflowMenu, showBookmarksMenu } from '../menus/bookmarks-menu';
 import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
@@ -73,6 +74,7 @@ import type {
   Settings,
 } from '../../shared/types';
 import type { Browser } from './browser';
+import type { PopupAnchor } from '../extensions/action-popup';
 import type { Profiles } from './profiles';
 
 /**
@@ -602,15 +604,22 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('extensions.setEnabled', (browser, _event, id, isEnabled) =>
     browser.profile.extensions.setEnabled(asString(id), isEnabled === true),
   );
+  handle('extensions.setPinned', (browser, _event, id, isPinned) =>
+    browser.profile.extensions.setPinned(asString(id), isPinned === true),
+  );
   handle('extensions.remove', (browser, _event, id) => browser.profile.extensions.remove(asString(id)));
   handle('extensions.press', (browser, _event, id, left, right, bottom) =>
-    browser.profile.extensions.press(asString(id), browser.window, browser.activeChromeTabId(), {
-      left: Math.round(asNumber(left, 0)),
-      right: Math.round(asNumber(right, 0)),
-      bottom: Math.round(asNumber(bottom, 0)),
-    }),
+    browser.profile.extensions.press(
+      asString(id),
+      browser.window,
+      browser.activeChromeTabId(),
+      asAnchor(left, right, bottom),
+    ),
   );
   handle('extensions.openOptions', (browser, _event, id) => browser.profile.extensions.openOptions(asString(id)));
+  handle('extensions.openMenu', (browser, _event, left, right, bottom) =>
+    showExtensionsMenu(browser, asAnchor(left, right, bottom)),
+  );
 
   handle('updates.check', (browser) => browser.updates.check());
   handle('updates.install', (browser) => browser.updates.install());
@@ -646,6 +655,15 @@ function asBoundedInteger(value: unknown, fallback: number, lowest: number, high
 
 function asNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/** Where a toolbar button's edges are in the window, which an extension's popup opens under. */
+function asAnchor(left: unknown, right: unknown, bottom: unknown): PopupAnchor {
+  return {
+    left: Math.round(asNumber(left)),
+    right: Math.round(asNumber(right)),
+    bottom: Math.round(asNumber(bottom)),
+  };
 }
 
 function asInteger(value: unknown, fallback = 0): number {

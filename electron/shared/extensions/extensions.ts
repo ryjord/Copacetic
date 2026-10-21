@@ -20,6 +20,9 @@ export interface ExtensionSummary {
   description: string;
   source: ExtensionSource;
   isEnabled: boolean;
+  /** On the toolbar, rather than only in the extensions menu. */
+  isPinned: boolean;
+  hasOptionsPage: boolean;
   iconDataUrl: string | null;
   /** API permissions, such as `tabs` or `storage`, as the manifest names them. */
   permissions: string[];

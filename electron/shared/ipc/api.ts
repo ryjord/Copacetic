@@ -394,10 +394,13 @@ export interface CopaceticApi {
     /** From a folder chosen in the main process's own dialog, for someone building one. */
     addFromFolder(): Promise<string>;
     setEnabled(id: string, isEnabled: boolean): Promise<void>;
+    setPinned(id: string, isPinned: boolean): Promise<void>;
     remove(id: string): Promise<void>;
     /** Its toolbar button was pressed, at these edges in the window. */
     press(id: string, left: number, right: number, bottom: number): Promise<void>;
     openOptions(id: string): Promise<void>;
+    /** Every extension, under the extensions button at these edges, where an unpinned one's popup opens too. */
+    openMenu(left: number, right: number, bottom: number): Promise<void>;
   };
   updates: {
     /** Ask now, rather than waiting for the periodic check. */

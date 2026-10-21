@@ -25,6 +25,11 @@ export const main = {
       manage: 'Manage profiles…',
       thisWindow: '{name} (this window)',
     },
+    extensions: {
+      pin: 'Pin to toolbar',
+      options: 'Options',
+      manage: 'Manage extensions…',
+    },
     edit: {
       title: 'Edit',
       openAddressBar: 'Open address bar',

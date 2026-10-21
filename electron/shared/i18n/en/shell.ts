@@ -61,6 +61,7 @@ export const shell = {
     reader: 'Reader view',
     split: 'Split view',
     leaveSplit: 'Leave split view',
+    extensions: 'Extensions',
   },
   omnibox: {
     placeholder: 'Search or enter address',

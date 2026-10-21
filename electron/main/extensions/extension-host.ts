@@ -250,7 +250,14 @@ export class ExtensionHost {
         this.unloadEverywhere(id);
       }
       const folder = keepStaged(staged);
-      await this.add({ id, source: 'store', folder, isEnabled: true, installedAt: Date.now() });
+      await this.add({
+        id,
+        source: 'store',
+        folder,
+        isEnabled: true,
+        isPinned: previous?.isPinned ?? true,
+        installedAt: Date.now(),
+      });
       return '';
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
@@ -277,7 +284,14 @@ export class ExtensionHost {
       if (!isWanted) {
         return '';
       }
-      await this.add({ id: extension.id, source: 'folder', folder, isEnabled: true, installedAt: Date.now() });
+      await this.add({
+        id: extension.id,
+        source: 'folder',
+        folder,
+        isEnabled: true,
+        isPinned: this.store.find(extension.id)?.isPinned ?? true,
+        installedAt: Date.now(),
+      });
       return '';
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
@@ -296,7 +310,7 @@ export class ExtensionHost {
     if (!found || found.entry.isEnabled === isEnabled) {
       return;
     }
-    this.store.setEnabled(id, isEnabled);
+    this.store.change(id, { isEnabled });
     found.entry = { ...found.entry, isEnabled };
     if (isEnabled) {
       this.loadNetRules(found);
@@ -307,6 +321,16 @@ export class ExtensionHost {
     }
     this.unloadEverywhere(id);
     this.netRules.unload(id);
+    this.deps.changed();
+  }
+
+  setPinned(id: string, isPinned: boolean): void {
+    const found = this.loaded.get(id);
+    if (!found || found.entry.isPinned === isPinned) {
+      return;
+    }
+    this.store.change(id, { isPinned });
+    found.entry = { ...found.entry, isPinned };
     this.deps.changed();
   }
 
@@ -390,6 +414,8 @@ export class ExtensionHost {
           description: manifest.description,
           source: entry.source,
           isEnabled: entry.isEnabled,
+          isPinned: entry.isPinned,
+          hasOptionsPage: grant.optionsPage !== null,
           iconDataUrl: iconDataUrl(entry.folder, manifest.icon),
           permissions: grant.permissions,
           hostPermissions: grant.hostPermissions,
