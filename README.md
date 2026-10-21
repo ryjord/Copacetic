@@ -125,6 +125,9 @@ machine. There are no accounts and no telemetry.
   tab that stays linked to the page that opened it, never as a window.
 - **Settings, History, Bookmarks and Downloads in tabs of their own**, so the
   page you were on stays where it was.
+- **A header laid out your way.** Tabs on a row of their own above the address,
+  or the address and tabs on one line, which leaves more of the window to the
+  page.
 
 ### Extensions (beta)
 

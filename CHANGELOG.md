@@ -35,6 +35,11 @@ Electron 44 does.
   you said never to; Passwords has a switch for it.
 - **Settings, History, Bookmarks and Downloads open in tabs of their own**, so
   the page you were on stays where it was.
+- **A header of Copacetic's own.** Tabs are pills rather than tabs joined to
+  the toolbar, the buttons sit in capsules, the address leads with how the page
+  arrived and how many trackers were blocked, and the page sits in a rounded
+  frame. Appearance offers a one-line header too, with the address and tabs on
+  one row, which gives the page that height back.
 
 ### Changed
 
