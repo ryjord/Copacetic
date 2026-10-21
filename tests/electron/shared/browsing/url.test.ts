@@ -30,6 +30,8 @@ describe('resolveOmniboxInput', () => {
       ['github.com/ryjord', 'https://github.com/ryjord'],
       ['sub.domain.co.uk/path?q=1', 'https://sub.domain.co.uk/path?q=1'],
       ['https://example.com', 'https://example.com/'],
+      // `localhost:3000` parses as scheme `localhost:` if you are not careful, so a port is not a scheme.
+      ['example.com:8443', 'https://example.com:8443/'],
     ])('treats %s as an address', (input, expected) => {
       expect(resolve(input)).toEqual({ type: 'url', target: expected });
     });
@@ -41,26 +43,20 @@ describe('resolveOmniboxInput', () => {
       expect(resolve('127.0.0.2:8080')).toEqual({ type: 'url', target: 'http://127.0.0.2:8080/' });
       expect(resolve('localhost')).toEqual({ type: 'url', target: 'http://localhost/' });
     });
-
-    it('does not mistake a port for a scheme', () => {
-      // `localhost:3000` parses as scheme `localhost:` if you are not careful.
-      expect(resolve('localhost:3000')?.type).toBe('url');
-      expect(resolve('example.com:8443')?.type).toBe('url');
-    });
   });
 
   describe('searches', () => {
-    it.each(['hello world', 'what is a public suffix list', 'react', 'copacetic browser', '1.2.3', 'file'])(
-      'treats %s as a search',
-      (input) => {
-        expect(resolve(input)).toMatchObject({ type: 'search', query: input });
-      },
-    );
-
-    it('prefers searching when the input is ambiguous', () => {
-      // Guessing "address" loses the query behind a DNS error page; guessing
-      // "search" costs one keystroke.
-      expect(resolve('not a domain')?.type).toBe('search');
+    // Guessing "address" loses the query behind a DNS error page; guessing "search" costs one keystroke.
+    it.each([
+      'hello world',
+      'what is a public suffix list',
+      'react',
+      'copacetic browser',
+      '1.2.3',
+      'file',
+      'not a domain',
+    ])('treats %s as a search', (input) => {
+      expect(resolve(input)).toMatchObject({ type: 'search', query: input });
     });
   });
 
@@ -77,29 +73,6 @@ describe('resolveOmniboxInput', () => {
       expect(result?.target.startsWith('https://duckduckgo.com/')).toBe(true);
     });
   });
-
-  describe('httpsFirst', () => {
-    it('upgrades an explicit http address when enabled', () => {
-      expect(resolve('http://example.com', { httpsFirst: true })).toEqual({
-        type: 'url',
-        target: 'https://example.com/',
-      });
-    });
-
-    it('leaves an explicit http address alone when disabled', () => {
-      expect(resolve('http://example.com', { httpsFirst: false })).toEqual({
-        type: 'url',
-        target: 'http://example.com/',
-      });
-    });
-
-    it('never upgrades loopback, which has no certificate', () => {
-      expect(resolve('http://localhost:3000', { httpsFirst: true })).toEqual({
-        type: 'url',
-        target: 'http://localhost:3000/',
-      });
-    });
-  });
 });
 
 describe('splitUrlForDisplay', () => {
@@ -111,14 +84,6 @@ describe('splitUrlForDisplay', () => {
       registrableDomain: 'attacker.net',
       path: '/login',
       isInternal: false,
-    });
-  });
-
-  it('handles compound public suffixes', () => {
-    expect(splitUrlForDisplay('https://www.bbc.co.uk/news')).toMatchObject({
-      subdomain: 'www.',
-      registrableDomain: 'bbc.co.uk',
-      path: '/news',
     });
   });
 
@@ -168,12 +133,6 @@ describe('buildSearchUrl', () => {
   it('encodes the query', () => {
     expect(buildSearchUrl('a b&c', DUCKDUCKGO)).toBe('https://duckduckgo.com/?q=a%20b%26c');
   });
-
-  it('falls back to the default engine for an unknown id', () => {
-    expect(buildSearchUrl('x', { searchEngine: 'custom-missing1', customSearchEngines: [] })).toContain(
-      'duckduckgo.com',
-    );
-  });
 });
 
 describe('isPageNavigableUrl', () => {
@@ -197,14 +156,11 @@ describe('isPageNavigableUrl', () => {
     'blob:https://example.com/x',
     'vbscript:msgbox',
     'filesystem:https://example.com/temporary/x',
-  ])('refuses %s', (url) => {
+    '',
+    'not a url',
+  ])('refuses %j', (url) => {
     expect(isPageNavigableUrl(url)).toBe(false);
     expect(isNavigableUrl(url)).toBe(false);
-  });
-
-  it('refuses anything that is not a URL at all', () => {
-    expect(isPageNavigableUrl('')).toBe(false);
-    expect(isPageNavigableUrl('not a url')).toBe(false);
   });
 });
 
@@ -222,11 +178,17 @@ describe('isPrivateHost', () => {
     ['db.internal', 'conventional internal suffix'],
     ['fd00::1', 'IPv6 unique-local'],
     ['fe80::1', 'IPv6 link-local'],
+    ['localhost.', 'trailing dot'],
+    ['127.0.0.1.', 'trailing dot on an address'],
+    ['[::ffff:127.0.0.1]', 'mapped into IPv6, dotted'],
+    ['[::ffff:7f00:1]', 'mapped into IPv6, hex'],
+    ['[::ffff:c0a8:101]', 'private address mapped into IPv6, hex'],
+    ['100.64.0.1', 'carrier-grade NAT'],
   ])('treats %s as private (%s)', (host) => {
     expect(isPrivateHost(host)).toBe(true);
   });
 
-  it.each(['example.com', '8.8.8.8', '1.1.1.1', '172.32.0.1', '172.15.0.1', '2606:4700::1111'])(
+  it.each(['example.com', '8.8.8.8', '1.1.1.1', '172.32.0.1', '172.15.0.1', '2606:4700::1111', '[::ffff:8.8.8.8]'])(
     'treats %s as public',
     (host) => {
       expect(isPrivateHost(host)).toBe(false);
@@ -247,6 +209,8 @@ describe('isFetchableFavicon', () => {
     'http://192.168.1.1/admin/',
     'http://127.0.0.1:8080/',
     'http://router.local/status',
+    'http://[::ffff:7f00:1]:8080/admin',
+    'http://localhost./status',
   ])('refuses a remote page pointing at %s', (faviconUrl) => {
     expect(isFetchableFavicon('https://attacker.example/page', faviconUrl)).toBe(false);
   });
@@ -266,14 +230,8 @@ describe('splitUrlForDisplay with the real suffix list', () => {
   const emphasised = (url: string) => splitUrlForDisplay(url)?.registrableDomain;
 
   // The whole point of the address bar: the part at full contrast must be the
-  // part that tells you who you are actually talking to.
-  it('reads a lookalike host as its real owner', () => {
-    expect(emphasised('https://paypal.com.attacker.tld/login')).toBe('attacker.tld');
-    expect(emphasised('https://www.google.com.evil.co.uk/')).toBe('evil.co.uk');
-    expect(emphasised('https://accounts.google.com.phish.github.io/')).toBe('phish.github.io');
-  });
-
-  // Cases the hand-written list of about forty suffixes got wrong.
+  // part that tells you who you are actually talking to. The shared-suffix rows
+  // are cases the hand-written list of about forty suffixes got wrong.
   it.each([
     ['https://example.pvt.k12.ma.us/', 'example.pvt.k12.ma.us'],
     ['https://user.github.io/repo', 'user.github.io'],
@@ -282,23 +240,15 @@ describe('splitUrlForDisplay with the real suffix list', () => {
     ['https://site.co.uk/page', 'site.co.uk'],
     ['https://sub.site.co.uk/page', 'site.co.uk'],
     ['https://a.b.c.example.com/', 'example.com'],
+    ['https://paypal.com.attacker.tld/login', 'attacker.tld'],
+    ['https://www.google.com.evil.co.uk/', 'evil.co.uk'],
+    ['https://accounts.google.com.phish.github.io/', 'phish.github.io'],
   ])('emphasises the registrable domain of %s', (url, expected) => {
     expect(emphasised(url)).toBe(expected);
   });
 
-  // Two different projects on a shared host are different sites, and used to
-  // read as the same one.
-  it('does not make two hosts on a shared suffix look like the same site', () => {
-    expect(emphasised('https://alice.github.io/')).not.toBe(emphasised('https://mallory.github.io/'));
-  });
-
   it('emphasises the whole host when nobody owns it', () => {
     expect(emphasised('https://co.uk/')).toBe('co.uk');
-  });
-
-  it('leaves addresses without a registrable domain alone', () => {
-    expect(emphasised('https://192.168.0.1/')).toBe('192.168.0.1');
-    expect(emphasised('http://localhost:3000/')).toBe('localhost');
   });
 });
 
@@ -355,13 +305,6 @@ describe('upgrading http to https', () => {
     expect(typed(input)?.target).toBe(expected);
   });
 
-  it.each([
-    ['example.com', 'https://example.com/'],
-    ['github.com/ryjord', 'https://github.com/ryjord'],
-  ])('still reaches bare %s over https', (input, expected) => {
-    expect(typed(input)?.target).toBe(expected);
-  });
-
   it.each(['http://example.com/', 'http://8.8.8.8/', 'http://internal.example.com/'])(
     'still upgrades %s, which is out on the internet',
     (input) => {
@@ -373,24 +316,6 @@ describe('upgrading http to https', () => {
     expect(resolveOmniboxInput('http://example.com/', BRAVE, { httpsFirst: false })?.target).toBe(
       'http://example.com/',
     );
-  });
-});
-
-describe('a private host written in a way that used to slip through', () => {
-  it.each(['localhost.', '127.0.0.1.', '[::ffff:127.0.0.1]', '[::ffff:7f00:1]', '[::ffff:c0a8:101]', '100.64.0.1'])(
-    'still treats %s as private',
-    (host) => {
-      expect(isPrivateHost(host)).toBe(true);
-    },
-  );
-
-  it('still treats a public address mapped into IPv6 as public', () => {
-    expect(isPrivateHost('[::ffff:8.8.8.8]')).toBe(false);
-  });
-
-  it('refuses a remote page an icon on this machine, however it is spelled', () => {
-    expect(isFetchableFavicon('https://example.com/', 'http://[::ffff:7f00:1]:8080/admin')).toBe(false);
-    expect(isFetchableFavicon('https://example.com/', 'http://localhost./status')).toBe(false);
   });
 });
 

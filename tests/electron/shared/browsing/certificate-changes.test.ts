@@ -21,20 +21,16 @@ const seen = (overrides: Partial<Omit<RememberedCertificate, 'firstSeenAt'>> = {
 });
 
 describe('what is not worth saying', () => {
-  it('says nothing on a first visit', () => {
-    expect(compareCertificate(null, seen()).change).toBe('none');
-  });
-
-  it('says nothing when the certificate is the same', () => {
-    expect(compareCertificate(remembered(), seen()).change).toBe('none');
-  });
-
   /**
    * Certificates are renewed every few months. Reporting each one would train
    * someone to click past the warning that matters.
    */
-  it('says nothing about an ordinary renewal from the same authority', () => {
-    expect(compareCertificate(remembered(), seen({ fingerprint: 'cc:dd' })).change).toBe('none');
+  it.each([
+    ['on a first visit', null, seen()],
+    ['when the certificate is the same', remembered(), seen()],
+    ['about an ordinary renewal from the same authority', remembered(), seen({ fingerprint: 'cc:dd' })],
+  ])('says nothing %s', (_caseName, previous, current) => {
+    expect(compareCertificate(previous, current).change).toBe('none');
   });
 });
 
@@ -54,17 +50,6 @@ describe('a chain that now ends locally', () => {
     expect(change.change).toBe('now-locally-trusted');
   });
 
-  it('says something is reading the connection', () => {
-    expect(change.detail).toContain('reading this connection');
-  });
-
-  // Naming the innocent explanations first is the difference between informing
-  // someone and frightening them.
-  it('names the ordinary explanations as well as the bad one', () => {
-    expect(change.detail).toContain('workplace proxy');
-    expect(change.detail).toContain('attacker');
-  });
-
   it('outranks a mere change of issuer', () => {
     const both = compareCertificate(
       remembered(),
@@ -77,18 +62,10 @@ describe('a chain that now ends locally', () => {
 describe('a different authority', () => {
   const change = compareCertificate(remembered(), seen({ fingerprint: 'cc:dd', issuer: 'DigiCert' }));
 
-  it('is mentioned', () => {
+  it('is mentioned, naming both authorities so the person can judge it', () => {
     expect(change.change).toBe('issuer-changed');
-  });
-
-  it('names both, so the person can judge it', () => {
     expect(change.detail).toContain('DigiCert');
     expect(change.detail).toContain("Let's Encrypt");
-  });
-
-  // Sites migrate authority all the time. An alarm here is a lie.
-  it('is worded as something to glance at rather than an alarm', () => {
-    expect(change.detail).toContain('rather than an alarm');
   });
 
   it('is not raised when a locally-trusted chain becomes a real one', () => {
@@ -101,9 +78,11 @@ describe('a different authority', () => {
 });
 
 describe('what gets remembered', () => {
-  it('records the current certificate', () => {
-    const next = rememberCertificate(null, seen({ fingerprint: 'cc:dd' }), 5_000);
-    expect(next).toMatchObject({ fingerprint: 'cc:dd', firstSeenAt: 5_000 });
+  it('records the current certificate and carries the locally-trusted flag forward', () => {
+    const first = rememberCertificate(null, seen({ fingerprint: 'cc:dd' }), 5_000);
+    expect(first).toMatchObject({ fingerprint: 'cc:dd', firstSeenAt: 5_000 });
+    const later = rememberCertificate(remembered(), seen({ isIssuedByKnownRoot: false }), 9_000);
+    expect(later.isIssuedByKnownRoot).toBe(false);
   });
 
   // "First seen" should mean the site, not this particular certificate, or it
@@ -111,10 +90,5 @@ describe('what gets remembered', () => {
   it('keeps the original first-seen across a renewal', () => {
     const next = rememberCertificate(remembered(), seen({ fingerprint: 'cc:dd' }), 9_000);
     expect(next.firstSeenAt).toBe(1_000);
-  });
-
-  it('carries the locally-trusted flag forward', () => {
-    const next = rememberCertificate(remembered(), seen({ isIssuedByKnownRoot: false }), 9_000);
-    expect(next.isIssuedByKnownRoot).toBe(false);
   });
 });

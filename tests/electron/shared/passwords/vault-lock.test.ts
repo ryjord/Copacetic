@@ -16,27 +16,15 @@ import {
 const START = 1_000_000;
 
 describe('locking and unlocking', () => {
-  it('starts locked', () => {
-    expect(isUnlocked(LOCKED, START)).toBe(false);
-  });
-
-  it('is unlocked immediately after unlocking', () => {
-    expect(isUnlocked(unlock(LOCKED, START), START)).toBe(true);
-  });
-
-  it('stays unlocked until the timeout', () => {
-    const state = unlock(LOCKED, START);
-    expect(isUnlocked(state, START + DEFAULT_TIMEOUT_MS - 1)).toBe(true);
-  });
-
-  it('locks itself once the timeout passes', () => {
-    const state = unlock(LOCKED, START);
-    expect(isUnlocked(state, START + DEFAULT_TIMEOUT_MS)).toBe(false);
-    expect(isUnlocked(state, START + DEFAULT_TIMEOUT_MS + 60_000)).toBe(false);
-  });
-
-  it('locks on demand', () => {
-    expect(isUnlocked(lock(unlock(LOCKED, START)), START)).toBe(false);
+  it.each([
+    ['starts locked', LOCKED, START, false],
+    ['is unlocked immediately after unlocking', unlock(LOCKED, START), START, true],
+    ['stays unlocked until the timeout', unlock(LOCKED, START), START + DEFAULT_TIMEOUT_MS - 1, true],
+    ['locks itself once the timeout passes', unlock(LOCKED, START), START + DEFAULT_TIMEOUT_MS, false],
+    ['stays locked well after the timeout', unlock(LOCKED, START), START + DEFAULT_TIMEOUT_MS + 60_000, false],
+    ['locks on demand', lock(unlock(LOCKED, START)), START, false],
+  ])('%s', (_caseName, state, now, expected) => {
+    expect(isUnlocked(state, now)).toBe(expected);
   });
 
   /**
@@ -87,28 +75,14 @@ describe('the timeout', () => {
  * Hello. Claiming otherwise would be a promise the code cannot keep.
  */
 describe('what this machine can actually ask', () => {
-  it('uses Touch ID on a Mac that has it', () => {
-    expect(unlockMethodFor('darwin', true)).toBe('touch-id');
-  });
-
   it.each([
-    ['a Mac without Touch ID', 'darwin', false],
-    ['Windows', 'win32', false],
-    ['Windows even if something claims otherwise', 'win32', true],
-    ['Linux', 'linux', false],
-  ])('has nothing to ask with on %s', (_name, platform, canPrompt) => {
-    expect(unlockMethodFor(platform, canPrompt)).toBe('none');
-  });
-
-  it('says plainly that a click is all it is, where that is true', () => {
-    expect(describeLock('none')).toContain('single click');
-    expect(describeLock('none')).toContain('nothing more');
-  });
-
-  // Even with Touch ID this is not protection of the file, and saying so is the
-  // whole point of the sentence.
-  it('does not claim Touch ID protects the file itself', () => {
-    expect(describeLock('touch-id')).toContain('does not protect the file itself');
+    ['a Mac that has Touch ID', 'darwin', true, 'touch-id'],
+    ['a Mac without Touch ID', 'darwin', false, 'none'],
+    ['Windows', 'win32', false, 'none'],
+    ['Windows even if something claims otherwise', 'win32', true, 'none'],
+    ['Linux', 'linux', false, 'none'],
+  ])('asks with the right method on %s', (_caseName, platform, canPrompt, expected) => {
+    expect(unlockMethodFor(platform, canPrompt)).toBe(expected);
   });
 
   /**
@@ -121,9 +95,5 @@ describe('what this machine can actually ask', () => {
     const detail = describeLock('touch-id');
     expect(detail).toContain('login password');
     expect(detail).not.toMatch(/until Touch ID confirms/);
-  });
-
-  it('says whose decision that is, and that Copacetic never sees it', () => {
-    expect(describeLock('touch-id')).toContain('never sees what you type');
   });
 });

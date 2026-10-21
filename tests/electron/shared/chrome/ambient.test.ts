@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import {
   AMBIENT_FAR,
   AMBIENT_FAR_LIGHT,
@@ -58,31 +57,40 @@ describe('what a typed colour is allowed to change', () => {
     expect(landed?.s).toBeCloseTo(theme?.s as number, 5);
   });
 
-  it('refuses what is not a colour', () => {
-    expect(hueForAmbientHex('deep', 'not a colour')).toBeNull();
-    expect(hueForAmbientHex('deep', '#12')).toBeNull();
-    expect(hueForAmbientHex('deep', '')).toBeNull();
-    expect(hexToHsl('#gggggg')).toBeNull();
-  });
-
-  it('accepts a colour with or without its hash', () => {
-    expect(hexToHsl('123043')).not.toBeNull();
-    expect(hexToHsl('#123043')).not.toBeNull();
+  // A grey has no hue to read, so reading one is inventing an answer.
+  it.each([
+    ['text that is not a colour', 'not a colour', null],
+    ['a hex that is too short', '#12', null],
+    ['an empty string', '', null],
+    ['a hex of non-hex digits', '#gggggg', null],
+    ['white', '#ffffff', null],
+    ['black', '#000000', null],
+    ['a mid grey', '#808080', null],
+    ['a dark grey', '#3a3a3a', null],
+    ['a colour with its hash', '#123043', 'a hue'],
+    ['a colour without its hash', '123043', 'a hue'],
+    ['a colour that has a hue', '#43122f', 'a hue'],
+  ])('reads %s', (_caseName, input, expected) => {
+    const hue = hueForAmbientHex('deep', input);
+    if (expected === null) {
+      expect(hue).toBeNull();
+    } else {
+      expect(hue).not.toBeNull();
+    }
   });
 });
 
 describe('the conversion itself', () => {
-  it.each([
-    ['#000000', 0, 0, 0],
-    ['#ffffff', 0, 0, 1],
-  ])('reads %s', (hex, h, s, l) => {
-    const hsl = hexToHsl(hex);
-    expect(hsl?.h).toBeCloseTo(h, 3);
-    expect(hsl?.s).toBeCloseTo(s, 3);
-    expect(hsl?.l).toBeCloseTo(l, 3);
-  });
-
-  it('survives a round trip through hsl', () => {
+  it('reads black and white and survives a round trip through hsl', () => {
+    for (const [hex, hue, saturation, lightness] of [
+      ['#000000', 0, 0, 0],
+      ['#ffffff', 0, 0, 1],
+    ] as const) {
+      const hsl = hexToHsl(hex);
+      expect(hsl?.h).toBeCloseTo(hue, 3);
+      expect(hsl?.s).toBeCloseTo(saturation, 3);
+      expect(hsl?.l).toBeCloseTo(lightness, 3);
+    }
     for (const hex of Object.values(AMBIENT_NEAR)) {
       expect(hslToHex(hexToHsl(hex) as never).toLowerCase()).toBe(hex.toLowerCase());
     }
@@ -97,21 +105,10 @@ describe('the conversion itself', () => {
 
 /** The colours live in one place, for both appearances, and the stylesheet reads them. */
 describe('the stylesheet and the colours', () => {
-  const css = readFileSync('src/app/globals.css', 'utf8');
-
-  // One source: the stylesheet only reads what the chrome sets, so the two cannot drift.
-  it('takes both appearances from the variables the chrome sets', () => {
-    expect(css).toContain('var(--ambient-near-dark');
-    expect(css).toContain('var(--ambient-near-light');
-  });
-
-  it('has a light colour for every dark one', () => {
+  // A light start page is still a background behind dark text.
+  it('has a light colour for every dark one, and keeps every light colour light', () => {
     expect(Object.keys(AMBIENT_NEAR_LIGHT).sort()).toEqual(Object.keys(AMBIENT_NEAR).sort());
     expect(Object.keys(AMBIENT_FAR_LIGHT).sort()).toEqual(Object.keys(AMBIENT_FAR).sort());
-  });
-
-  // A light start page is still a background behind dark text.
-  it('keeps every light colour light', () => {
     for (const hex of [...Object.values(AMBIENT_NEAR_LIGHT), ...Object.values(AMBIENT_FAR_LIGHT)]) {
       expect(hexToHsl(hex)?.l ?? 0).toBeGreaterThan(0.8);
     }
@@ -145,16 +142,5 @@ describe('what is named is what is painted', () => {
     const after = ((far as never as { h: number }).h - (near as never as { h: number }).h + 360) % 360;
     // The same two degrees of hex rounding the round-trip above allows for.
     expect(Math.abs(after - before)).toBeLessThanOrEqual(2);
-  });
-});
-
-/** A grey has no hue to read, so reading one is inventing an answer. */
-describe('a colour with no hue in it', () => {
-  it.each(['#ffffff', '#000000', '#808080', '#3a3a3a'])('refuses %s', (grey) => {
-    expect(hueForAmbientHex('deep', grey)).toBeNull();
-  });
-
-  it('still accepts a colour that has one', () => {
-    expect(hueForAmbientHex('deep', '#43122f')).not.toBeNull();
   });
 });

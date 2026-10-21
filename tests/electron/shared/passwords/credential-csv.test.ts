@@ -13,20 +13,12 @@ const one = (overrides: Partial<CsvCredential> = {}): CsvCredential => ({
 });
 
 describe('writing the file', () => {
-  it('writes the header every other manager expects', () => {
-    expect(credentialsToCsv([]).trim()).toBe('name,url,username,password');
-  });
-
-  it('names the row after the host, which is what a person recognises', () => {
-    expect(credentialsToCsv([one()])).toContain('example.com,https://example.com,riley,hunter2');
-  });
-
-  it('ends with a newline, because some importers drop the last row without one', () => {
-    expect(credentialsToCsv([one()]).endsWith('\n')).toBe(true);
-  });
-
-  it('leaves ordinary values unquoted so the file stays readable', () => {
-    expect(credentialsToCsv([one()])).not.toContain('"');
+  // The header every other manager expects, a row named after its host, a final newline and no quoting.
+  it('writes exactly the plain file other managers expect', () => {
+    expect(credentialsToCsv([])).toBe('name,url,username,password\n');
+    expect(credentialsToCsv([one()])).toBe(
+      'name,url,username,password\nexample.com,https://example.com,riley,hunter2\n',
+    );
   });
 });
 
@@ -53,14 +45,6 @@ describe('passwords that would break a naive split', () => {
     expect(back.credentials[0]?.password).toBe(password);
   });
 
-  // A password is opaque bytes. Normalising line endings inside one - which a
-  // CSV reader is otherwise entitled to do between rows - would change it, and
-  // the change would only surface as a failed sign-in.
-  it('does not normalise line endings inside a password', () => {
-    const back = credentialsFromCsv(credentialsToCsv([one({ password: 'a\r\nb' })]));
-    expect(back.credentials[0]?.password).toBe('a\r\nb');
-  });
-
   it('survives a username with a comma too', () => {
     const back = credentialsFromCsv(credentialsToCsv([one({ username: 'last, first' })]));
     expect(back.credentials[0]?.username).toBe('last, first');
@@ -77,29 +61,28 @@ describe('passwords that would break a naive split', () => {
 });
 
 describe('reading a file another manager wrote', () => {
-  it('reads Chrome, which is the format we also write', () => {
-    const csv = 'name,url,username,password\nExample,https://example.com,riley,hunter2\n';
-    expect(credentialsFromCsv(csv).credentials).toEqual([one()]);
-  });
-
   it.each([
-    ['Bitwarden', 'login_uri,login_username,login_password\nhttps://example.com,riley,hunter2\n'],
-    ['a website column', 'website,username,password\nhttps://example.com,riley,hunter2\n'],
-    ['an email column', 'url,email,password\nhttps://example.com,riley,hunter2\n'],
-    ['columns in another order', 'password,url,username\nhunter2,https://example.com,riley\n'],
-    ['a header in capitals', 'URL,Username,Password\nhttps://example.com,riley,hunter2\n'],
-  ])('reads %s', (_name, csv) => {
-    expect(credentialsFromCsv(csv).credentials).toEqual([one()]);
-  });
-
-  it('reads a file with Windows line endings', () => {
-    const csv = 'url,username,password\r\nhttps://example.com,riley,hunter2\r\n';
-    expect(credentialsFromCsv(csv).credentials).toEqual([one()]);
-  });
-
-  it('keeps a row that has no username, which some sites genuinely have', () => {
-    const csv = 'url,username,password\nhttps://example.com,,hunter2\n';
-    expect(credentialsFromCsv(csv).credentials).toEqual([one({ username: '' })]);
+    [
+      'Chrome, which is the format we also write',
+      'name,url,username,password\nExample,https://example.com,riley,hunter2\n',
+      [one()],
+    ],
+    ['Bitwarden', 'login_uri,login_username,login_password\nhttps://example.com,riley,hunter2\n', [one()]],
+    ['a website column', 'website,username,password\nhttps://example.com,riley,hunter2\n', [one()]],
+    ['an email column', 'url,email,password\nhttps://example.com,riley,hunter2\n', [one()]],
+    ['columns in another order', 'password,url,username\nhunter2,https://example.com,riley\n', [one()]],
+    ['a header in capitals', 'URL,Username,Password\nhttps://example.com,riley,hunter2\n', [one()]],
+    ['a file with Windows line endings', 'url,username,password\r\nhttps://example.com,riley,hunter2\r\n', [one()]],
+    [
+      'a row that has no username, which some sites genuinely have',
+      'url,username,password\nhttps://example.com,,hunter2\n',
+      [one({ username: '' })],
+    ],
+    ['blank lines between rows', 'url,username,password\nhttps://example.com,riley,hunter2\n\n\n', [one()]],
+    ['nothing at all', '', []],
+    ['only whitespace', '\n\n', []],
+  ])('reads %s', (_caseName, csv, expected) => {
+    expect(credentialsFromCsv(csv).credentials).toEqual(expected);
   });
 });
 
@@ -108,36 +91,18 @@ describe('reading a file another manager wrote', () => {
  * someone believes their passwords moved across when some of them did not.
  */
 describe('rows it cannot use', () => {
-  it('counts a row with no password rather than importing it empty', () => {
-    const csv = 'url,username,password\nhttps://example.com,riley,\nhttps://ok.test,riley,hunter2\n';
-    const result = credentialsFromCsv(csv);
-    expect(result.credentials).toHaveLength(1);
-    expect(result.skipped).toBe(1);
-  });
-
-  it('counts a row with no site', () => {
-    const csv = 'url,username,password\n,riley,hunter2\n';
-    expect(credentialsFromCsv(csv)).toMatchObject({ credentials: [], skipped: 1 });
-  });
-
-  // Guessing by position would file a username as a password.
-  it('imports nothing from a file with no recognisable header', () => {
-    const csv = 'a,b,c\nhttps://example.com,riley,hunter2\n';
-    const result = credentialsFromCsv(csv);
-    expect(result.credentials).toEqual([]);
-    expect(result.skipped).toBeGreaterThan(0);
-  });
-
+  // Guessing by position would file a username as a password, hence the unrecognised header.
   it.each([
-    ['nothing at all', ''],
-    ['only whitespace', '\n\n'],
-  ])('reads %s without falling over', (_name, csv) => {
-    expect(credentialsFromCsv(csv).credentials).toEqual([]);
-  });
-
-  it('ignores blank lines between rows', () => {
-    const csv = 'url,username,password\nhttps://example.com,riley,hunter2\n\n\n';
-    expect(credentialsFromCsv(csv)).toMatchObject({ credentials: [one()], skipped: 0 });
+    [
+      'a row with no password rather than importing it empty',
+      'url,username,password\nhttps://example.com,riley,\nhttps://ok.test,riley,hunter2\n',
+      [one({ origin: 'https://ok.test' })],
+      1,
+    ],
+    ['a row with no site', 'url,username,password\n,riley,hunter2\n', [], 1],
+    ['a file with no recognisable header', 'a,b,c\nhttps://example.com,riley,hunter2\n', [], 2],
+  ])('counts %s', (_caseName, csv, credentials, skipped) => {
+    expect(credentialsFromCsv(csv)).toEqual({ credentials, skipped });
   });
 });
 

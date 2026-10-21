@@ -4,18 +4,11 @@ import { act, renderHook } from '@testing-library/react';
 import { useDraftValue } from '@/lib/state/useDraftValue';
 
 describe('useDraftValue', () => {
-  it('shows the draft until the saved value moves, then the saved one', () => {
-    const { result, rerender } = renderHook(({ saved }) => useDraftValue(saved), { initialProps: { saved: 3 } });
-    act(() => result.current[1](5));
-    expect(result.current[0]).toBe(5);
-    rerender({ saved: 5 });
-    expect(result.current[0]).toBe(5);
-  });
-
   // Once saved, the draft is spent: a value that returns to where it began is that value, not the old draft.
-  it('does not bring an old draft back when the saved value returns to where it began', () => {
+  it('shows the draft until the saved value moves, and does not bring it back when the value returns to where it began', () => {
     const { result, rerender } = renderHook(({ saved }) => useDraftValue(saved), { initialProps: { saved: 3 } });
     act(() => result.current[1](5));
+    expect(result.current[0]).toBe(5);
     rerender({ saved: 5 });
     rerender({ saved: 3 });
     expect(result.current[0]).toBe(3);

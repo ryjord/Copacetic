@@ -105,35 +105,25 @@ describe('the file we write ourselves', () => {
    * URL. The attribute and the element text are escaped differently, which is
    * the part that would break first.
    */
-  it('round trips characters that would break the markup', () => {
-    const original = {
-      id: 'a',
-      // A literal quote, not %22: percent-encoding it is exactly what stops
-      // this exercising the attribute escaping at all.
-      url: 'https://a.test/?q="quoted"&x=1<>',
-      title: 'He said "hello" & <b>left</b>',
-      createdAt: 1_690_000_000_000,
-      folderId: null,
-    };
-    const { bookmarks, skipped } = bookmarksFromHtml(bookmarksToHtml([original], Date.now()));
+  // Export shipped in 1.2.1; if these ever disagree, leaving is broken.
+  it('reads back what Copacetic exported, including characters that would break the markup', () => {
+    const original = [
+      { id: 'a', url: 'https://a.test/one', title: 'Tom & Jerry', createdAt: 1_690_000_000_000, folderId: null },
+      { id: 'b', url: 'https://b.test/two', title: 'Second', createdAt: 1_690_000_100_000, folderId: null },
+      {
+        id: 'c',
+        // A literal quote, not %22: percent-encoding it is exactly what stops
+        // this exercising the attribute escaping at all.
+        url: 'https://c.test/?q="quoted"&x=1<>',
+        title: 'He said "hello" & <b>left</b>',
+        createdAt: 1_690_000_200_000,
+        folderId: null,
+      },
+    ];
+    const { bookmarks, skipped } = bookmarksFromHtml(bookmarksToHtml(original, Date.now()));
     expect(skipped).toBe(0);
-    expect(bookmarks[0]?.url).toBe(original.url);
-    expect(bookmarks[0]?.title).toBe(original.title);
-  });
-
-  // Export shipped in 1.2.1; if these two ever disagree, leaving is broken.
-  it('reads back what Copacetic exported', () => {
-    const html = bookmarksToHtml(
-      [
-        { id: 'a', url: 'https://a.test/one', title: 'Tom & Jerry', createdAt: 1_690_000_000_000, folderId: null },
-        { id: 'b', url: 'https://b.test/two', title: 'Second', createdAt: 1_690_000_100_000, folderId: null },
-      ],
-      Date.now(),
-    );
-    const { bookmarks, skipped } = bookmarksFromHtml(html);
-    expect(skipped).toBe(0);
-    expect(bookmarks.map((entry) => entry.url)).toEqual(['https://a.test/one', 'https://b.test/two']);
-    expect(bookmarks[0]?.title).toBe('Tom & Jerry');
+    expect(bookmarks.map((entry) => entry.url)).toEqual(original.map((entry) => entry.url));
+    expect(bookmarks.map((entry) => entry.title)).toEqual(original.map((entry) => entry.title));
   });
 });
 

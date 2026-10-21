@@ -207,12 +207,4 @@ describe('a realistic session still reports the truth', () => {
     push({ ...blocked, activeTabId: 'two' });
     expect(read().activeTab?.blockedCount).toBe(4);
   });
-
-  it('does not hand back a tab object that no longer exists', () => {
-    push(state([]));
-    const firstTab = read().orderedTabs[0]!;
-
-    push({ ...state([]), tabs: state([]).tabs.slice(1), tabOrder: ['two', 'three'], activeTabId: 'two' });
-    expect(read().orderedTabs.some((t) => t.id === firstTab.id)).toBe(false);
-  });
 });

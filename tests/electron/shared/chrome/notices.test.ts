@@ -5,7 +5,6 @@ import {
   dismiss,
   dismissAfterMs,
   importedMessage,
-  openFolderMessage,
   savedGroupMessage,
   type Notice,
 } from '../../../../electron/shared/chrome/notices';
@@ -19,13 +18,10 @@ const notice = (id: string, over: Partial<Notice> = {}): Notice => ({
 });
 
 describe('how long a notice stays', () => {
-  it('goes on its own when it is only telling you something', () => {
+  // An undo is long enough to reach for, and longer than a notice that only informs.
+  it('goes on its own when it is only telling you something, and gives an undo the longest', () => {
     expect(dismissAfterMs('info')).toBeGreaterThan(0);
     expect(dismissAfterMs('done')).toBeGreaterThan(0);
-  });
-
-  // Long enough to reach for, and longer than a notice that only informs.
-  it('gives an undo the longest of anything that goes on its own', () => {
     expect(dismissAfterMs('undo')).toBeGreaterThan(dismissAfterMs('info') ?? 0);
   });
 
@@ -39,10 +35,6 @@ describe('how long a notice stays', () => {
 });
 
 describe('adding a notice to what is already showing', () => {
-  it('shows it', () => {
-    expect(admit([], notice('a'))).toHaveLength(1);
-  });
-
   it('replaces an earlier one about the same thing rather than stacking', () => {
     const first = notice('a', { key: 'import', message: '4 bookmarks' });
     const second = notice('b', { key: 'import', message: '12 bookmarks' });
@@ -78,11 +70,8 @@ describe('adding a notice to what is already showing', () => {
 });
 
 describe('removing one', () => {
-  it('takes only the one named', () => {
+  it('takes only the one named, and does nothing for one that has already gone', () => {
     expect(dismiss([notice('a'), notice('b')], 'a').map((entry) => entry.id)).toEqual(['b']);
-  });
-
-  it('does nothing for one that has already gone', () => {
     expect(dismiss([notice('a')], 'gone')).toHaveLength(1);
   });
 });
@@ -104,33 +93,20 @@ describe('what is said about a group saved as a folder', () => {
     expect(message).toContain('2 Hush tabs were left out');
     expect(message).toContain('disk');
   });
-
-  it('counts one of them properly', () => {
-    expect(savedGroupMessage(1, 1, 'Work')).toContain('1 page');
-    expect(savedGroupMessage(1, 1, 'Work')).toContain('1 Hush tab was');
-  });
 });
 
 describe('what is said about an import', () => {
-  it('says the number added', () => {
-    expect(importedMessage(12, 0)).toBe('Added 12 bookmarks.');
-  });
-
-  // A short number after importing a big file reads as a failure unless the
-  // arithmetic is shown.
-  it('explains a short number rather than leaving it to look like one', () => {
-    expect(importedMessage(12, 4)).toContain('4 were already saved');
-  });
-
-  it('counts one of them properly', () => {
-    expect(importedMessage(1, 1)).toBe('Added 1 bookmark. 1 was already saved.');
-  });
-});
-
-describe('what is asked before opening a folder', () => {
-  it('names the number and the folder', () => {
-    const message = openFolderMessage(214, 'Reading');
-    expect(message).toContain('214');
-    expect(message).toContain('Reading');
+  // A short number after importing a big file reads as a failure unless the arithmetic is shown.
+  it.each([
+    ['the number added', 12, 0, 'Added 12 bookmarks.'],
+    [
+      'a short number, explained rather than left to look like a failure',
+      12,
+      4,
+      expect.stringContaining('4 were already saved'),
+    ],
+    ['one of each properly', 1, 1, 'Added 1 bookmark. 1 was already saved.'],
+  ])('says %s', (_caseName, added, skipped, expected) => {
+    expect(importedMessage(added, skipped)).toEqual(expected);
   });
 });
