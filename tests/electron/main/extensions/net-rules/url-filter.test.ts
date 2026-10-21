@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   anchoredHostOf,
+  canBacktrackForever,
   compileRegexFilter,
   compileUrlFilter,
   tokenOf,
@@ -48,6 +49,26 @@ describe('a regexFilter', () => {
     expect(compileRegexFilter('^https://([a-z]+)\\.example\\.com/')?.test('https://cdn.example.com/x')).toBe(true);
     expect(compileRegexFilter('(unclosed')).toBeNull();
   });
+
+  // Matched in the main process as each request goes, so one that backtracks without end would hang the browser.
+  it.each(['(a+)+$', '(\\w+\\s?)*$', '^(.*a)+x', '((ab)+c?)+', '(a)\\1', '^(?=x)'])('refuses %s', (source) => {
+    expect(canBacktrackForever(source)).toBe(true);
+    expect(compileRegexFilter(source)).toBeNull();
+  });
+
+  // The shapes ad lists use, which RE2 and JavaScript both run in a straight line.
+  it.each([
+    '^https?://(?:[a-z0-9-]+\\.)*example\\.com/',
+    '^https://([a-z]+)\\.example\\.com/',
+    '/ads?/[0-9]+\\.js$',
+    '(?:banner|popup)[-_]?ad',
+  ])('takes %s', (source) => {
+    expect(canBacktrackForever(source)).toBe(false);
+  });
+
+  it('refuses one longer than Chrome would compile', () => {
+    expect(compileRegexFilter(`^${'a'.repeat(2048)}`)).toBeNull();
+  });
 });
 
 describe('the keys a rule is filed under', () => {
@@ -56,6 +77,10 @@ describe('the keys a rule is filed under', () => {
     ['||Example.COM/path', 'example.com'],
     ['||*.example.com', null],
     ['/ads/', null],
+    // Each of these also matches at hosts other than one: ads.example.com, google-analytics.com, example.com.au.
+    ['||ads.', null],
+    ['||google-analytics', null],
+    ['||example.com', null],
   ])('files %s under the host %s', (filter, host) => {
     expect(anchoredHostOf(filter)).toBe(host);
   });

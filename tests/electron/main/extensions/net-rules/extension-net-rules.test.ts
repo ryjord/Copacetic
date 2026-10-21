@@ -183,6 +183,70 @@ describe('an extension’s rules', () => {
     expect(rules.decide(context('https://other.example/x'))).toEqual({ kind: 'none' });
   });
 
+  // `tabs` lets an extension read every page's address, which is not leave to change what the site is sent.
+  it('do not redirect or change headers on the strength of the tabs permission', () => {
+    const rules = new ExtensionNetRules(fakeStore(), vi.fn(), vi.fn());
+    rules.load(extensionWith({}, { permissions: ['declarativeNetRequest', 'tabs'], hostPermissions: [] }));
+    rules.call(ID, 'updateDynamicRules', [
+      {
+        addRules: [
+          { id: 1, action: { type: 'redirect', redirect: { url: 'https://elsewhere.example/' } }, condition: {} },
+          {
+            id: 2,
+            action: {
+              type: 'modifyHeaders',
+              responseHeaders: [{ header: 'content-security-policy', operation: 'remove' }],
+            },
+            condition: {},
+          },
+        ],
+      },
+    ]);
+    expect(rules.decide(context('https://bank.example/'))).toEqual({ kind: 'none' });
+    expect(rules.headerChangesFor(context('https://bank.example/'), 'response')).toEqual([]);
+  });
+
+  it('block only on the sites they were given, with declarativeNetRequestWithHostAccess alone', () => {
+    const rules = new ExtensionNetRules(fakeStore(), vi.fn(), vi.fn());
+    rules.load(
+      extensionWith(
+        { main: { enabled: true, rules: [{ ...blockAds, condition: {} }] } },
+        { permissions: ['declarativeNetRequestWithHostAccess'], hostPermissions: ['https://ads.example/*'] },
+      ),
+    );
+    expect(rules.decide(context('https://ads.example/a.js'))).toEqual({ kind: 'block' });
+    expect(rules.decide(context('https://news.example/a.js'))).toEqual({ kind: 'none' });
+  });
+
+  // Chrome evaluates the more recently installed extension first, so its change to a header is the one made.
+  it('let the newest extension settle a header two of them change', () => {
+    const rules = new ExtensionNetRules(fakeStore(), vi.fn(), vi.fn());
+    const setsAgent = (value: string) => ({
+      id: 1,
+      action: { type: 'modifyHeaders', requestHeaders: [{ header: 'user-agent', operation: 'set', value }] },
+      condition: {},
+    });
+    rules.load(extensionWith({ main: { enabled: true, rules: [setsAgent('older')] } }));
+    rules.load(extensionWith({ main: { enabled: true, rules: [setsAgent('newer')] } }, { id: OTHER }));
+    expect(rules.headerChangesFor(context('https://example.com/'), 'request')[0]).toMatchObject({ value: 'newer' });
+  });
+
+  // A new version's manifest decides its rulesets again, as in Chrome; what it added as it ran stays.
+  it('start a new version from its manifest’s rulesets, keeping its dynamic rules', () => {
+    const { rules, store } = setup({
+      main: { enabled: true, rules: [blockAds] },
+      extra: { enabled: false, rules: [{ ...blockAds, condition: { urlFilter: '||more.example^' } }] },
+    });
+    rules.call(ID, 'updateEnabledRulesets', [{ disableRulesetIds: ['main'], enableRulesetIds: ['extra'] }]);
+    rules.call(ID, 'updateStaticRules', [{ rulesetId: 'main', disableRuleIds: [1] }]);
+    rules.call(ID, 'updateDynamicRules', [
+      { addRules: [{ ...blockAds, id: 7, condition: { urlFilter: '||mine.example^' } }] },
+    ]);
+    rules.resetForNewVersion(ID);
+    expect(store.kept.get(ID)).toMatchObject({ enabledRulesets: null, disabledStaticRules: {} });
+    expect(store.kept.get(ID)?.dynamicRules).toHaveLength(1);
+  });
+
   it('never change a request an extension made', () => {
     const { rules } = setup();
     expect(rules.decide({ ...context('https://ads.example/a.js'), isFromExtension: true })).toEqual({ kind: 'none' });
@@ -195,6 +259,14 @@ describe('an extension’s rules', () => {
     rules.call(ID, 'setExtensionActionOptions', [{ displayActionCountAsBadgeText: true }]);
     rules.decide(context('https://ads.example/b.js'));
     expect(counted.at(-1)).toEqual([ID, 4, 2]);
+  });
+
+  // An extension that sets its own badge keeps it when the page moves on, unless the count drew it.
+  it('leave a badge alone when the page moves on, if they never asked for the count', () => {
+    const { rules, counted } = setup();
+    rules.decide(context('https://ads.example/a.js'));
+    rules.decide(context('https://news.example/', { resourceType: 'main_frame', initiatorHost: null }));
+    expect(counted).toEqual([]);
   });
 
   it('apply only with the permission for it', () => {

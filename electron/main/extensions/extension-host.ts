@@ -68,6 +68,8 @@ interface Loaded {
   entry: InstalledExtension;
   manifest: Manifest;
   grant: ExtensionGrant;
+  // Read once: the toolbar asks for every extension each time a blocked count changes.
+  iconDataUrl: string | null;
 }
 
 interface MenuItem {
@@ -266,7 +268,7 @@ export class ExtensionHost {
         discardStaged(staged);
         return '';
       }
-      await this.install(staged, true);
+      await this.install(staged, this.store.find(id)?.isEnabled ?? true);
       return '';
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
@@ -278,6 +280,7 @@ export class ExtensionHost {
     const previous = this.store.find(staged.id);
     if (previous) {
       this.unloadEverywhere(staged.id);
+      this.netRules.resetForNewVersion(staged.id);
     }
     const folder = keepStaged(staged);
     await this.add({
@@ -464,6 +467,7 @@ export class ExtensionHost {
       const found: Loaded = {
         entry,
         manifest,
+        iconDataUrl: iconDataUrl(entry.folder, manifest.icon),
         grant: {
           id: entry.id,
           permissions: manifest.permissions,
@@ -507,7 +511,7 @@ export class ExtensionHost {
   summaries(tabId: number | null): ExtensionSummary[] {
     return [...this.loaded.values()]
       .toSorted((aExtension, bExtension) => aExtension.manifest.name.localeCompare(bExtension.manifest.name))
-      .map(({ entry, manifest, grant }) => {
+      .map(({ entry, manifest, grant, iconDataUrl: icon }) => {
         const action = this.actionFor(entry.id, tabId);
         return {
           id: entry.id,
@@ -519,7 +523,7 @@ export class ExtensionHost {
           isPinned: entry.isPinned,
           waitingUpdate: this.waitingUpdates.get(entry.id) ?? null,
           hasOptionsPage: grant.optionsPage !== null,
-          iconDataUrl: iconDataUrl(entry.folder, manifest.icon),
+          iconDataUrl: icon,
           permissions: grant.permissions,
           hostPermissions: grant.hostPermissions,
           action: action

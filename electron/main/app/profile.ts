@@ -151,6 +151,10 @@ export class Profile {
       tabs: () => this.tabDirectory,
       onPromptsChanged: () => this.scheduleStatePush(),
       extensionHeaderChanges: (details: RequestDetails, stage: 'request' | 'response') => {
+        // Asked of every request, so a profile with no extension rules is spared reading it.
+        if (!this.extensions.netRules.hasAny) {
+          return [];
+        }
         const context = requestContextFrom(details);
         return context ? this.extensions.netRules.headerChangesFor(context, stage) : [];
       },
@@ -224,6 +228,9 @@ export class Profile {
     this.sessions.prepare(this.partitions.hush);
     this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details) ?? this.cleanedNavigation(details));
     this.blocking.setExtensionJudge((details) => {
+      if (!this.extensions.netRules.hasAny) {
+        return { kind: 'none' };
+      }
       const context = requestContextFrom(details);
       return context ? this.extensions.netRules.decide(context) : { kind: 'none' };
     });

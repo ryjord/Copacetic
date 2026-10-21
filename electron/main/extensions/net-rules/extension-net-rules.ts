@@ -4,7 +4,7 @@ import path from 'node:path';
 
 // Utils
 import { isRecord } from '../../data/persistence';
-import { canReadEverySite, matchesPattern } from '../../../shared/extensions/extensions';
+import { matchesPattern } from '../../../shared/extensions/extensions';
 import { RuleIndex, type NetRequest } from './rule-index';
 import { combineVerdicts, headerRules, redirectTarget, winningRule, type NetVerdict } from './outcome';
 import { readRule, type HeaderChange, type Rule } from './rule';
@@ -187,6 +187,14 @@ export class ExtensionNetRules {
     this.counts.delete(extensionId);
   }
 
+  /** A new version was put in: as in Chrome, its manifest decides the rulesets again, and only its dynamic rules stay. */
+  resetForNewVersion(extensionId: string): void {
+    const kept = this.store.get(extensionId);
+    if (kept) {
+      this.store.put(extensionId, { ...kept, enabledRulesets: null, disabledStaticRules: {} });
+    }
+  }
+
   /** Removes an extension and everything its rules kept. */
   forget(extensionId: string): void {
     this.unload(extensionId);
@@ -197,7 +205,8 @@ export class ExtensionNetRules {
   pageStarted(webContentsId: number): void {
     this.allowedPages.forEach((pages) => pages.delete(webContentsId));
     this.counts.forEach((pages, extensionId) => {
-      if (pages.delete(webContentsId)) {
+      // Only a badge the count drew is cleared; one the extension set itself is its own.
+      if (pages.delete(webContentsId) && this.extensions.get(extensionId)?.displaysActionCount) {
         this.onCount(extensionId, webContentsId, 0);
       }
     });
@@ -222,7 +231,8 @@ export class ExtensionNetRules {
     if (context.isFromExtension || this.extensions.size === 0) {
       return [];
     }
-    return [...this.extensions.values()].flatMap((rules) => {
+    // The newest extension's first, so its change to a header is the one that settles it, as in Chrome.
+    return [...this.extensions.values()].toReversed().flatMap((rules) => {
       const matched = this.matching(rules, context);
       return headerRules(matched, winningRule(matched, context.request.url)).flatMap(
         (rule) => (stage === 'request' ? rule.action.requestHeaders : rule.action.responseHeaders) ?? [],
@@ -252,16 +262,14 @@ export class ExtensionNetRules {
       : [...matched, { id: 0, priority: allowedAt, action: { type: 'allowAllRequests' }, condition: {} }];
   }
 
-  // Redirecting a request or changing its headers needs leave to see the site, as in Chrome; blocking does not.
+  // As in Chrome: declarativeNetRequest may block and allow anywhere, and anything else needs the site's host
+  // permission, which `tabs` is not.
   private mayChange(extension: NetRulesExtension, rule: Rule, url: string): boolean {
-    const isChange = rule.action.type === 'redirect' || rule.action.type === 'modifyHeaders';
-    if (!isChange) {
+    const isBlockOrAllow = ['block', 'allow', 'allowAllRequests'].includes(rule.action.type);
+    if (isBlockOrAllow && extension.permissions.includes('declarativeNetRequest')) {
       return true;
     }
-    return (
-      canReadEverySite(extension.permissions, extension.hostPermissions) ||
-      extension.hostPermissions.some((pattern) => matchesPattern(pattern, url))
-    );
+    return extension.hostPermissions.some((pattern) => matchesPattern(pattern, url));
   }
 
   private decideFor(rules: ExtensionRules, context: RequestContext): NetVerdict {
