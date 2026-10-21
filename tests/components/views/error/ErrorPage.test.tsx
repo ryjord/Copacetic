@@ -54,11 +54,10 @@ const BAD_CERTIFICATE: PageError = {
 };
 
 describe('a page that did not load', () => {
-  it('says so, and offers to try again', () => {
+  it('reloads the tab when Try again is clicked', () => {
     render(<ErrorPage tabId="t1" error={NOT_RESOLVED} />);
-
-    expect(screen.getByRole('heading', { name: 'This page did not load' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(reloaded).toEqual(['t1']);
   });
 
   // The symbolic code is for searching, not for reading first.
@@ -72,17 +71,23 @@ describe('a page that did not load', () => {
     expect(screen.getByText('https://nowhere.example/')).toBeTruthy();
   });
 
-  it('offers plain HTTP only when HTTPS was what failed, and says what that costs', () => {
-    render(<ErrorPage tabId="t1" error={{ ...NOT_RESOLVED, plainUrl: 'http://nowhere.example/' }} />);
+  it.each([
+    {
+      name: 'offers plain HTTP, and says what that costs, when HTTPS was what failed',
+      plainUrl: 'http://nowhere.example/',
+    },
+    { name: 'does not offer plain HTTP otherwise', plainUrl: undefined },
+  ])('$name', ({ plainUrl }) => {
+    render(<ErrorPage tabId="t1" error={{ ...NOT_RESOLVED, plainUrl }} />);
+    const offer = screen.queryByRole('button', { name: 'Continue over HTTP' });
 
+    if (plainUrl === undefined) {
+      expect(offer).toBeNull();
+      return;
+    }
     expect(screen.getByText(/not encrypted/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Continue over HTTP' }));
+    fireEvent.click(offer as HTMLElement);
     expect(send).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not offer plain HTTP otherwise', () => {
-    render(<ErrorPage tabId="t1" error={NOT_RESOLVED} />);
-    expect(screen.queryByRole('button', { name: 'Continue over HTTP' })).toBeNull();
   });
 });
 

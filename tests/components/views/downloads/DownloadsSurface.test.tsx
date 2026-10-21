@@ -54,25 +54,41 @@ const download = (overrides: Partial<DownloadState> = {}): DownloadState => ({
  * not exist.
  */
 describe('what a download tells you about itself', () => {
-  it('says nothing about a route when the file came straight from where you asked', () => {
-    downloads = [download()];
-    render(<DownloadsSurface />);
-    expect(document.body.textContent).not.toContain('came from');
-  });
-
-  it('names both ends when the file came from somewhere else', () => {
-    downloads = [download({ urlChain: ['https://get.example.com/x', 'https://cdn.other.test/file'] })];
-    render(<DownloadsSurface />);
-    expect(document.body.textContent).toContain('You asked get.example.com and the file came from cdn.other.test');
-  });
-
   // A routine redirect is a detail; it is there when asked for and quiet until then.
-  it('reads as routine when the redirect stayed on one site', () => {
-    downloads = [download({ urlChain: ['https://www.example.com/a', 'https://dl.example.com/b'] })];
+  it.each([
+    {
+      name: 'says nothing about a route when the file came straight from where you asked',
+      urlChain: ['https://example.com/installer.dmg'],
+      shown: null,
+      hidden: 'came from',
+      needsDetails: false,
+    },
+    {
+      name: 'names both ends when the file came from somewhere else',
+      urlChain: ['https://get.example.com/x', 'https://cdn.other.test/file'],
+      shown: 'You asked get.example.com and the file came from cdn.other.test',
+      hidden: null,
+      needsDetails: false,
+    },
+    {
+      name: 'reads as routine when the redirect stayed on one site',
+      urlChain: ['https://www.example.com/a', 'https://dl.example.com/b'],
+      shown: 'Redirected within example.com',
+      hidden: 'Redirected within',
+      needsDetails: true,
+    },
+  ])('$name', ({ urlChain, shown, hidden, needsDetails }) => {
+    downloads = [download({ urlChain })];
     render(<DownloadsSurface />);
-    expect(document.body.textContent).not.toContain('Redirected within');
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
-    expect(document.body.textContent).toContain('Redirected within example.com');
+    if (hidden !== null) {
+      expect(document.body.textContent).not.toContain(hidden);
+    }
+    if (needsDetails) {
+      fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    }
+    if (shown !== null) {
+      expect(document.body.textContent).toContain(shown);
+    }
   });
 
   it('shows the hash of what actually arrived', () => {

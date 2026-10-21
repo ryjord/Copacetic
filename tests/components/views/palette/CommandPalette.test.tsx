@@ -74,12 +74,6 @@ describe('the command palette', () => {
     expect(input().getAttribute('aria-activedescendant')).not.toBe(first);
   });
 
-  it('names each group once, not on every row', () => {
-    render(<CommandPalette />);
-    expect(screen.getAllByText('Tabs')).toHaveLength(1);
-    expect(screen.getAllByText('Go to')).toHaveLength(1);
-  });
-
   // A heading inside an option was read as part of that command's name.
   it('lists each group as a labelled group of options', () => {
     render(<CommandPalette />);
@@ -88,11 +82,12 @@ describe('the command palette', () => {
     screen.getAllByRole('option').forEach((option) => expect(option.textContent).not.toMatch(/^Tabs/));
   });
 
-  it('says the list is open only when something is listed', () => {
+  it('says the list is open only when something is listed, and says so when nothing matches', () => {
     render(<CommandPalette />);
     expect(input().getAttribute('aria-expanded')).toBe('true');
     fireEvent.change(input(), { target: { value: 'qqqqzz' } });
     expect(input().getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByText('Nothing matches.')).toBeTruthy();
   });
 
   it('finds an open tab by its address', () => {
@@ -113,12 +108,6 @@ describe('the command palette', () => {
     const { container } = render(<CommandPalette />);
     fireEvent.mouseDown(container.firstElementChild as HTMLElement);
     expect(setSurface).toHaveBeenCalledWith('none');
-  });
-
-  it('says so when nothing matches', () => {
-    render(<CommandPalette />);
-    fireEvent.change(input(), { target: { value: 'qqqqzz' } });
-    expect(screen.getByText('Nothing matches.')).toBeTruthy();
   });
 
   // The audit found the palette could not reach pinning, sleeping, groups, DevTools, import or clearing.

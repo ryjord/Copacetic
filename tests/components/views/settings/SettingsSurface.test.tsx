@@ -67,16 +67,14 @@ describe('finding a setting', () => {
     expect(searchSettings('   ')).toEqual([]);
   });
 
-  it('opens the page a result names', () => {
+  it('opens the page a result names, and says so when nothing matches', () => {
     render(<SettingsSurface />);
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'wallpaper' } });
+    const search = screen.getByRole('searchbox', { name: 'Search settings' });
+    fireEvent.change(search, { target: { value: 'wallpaper' } });
     fireEvent.click(screen.getByRole('button', { name: /Wallpaper/ }));
     expect(screen.getByRole('heading', { level: 2, name: 'Appearance' })).toBeTruthy();
-  });
 
-  it('says so when nothing matches', () => {
-    render(<SettingsSurface />);
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzzz' } });
+    fireEvent.change(search, { target: { value: 'zzzz' } });
     expect(screen.getByText(/No setting matches/)).toBeTruthy();
   });
 });

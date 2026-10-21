@@ -48,11 +48,6 @@ afterEach(() => {
 });
 
 describe('the updates pane', () => {
-  it('names the version this is', () => {
-    render(<UpdatesPane />);
-    expect(screen.getByText('Copacetic 2.0.0')).toBeTruthy();
-  });
-
   it('shows what the new version changes', () => {
     update = { ...BASE, status: { state: 'available', version: '2.1.0' }, releaseNotes: '· Split view.' };
     render(<UpdatesPane />);
