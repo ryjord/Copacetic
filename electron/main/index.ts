@@ -10,7 +10,7 @@ import { installApplicationMenu } from './menus/menu';
 import { applyStartupSwitches } from './system/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
-import { applyLaunchMode } from './system/launch-mode';
+import { applyLaunchMode, applyLaunchSwitches } from './system/launch-mode';
 import { markQuit, markRunning } from './system/exit-marker';
 import { clearCopiedSecretBeforeQuit } from './vault/vault-clipboard';
 import { watchCertificateErrors } from './security/certificate-exceptions';
@@ -21,6 +21,7 @@ import { t } from '../shared/i18n/translate';
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
 applyStartupSwitches(app.commandLine);
+applyLaunchSwitches(app.commandLine);
 registerAppProtocolScheme();
 
 // A browser with two copies of itself running would fight over the session
