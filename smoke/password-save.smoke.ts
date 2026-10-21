@@ -5,6 +5,8 @@ import { SmokeApp } from './support/harness';
 let copacetic: SmokeApp;
 let server: Server;
 let origin = '';
+// A CI runner has no keyring, and with nowhere to keep a password nothing is watched, as it should be.
+let hasKeychain = false;
 
 const PAGES: Record<string, string> = {
   '/signin':
@@ -30,6 +32,7 @@ beforeAll(async () => {
   origin = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
   copacetic = await SmokeApp.launch();
   await copacetic.waitForReady();
+  hasKeychain = (await copacetic.chrome.evaluate(() => window.copacetic.vault.facts())).hasKeychain;
 }, 60_000);
 
 afterAll(async () => {
@@ -69,7 +72,8 @@ async function send(path: string, fields: Record<string, string>): Promise<void>
 }
 
 describe('offering to save a password', () => {
-  it('offers to save one after a sign-in that moves on, telling the window only the site and username', async () => {
+  it('offers to save one after a sign-in that moves on, telling the window only the site and username', async (context) => {
+    context.skip(!hasKeychain);
     await send('/signin', { email: 'riley@example.com', password: 'correct horse battery staple' });
     expect(await copacetic.until(async () => (await offer()) !== null, 10_000)).toBe(true);
     const offered = await offer();
@@ -85,7 +89,8 @@ describe('offering to save a password', () => {
     expect(await offer()).toBeNull();
   }, 60_000);
 
-  it('carries the username over from a step before the password', async () => {
+  it('carries the username over from a step before the password', async (context) => {
+    context.skip(!hasKeychain);
     await send('/step-one', { identifier: 'riley@example.com' });
     await fillAndPressEnter(`${origin}/step-two?identifier=riley%40example.com`, { password: 'second step' });
     expect(await copacetic.until(async () => (await offer()) !== null, 10_000)).toBe(true);
@@ -116,7 +121,8 @@ describe('offering to save a password', () => {
     60_000,
   );
 
-  it('stops offering on a site once told never to', async () => {
+  it('stops offering on a site once told never to', async (context) => {
+    context.skip(!hasKeychain);
     await send('/signin', { email: 'riley@example.com', password: 'first' });
     expect(await copacetic.until(async () => (await offer()) !== null, 10_000)).toBe(true);
     await copacetic.chrome.evaluate(async () => {
