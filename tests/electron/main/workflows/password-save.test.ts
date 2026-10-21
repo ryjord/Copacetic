@@ -24,11 +24,20 @@ interface Options {
   settings?: object;
 }
 
-/** A tab whose watch answers with each thing sent in turn, then waits for good. */
+/** A tab whose watch answers with what a person sends, waiting until they do, and with nothing as its page goes. */
 function setup(options: Options = {}) {
   let url = options.url ?? SIGN_IN;
   let stillAsks = false;
   const sent: unknown[] = [];
+  const waiting: ((value: unknown) => void)[] = [];
+  const submit = (submitted: { username: string; password: string }) => {
+    const watch = waiting.shift();
+    if (watch) {
+      watch(submitted);
+    } else {
+      sent.push(submitted);
+    }
+  };
   const contents = {
     getURL: () => url,
     isDestroyed: () => false,
@@ -36,7 +45,7 @@ function setup(options: Options = {}) {
       if (script?.code === STILL_ASKS_FOR_PASSWORD) {
         return stillAsks;
       }
-      return sent.length > 0 ? sent.shift() : new Promise(() => {});
+      return sent.length > 0 ? sent.shift() : new Promise((resolve) => waiting.push(resolve));
     }),
   };
   const saved = options.saved ?? [];
@@ -63,6 +72,7 @@ function setup(options: Options = {}) {
     await new Promise((resolve) => setTimeout(resolve, 0));
   };
   const loadedOn = async (nextUrl: string) => {
+    waiting.splice(0).forEach((watch) => watch(null));
     url = nextUrl;
     save.pageChanged(TAB, 'committed');
     save.pageChanged(TAB, 'loaded');
@@ -77,14 +87,14 @@ function setup(options: Options = {}) {
     offer: () => save.offerFor(TAB),
     /** The person sends the form on the page in front. */
     async send(submitted: { username: string; password: string }) {
-      sent.push(submitted);
+      submit(submitted);
       save.pageChanged(TAB, 'loaded');
       await settle();
     },
     loadedOn,
     /** Sends the form, and the page moves on to where a sign-in that worked lands. */
     async signIn(submitted: { username: string; password: string }, landing = 'https://example.com/home') {
-      sent.push(submitted);
+      submit(submitted);
       save.pageChanged(TAB, 'loaded');
       await settle();
       await loadedOn(landing);
@@ -163,7 +173,8 @@ describe('offering to save a password', () => {
     ['a profile that turned the offer off', { settings: { offerToSavePasswords: false } }],
   ])('never watches %s', async (_name, options) => {
     const { offer, signIn, contents } = setup(options);
-    await signIn({ username: 'riley', password: 'secret' });
+    // Lands on a plain page too, which is not watched either, so nothing at all is asked of the page.
+    await signIn({ username: 'riley', password: 'secret' }, 'http://example.com/home');
     expect(contents.executeJavaScriptInIsolatedWorld).not.toHaveBeenCalled();
     expect(offer()).toBeNull();
   });

@@ -88,6 +88,11 @@ export class PasswordSave {
 
   constructor(private readonly deps: PasswordSaveDeps) {}
 
+  // Normalised, so a tab not yet counted reads the same before an await as after it.
+  private documentOf(tabId: TabId): number {
+    return this.documents.get(tabId) ?? 0;
+  }
+
   private now(): number {
     return this.deps.now?.() ?? Date.now();
   }
@@ -105,7 +110,7 @@ export class PasswordSave {
 
   pageChanged(tabId: TabId, change: PageChange): void {
     if (change === 'committed') {
-      this.documents.set(tabId, (this.documents.get(tabId) ?? 0) + 1);
+      this.documents.set(tabId, this.documentOf(tabId) + 1);
       this.watching.delete(tabId);
     }
     if (change !== 'loaded') {
@@ -202,7 +207,7 @@ export class PasswordSave {
       return;
     }
     const url = contents.getURL();
-    const page = this.documents.get(tabId) ?? 0;
+    const page = this.documentOf(tabId);
     this.watching.add(tabId);
     let found: unknown = null;
     try {
@@ -210,7 +215,7 @@ export class PasswordSave {
     } catch {
       // A page that went before answering has nothing to say.
     }
-    if (this.documents.get(tabId) !== page || contents.isDestroyed()) {
+    if (this.documentOf(tabId) !== page || contents.isDestroyed()) {
       return;
     }
     this.watching.delete(tabId);
@@ -221,7 +226,7 @@ export class PasswordSave {
       void this.watch(tabId);
     } else if (!isLookingAgain) {
       await later(LOOKED_AGAIN_AFTER_MS);
-      if (this.documents.get(tabId) === page) {
+      if (this.documentOf(tabId) === page) {
         void this.watch(tabId, true);
       }
     }
