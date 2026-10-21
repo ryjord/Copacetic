@@ -196,11 +196,13 @@ export function readShortcutOverrides(value: unknown): ShortcutOverrides {
 const POSITION_KEYS = Array.from({ length: 8 }, (_unused, index) => `CmdOrCtrl+${index + 1}`);
 
 /** The other changeable shortcut on a key, which a swap can trade places with; null when none, or when it is fixed. */
+/** Whether a shortcut answers to a key: its own, or one of the aliases it keeps while on its default. */
+function answersTo(id: string, accelerator: string, overrides: ShortcutOverrides): boolean {
+  return acceleratorFor(id, overrides) === accelerator || aliasesFor(id, overrides).includes(accelerator);
+}
+
 export function rebindableHolderOf(id: string, accelerator: string, overrides: ShortcutOverrides): Shortcut | null {
-  return (
-    REBINDABLE.find((shortcut) => shortcut.id !== id && acceleratorFor(shortcut.id, overrides) === accelerator) ??
-    null
-  );
+  return REBINDABLE.find((shortcut) => shortcut.id !== id && answersTo(shortcut.id, accelerator, overrides)) ?? null;
 }
 
 /** What already answers to a key, so a new binding cannot quietly take another's place. */
@@ -208,9 +210,7 @@ export function conflictFor(id: string, accelerator: string, overrides: Shortcut
   if (POSITION_KEYS.includes(accelerator)) {
     return t('main.shortcuts.descriptions.selectTab');
   }
-  const taken = REBINDABLE.find(
-    (shortcut) => shortcut.id !== id && acceleratorFor(shortcut.id, overrides) === accelerator,
-  );
+  const taken = REBINDABLE.find((shortcut) => shortcut.id !== id && answersTo(shortcut.id, accelerator, overrides));
   const fixed = FIXED.find((shortcut) => shortcut.accelerator === accelerator);
   return taken?.description ?? fixed?.description ?? null;
 }

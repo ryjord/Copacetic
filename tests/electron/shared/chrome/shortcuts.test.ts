@@ -139,6 +139,12 @@ describe('the other keys a shortcut answers to', () => {
     expect(aliasesFor('zoom-in', { 'zoom-in': 'CmdOrCtrl+Shift+Z' })).toEqual([]);
   });
 
+  // Two menu items on one key leave which one fires to chance, so an alias counts as taken.
+  it('counts an alias as taken when another shortcut asks for its key', () => {
+    expect(conflictFor('reload', 'CmdOrCtrl+=', {})).not.toBeNull();
+    expect(conflictFor('reload', 'CmdOrCtrl+=', { 'zoom-in': 'CmdOrCtrl+Shift+Z' })).toBeNull();
+  });
+
   it('has none for a shortcut with only its own key', () => {
     expect(aliasesFor('new-tab', {})).toEqual([]);
   });
