@@ -27,6 +27,8 @@ export interface TabDirectory {
 }
 import { describeAuthPrompt, isPromptWorthy } from './auth';
 import type { SecurityDelegate } from './security';
+import type { HeaderChange } from '../extensions/net-rules/rule';
+import type { RequestDetails } from '../extensions/net-rules/request-context';
 
 // Schemes that are never passed to `shell.openExternal`, whatever the user answers to the confirmation dialog.
 const NEVER_HANDED_TO_OS = new Set(['javascript:', 'data:', 'blob:', 'vbscript:', 'filesystem:', 'file:', 'about:']);
@@ -98,6 +100,8 @@ interface BrowserDelegateDeps {
   /** Read when a page asks, because the sessions it guards are made before the tabs are. */
   tabs: () => TabDirectory;
   onPromptsChanged: () => void;
+  /** Read when a request is made, because the extensions are set up after the sessions they apply to. */
+  extensionHeaderChanges: (details: RequestDetails, stage: 'request' | 'response') => HeaderChange[];
 }
 
 // Attached to a window when there is one, so the question is not lost behind it.
@@ -176,6 +180,8 @@ export function createSecurityDelegate(deps: BrowserDelegateDeps): SecurityDeleg
       const settings = deps.store.getSettings();
       return settings.blockThirdPartyCookies && !settings.blockerAllowlist.includes(site);
     },
+
+    extensionHeaderChanges: (details, stage) => deps.extensionHeaderChanges(details, stage),
 
     chooseDisplaySource: async (origin, choices) => {
       const host = sanitiseChromeText(hostOf(origin) || origin, 120);

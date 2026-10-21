@@ -42,33 +42,31 @@ export function headerRules(matched: readonly Rule[], winner: Rule | null): Rule
 }
 
 /**
- * Applies header rules in priority order: once a higher rule has set or removed
- * a header, a lower one leaves it alone, though appends add up, as in Chrome.
+ * Applies header changes in priority order: once a higher one has set or
+ * removed a header, a lower one leaves it alone, though appends add up, as in
+ * Chrome. Lists of values, since a response can carry a header more than once.
  */
 export function applyHeaderChanges(
-  headers: Record<string, string>,
-  rules: readonly Rule[],
-  pick: (rule: Rule) => HeaderChange[] | undefined,
-): Record<string, string> {
+  headers: Record<string, string[]>,
+  changes: readonly HeaderChange[],
+): Record<string, string[]> {
   const changed = { ...headers };
   const settled = new Set<string>();
   const keyFor = (name: string) => Object.keys(changed).find((key) => key.toLowerCase() === name) ?? name;
-  for (const rule of rules) {
-    for (const change of pick(rule) ?? []) {
-      const name = change.header.toLowerCase();
-      if (settled.has(name)) {
-        continue;
-      }
-      const key = keyFor(name);
-      if (change.operation === 'remove') {
-        delete changed[key];
-        settled.add(name);
-      } else if (change.operation === 'set') {
-        changed[key] = change.value ?? '';
-        settled.add(name);
-      } else {
-        changed[key] = changed[key] === undefined ? (change.value ?? '') : `${changed[key]}, ${change.value ?? ''}`;
-      }
+  for (const change of changes) {
+    const name = change.header.toLowerCase();
+    if (settled.has(name)) {
+      continue;
+    }
+    const key = keyFor(name);
+    if (change.operation === 'remove') {
+      delete changed[key];
+      settled.add(name);
+    } else if (change.operation === 'set') {
+      changed[key] = [change.value ?? ''];
+      settled.add(name);
+    } else {
+      changed[key] = [...(changed[key] ?? []), change.value ?? ''];
     }
   }
   return changed;

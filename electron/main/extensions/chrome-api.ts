@@ -81,6 +81,8 @@ export interface ExtensionSurfaces {
   listen(id: string, eventName: string): void;
   openOptions(grant: ExtensionGrant): void;
   idleState(threshold: number): 'active' | 'idle' | 'locked';
+  /** declarativeNetRequest, whose rules are matched against every request the profile makes. */
+  netRules(id: string, method: string, args: readonly unknown[]): unknown;
 }
 
 const asNumber = (value: unknown): number | null =>
@@ -180,6 +182,8 @@ export class ChromeApi {
         return member.startsWith('get') ? {} : null;
       case 'userScripts':
         return member === 'getScripts' ? [] : null;
+      case 'declarativeNetRequest':
+        return this.surfaces.netRules(grant.id, member, args);
       default:
         return null;
     }

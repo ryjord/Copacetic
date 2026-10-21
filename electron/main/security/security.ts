@@ -13,6 +13,8 @@ import { isLoadedExtensionPage } from '../extensions/extension-pages';
 
 // Types
 import type { PermissionAnswer, PermissionDecision, PermissionDefault, PermissionKind } from '../../shared/types';
+import type { HeaderChange } from '../extensions/net-rules/rule';
+import type { RequestDetails } from '../extensions/net-rules/request-context';
 
 export interface SecurityDelegate {
   /** Ask the user, via the chrome UI, and resolve with their answer. */
@@ -40,6 +42,8 @@ export interface SecurityDelegate {
   blocksThirdPartyCookiesOn(site: string): boolean;
   /** A page wants to share the screen; resolves with the id of what the person picked, or null. */
   chooseDisplaySource(origin: string, choices: DisplaySource[]): Promise<string | null>;
+  /** What the profile's extensions' header rules change about a request or its response. */
+  extensionHeaderChanges(details: RequestDetails, stage: 'request' | 'response'): HeaderChange[];
 }
 
 /** The window title the display chooser leaves out of its list. */
@@ -126,7 +130,7 @@ function chromeContentSecurityPolicy(): string {
   ].join('; ');
 }
 
-export function hardenWebSession(session: Session, delegate: SecurityDelegate): void {
+export function hardenWebSession(session: Session, delegate: SecurityDelegate, appliesExtensionRules = false): void {
   session.setPermissionRequestHandler((contents, permission, callback, details) => {
     void resolvePermission(delegate, contents, permission, details?.requestingUrl ?? '').then(callback);
   });
@@ -167,6 +171,10 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   installRequestHeaders(session, {
     clientHints: describeSession(session, process.platform, app.getLocale()),
     blocksThirdPartyCookiesOn: (site) => delegate.blocksThirdPartyCookiesOn(site),
+    // Never in Hush, where no extension runs.
+    extensionHeaderChanges: appliesExtensionRules
+      ? (details, stage) => delegate.extensionHeaderChanges(details, stage)
+      : undefined,
   });
 }
 

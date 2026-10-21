@@ -57,12 +57,12 @@ export class SessionRegistry {
     }
     this.prepared.set(partition, session);
 
-    hardenWebSession(session, this.deps.securityDelegate);
-    this.deps.blocker.attach(session, this.deps.blocking);
     // Everything but Hush is remembered. A Hush download's address, redirect
     // chain and time are browsing, and the tab's whole claim is that none of
     // that is written down.
     const isRemembered = remembersDownloads(partition);
+    hardenWebSession(session, this.deps.securityDelegate, isRemembered);
+    this.deps.blocker.attach(session, this.deps.blocking, isRemembered);
     this.deps.downloads.attach(session, isRemembered, partition);
     if (isRemembered) {
       startRequestLog(session, partition);

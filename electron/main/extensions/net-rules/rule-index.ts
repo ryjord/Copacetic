@@ -115,6 +115,11 @@ export class RuleIndex {
   /** Rules whose regexFilter would not compile, refused as Chrome refuses them. */
   readonly refused: Rule[] = [];
 
+  /** How many rules it holds, not counting those refused. */
+  get size(): number {
+    return this.patterns.size;
+  }
+
   constructor(rules: readonly Rule[]) {
     for (const rule of rules) {
       const { urlFilter, requestDomains } = rule.condition;

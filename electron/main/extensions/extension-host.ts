@@ -18,9 +18,11 @@ import { markLoaded, markUnloaded } from './extension-pages';
 import { ExtensionStore, type InstalledExtension } from './extension-store';
 import { type FetchBytes, discardStaged, keepStaged, readUnpacked, stageFromWebStore } from './installer';
 import { type Manifest, iconDataUrl, readManifest } from './manifest';
+import { ExtensionNetRules, RefusedCall } from './net-rules/extension-net-rules';
+import { NetRulesFile } from './net-rules/net-rules-store';
 import { describeError, log } from '../system/diagnostics';
 import { isRecord } from '../data/persistence';
-import { EXTENSION_CHANNEL, EXTENSION_EVENT_CHANNEL } from '../../shared/extensions/channels';
+import { CALL_REFUSED, EXTENSION_CHANNEL, EXTENSION_EVENT_CHANNEL } from '../../shared/extensions/channels';
 import { matchesPattern } from '../../shared/extensions/extensions';
 import { t } from '../../shared/i18n/translate';
 
@@ -42,6 +44,8 @@ export interface ExtensionHostDeps {
   /** Something about the extensions changed, and the toolbar and Settings should ask again. */
   changed: () => void;
 }
+
+const COUNT_SHOWN_AFTER_MS = 250;
 
 interface Loaded {
   entry: InstalledExtension;
@@ -82,6 +86,10 @@ type ActionState = Omit<ExtensionAction, 'iconDataUrl'> & { iconDataUrl: string 
  */
 export class ExtensionHost {
   readonly store: ExtensionStore;
+  /** Every extension's declarativeNetRequest rules, which the blocker asks about each request. */
+  readonly netRules: ExtensionNetRules;
+  private readonly netRulesFile: NetRulesFile;
+  private countsShownTimer: NodeJS.Timeout | null = null;
   private readonly api: ChromeApi;
   private readonly loaded = new Map<string, Loaded>();
   private readonly sessions = new Map<string, Session>();
@@ -100,6 +108,12 @@ export class ExtensionHost {
 
   constructor(private readonly deps: ExtensionHostDeps) {
     this.store = new ExtensionStore(deps.directory);
+    this.netRulesFile = new NetRulesFile(deps.directory);
+    this.netRules = new ExtensionNetRules(
+      this.netRulesFile,
+      (id, webContentsId, count) => this.showBlockedCount(id, webContentsId, count),
+      (id, problem) => log.warn('an extension’s rules could not all be read', { id, problem }),
+    );
     this.api = new ChromeApi(deps.browsing, {
       action: (id, method, args, tabId) => this.actionCall(id, method, args, tabId),
       contextMenus: (id, method, args) => this.menuCall(id, method, args),
@@ -110,6 +124,7 @@ export class ExtensionHost {
         const state = powerMonitor.getSystemIdleState(threshold);
         return state === 'unknown' ? 'active' : state;
       },
+      netRules: (id, method, args) => this.netRules.call(id, method, args),
     });
     this.store.list().forEach((entry) => this.remember(entry));
     // Every page made in one of these sessions, so a tab's navigation can be told to extensions holding webNavigation.
@@ -284,12 +299,14 @@ export class ExtensionHost {
     this.store.setEnabled(id, isEnabled);
     found.entry = { ...found.entry, isEnabled };
     if (isEnabled) {
+      this.loadNetRules(found);
       void Promise.all([...this.sessions.values()].map((session) => this.loadInto(session, found.entry))).then(() =>
         this.deps.changed(),
       );
       return;
     }
     this.unloadEverywhere(id);
+    this.netRules.unload(id);
     this.deps.changed();
   }
 
@@ -300,6 +317,7 @@ export class ExtensionHost {
       return;
     }
     this.unloadEverywhere(id);
+    this.netRules.forget(id);
     this.loaded.delete(id);
     this.actions.delete(id);
     this.menus.delete(id);
@@ -317,7 +335,7 @@ export class ExtensionHost {
       const optionsUi =
         isRecord(raw.options_ui) && typeof raw.options_ui.page === 'string' ? raw.options_ui.page : null;
       const optionsPage = typeof raw.options_page === 'string' ? raw.options_page : optionsUi;
-      this.loaded.set(entry.id, {
+      const found: Loaded = {
         entry,
         manifest,
         grant: {
@@ -326,7 +344,11 @@ export class ExtensionHost {
           hostPermissions: manifest.hostPermissions,
           optionsPage,
         },
-      });
+      };
+      this.loaded.set(entry.id, found);
+      if (entry.isEnabled) {
+        this.loadNetRules(found);
+      }
       if (manifest.action) {
         this.actions.set(entry.id, {
           title: manifest.action.title,
@@ -478,6 +500,10 @@ export class ExtensionHost {
     try {
       return this.api.call({ grant: found.grant, tabId }, method, args.slice(0, 16));
     } catch (error) {
+      // A call Chrome would reject is rejected to the extension too; anything else is ours, written down.
+      if (error instanceof RefusedCall) {
+        return { [CALL_REFUSED]: error.message };
+      }
       log.warn('an extension call failed', { method, ...describeError(error) });
       return null;
     }
@@ -783,6 +809,32 @@ export class ExtensionHost {
 
   flush(): void {
     this.store.flush();
+    this.netRulesFile.flush();
+  }
+
+  private loadNetRules(found: Loaded): void {
+    this.netRules.load({
+      id: found.entry.id,
+      folder: found.entry.folder,
+      manifest: found.manifest.raw,
+      permissions: found.manifest.permissions,
+      hostPermissions: found.manifest.hostPermissions,
+    });
+  }
+
+  /** What an extension blocked on a page, on its toolbar button there, when it asked for that. */
+  private showBlockedCount(id: string, webContentsId: number, count: number): void {
+    if (!this.actions.has(id)) {
+      return;
+    }
+    // A tab's id to an extension is its page's id, so the count lands on that tab's button.
+    const key = `${id}:${webContentsId}`;
+    this.tabActions.set(key, { ...this.tabActions.get(key), badgeText: count > 0 ? String(count) : '' });
+    // Gathered up: a page full of adverts blocks hundreds of requests, and the toolbar needs telling once.
+    this.countsShownTimer ??= setTimeout(() => {
+      this.countsShownTimer = null;
+      this.deps.changed();
+    }, COUNT_SHOWN_AFTER_MS);
   }
 
   quit(): void {

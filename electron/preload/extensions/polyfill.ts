@@ -49,12 +49,37 @@ export function installChromePolyfill(): void {
       const last = args.at(-1);
       const callback = typeof last === 'function' ? (last as (result: unknown) => void) : null;
       const sent = callback ? args.slice(0, -1) : args;
-      const answer = bridge.invoke(
-        name,
-        sent.map((arg) => (arg === undefined ? null : arg)),
-      );
+      const answer = bridge
+        .invoke(
+          name,
+          sent.map((arg) => (arg === undefined ? null : arg)),
+        )
+        .then((result) => {
+          // A call Chrome would reject comes back marked, and is rejected the same way (CALL_REFUSED).
+          const refusal =
+            typeof result === 'object' && result !== null ? Reflect.get(result, '__copaceticCallRefused') : undefined;
+          if (typeof refusal === 'string') {
+            throw new Error(refusal);
+          }
+          return result;
+        });
       if (callback) {
-        void answer.then(callback, () => callback(undefined));
+        void answer.then(callback, (error: unknown) => {
+          // A callback learns of a failure through runtime.lastError, set only while it runs, as in Chrome.
+          const runtime = Reflect.get(Reflect.get(globalThis, 'chrome') ?? {}, 'runtime');
+          const message = error instanceof Error ? error.message : String(error);
+          try {
+            Object.defineProperty(runtime, 'lastError', { value: { message }, configurable: true });
+          } catch {
+            // A runtime that will not take it still hears of the failure through the empty answer.
+          }
+          callback(undefined);
+          try {
+            Reflect.deleteProperty(runtime, 'lastError');
+          } catch {
+            // Left as it was when it could not be set.
+          }
+        });
         return undefined;
       }
       return answer;
@@ -156,6 +181,74 @@ export function installChromePolyfill(): void {
     idle: { methods: ['queryState', 'setDetectionInterval', 'getAutoLockDelay'], events: ['onStateChanged'] },
     sidePanel: { methods: ['setOptions', 'getOptions', 'setPanelBehavior', 'getPanelBehavior', 'open'], events: [] },
     userScripts: { methods: ['register', 'unregister', 'getScripts', 'update', 'configureWorld'], events: [] },
+    // Electron has none; the rules are matched in the main process, and these are Chrome's names and limits for them.
+    declarativeNetRequest: {
+      methods: [
+        'updateDynamicRules',
+        'getDynamicRules',
+        'updateSessionRules',
+        'getSessionRules',
+        'updateEnabledRulesets',
+        'getEnabledRulesets',
+        'getAvailableStaticRuleCount',
+        'isRegexSupported',
+        'setExtensionActionOptions',
+        'getMatchedRules',
+        'testMatchOutcome',
+      ],
+      events: ['onRuleMatchedDebug'],
+      constants: {
+        MAX_NUMBER_OF_DYNAMIC_RULES: 30_000,
+        MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES: 5_000,
+        MAX_NUMBER_OF_SESSION_RULES: 5_000,
+        MAX_NUMBER_OF_UNSAFE_SESSION_RULES: 5_000,
+        MAX_NUMBER_OF_REGEX_RULES: 1_000,
+        MAX_NUMBER_OF_STATIC_RULESETS: 100,
+        MAX_NUMBER_OF_ENABLED_STATIC_RULESETS: 50,
+        GUARANTEED_MINIMUM_STATIC_RULES: 30_000,
+        DYNAMIC_RULESET_ID: '_dynamic',
+        SESSION_RULESET_ID: '_session',
+        RuleActionType: {
+          BLOCK: 'block',
+          REDIRECT: 'redirect',
+          ALLOW: 'allow',
+          UPGRADE_SCHEME: 'upgradeScheme',
+          MODIFY_HEADERS: 'modifyHeaders',
+          ALLOW_ALL_REQUESTS: 'allowAllRequests',
+        },
+        ResourceType: {
+          MAIN_FRAME: 'main_frame',
+          SUB_FRAME: 'sub_frame',
+          STYLESHEET: 'stylesheet',
+          SCRIPT: 'script',
+          IMAGE: 'image',
+          FONT: 'font',
+          OBJECT: 'object',
+          XMLHTTPREQUEST: 'xmlhttprequest',
+          PING: 'ping',
+          CSP_REPORT: 'csp_report',
+          MEDIA: 'media',
+          WEBSOCKET: 'websocket',
+          WEBTRANSPORT: 'webtransport',
+          WEBBUNDLE: 'webbundle',
+          OTHER: 'other',
+        },
+        HeaderOperation: { APPEND: 'append', SET: 'set', REMOVE: 'remove' },
+        RequestMethod: {
+          CONNECT: 'connect',
+          DELETE: 'delete',
+          GET: 'get',
+          HEAD: 'head',
+          OPTIONS: 'options',
+          PATCH: 'patch',
+          POST: 'post',
+          PUT: 'put',
+          OTHER: 'other',
+        },
+        DomainType: { FIRST_PARTY: 'firstParty', THIRD_PARTY: 'thirdParty' },
+        UnsupportedRegexReason: { SYNTAX_ERROR: 'syntaxError', MEMORY_LIMIT_EXCEEDED: 'memoryLimitExceeded' },
+      },
+    },
   };
 
   const roots = [Reflect.get(globalThis, 'chrome'), Reflect.get(globalThis, 'browser')].filter(

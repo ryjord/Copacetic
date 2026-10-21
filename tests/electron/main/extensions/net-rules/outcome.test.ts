@@ -53,17 +53,13 @@ describe('the header rules that still apply', () => {
 
   // The higher rule has the last word on a header; appends add up.
   it('lets a higher rule decide a header, and adds appends together', () => {
-    const rules = [
-      rule(1, 3, { type: 'modifyHeaders', requestHeaders: [{ header: 'x-one', operation: 'set', value: 'high' }] }),
-      rule(2, 2, { type: 'modifyHeaders', requestHeaders: [{ header: 'X-One', operation: 'remove' }] }),
-      rule(3, 2, { type: 'modifyHeaders', requestHeaders: [{ header: 'x-two', operation: 'append', value: 'b' }] }),
-    ];
-    const changed = applyHeaderChanges(
-      { 'X-One': 'original', 'x-two': 'a' },
-      rules,
-      (each) => each.action.requestHeaders,
-    );
-    expect(changed).toEqual({ 'X-One': 'high', 'x-two': 'a, b' });
+    const changed = applyHeaderChanges({ 'X-One': ['original'], 'x-two': ['a'], 'Set-Cookie': ['a=1', 'b=2'] }, [
+      { header: 'x-one', operation: 'set', value: 'high' },
+      { header: 'X-One', operation: 'remove' },
+      { header: 'x-two', operation: 'append', value: 'b' },
+    ]);
+    // A header sent more than once, such as Set-Cookie, keeps each of its values apart.
+    expect(changed).toEqual({ 'X-One': ['high'], 'x-two': ['a', 'b'], 'Set-Cookie': ['a=1', 'b=2'] });
   });
 });
 

@@ -24,6 +24,7 @@ import { launchRestore } from './launch-restore';
 import { ClosedTabs } from '../tabs/closed-tabs';
 import { ExtensionHost } from '../extensions/extension-host';
 import { profileBrowsing } from '../extensions/profile-browsing';
+import { type RequestDetails, requestContextFrom } from '../extensions/net-rules/request-context';
 import { fetchFromWebStore } from '../extensions/web-store-fetch';
 import { abilitiesOf } from '../../shared/extensions/abilities';
 import { t } from '../../shared/i18n/translate';
@@ -149,6 +150,10 @@ export class Profile {
       prompts: this.prompts,
       tabs: () => this.tabDirectory,
       onPromptsChanged: () => this.scheduleStatePush(),
+      extensionHeaderChanges: (details: RequestDetails, stage: 'request' | 'response') => {
+        const context = requestContextFrom(details);
+        return context ? this.extensions.netRules.headerChangesFor(context, stage) : [];
+      },
     };
     this.securityDelegate = createSecurityDelegate(delegateDeps);
     this.extensions = new ExtensionHost({
@@ -218,6 +223,10 @@ export class Profile {
     this.sessions.prepare(this.partitions.web);
     this.sessions.prepare(this.partitions.hush);
     this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details) ?? this.cleanedNavigation(details));
+    this.blocking.setExtensionJudge((details) => {
+      const context = requestContextFrom(details);
+      return context ? this.extensions.netRules.decide(context) : { kind: 'none' };
+    });
 
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
   }

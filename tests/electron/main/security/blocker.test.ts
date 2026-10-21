@@ -434,3 +434,27 @@ describe('hiding cookie banners', () => {
     expect(restarted.loadedLists().map((list) => list.name)).toEqual(['easylist', 'easylist-cookie']);
   });
 });
+
+describe("an extension's rules in the blocker", () => {
+  const judged = (appliesExtensionRules: boolean, verdict: ReturnType<BlockingPolicy['extensionVerdictFor']>) => {
+    const blocker = new ContentBlocker();
+    const fake = fakeSession();
+    const owned = new BlockingPolicy(true);
+    owned.setExtensionJudge(() => verdict);
+    blocker.attach(fake.session as never, owned, appliesExtensionRules);
+    return fake.request({ url: 'https://example.com/app.js', resourceType: 'script', webContentsId: 7 });
+  };
+
+  it('stop a request Copacetic would let through', () => {
+    expect(judged(true, { kind: 'block' })).toBe(true);
+  });
+
+  // Extensions never run in Hush, so neither do their rules, whatever the profile's extensions say.
+  it('are never asked in a session that runs no extensions', () => {
+    expect(judged(false, { kind: 'block' })).toBe(false);
+  });
+
+  it('leave Copacetic to judge what they have nothing to say about', () => {
+    expect(judged(true, { kind: 'none' })).toBe(false);
+  });
+});
