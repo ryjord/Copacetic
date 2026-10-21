@@ -6,10 +6,10 @@ import { existsSync } from 'node:fs';
 import { PersistedFile, asBoolean, asNumber, isRecord } from '../data/persistence';
 import { devIconPath, isDevelopment, preloadPath } from '../app/env';
 import { guardChromeWebContents } from '../security/security';
-import { groundColour, titleBarOverlayFor } from './appearance';
+import { groundColour, titleBarOverlayFor, windowButtonPositionFor } from './appearance';
 
 // Types
-import type { DensityId } from '../../shared/types';
+import type { DensityId, HeaderLayoutId } from '../../shared/types';
 
 export interface WorkArea {
   x: number;
@@ -35,7 +35,7 @@ const CASCADE_STEP = 28;
 /** Every chrome window still open, newest last, so a new one can be placed against the last. */
 const openWindows: BrowserWindow[] = [];
 
-export function createChromeWindow(density: DensityId): BrowserWindow {
+export function createChromeWindow(density: DensityId, layout: HeaderLayoutId): BrowserWindow {
   const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, {
     flushDelayMs: 600,
   });
@@ -65,8 +65,8 @@ export function createChromeWindow(density: DensityId): BrowserWindow {
     // The tab strip doubles as the title bar: the traffic lights sit inside it
     // on macOS, and elsewhere the system draws its own controls over its end.
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
-    trafficLightPosition: process.platform === 'darwin' ? { x: 16, y: 14 } : undefined,
-    ...(process.platform !== 'darwin' ? { titleBarOverlay: titleBarOverlayFor(density) } : {}),
+    trafficLightPosition: process.platform === 'darwin' ? windowButtonPositionFor(density, layout) : undefined,
+    ...(process.platform !== 'darwin' ? { titleBarOverlay: titleBarOverlayFor(density, layout) } : {}),
     webPreferences: {
       preload: preloadPath(),
       sandbox: true,

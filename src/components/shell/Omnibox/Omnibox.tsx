@@ -186,8 +186,8 @@ export function Omnibox({ tab }: OmniboxProps) {
       <div
         ref={fieldRef}
         className={cn(
-          'flex h-[var(--chrome-field-height)] items-center gap-2 rounded-field border px-2 transition-colors duration-150',
-          isEditing ? 'border-accent bg-raised' : 'border-transparent bg-ground hover:bg-hover',
+          'flex h-[var(--chrome-field-height)] items-center gap-2 rounded-[10px] border pr-1.5 pl-1 transition-colors duration-150',
+          isEditing ? 'border-accent bg-raised' : 'border-line bg-raised hover:border-line-strong',
         )}
       >
         <ConnectionBadge tab={tab} />
@@ -273,7 +273,7 @@ function AddressDisplay({ url }: { url: string }) {
     <span className="flex min-w-0 items-baseline truncate font-mono text-body-sm tracking-tight">
       {parts.scheme !== 'https' && <span className="mr-1 text-ink-faint">{parts.scheme}://</span>}
       {parts.subdomain && <span className="text-ink-faint">{parts.subdomain}</span>}
-      <span className="text-ink">{parts.registrableDomain}</span>
+      <span className="font-semibold text-ink">{parts.registrableDomain}</span>
       {parts.path && <span className="truncate text-ink-dim">{parts.path}</span>}
     </span>
   );

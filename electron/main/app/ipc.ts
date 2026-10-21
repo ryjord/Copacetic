@@ -871,6 +871,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (value.density === 'comfortable' || value.density === 'compact') {
     patch.density = value.density;
   }
+  if (value.headerLayout === 'standard' || value.headerLayout === 'one-line') {
+    patch.headerLayout = value.headerLayout;
+  }
   if (isAccentColour(value.accentColour)) {
     patch.accentColour = value.accentColour;
   }

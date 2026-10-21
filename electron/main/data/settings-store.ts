@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   appearance: 'system',
   theme: 'deep',
   density: 'comfortable',
+  headerLayout: 'standard',
   accentColour: 'blue',
   interfaceTextSize: 'default',
   toolbarItems: ['bookmarks', 'profile', 'downloads'],
@@ -218,6 +219,7 @@ function reviveSettings(raw: unknown): Settings | null {
     appearance: isAppearanceId(appearance) ? appearance : DEFAULT_SETTINGS.appearance,
     theme: isThemeId(theme) ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',
+    headerLayout: raw.headerLayout === 'one-line' ? 'one-line' : 'standard',
     accentColour: isAccentColour(raw.accentColour) ? raw.accentColour : DEFAULT_SETTINGS.accentColour,
     interfaceTextSize: isInterfaceTextSize(raw.interfaceTextSize)
       ? raw.interfaceTextSize

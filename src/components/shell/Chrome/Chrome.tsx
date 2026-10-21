@@ -43,6 +43,7 @@ export function Chrome() {
   const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
   const showBookmarksBar = useBrowserStore((state) => state.settings.showBookmarksBar);
+  const isOneLine = useBrowserStore((state) => state.settings.headerLayout === 'one-line');
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +118,7 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [surface, showBookmarksBar]);
+  }, [surface, showBookmarksBar, isOneLine]);
 
   // Reaching for another tab is asking to see it, so an overlay over the last one closes; the first state arriving is not.
   const previousTabId = useRef<string | null>(null);
@@ -161,14 +162,24 @@ export function Chrome() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-ground">
-      {/* The right padding is the system's own window controls on Windows and Linux, drawn over this strip. */}
-      <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-end gap-1 pl-2.5 pr-[var(--window-controls-width)]">
-        {/* Room for the macOS traffic lights, which sit inside this strip. */}
-        {isMacPlatform() && <div className="w-[74px] shrink-0 self-stretch" aria-hidden />}
-        <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
-      </header>
-
-      <Toolbar tab={activeTab} />
+      {isOneLine ? (
+        <header className="shrink-0">
+          <Toolbar
+            tab={activeTab}
+            tabStrip={<TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} isNarrow />}
+          />
+        </header>
+      ) : (
+        <header className="shrink-0">
+          {/* The right padding is the system's own window controls on Windows and Linux, drawn over this strip. */}
+          <div className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 pl-2.5 pr-[var(--window-controls-width)]">
+            {/* Room for the macOS traffic lights, which sit inside this strip. */}
+            {isMacPlatform() && <div className="w-[74px] shrink-0 self-stretch" aria-hidden />}
+            <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
+          </div>
+          <Toolbar tab={activeTab} />
+        </header>
+      )}
 
       {showBookmarksBar && <BookmarksBar />}
 
@@ -176,7 +187,11 @@ export function Chrome() {
 
       <LiveAnnouncer />
 
-      <main ref={contentRef} className="relative isolate min-h-0 flex-1 bg-void">
+      {/* Framed rather than edge to edge: the page's own view is rounded to match in the main process. */}
+      <main
+        ref={contentRef}
+        className="relative isolate mx-2 mb-2 min-h-0 flex-1 overflow-hidden rounded-[var(--frame-radius)] bg-void shadow-[0_0_0_1px_var(--color-line)]"
+      >
         {/*
           Hidden behind a surface, so it must leave the tab order too. Without
           this, Tab walks out of the open panel and into controls nobody can
@@ -201,7 +216,8 @@ export function Chrome() {
 // A single hairline under the toolbar.
 function LoadingLine({ isLoading }: { isLoading: boolean }) {
   return (
-    <div className="relative h-px w-full shrink-0 overflow-hidden bg-line" aria-hidden>
+    // Inset with the page's frame, and seen only while something loads: an idle line across the window was one more rule.
+    <div className="relative mx-3 h-px shrink-0 overflow-hidden" aria-hidden>
       {isLoading && <div className="animate-indeterminate h-full w-full bg-active" />}
     </div>
   );

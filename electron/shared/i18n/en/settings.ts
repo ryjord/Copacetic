@@ -64,6 +64,7 @@ export const settings = {
       toolbar: 'Toolbar buttons',
       bookmarksBar: 'Bookmarks bar',
       density: 'Density',
+      header: 'Header layout, one line, compact tabs',
       startPage: 'Start page',
       wallpaper: 'Wallpaper',
       photo: 'Photo',
@@ -300,6 +301,12 @@ export const settings = {
         default: 'Default',
         large: 'Large',
         larger: 'Larger',
+      },
+      header: {
+        label: 'Header',
+        help: 'Standard keeps the tabs on a row of their own above the address. One line puts the address and tabs side by side, which leaves more of the window to the page.',
+        standard: 'Standard',
+        oneLine: 'One line',
       },
       density: {
         label: 'Density',

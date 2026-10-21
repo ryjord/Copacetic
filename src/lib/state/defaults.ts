@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   dnsMode: 'system',
   dnsResolverId: 'quad9',
   density: 'comfortable',
+  headerLayout: 'standard',
   accentColour: 'blue',
   interfaceTextSize: 'default',
   toolbarItems: ['bookmarks', 'profile', 'downloads'],

@@ -443,8 +443,8 @@ export class Profile {
     if (patch.spellcheckLanguages !== undefined) {
       this.sessions.setSpellcheckLanguages();
     }
-    // The strip changes height with density, and the system's window controls are drawn to match it.
-    if (patch.density !== undefined) {
+    // The strip changes height with density and layout, and the system's window controls are drawn to match it.
+    if (patch.density !== undefined || patch.headerLayout !== undefined) {
       this.windows.forEach((window) => window.repaint());
     }
     if (patch.webRtcPolicy !== undefined) {

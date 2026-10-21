@@ -29,6 +29,7 @@ describe('every setting can actually be changed', () => {
     ],
     theme: 'moss',
     density: 'compact',
+    headerLayout: 'one-line',
     accentColour: 'teal',
     interfaceTextSize: 'large',
     toolbarItems: ['home', 'reader'],

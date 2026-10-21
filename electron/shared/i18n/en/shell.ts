@@ -31,6 +31,11 @@ export const shell = {
   },
   connectionBadge: {
     label: 'Connection: {level}. Show details',
+    labelBlocked: {
+      one: 'Connection: {level}, {count} tracker blocked. Show details',
+      other: 'Connection: {level}, {count} trackers blocked. Show details',
+    },
+    blocked: { one: '{count} blocked', other: '{count} blocked' },
   },
   liveAnnouncer: {
     permissionRequested: 'A site is asking for permission.',

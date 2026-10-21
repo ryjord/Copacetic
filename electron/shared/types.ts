@@ -500,6 +500,8 @@ export function clampZoom(factor: number): number {
 
 /** How much room the chrome takes. Only sizing - never colour. */
 export type DensityId = 'comfortable' | 'compact';
+/** The tabs on a row of their own above the toolbar, or tabs and address on one row. */
+export type HeaderLayoutId = 'standard' | 'one-line';
 
 /** The pieces the start page can be built from, in the order they appear. */
 export type StartPageWidgetId = 'clock' | 'search' | 'topSites' | 'bookmarks';
@@ -621,6 +623,7 @@ export interface Settings {
   /** The start page's colour, and nothing else's. */
   theme: ThemeId;
   density: DensityId;
+  headerLayout: HeaderLayoutId;
   accentColour: AccentColour;
   interfaceTextSize: InterfaceTextSize;
   toolbarItems: ToolbarItemId[];

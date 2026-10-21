@@ -94,7 +94,7 @@ export function BookmarksBar() {
     <div
       role="toolbar"
       aria-label={t('shell.bookmarksBar.label')}
-      className="flex h-8 shrink-0 items-center gap-0.5 border-b border-line px-2"
+      className="flex h-8 shrink-0 items-center gap-0.5 px-2"
     >
       <button
         type="button"

@@ -95,6 +95,9 @@ import type { ProfilePartitions } from '../../shared/data/partitions';
 import type { BrowserStore } from '../data/store';
 import type { PageChange } from './tab-events';
 
+// The page's frame, rounded as the chrome draws it (--frame-radius in globals.css).
+const PAGE_FRAME_RADIUS = 10;
+
 export class TabManager {
   private readonly tabs = new Map<TabId, TabRecord>();
   private order: TabId[] = [];
@@ -689,10 +692,13 @@ export class TabManager {
 
     const visible = this.visibleSplit();
     const onScreen = visible ? [visible.leftId, visible.rightId] : this.activeId ? [this.activeId] : [];
+    // Square in full screen, where there is no frame round it.
+    const radius = this.fullscreen === null ? PAGE_FRAME_RADIUS : 0;
     onScreen.forEach((id) => {
       const tab = this.tabs.get(id);
       if (tab && pageOf(tab) !== null) {
         tab.view.setBounds(this.boundsFor(id));
+        tab.view.setBorderRadius(radius);
       }
     });
   }

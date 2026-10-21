@@ -20,7 +20,7 @@ import { SiteData } from '../workflows/site-data';
 import { TabCommands } from '../workflows/tab-commands';
 import { OverlayLayer } from '../window/overlay';
 import { createChromeWindow } from '../window/window';
-import { groundColour, surfaceColour, titleBarOverlayFor } from '../window/appearance';
+import { groundColour, surfaceColour, titleBarOverlayFor, windowButtonPositionFor } from '../window/appearance';
 import { showPageContextMenu } from '../menus/context-menu';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { t } from '../../shared/i18n/translate';
@@ -108,7 +108,8 @@ export class Browser {
   }
 
   constructor(readonly profile: Profile) {
-    this.window = createChromeWindow(profile.settings().density);
+    const { density, headerLayout } = profile.settings();
+    this.window = createChromeWindow(density, headerLayout);
     this.publisher = new StatePublisher({
       snapshot: () => this.getState(),
       send: (patch) => {
@@ -288,8 +289,11 @@ export class Browser {
   repaint(): void {
     if (!this.window.isDestroyed()) {
       this.window.setBackgroundColor(groundColour());
-      if (process.platform !== 'darwin') {
-        this.window.setTitleBarOverlay(titleBarOverlayFor(this.profile.settings().density));
+      const { density, headerLayout } = this.profile.settings();
+      if (process.platform === 'darwin') {
+        this.window.setWindowButtonPosition(windowButtonPositionFor(density, headerLayout));
+      } else {
+        this.window.setTitleBarOverlay(titleBarOverlayFor(density, headerLayout));
       }
     }
     this.tabs.setBackgroundColor(surfaceColour());
