@@ -82,11 +82,14 @@ describe("the parts of Chrome's API Electron leaves out", () => {
   });
 });
 
-describe('declarativeNetRequest, which Electron does not have', () => {
-  it('is there, answered by the main process', async () => {
-    const chrome: Record<string, Record<string, unknown>> = {};
+describe('declarativeNetRequest', () => {
+  // Chromium's own binding answers every call and applies none of the rules.
+  it('is answered by the main process, not by the binding Chromium leaves in Electron', async () => {
+    const native = async () => undefined;
+    const chrome: Record<string, Record<string, unknown>> = { declarativeNetRequest: { updateDynamicRules: native } };
     const { invoke } = world(chrome);
     const update = chrome.declarativeNetRequest?.updateDynamicRules as (options: unknown) => Promise<unknown>;
+    expect(update).not.toBe(native);
     await update({ addRules: [] });
     expect(invoke).toHaveBeenCalledWith('declarativeNetRequest.updateDynamicRules', [{ addRules: [] }]);
   });

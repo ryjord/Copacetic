@@ -86,6 +86,28 @@ describe('an extension’s rules', () => {
     expect(rules.call(ID, 'getEnabledRulesets', [])).toEqual([]);
   });
 
+  // uBlock Origin Lite turns single shipped rules off this way when a filter of its own overrides them.
+  it('switch single shipped rules off, even in a ruleset that is off, and keep that across a restart', () => {
+    const otherAds = { ...blockAds, id: 2, condition: { urlFilter: '||more.example^' } };
+    const { rules, store } = setup({
+      main: { enabled: true, rules: [blockAds, otherAds] },
+      extra: { enabled: false, rules: [blockAds] },
+    });
+    rules.call(ID, 'updateStaticRules', [{ rulesetId: 'main', disableRuleIds: [1] }]);
+    rules.call(ID, 'updateStaticRules', [{ rulesetId: 'extra', disableRuleIds: [1] }]);
+    expect(rules.decide(context('https://ads.example/a.js'))).toEqual({ kind: 'none' });
+    expect(rules.decide(context('https://more.example/a.js'))).toEqual({ kind: 'block' });
+    expect(rules.call(ID, 'getDisabledRuleIds', [{ rulesetId: 'extra' }])).toEqual([1]);
+
+    rules.call(ID, 'updateEnabledRulesets', [{ enableRulesetIds: ['extra'] }]);
+    expect(rules.decide(context('https://ads.example/a.js'))).toEqual({ kind: 'none' });
+
+    rules.call(ID, 'updateStaticRules', [{ rulesetId: 'main', enableRuleIds: [1] }]);
+    expect(store.kept.get(ID)?.disabledStaticRules).toEqual({ extra: [1] });
+    expect(rules.decide(context('https://ads.example/a.js'))).toEqual({ kind: 'block' });
+    expect(() => rules.call(ID, 'getDisabledRuleIds', [{ rulesetId: 'nonsense' }])).toThrow(RefusedCall);
+  });
+
   it('add dynamic rules that outlast a restart, and session rules that do not', () => {
     const { rules, store } = setup({});
     rules.call(ID, 'updateDynamicRules', [{ addRules: [blockAds] }]);

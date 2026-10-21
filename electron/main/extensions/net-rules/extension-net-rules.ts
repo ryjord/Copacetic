@@ -26,6 +26,8 @@ export const NET_RULE_LIMITS = {
 
 // Shared by every extension in Chrome; one extension here can use what the guarantee leaves.
 const STATIC_RULE_ALLOWANCE = 300_000;
+// Chrome's, though its binding does not name it.
+const MAX_NUMBER_OF_DISABLED_STATIC_RULES = 5_000;
 
 /** A call the extension made wrongly, which Chrome rejects with this message rather than ignoring. */
 export class RefusedCall extends Error {}
@@ -35,6 +37,8 @@ export interface KeptNetRules {
   dynamicRules: unknown[];
   /** The static rulesets switched on, or null for the ones the manifest switches on. */
   enabledRulesets: string[] | null;
+  /** Rules of a static ruleset switched off one by one, by ruleset. */
+  disabledStaticRules: Record<string, number[]>;
   displaysActionCount: boolean;
 }
 
@@ -72,12 +76,16 @@ interface ExtensionRules {
   extension: NetRulesExtension;
   rulesets: Map<string, StaticRuleset>;
   enabled: Set<string>;
+  disabledStatic: Map<string, Set<number>>;
   dynamic: Rule[];
   dynamicIndex: RuleIndex;
   session: Rule[];
   sessionIndex: RuleIndex;
   displaysActionCount: boolean;
 }
+
+const numbersIn = (value: unknown): number[] =>
+  Array.isArray(value) ? value.filter((item): item is number => typeof item === 'number') : [];
 
 const hasNetRules = (extension: NetRulesExtension) =>
   extension.permissions.includes('declarativeNetRequest') ||
@@ -148,6 +156,11 @@ export class ExtensionNetRules {
       kept?.enabledRulesets?.filter((id) => rulesets.has(id)) ??
         [...rulesets].filter(([, ruleset]) => ruleset.isEnabledByManifest).map(([id]) => id),
     );
+    const disabledStatic = new Map(
+      Object.entries(kept?.disabledStaticRules ?? {})
+        .filter(([id]) => rulesets.has(id))
+        .map(([id, ruleIds]) => [id, new Set(ruleIds)]),
+    );
     const dynamic = (kept?.dynamicRules ?? []).flatMap((value) => {
       const reading = readRule(value);
       return 'rule' in reading ? [reading.rule] : [];
@@ -156,6 +169,7 @@ export class ExtensionNetRules {
       extension,
       rulesets,
       enabled,
+      disabledStatic,
       dynamic,
       dynamicIndex: new RuleIndex(dynamic),
       session: [],
@@ -218,14 +232,16 @@ export class ExtensionNetRules {
 
   private matching(rules: ExtensionRules, context: RequestContext): Rule[] {
     const { request } = context;
-    const indexes = [
-      ...[...rules.enabled].flatMap((id) => rules.rulesets.get(id)?.index ?? []),
-      rules.dynamicIndex,
-      rules.sessionIndex,
-    ];
-    const matched = indexes
-      .flatMap((index) => index.matching(request))
-      .filter((rule) => this.mayChange(rules.extension, rule, request.url));
+    const fromRulesets = [...rules.enabled].flatMap((id) => {
+      const found = rules.rulesets.get(id)?.index?.matching(request) ?? [];
+      const disabled = rules.disabledStatic.get(id);
+      return disabled ? found.filter((rule) => !disabled.has(rule.id)) : found;
+    });
+    const matched = [
+      ...fromRulesets,
+      ...rules.dynamicIndex.matching(request),
+      ...rules.sessionIndex.matching(request),
+    ].filter((rule) => this.mayChange(rules.extension, rule, request.url));
     const allowedAt =
       context.webContentsId !== null && request.resourceType !== 'main_frame'
         ? this.allowedPages.get(rules.extension.id)?.get(context.webContentsId)
@@ -329,6 +345,11 @@ export class ExtensionNetRules {
         return null;
       case 'getEnabledRulesets':
         return [...rules.enabled];
+      case 'updateStaticRules':
+        this.updateStatic(rules, options);
+        return null;
+      case 'getDisabledRuleIds':
+        return [...(rules.disabledStatic.get(this.rulesetNamed(rules, options.rulesetId)) ?? [])];
       case 'getAvailableStaticRuleCount':
         return Math.max(0, STATIC_RULE_ALLOWANCE - this.enabledRuleCount(rules));
       case 'isRegexSupported': {
@@ -354,9 +375,7 @@ export class ExtensionNetRules {
   }
 
   private updated(current: Rule[], options: Record<string, unknown>, limit: number): Rule[] {
-    const removed = new Set(
-      Array.isArray(options.removeRuleIds) ? options.removeRuleIds.filter((id) => typeof id === 'number') : [],
-    );
+    const removed = new Set(numbersIn(options.removeRuleIds));
     const added = options.addRules === undefined ? [] : readRules(options.addRules);
     const kept = current.filter((rule) => !removed.has(rule.id));
     const ids = new Set(kept.map((rule) => rule.id));
@@ -409,6 +428,30 @@ export class ExtensionNetRules {
     this.keep(rules);
   }
 
+  private rulesetNamed(rules: ExtensionRules, value: unknown): string {
+    const id = typeof value === 'string' ? value : '';
+    if (!rules.rulesets.has(id)) {
+      throw new RefusedCall(`Invalid ruleset id: ${id}.`);
+    }
+    return id;
+  }
+
+  // Whether or not the ruleset is switched on, as in Chrome, so the rules stay off when it is switched on later.
+  private updateStatic(rules: ExtensionRules, options: Record<string, unknown>): void {
+    const rulesetId = this.rulesetNamed(rules, options.rulesetId);
+    const next = new Set(rules.disabledStatic.get(rulesetId));
+    numbersIn(options.disableRuleIds).forEach((id) => next.add(id));
+    numbersIn(options.enableRuleIds).forEach((id) => next.delete(id));
+    const othersDisabled = [...rules.disabledStatic]
+      .filter(([id]) => id !== rulesetId)
+      .reduce((total, [, ruleIds]) => total + ruleIds.size, 0);
+    if (othersDisabled + next.size > MAX_NUMBER_OF_DISABLED_STATIC_RULES) {
+      throw new RefusedCall('The number of disabled static rules exceeds the limit.');
+    }
+    rules.disabledStatic.set(rulesetId, next);
+    this.keep(rules);
+  }
+
   private enabledRuleCount(rules: ExtensionRules): number {
     return [...rules.enabled].reduce((total, id) => {
       const index = rules.rulesets.get(id)?.index;
@@ -447,6 +490,11 @@ export class ExtensionNetRules {
     this.store.put(rules.extension.id, {
       dynamicRules: rules.dynamic,
       enabledRulesets: [...rules.enabled],
+      disabledStaticRules: Object.fromEntries(
+        [...rules.disabledStatic]
+          .filter(([, ruleIds]) => ruleIds.size > 0)
+          .map(([id, ruleIds]) => [id, [...ruleIds]]),
+      ),
       displaysActionCount: rules.displaysActionCount,
     });
   }

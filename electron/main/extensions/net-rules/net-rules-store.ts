@@ -52,6 +52,16 @@ function revive(raw: unknown): KeptByExtension | null {
             // Each rule is read again on load, so only the list itself is checked here.
             dynamicRules: Array.isArray(value.dynamicRules) ? value.dynamicRules : [],
             enabledRulesets: enabled,
+            disabledStaticRules: isRecord(value.disabledStaticRules)
+              ? Object.fromEntries(
+                  Object.entries(value.disabledStaticRules).map(([rulesetId, ruleIds]) => [
+                    rulesetId,
+                    Array.isArray(ruleIds)
+                      ? ruleIds.filter((ruleId): ruleId is number => typeof ruleId === 'number')
+                      : [],
+                  ]),
+                )
+              : {},
             displaysActionCount: value.displaysActionCount === true,
           },
         ],

@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "action": { "type": "block" },
+    "condition": { "urlFilter": "/shipped-block/", "resourceTypes": ["xmlhttprequest"] }
+  },
+  {
+    "id": 2,
+    "action": { "type": "redirect", "redirect": { "extensionPath": "/stand-in.json" } },
+    "condition": { "urlFilter": "/shipped-redirect/", "resourceTypes": ["xmlhttprequest"] }
+  }
+]

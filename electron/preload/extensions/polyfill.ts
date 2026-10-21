@@ -86,7 +86,7 @@ export function installChromePolyfill(): void {
     };
 
   // Electron has its own versions of these, which know nothing of Copacetic's tabs or toolbar, so ours replace them.
-  const REPLACED = new Set(['tabs', 'windows', 'action']);
+  const REPLACED = new Set(['tabs', 'windows', 'action', 'declarativeNetRequest']);
 
   const SURFACE: Record<string, { methods: string[]; events: string[]; constants?: Record<string, unknown> }> = {
     tabs: {
@@ -181,7 +181,7 @@ export function installChromePolyfill(): void {
     idle: { methods: ['queryState', 'setDetectionInterval', 'getAutoLockDelay'], events: ['onStateChanged'] },
     sidePanel: { methods: ['setOptions', 'getOptions', 'setPanelBehavior', 'getPanelBehavior', 'open'], events: [] },
     userScripts: { methods: ['register', 'unregister', 'getScripts', 'update', 'configureWorld'], events: [] },
-    // Electron has none; the rules are matched in the main process, and these are Chrome's names and limits for them.
+    // Chromium's own binding answers every call and applies nothing; the rules are matched in the main process.
     declarativeNetRequest: {
       methods: [
         'updateDynamicRules',
@@ -190,6 +190,8 @@ export function installChromePolyfill(): void {
         'getSessionRules',
         'updateEnabledRulesets',
         'getEnabledRulesets',
+        'updateStaticRules',
+        'getDisabledRuleIds',
         'getAvailableStaticRuleCount',
         'isRegexSupported',
         'setExtensionActionOptions',
