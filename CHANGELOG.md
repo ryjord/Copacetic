@@ -2,6 +2,16 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.1.0 - 21 October 2026
+
+Copacetic 2.1: signing in works where it did not, extension ad blockers block,
+Copacetic offers to save a password you sign in with, the header is its own,
+and Settings, History, Bookmarks and Downloads open in tabs of their own. This
+is 2.1.0-beta.1 unchanged; its section below lists everything.
+
+**Before you install it:** Copacetic now needs macOS 13 (Ventura) or later, as
+Electron 44 does.
+
 ## 2.1.0-beta.1 - 21 October 2026
 
 The first beta of 2.1: signing in works where it did not, extension ad
