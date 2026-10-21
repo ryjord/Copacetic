@@ -56,7 +56,6 @@ describe('bookmarksToHtml', () => {
             parentId: null,
             colour: 'ocean' as const,
             collapsed: false,
-            createdAt: AT,
           },
         ]),
       raw: '<script>',
