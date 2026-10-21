@@ -9,6 +9,7 @@ import { FindBar } from '@/components/overlay/FindBar/FindBar';
 import { FinishedDownloads } from '@/components/overlay/Downloads/FinishedDownloads';
 import { NoticeStrip } from '@/components/overlay/Notices/NoticeStrip';
 import { PermissionCard } from '@/components/overlay/PermissionPrompt/PermissionCard';
+import { SavePasswordCard } from '@/components/overlay/SavePassword/SavePasswordCard';
 import { SignInCard } from '@/components/overlay/AuthPrompt/SignInCard';
 import { SiteInfoCard } from '@/components/overlay/SiteInfo/SiteInfoCard';
 import { SuggestionList } from '@/components/overlay/Suggestions/SuggestionList';
@@ -114,8 +115,12 @@ function TrailingRegion() {
   const find = useBrowserStore((state) => state.find);
   const activeTabId = useBrowserStore((state) => state.activeTabId);
   const bookmarkSheet = useBrowserStore((state) => state.bookmarkSheet);
+  const passwordOffer = useBrowserStore((state) => state.passwordOffer);
   return (
     <>
+      {passwordOffer && passwordOffer.tabId === activeTabId && (
+        <SavePasswordCard key={passwordOffer.id} offer={passwordOffer} />
+      )}
       {bookmarkSheet && bookmarkSheet.tabId === activeTabId && (
         <BookmarkSheet key={bookmarkSheet.bookmarkId} bookmarkId={bookmarkSheet.bookmarkId} />
       )}

@@ -280,6 +280,9 @@ export const main = {
         'This page is not encrypted, so a password typed into it can be read by anyone on the network. Copacetic will not put one there for you.',
       nothingSaved: 'Nothing saved for this site.',
     },
+    save: {
+      saved: 'Saved the password for {site}.',
+    },
     fill: {
       wrongPage: 'That password does not belong to this page.',
       locked: 'The vault is locked, or that password cannot be decrypted on this machine.',

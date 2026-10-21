@@ -170,8 +170,9 @@ machine. There are no accounts and no telemetry.
   from the CSV file each browser exports itself. **Export** bookmarks in the
   format every browser reads and history as plain JSON.
 - **Passwords** kept in a vault sealed with your system keychain, generated to
-  the length and character set you choose, and filled only when you ask: a key
-  in the address bar fills a saved one in one click. They can be searched,
+  the length and character set you choose, offered for saving once you have
+  signed in with one, and filled only when you ask: a key in the address bar
+  fills a saved one in one click. They can be searched,
   sorted, edited and copied, and a copied password is cleared from the
   clipboard after 30 seconds, or as soon as the vault locks.
 - **History, bookmarks and downloads you can filter and sort**, with a tick per
@@ -310,13 +311,16 @@ that. To report something that gets past them, see [SECURITY.md](SECURITY.md).
 | Malicious download filenames          | Path components, control characters and bidirectional overrides are stripped before a file is written                                                                                                           |
 | Tampering with the packaged app       | Electron's fuses are set: no `RunAsNode`, no `NODE_OPTIONS`, no inspector flags, ASAR integrity validated, and the app loads only from its archive                                                              |
 
-Three small scripts are the only ones Copacetic puts in a page, and the
+Four small scripts are the only ones Copacetic puts in a page, and the
 transparency page names each of them. One fills in the `window.chrome` object
 that real Chrome has and Electron leaves empty, with three placeholder members
 and nothing of the browser's, because some sign-in pages refuse a browser
-without it. Fill password runs once, when you choose it. And a page left in full
+without it. Fill password runs once, when you choose it. A page left in full
 screen when you switch to another tab is asked to leave it, with one call that
-reads nothing.
+reads nothing. And on each secure page, in a world of its own the page cannot
+see or reach, one looks for a sign-in form: it stops at once where there is
+none, and otherwise reads the username and password once you send them, so
+Copacetic can offer to save them. Not in Hush, and it can be turned off.
 
 An extension you add runs its own code, in the pages it asks for, as it would in
 Chrome. Once one is added, Copacetic gives every service worker in that profile

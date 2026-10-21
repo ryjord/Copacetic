@@ -93,6 +93,7 @@ import type { NamedSessionTab } from '../../shared/data/named-sessions';
 import { type TabMemory, memoryByTab } from '../../shared/tabs/tab-memory';
 import type { ProfilePartitions } from '../../shared/data/partitions';
 import type { BrowserStore } from '../data/store';
+import type { PageChange } from '../workflows/password-save';
 
 export class TabManager {
   private readonly tabs = new Map<TabId, TabRecord>();
@@ -108,6 +109,7 @@ export class TabManager {
   /** What has already been added to history per tab, so only the difference is. */
   private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
+  private pageChangeHandler: ((tabId: TabId, change: PageChange) => void) | null = null;
   private pageFocusHandler: (() => void) | null = null;
   private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
   private windowIsEnteringFullscreen = false;
@@ -889,6 +891,7 @@ export class TabManager {
         this.find = findWithMatches(this.find, activeMatch, matches);
       },
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
+      onPageChanged: (tabId, change) => this.pageChangeHandler?.(tabId, change),
     });
     guardTabWebContents(view.webContents, this.securityDelegate);
     // Before the first navigation, so no page gets a moment to ask for the local address.
@@ -1619,6 +1622,11 @@ export class TabManager {
 
   onPageContextMenu(handler: (tabId: TabId, params: ContextMenuParams) => void): void {
     this.contextMenuHandler = handler;
+  }
+
+  /** A tab's page moved on or finished loading, for what watches sign-ins. */
+  onPageChange(handler: (tabId: TabId, change: PageChange) => void): void {
+    this.pageChangeHandler = handler;
   }
 
   /** A page took the keyboard, which is someone going back to it. */

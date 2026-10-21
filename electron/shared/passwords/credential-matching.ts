@@ -17,7 +17,8 @@ export interface FillOffer {
   refusal: string;
 }
 
-function siteOf(url: string): string | null {
+/** The registrable domain an address belongs to, which a saved password is matched on. */
+export function siteOf(url: string): string | null {
   try {
     const parsed = new URL(url);
     return registrableDomainOf(parsed.hostname) ?? parsed.hostname ?? null;

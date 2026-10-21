@@ -506,6 +506,11 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('vault.fillForTab', (browser, _event, id, x, y) =>
     showFillMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
+  handle('vault.answerSaveOffer', (browser, _event, id, answer) => {
+    if (answer === 'save' || answer === 'never' || answer === 'dismiss') {
+      browser.passwordSave.answer(asString(id), answer);
+    }
+  });
   handle('vault.generate', (_browser, _event, recipe) =>
     generatePassword(readRecipe(recipe), (count) => new Uint8Array(randomBytes(count))),
   );
@@ -977,6 +982,14 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     patch.openRules = rules;
   }
 
+  if (typeof value.offerToSavePasswords === 'boolean') {
+    patch.offerToSavePasswords = value.offerToSavePasswords;
+  }
+  if (Array.isArray(value.neverSavePasswordsOn)) {
+    patch.neverSavePasswordsOn = value.neverSavePasswordsOn
+      .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)
+      .slice(0, MAX_LIST_LENGTH);
+  }
   if (Array.isArray(value.blockerAllowlist)) {
     patch.blockerAllowlist = value.blockerAllowlist
       .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)

@@ -139,6 +139,16 @@ export const shell = {
       block: 'Block',
       allow: 'Allow',
     },
+    saveCard: {
+      label: 'Save password',
+      saveTitle: 'Save the password for {site}?',
+      updateTitle: 'Update the saved password for {site}?',
+      noUsername: 'No username',
+      save: 'Save',
+      update: 'Update',
+      never: 'Never for this site',
+      dismiss: 'Not now',
+    },
     signInCard: {
       label: 'Sign in',
       proxyAsks: ', the proxy for this network, asks you to sign in.',

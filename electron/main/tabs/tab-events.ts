@@ -14,6 +14,7 @@ import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { BrowserStore } from '../data/store';
 import type { TabRecord } from './tab-record';
+import type { PageChange } from '../workflows/password-save';
 
 /**
  * What the page can tell us about itself. Everything here is reported by the
@@ -31,6 +32,7 @@ export interface TabEventDeps {
   cacheFavicon: (tab: TabRecord, faviconUrl: string) => void;
   onFoundInPage: (activeMatch: number, matches: number) => void;
   onContextMenu: (tabId: TabId, params: ContextMenuParams) => void;
+  onPageChanged: (tabId: TabId, change: PageChange) => void;
 }
 
 export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
@@ -130,12 +132,15 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   contents.on('did-navigate', (_event, url, responseCode) => {
     deps.httpsFirst.committed(contents.id, responseCode);
     commitNavigation(url, false);
+    deps.onPageChanged(tab.id, 'committed');
   });
   contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
     if (isMainFrame) {
       commitNavigation(url, true);
+      deps.onPageChanged(tab.id, 'in-page');
     }
   });
+  contents.on('did-finish-load', () => deps.onPageChanged(tab.id, 'loaded'));
 
   contents.on('page-title-updated', (_event, title) => {
     // The blank view behind one of our pages has a title of its own, which must not stick to the tab.

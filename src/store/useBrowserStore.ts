@@ -44,6 +44,7 @@ const EMPTY_STATE: BrowserState = {
   hasClosedTabs: false,
   siteInfo: null,
   bookmarkSheet: null,
+  passwordOffer: null,
   split: null,
   namedSessions: [],
   update: {

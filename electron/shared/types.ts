@@ -638,6 +638,10 @@ export interface Settings {
   readerStyle: ReaderStyle;
   // Which pieces the start page shows, in order.
   startPageWidgets: StartPageWidgetId[];
+  /** Offer to save a password just signed in with, in tabs that are not Hush. */
+  offerToSavePasswords: boolean;
+  /** Sites, by registrable domain, never offered it. */
+  neverSavePasswordsOn: string[];
   /** Set once someone has read what Hush does and does not do. */
   hushNoticeDismissed: boolean;
   /** Degrees the start page's atmosphere is turned from the theme's own hue. Nothing else in the interface moves. */
@@ -704,6 +708,8 @@ export interface BrowserState {
   siteInfo: SiteInfoState | null;
   /** The sheet that names and files a bookmark just added, open for one tab, or null. */
   bookmarkSheet: BookmarkSheetState | null;
+  /** A password just signed in with, offered for saving in one of this window's tabs, or null. */
+  passwordOffer: PasswordOffer | null;
   /** Two tabs paired side by side, shown while either is in front. */
   split: SplitView | null;
   /** Sets of tabs kept by name, newest first. */
@@ -713,6 +719,19 @@ export interface BrowserState {
   /** Every profile, to switch between and to manage. */
   profiles: ProfileSummary[];
 }
+
+/** What the window is told of a password it may save: never the password itself. */
+export interface PasswordOffer {
+  id: string;
+  tabId: TabId;
+  /** The registrable domain the password was typed into. */
+  site: string;
+  username: string;
+  /** Update when the vault has this username for the site with another password. */
+  kind: 'save' | 'update';
+}
+
+export type PasswordOfferAnswer = 'save' | 'never' | 'dismiss';
 
 export interface BookmarkSheetState {
   tabId: TabId;

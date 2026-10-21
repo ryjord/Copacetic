@@ -25,6 +25,7 @@ import type {
   ExportKind,
   HistoryFilter,
   HistoryPage,
+  PasswordOfferAnswer,
   PermissionDecision,
   PermissionKind,
   Settings,
@@ -308,6 +309,8 @@ export interface CopaceticApi {
     countForTab(id: TabId): Promise<number>;
     /** Fills the one saved for this page, or asks which, in a menu at this point. Asked for, never offered by the page. */
     fillForTab(id: TabId, x: number, y: number): Promise<void>;
+    /** Save, never for this site, or not now, for the password a sign-in just offered. */
+    answerSaveOffer(id: string, answer: PasswordOfferAnswer): Promise<void>;
   };
 
   profiles: {

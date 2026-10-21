@@ -23,6 +23,8 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
+  offerToSavePasswords: true,
+  neverSavePasswordsOn: [],
   showBookmarksBar: false,
   ambientHue: 0,
   checkForUpdates: true,

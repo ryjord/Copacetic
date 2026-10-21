@@ -15,6 +15,7 @@ import { BookmarkCommands } from '../workflows/bookmarks';
 import { DataTransfer } from '../workflows/data-transfer';
 import { GroupCommands } from '../workflows/groups';
 import { PasswordFill } from '../workflows/password-fill';
+import { PasswordSave } from '../workflows/password-save';
 import { SiteData } from '../workflows/site-data';
 import { TabCommands } from '../workflows/tab-commands';
 import { OverlayLayer } from '../window/overlay';
@@ -68,6 +69,7 @@ export class Browser {
   readonly sites: SiteData;
   readonly transfer: DataTransfer;
   readonly passwords: PasswordFill;
+  readonly passwordSave: PasswordSave;
   readonly commands: TabCommands;
 
   private readonly overlays: Record<OverlayRegion, OverlayLayer>;
@@ -132,7 +134,10 @@ export class Browser {
       // No tab is born in a partition the registry has not hardened first.
       (partition) => profile.sessions.prepare(partition),
       () => this.scheduleStatePush(),
-      (tabId) => profile.dropPermissionsForTab(tabId),
+      (tabId) => {
+        profile.dropPermissionsForTab(tabId);
+        this.passwordSave.forget(tabId);
+      },
       // Anything drawn over the page has to follow the page, which moves whenever a row of the chrome does.
       (bounds) => this.eachOverlay((overlay) => overlay.setContentBounds(bounds)),
     );
@@ -180,6 +185,18 @@ export class Browser {
       changed,
     });
     this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
+    this.passwordSave = new PasswordSave({
+      tabs: this.tabs,
+      vaultSession: this.vaultSession,
+      notices: this.notices,
+      settings: () => this.profile.settings(),
+      neverOn: (site) => {
+        const { neverSavePasswordsOn } = this.profile.settings();
+        this.profile.updateSettings({ neverSavePasswordsOn: [...new Set([...neverSavePasswordsOn, site])] });
+      },
+      changed,
+    });
+    this.tabs.onPageChange((tabId, change) => this.passwordSave.pageChanged(tabId, change));
     this.commands = new TabCommands({ store: this.store, tabs: this.tabs, notices: this.notices, changed, push });
 
     this.window.on('closed', () => this.dispose());
@@ -245,6 +262,7 @@ export class Browser {
       update: this.updates.getState(),
       siteInfo: this.siteInfo,
       bookmarkSheet: this.bookmarkSheet,
+      passwordOffer: this.passwordSave.offer(),
       profile: this.profile.summary(),
       profiles: this.profile.allProfiles(),
     };

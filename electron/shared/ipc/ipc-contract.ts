@@ -184,6 +184,7 @@ export const CHANNELS = {
   'vault.facts': 'vault:facts',
   'vault.countForTab': 'vault:count-for-tab',
   'vault.fillForTab': 'vault:fill-for-tab',
+  'vault.answerSaveOffer': 'vault:answer-save-offer',
 
   'profiles.create': 'profile:create',
   'profiles.update': 'profile:update',

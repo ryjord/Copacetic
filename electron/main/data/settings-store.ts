@@ -45,6 +45,8 @@ export const DEFAULT_SETTINGS: Settings = {
   readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
+  offerToSavePasswords: true,
+  neverSavePasswordsOn: [],
   showBookmarksBar: false,
   ambientHue: 0,
   checkForUpdates: true,
@@ -237,6 +239,10 @@ function reviveSettings(raw: unknown): Settings | null {
       : DEFAULT_SETTINGS.historyRetentionDays,
     startPageWidgets: reviveStartPageWidgets(raw),
     hushNoticeDismissed: raw.hushNoticeDismissed === true,
+    offerToSavePasswords: asBoolean(raw.offerToSavePasswords, DEFAULT_SETTINGS.offerToSavePasswords),
+    neverSavePasswordsOn: Array.isArray(raw.neverSavePasswordsOn)
+      ? raw.neverSavePasswordsOn.filter((site): site is string => typeof site === 'string' && site.length > 0)
+      : [],
     showBookmarksBar: raw.showBookmarksBar === true,
     ambientHue: clampHue(raw.ambientHue),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
