@@ -15,6 +15,8 @@ import type { HttpsFirst } from '../security/https-first';
 import type { BrowserStore } from '../data/store';
 import type { TabRecord } from './tab-record';
 
+export const MAX_PINCH_ZOOM = 3;
+
 /**
  * What the page can tell us about itself. Everything here is reported by the
  * tab's own web contents, so it arrives whenever the page decides - long after
@@ -85,6 +87,8 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       );
     }
     contents.setZoomFactor(tab.zoomFactor);
+    // Electron turns pinching on a trackpad off unless asked; a browser lets a page be pinched closer.
+    void contents.setVisualZoomLevelLimits(1, MAX_PINCH_ZOOM).catch(() => {});
     deps.applyVisibility();
     changed();
   };

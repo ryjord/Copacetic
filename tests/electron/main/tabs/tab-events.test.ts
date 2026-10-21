@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  MAX_PINCH_ZOOM,
   attachTabEvents,
   markLoadRequested,
   settleUnstartedLoad,
@@ -14,6 +15,7 @@ function fakeContents() {
   return {
     id: 1,
     setZoomFactor: vi.fn(),
+    setVisualZoomLevelLimits: vi.fn(async () => {}),
     on(name: string, handler: (...args: unknown[]) => void) {
       const existing = handlers.get(name) ?? [];
       existing.push(handler);
@@ -161,5 +163,14 @@ describe('a load that ends without Chromium starting it', () => {
   it('leaves a tab whose page has gone', () => {
     const tab = { isLoading: true };
     expect(settleUnstartedLoad(tab, contentsThat({ isDestroyed: true }))).toBe(false);
+  });
+});
+
+describe('a page that has committed', () => {
+  // Electron turns trackpad pinching off unless asked, which made pages impossible to pinch closer.
+  it('can be pinched closer, as in any browser', () => {
+    const { contents } = setup();
+    contents.emit('did-navigate', {}, 'https://example.com/next', 200);
+    expect(contents.setVisualZoomLevelLimits).toHaveBeenCalledWith(1, MAX_PINCH_ZOOM);
   });
 });
