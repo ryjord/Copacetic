@@ -66,6 +66,9 @@ function setup(overrides: Partial<TabRecord> = {}) {
   const deps = {
     store,
     blocker: { resetCount: vi.fn(), setPageSite: vi.fn() },
+    httpsFirst: { committed: vi.fn() },
+    forgetBlockedCount: vi.fn(),
+    onPageChanged: vi.fn(),
     onChanged: vi.fn(),
     applyVisibility: vi.fn(),
     cacheFavicon: vi.fn(),

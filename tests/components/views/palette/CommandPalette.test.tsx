@@ -2,10 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const setSurface = vi.fn();
-const openSettings = vi.fn();
+const showPage = vi.fn();
 const state = {
   setSurface,
-  openSettings,
   toggleSurface: vi.fn(),
   requestOmniboxFocus: vi.fn(),
   orderedTabs: [
@@ -47,8 +46,13 @@ const state = {
 vi.mock('@/store/useBrowserStore', () => ({
   useBrowserStore: (select: (value: typeof state) => unknown) => select(state),
 }));
+// Every other call is a no-op; opening one of Copacetic's own pages is what these tests look at.
+const api = new Proxy(
+  {},
+  { get: (_target, group) => (group === 'chrome' ? { showPage } : new Proxy({}, { get: () => vi.fn() })) },
+);
 vi.mock('@/lib/bridge/bridge', () => ({
-  send: vi.fn(),
+  send: (action: (bridge: typeof api) => unknown) => action(api),
   ask: async (_action: unknown, fallback: unknown) => fallback,
   getBridge: () => null,
   isRunningInShell: () => false,
@@ -58,7 +62,7 @@ const { CommandPalette } = await import('@/components/views/palette/CommandPalet
 
 beforeEach(() => {
   setSurface.mockClear();
-  openSettings.mockClear();
+  showPage.mockClear();
 });
 afterEach(cleanup);
 
@@ -124,7 +128,7 @@ describe('the command palette', () => {
     render(<CommandPalette />);
     fireEvent.change(input(), { target: { value: 'firefox' } });
     fireEvent.click(screen.getByRole('option', { name: /Import from another browser/ }));
-    expect(openSettings).toHaveBeenCalledWith('data');
+    expect(showPage).toHaveBeenCalledWith('settings', 'data');
   });
 
   // The rest do the thing rather than opening Settings at it.
@@ -132,7 +136,7 @@ describe('the command palette', () => {
     render(<CommandPalette />);
     fireEvent.change(input(), { target: { value: 'clear browsing data' } });
     fireEvent.click(screen.getAllByRole('option', { name: /Clear browsing data/ })[0]!);
-    expect(openSettings).not.toHaveBeenCalled();
+    expect(showPage).not.toHaveBeenCalled();
     expect(await screen.findByRole('alertdialog', { name: /Clear browsing data/ })).toBeTruthy();
   });
 
@@ -140,7 +144,7 @@ describe('the command palette', () => {
     render(<CommandPalette />);
     fireEvent.change(input(), { target: { value: 'wallpaper' } });
     fireEvent.click(screen.getByRole('option', { name: /Settings: Appearance/ }));
-    expect(openSettings).toHaveBeenCalledWith('appearance');
+    expect(showPage).toHaveBeenCalledWith('settings', 'appearance');
   });
 
   it('teaches a shortcut where it has been moved to, not where it started', () => {

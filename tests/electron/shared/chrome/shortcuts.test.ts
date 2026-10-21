@@ -20,8 +20,8 @@ import {
 // Relative to the project root, which is where vitest runs from. `import.meta`
 // is not a file URL under the test transform.
 const MENU_SOURCE = readFileSync('electron/main/menus/menu.ts', 'utf8');
-// The menu binds through ids now, so a key someone moved is the key it binds.
-const BOUND_IDS = [...MENU_SOURCE.matchAll(/key\('([^']+)'\)/g)].map((match) => match[1]!);
+// The menu binds through ids, directly or with the keys a shortcut also answers to, as zoom does.
+const BOUND_IDS = [...MENU_SOURCE.matchAll(/(?:key|withAliases)\('([^']+)'/g)].map((match) => match[1]!);
 const REBINDABLE_IDS = SHORTCUT_GROUPS.filter((group) => group.isRebindable).flatMap((group) =>
   group.shortcuts.map((shortcut) => shortcut.id),
 );

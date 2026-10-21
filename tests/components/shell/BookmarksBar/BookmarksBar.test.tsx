@@ -20,6 +20,7 @@ const api = {
   },
   bookmarkFolders: { list: async () => [] },
   favicons: { forUrls: async () => ({}) },
+  chrome: { showPage: vi.fn() },
 };
 vi.mock('@/lib/bridge/bridge', () => ({
   send: (call: (bridge: typeof api) => unknown) => call(api),
@@ -95,6 +96,6 @@ describe('the bookmarks bar', () => {
   it('opens every bookmark from its start', async () => {
     render(<BookmarksBar />);
     fireEvent.click((await screen.findAllByRole('button', { name: 'All bookmarks' }))[0]!);
-    expect(toggleSurface).toHaveBeenCalledWith('bookmarks');
+    expect(api.chrome.showPage).toHaveBeenCalledWith('bookmarks');
   });
 });

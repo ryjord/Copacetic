@@ -31,10 +31,10 @@ describe('a surface asked for before anyone was listening', () => {
    * trust the request either.
    */
   it.each([
-    ['is handed over when the chrome collects it', asked(), 1_000_400, 'settings'],
+    ['is handed over when the chrome collects it', asked(), 1_000_400, 'palette'],
     ['is nothing when nothing was asked for', null, 1_000_400, null],
     ['stops meaning anything once it is stale', asked(), 1_000_000 + STILL_WANTED_MS + 1, null],
-    ['is still good on the last millisecond it has', asked(), 1_000_000 + STILL_WANTED_MS, 'settings'],
+    ['is still good on the last millisecond it has', asked(), 1_000_000 + STILL_WANTED_MS, 'palette'],
     ['is dropped if the clock went backwards', asked(), 999_000, null],
   ])('%s', (_caseName, request, now, expected) => {
     expect(stillWanted(request, now)).toBe(expected);
