@@ -16,8 +16,12 @@ import { TextField } from '@/components/ui/TextField/TextField';
 // Icons
 import { Ellipsis, Puzzle } from 'lucide-react';
 
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
+import { updateSettings } from '@/components/views/settings/shared/options';
 import { abilitiesOf } from '@shared/extensions/abilities';
 import { t } from '@shared/i18n/translate';
 
@@ -25,6 +29,7 @@ import { t } from '@shared/i18n/translate';
 import type { ExtensionSummary } from '@shared/extensions/extensions';
 
 export function ExtensionsPane() {
+  const isKeptUpdated = useBrowserStore((state) => state.settings.updateExtensions);
   const [extensions, setExtensions] = useState<ExtensionSummary[] | null>(null);
   const [address, setAddress] = useState('');
   const [problem, setProblem] = useState('');
@@ -60,6 +65,17 @@ export function ExtensionsPane() {
           label={t('settings.extensions.beta.label')}
           help={t('settings.extensions.beta.help')}
           control={<StatusPill status="neutral">{t('settings.extensions.beta.pill')}</StatusPill>}
+        />
+        <SettingRow
+          label={t('settings.extensions.updates.label')}
+          help={t('settings.extensions.updates.help')}
+          control={
+            <Switch
+              label={t('settings.extensions.updates.label')}
+              checked={isKeptUpdated}
+              onChange={(updateExtensions) => updateSettings({ updateExtensions })}
+            />
+          }
         />
         <SettingRow
           label={t('settings.extensions.compatibility.label')}
@@ -117,7 +133,12 @@ export function ExtensionsPane() {
       >
         {extensions !== null && list.length === 0 && <SettingRow label={t('settings.extensions.installed.none')} />}
         {list.map((extension) => (
-          <ExtensionRow key={extension.id} extension={extension} onRemove={() => setRemoving(extension)} />
+          <ExtensionRow
+            key={extension.id}
+            extension={extension}
+            onUpdate={() => void add(() => ask((api) => api.extensions.addFromWebStore(extension.id), ''))}
+            onRemove={() => setRemoving(extension)}
+          />
         ))}
       </SettingGroup>
 
@@ -143,7 +164,15 @@ export function ExtensionsPane() {
   );
 }
 
-function ExtensionRow({ extension, onRemove }: { extension: ExtensionSummary; onRemove: () => void }) {
+interface ExtensionRowProps {
+  extension: ExtensionSummary;
+  /** Fetches the waiting version, which asks again before it is put in. */
+  onUpdate: () => void;
+  onRemove: () => void;
+}
+
+function ExtensionRow({ extension, onUpdate, onRemove }: ExtensionRowProps) {
+  const { waitingUpdate } = extension;
   const abilities = abilitiesOf(extension.permissions, extension.hostPermissions);
   return (
     <SettingRow
@@ -168,6 +197,11 @@ function ExtensionRow({ extension, onRemove }: { extension: ExtensionSummary; on
               ? `${t('settings.extensions.installed.canDo')}: ${abilities.join('; ')}.`
               : t('settings.extensions.installed.nothing')}
           </span>
+          {waitingUpdate && (
+            <span className="block">
+              {t('settings.extensions.installed.updateWaiting', { version: waitingUpdate })}
+            </span>
+          )}
         </>
       }
       control={
@@ -184,6 +218,14 @@ function ExtensionRow({ extension, onRemove }: { extension: ExtensionSummary; on
               </IconButton>
             }
             items={[
+              ...(waitingUpdate
+                ? [
+                    {
+                      label: t('settings.extensions.installed.update', { version: waitingUpdate }),
+                      onSelect: onUpdate,
+                    },
+                  ]
+                : []),
               {
                 label: t('settings.extensions.installed.options'),
                 onSelect: () => send((api) => api.extensions.openOptions(extension.id)),

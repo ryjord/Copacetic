@@ -45,6 +45,7 @@ describe('every setting can actually be changed', () => {
     startPageWidgets: ['search', 'clock'],
     checkForUpdates: false,
     updateChannel: 'betas',
+    updateExtensions: false,
     permissionDecisions: { 'https://example.com|media': 'allow' },
     permissionDefaults: { notifications: 'block', geolocation: 'ask' },
     zoomLevels: { 'https://example.com': 1.5 },

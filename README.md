@@ -126,10 +126,16 @@ machine. There are no accounts and no telemetry.
 
 ### Extensions (beta)
 
-- **From the Chrome Web Store**, checked against the store's own signature
-  before anything is unpacked, or from a folder while you build one. Settings
-  says what each could do, in the words Chrome's warnings use, before it is
-  added.
+- **From the Chrome Web Store**, from Add to Copacetic in the address bar on
+  an extension's store page or by pasting its address into Settings, checked
+  against the store's own signature before anything is unpacked, or from a
+  folder while you build one. Settings says what each could do, in the words
+  Chrome's warnings use, before it is added.
+- **Kept up to date** from the store every six hours. An update that asks for
+  more than the version in use waits in Settings until you agree to it, as in
+  Chrome.
+- **An extensions menu** on the toolbar, for opening, pinning and the options
+  of each extension; an unpinned one keeps working from there.
 - **Toolbar buttons and popups**, extension items in the page menu, and the
   parts of Chrome's extension API Electron leaves out, supplied by Copacetic
   itself: tabs and their events, windows, navigation events, notifications.
@@ -321,13 +327,15 @@ extension and does nothing in a website's worker. None of it reaches Hush.
 
 - **No accounts, sync or cloud.** Everything lives on this machine, and Settings
   writes it back out in open formats, so that is a statement you can check. The
-  only scheduled request is the update check, which reads a version number from
-  GitHub and can be turned off.
+  scheduled requests are the update check, which reads a version number from
+  GitHub, and, once a profile has store extensions, the Chrome Web Store's own
+  check for newer versions of them. Each can be turned off.
 - **Extensions are a beta.** An ad blocker's report of which rules matched is
-  always empty, an extension's page opened in a tab lacks the parts of the API Copacetic supplies, and some
-  extensions will not work. On Linux, started with `--no-sandbox`, an
-  extension cannot see tabs or change its toolbar button: Electron gives an
-  extension's worker Copacetic's script only in a sandboxed process.
+  always empty, an extension's page opened in a tab lacks the parts of the API
+  Copacetic supplies, and some extensions will not work. On Linux, started
+  with `--no-sandbox`, an extension cannot see tabs or change its toolbar
+  button: Electron gives an extension's worker Copacetic's script only in a
+  sandboxed process.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
 - **What Electron cannot do.** Cookies, site data and the cache clear for all
   time, not for an hour or a day; find in page has no whole-word option; on

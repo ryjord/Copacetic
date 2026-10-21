@@ -16,10 +16,25 @@ import {
 } from './chrome-api';
 import { markLoaded, markUnloaded } from './extension-pages';
 import { ExtensionStore, type InstalledExtension } from './extension-store';
-import { type FetchBytes, discardStaged, keepStaged, readUnpacked, stageFromWebStore } from './installer';
+import {
+  type FetchBytes,
+  type StagedExtension,
+  discardStaged,
+  keepStaged,
+  readUnpacked,
+  stageFromWebStore,
+} from './installer';
 import { type Manifest, iconDataUrl, readManifest } from './manifest';
 import { ExtensionNetRules, RefusedCall } from './net-rules/extension-net-rules';
 import { NetRulesFile } from './net-rules/net-rules-store';
+import {
+  MOST_UPDATE_CHECK_BYTES,
+  asksForMore,
+  isNewerVersion,
+  newerVersionsIn,
+  updateCheckUrl,
+} from './store-updates';
+import { CHECK_INTERVAL_MS } from '../system/updates';
 import { describeError, log } from '../system/diagnostics';
 import { isRecord } from '../data/persistence';
 import { CALL_REFUSED, EXTENSION_CHANNEL, EXTENSION_EVENT_CHANNEL } from '../../shared/extensions/channels';
@@ -46,6 +61,8 @@ export interface ExtensionHostDeps {
 }
 
 const COUNT_SHOWN_AFTER_MS = 250;
+// After launch has settled, and after the app's own update check.
+const FIRST_UPDATE_AFTER_MS = 60_000;
 
 interface Loaded {
   entry: InstalledExtension;
@@ -90,6 +107,10 @@ export class ExtensionHost {
   readonly netRules: ExtensionNetRules;
   private readonly netRulesFile: NetRulesFile;
   private countsShownTimer: NodeJS.Timeout | null = null;
+  private updateTimer: NodeJS.Timeout | null = null;
+  private isUpdating = false;
+  /** Newer versions that ask for more than the one in use, by id, held until someone agrees to them. */
+  private readonly waitingUpdates = new Map<string, string>();
   private readonly api: ChromeApi;
   private readonly loaded = new Map<string, Loaded>();
   private readonly sessions = new Map<string, Session>();
@@ -245,22 +266,102 @@ export class ExtensionHost {
         discardStaged(staged);
         return '';
       }
-      const previous = this.store.find(id);
-      if (previous) {
-        this.unloadEverywhere(id);
-      }
-      const folder = keepStaged(staged);
-      await this.add({
-        id,
-        source: 'store',
-        folder,
-        isEnabled: true,
-        isPinned: previous?.isPinned ?? true,
-        installedAt: Date.now(),
-      });
+      await this.install(staged, true);
       return '';
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  /** Puts a fetched version in place of any in use, keeping how it was set, and clears out the old version's files. */
+  private async install(staged: StagedExtension, isEnabled: boolean): Promise<void> {
+    const previous = this.store.find(staged.id);
+    if (previous) {
+      this.unloadEverywhere(staged.id);
+    }
+    const folder = keepStaged(staged);
+    await this.add({
+      id: staged.id,
+      source: 'store',
+      folder,
+      isEnabled,
+      isPinned: previous?.isPinned ?? true,
+      installedAt: previous?.installedAt ?? Date.now(),
+    });
+    this.waitingUpdates.delete(staged.id);
+    if (previous?.source === 'store' && previous.folder !== folder) {
+      rmSync(previous.folder, { recursive: true, force: true });
+    }
+  }
+
+  // ------------------------------------------------------------- updating
+
+  /** Asks the store for newer versions on the app update check's schedule, from a minute after launch. */
+  keepUpdated(isOn: boolean): void {
+    if (this.updateTimer) {
+      clearTimeout(this.updateTimer);
+    }
+    this.updateTimer = null;
+    if (!isOn) {
+      return;
+    }
+    const after = (delay: number) => {
+      this.updateTimer = setTimeout(() => {
+        void this.updateFromStore();
+        after(CHECK_INTERVAL_MS);
+      }, delay);
+      this.updateTimer.unref?.();
+    };
+    after(FIRST_UPDATE_AFTER_MS);
+  }
+
+  /** One question to the store for every store extension, then each newer version that asks for nothing more. */
+  async updateFromStore(): Promise<void> {
+    const installed = [...this.loaded.values()]
+      .filter(({ entry }) => entry.source === 'store')
+      .map(({ entry, manifest }) => ({ id: entry.id, version: manifest.version }));
+    if (installed.length === 0 || this.isUpdating) {
+      return;
+    }
+    this.isUpdating = true;
+    try {
+      const answer = await this.deps.fetchBytes(
+        updateCheckUrl(installed, process.versions.chrome),
+        MOST_UPDATE_CHECK_BYTES,
+      );
+      const newer = [...newerVersionsIn(answer.toString('utf8'), installed).keys()];
+      // One at a time, since each reloads every extension into each session.
+      await newer.reduce((previous, id) => previous.then(() => this.updateOne(id)), Promise.resolve());
+    } catch (error) {
+      log.warn('the store could not be asked for extension updates', describeError(error));
+    } finally {
+      this.isUpdating = false;
+    }
+  }
+
+  private async updateOne(id: string): Promise<void> {
+    try {
+      const staged = await stageFromWebStore(
+        id,
+        this.store.extensionsDirectory,
+        this.deps.fetchBytes,
+        process.versions.chrome,
+      );
+      const found = this.loaded.get(id);
+      if (!found || !isNewerVersion(staged.manifest.version, found.manifest.version)) {
+        discardStaged(staged);
+        return;
+      }
+      // As in Chrome: an update that asks for more waits for a yes, and the version in use carries on.
+      if (asksForMore(found.manifest, staged.manifest)) {
+        discardStaged(staged);
+        this.waitingUpdates.set(id, staged.manifest.version);
+        this.deps.changed();
+        return;
+      }
+      await this.install(staged, found.entry.isEnabled);
+    } catch (error) {
+      log.warn('an extension could not be updated', { id, ...describeError(error) });
     }
   }
 
@@ -342,6 +443,7 @@ export class ExtensionHost {
     }
     this.unloadEverywhere(id);
     this.netRules.forget(id);
+    this.waitingUpdates.delete(id);
     this.loaded.delete(id);
     this.actions.delete(id);
     this.menus.delete(id);
@@ -415,6 +517,7 @@ export class ExtensionHost {
           source: entry.source,
           isEnabled: entry.isEnabled,
           isPinned: entry.isPinned,
+          waitingUpdate: this.waitingUpdates.get(entry.id) ?? null,
           hasOptionsPage: grant.optionsPage !== null,
           iconDataUrl: iconDataUrl(entry.folder, manifest.icon),
           permissions: grant.permissions,
@@ -864,6 +967,7 @@ export class ExtensionHost {
   }
 
   quit(): void {
+    this.keepUpdated(false);
     this.popup.close('quitting');
   }
 }

@@ -880,6 +880,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.checkForUpdates === 'boolean') {
     patch.checkForUpdates = value.checkForUpdates;
   }
+  if (typeof value.updateExtensions === 'boolean') {
+    patch.updateExtensions = value.updateExtensions;
+  }
   if (value.updateChannel === 'releases' || value.updateChannel === 'betas') {
     patch.updateChannel = value.updateChannel;
   }

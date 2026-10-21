@@ -59,7 +59,7 @@ export function isBetaVersion(version: string): boolean {
 }
 
 /** Long enough that it is not a heartbeat, short enough to matter. */
-const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** A check must never hang the settings panel waiting for a spinner. */
 const REQUEST_TIMEOUT_MS = 10_000;
 

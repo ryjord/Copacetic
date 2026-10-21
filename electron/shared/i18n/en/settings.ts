@@ -610,6 +610,9 @@ export const settings = {
       more: 'More for {name}',
       options: 'Options',
       remove: 'Remove…',
+      update: 'Update to {version}…',
+      updateWaiting:
+        'Version {version} is waiting: it asks for more than this one, so it is put in only when you agree.',
       canDo: 'What it can do',
       nothing: 'It asks for nothing beyond its own pages.',
     },
@@ -618,6 +621,10 @@ export const settings = {
       body: 'Its settings and anything it kept go with it.',
       bodyFolder: 'Its folder is left where it is.',
       confirm: 'Remove',
+    },
+    updates: {
+      label: 'Update extensions automatically',
+      help: 'Every six hours Copacetic asks the Chrome Web Store for newer versions, telling it which store extensions this profile has, as Chrome does. An update that asks for more than the version in use waits until you agree to it.',
     },
     compatibility: {
       label: 'What works',
@@ -875,7 +882,7 @@ export const settings = {
       contact: {
         question: 'What does it contact on its own?',
         answer:
-          "The update check, which asks GitHub for the latest releases and their notes and sends nothing about you; you can turn it off in Updates. On macOS, Download and open fetches the installer from GitHub only when you press it. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker. Translating an article downloads the model a language needs from Mozilla, once.",
+          "The update check, which asks GitHub for the latest releases and their notes and sends nothing about you; you can turn it off in Updates. Once a profile has extensions from the Chrome Web Store, the store is asked every six hours whether there are newer versions, which tells it their ids, as Chrome does; you can turn that off in Extensions. On macOS, Download and open fetches the installer from GitHub only when you press it. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker. Translating an article downloads the model a language needs from Mozilla, once.",
       },
       translation: {
         question: 'What does translation send?',

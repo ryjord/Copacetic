@@ -228,6 +228,7 @@ export class Profile {
       return context ? this.extensions.netRules.decide(context) : { kind: 'none' };
     });
 
+    this.extensions.keepUpdated(settings.updateExtensions);
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
   }
 
@@ -434,6 +435,9 @@ export class Profile {
     }
     if (patch.blockTrackers !== undefined) {
       this.blocking.setEnabled(patch.blockTrackers);
+    }
+    if (patch.updateExtensions !== undefined) {
+      this.extensions.keepUpdated(next.updateExtensions);
     }
     if (patch.blockerAllowlist !== undefined) {
       this.blocking.setAllowlist(next.blockerAllowlist);

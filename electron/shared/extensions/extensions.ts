@@ -22,6 +22,8 @@ export interface ExtensionSummary {
   isEnabled: boolean;
   /** On the toolbar, rather than only in the extensions menu. */
   isPinned: boolean;
+  /** A newer version from the store that asks for more, waiting for a yes; null when there is none. */
+  waitingUpdate: string | null;
   hasOptionsPage: boolean;
   iconDataUrl: string | null;
   /** API permissions, such as `tabs` or `storage`, as the manifest names them. */

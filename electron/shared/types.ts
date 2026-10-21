@@ -645,6 +645,8 @@ export interface Settings {
   // Ask GitHub whether a newer release exists, on launch and on a long timer.
   checkForUpdates: boolean;
   updateChannel: UpdateChannel;
+  /** Put in newer versions of store extensions, on the same schedule; per profile, like the extensions. */
+  updateExtensions: boolean;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
   /** What a site without a decision gets, by kind. */
