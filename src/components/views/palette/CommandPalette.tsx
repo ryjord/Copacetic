@@ -125,14 +125,7 @@ function useFoundElsewhere(query: string, isSearchingEverything: boolean) {
   };
 }
 
-/** One keystroke to reach anything, and a place to learn the shortcut for it. */
-/** One of our pages, in a tab of its own; the palette closes first, as it does for every command. */
-function showPage(page: InternalPage, section: string | null = null): void {
-  useBrowserStore.getState().setSurface('none');
-  send((api) => api.chrome.showPage(page, section));
-}
-
-/** Every command and open tab, or, opened as tab search, the open tabs alone. */
+/** One keystroke to reach anything, and a place to learn its shortcut: every command and open tab, or the open tabs alone as tab search. */
 export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' | 'tabs' }) {
   const setSurface = useBrowserStore((state) => state.setSurface);
   const requestOmniboxFocus = useBrowserStore((state) => state.requestOmniboxFocus);
@@ -176,6 +169,8 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       close();
       action();
     };
+    const showPage = (page: InternalPage, section: string | null = null) =>
+      then(() => send((api) => api.chrome.showPage(page, section)));
     const list: Command[] = [
       {
         id: 'new-window',
@@ -384,21 +379,21 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         label: t('views.palette.commands.history'),
         accelerator: 'CmdOrCtrl+Y',
         group: 'goTo',
-        run: () => showPage('history'),
+        run: showPage('history'),
       },
       {
         id: 'bookmarks',
         label: t('views.palette.commands.bookmarks'),
         accelerator: 'CmdOrCtrl+Shift+B',
         group: 'goTo',
-        run: () => showPage('bookmarks'),
+        run: showPage('bookmarks'),
       },
       {
         id: 'downloads',
         label: t('views.palette.commands.downloads'),
         accelerator: 'CmdOrCtrl+Shift+J',
         group: 'goTo',
-        run: () => showPage('downloads'),
+        run: showPage('downloads'),
       },
       {
         id: 'settings',
@@ -406,7 +401,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         accelerator: 'CmdOrCtrl+,',
         group: 'goTo',
         keywords: t('views.palette.keywords.settings'),
-        run: () => showPage('settings'),
+        run: showPage('settings'),
       },
       {
         id: 'appearance',
@@ -458,7 +453,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         group: 'yourData',
         keywords: t('views.palette.keywords.import'),
         // A browser has to be chosen and what it holds looked at first, which is the Data pane's job.
-        run: () => showPage('settings', 'data'),
+        run: showPage('settings', 'data'),
       },
       {
         id: 'export-bookmarks',
@@ -498,7 +493,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       .map<Command>((tab) => ({
         id: `switch:${tab.id}`,
         tabId: tab.id,
-        label: tab.internalPage === 'start' ? t('views.palette.commands.newTab') : tab.title || tab.url,
+        label: tab.title || tab.url,
         group: 'openTabs',
         keywords: tab.url,
         address: tab.url,
@@ -565,7 +560,10 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
             label: t('views.palette.commands.openSettingsPane', { pane: pane.label }),
             group: 'settings',
             keywords: pane.terms.join(' '),
-            run: () => showPage('settings', pane.id),
+            run: () => {
+              setSurface('none');
+              send((api) => api.chrome.showPage('settings', pane.id));
+            },
           })),
         ];
 

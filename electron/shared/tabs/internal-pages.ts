@@ -48,6 +48,11 @@ export function internalPageOf(url: string): InternalPage | null {
   return internalAddressOf(url)?.page ?? null;
 }
 
+/** What Chrome calls the same page, which is how an extension expects to see it: chrome://newtab for the start page. */
+export function chromeNameOf(page: InternalPage): string {
+  return page === 'start' ? 'newtab' : page;
+}
+
 /** What the tab is called while it shows an internal page. */
 export function internalPageTitle(page: InternalPage): string {
   switch (page) {

@@ -7,7 +7,7 @@ import { Profiles } from './app/profiles';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
-import { applyPrivacySwitches } from './system/command-line';
+import { applyStartupSwitches } from './system/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
 import { applyLaunchMode } from './system/launch-mode';
@@ -20,7 +20,7 @@ import { t } from '../shared/i18n/translate';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
-applyPrivacySwitches(app.commandLine);
+applyStartupSwitches(app.commandLine);
 registerAppProtocolScheme();
 
 // A browser with two copies of itself running would fight over the session

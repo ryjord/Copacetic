@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRIVACY_SWITCHES, applyPrivacySwitches } from '../../../../electron/main/system/command-line';
+import { PRIVACY_SWITCHES, applyStartupSwitches } from '../../../../electron/main/system/command-line';
 
 function recorder() {
   const applied: { name: string; value?: string }[] = [];
@@ -20,7 +20,7 @@ function recorder() {
 describe('the switches that make silence deliberate', () => {
   it('applies every one of them', () => {
     const commandLine = recorder();
-    applyPrivacySwitches(commandLine, 'win32');
+    applyStartupSwitches(commandLine, 'win32');
     expect(commandLine.applied).toHaveLength(PRIVACY_SWITCHES.length);
   });
 
@@ -31,7 +31,7 @@ describe('the switches that make silence deliberate', () => {
     ['win32', false],
   ] as const)('on %s, takes passkeys away from pages: %s', (platform, isTakenAway) => {
     const commandLine = recorder();
-    applyPrivacySwitches(commandLine, platform);
+    applyStartupSwitches(commandLine, platform);
     const blink = commandLine.applied.find((entry) => entry.name === 'disable-blink-features');
     expect(blink?.value === 'WebAuth').toBe(isTakenAway);
   });
@@ -51,7 +51,7 @@ describe('the switches that make silence deliberate', () => {
     ['disables an account chooser Electron never draws, which stalled Sign in with Google', 'feature', 'FedCm'],
   ])('%s', (_reason, kind, name) => {
     const commandLine = recorder();
-    applyPrivacySwitches(commandLine);
+    applyStartupSwitches(commandLine);
     if (kind === 'switch') {
       expect(commandLine.applied.map((entry) => entry.name)).toContain(name);
       return;

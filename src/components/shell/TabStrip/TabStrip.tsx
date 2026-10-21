@@ -278,7 +278,7 @@ const Tab = memo(function Tab({
   onDragOver,
   onDrop,
 }: TabProps) {
-  const title = tab.internalPage === 'start' ? t('shell.tabStrip.newTab') : tab.title;
+  const { title } = tab;
   const PageIcon = tab.internalPage ? PAGE_ICONS[tab.internalPage] : undefined;
   const ref = useRef<HTMLDivElement>(null);
   const isSplit = useBrowserStore((state) => isInSplit(state.split, tab.id));

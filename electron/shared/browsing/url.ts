@@ -9,7 +9,7 @@ export const START_PAGE_URL = `${INTERNAL_SCHEME}://start`;
 export const NAVIGABLE_SCHEMES = new Set(['http:', 'https:', 'file:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 /** Schemes a *page* is allowed to drive a tab to. */
-export const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
+const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 export function isNavigableUrl(value: string): boolean {
   try {

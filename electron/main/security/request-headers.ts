@@ -35,9 +35,10 @@ export function installRequestHeaders(session: Session, rules: RequestHeaderRule
   });
 
   session.webRequest.onHeadersReceived((details, callback) => {
-    let headers = details.responseHeaders;
+    const headers = details.responseHeaders;
     if (headers && isBlockedThirdParty(details.url, pageOf(details), details.resourceType)) {
-      headers = withoutHeader(headers, 'Set-Cookie');
+      callback({ responseHeaders: withoutHeader(headers, 'Set-Cookie') });
+      return;
     }
     callback({ responseHeaders: headers });
   });

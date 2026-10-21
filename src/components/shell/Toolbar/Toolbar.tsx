@@ -152,9 +152,7 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
 /** The one surface with its own button, because it is the one with something to report while you browse. */
 function DownloadsButton() {
-  const isOpen = useBrowserStore(
-    (state) => state.tabs.find((tab) => tab.id === state.activeTabId)?.internalPage === 'downloads',
-  );
+  const isOpen = useBrowserStore((state) => state.activeTab?.internalPage === 'downloads');
   const activeCount = useBrowserStore(selectActiveDownloadCount);
   const progress = useBrowserStore(selectDownloadProgress);
   const label =

@@ -743,9 +743,9 @@ export class TabManager {
     // `javascript:` tab by forgetting a check of its own.
     // An installed extension's own page, such as its options, is the one other kind of address a tab may open.
     // A copacetic:// address is one of our own pages or nothing: an unknown one opens a new tab instead.
+    const isOurAddress = isInternalUrl(requestedUrl);
     const isAllowed =
-      internalAddressOf(requestedUrl) !== null ||
-      (isNavigableUrl(requestedUrl) && !isInternalUrl(requestedUrl)) ||
+      (isOurAddress ? internalAddressOf(requestedUrl) !== null : isNavigableUrl(requestedUrl)) ||
       isLoadedExtensionPage(requestedUrl);
     const rawUrl = isAllowed ? requestedUrl : START_PAGE_URL;
 
@@ -780,18 +780,15 @@ export class TabManager {
     const view = this.makeView(partition, options.adopting);
 
     const internal = options.adopting ? null : internalAddressOf(rawUrl);
+    // Reached with one of our addresses only for an adopted page, which is a site whatever it was opened at.
+    const siteUrl = isInternalUrl(rawUrl) ? 'about:blank' : rawUrl;
     const tab: TabRecord = {
       id,
       view,
       isHush: inherited.hush,
       isPinned: options.pinned === true,
       record: inherited.hush ? HUSH_RECORD : this.storedRecord(),
-      // An adopted page is a site whatever it was opened at, so it never takes one of our addresses.
-      url: internal
-        ? internalPageUrl(internal.page, internal.section)
-        : isInternalUrl(rawUrl)
-          ? 'about:blank'
-          : rawUrl,
+      url: internal ? internalPageUrl(internal.page, internal.section) : siteUrl,
       title: '',
       faviconDataUrl: internal ? null : this.store.getFavicon(rawUrl),
       isLoading: false,

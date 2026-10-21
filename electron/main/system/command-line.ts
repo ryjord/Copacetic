@@ -96,7 +96,7 @@ export interface CommandLine {
 }
 
 /** Must run before `app.ready`; Chromium reads its command line once. */
-export function applyPrivacySwitches(commandLine: CommandLine, platform: NodeJS.Platform = process.platform): void {
+export function applyStartupSwitches(commandLine: CommandLine, platform: NodeJS.Platform = process.platform): void {
   for (const entry of [...PRIVACY_SWITCHES, ...platformSwitches(platform)]) {
     if (entry.value === undefined) {
       commandLine.appendSwitch(entry.name);
