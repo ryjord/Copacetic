@@ -11,6 +11,7 @@ describe('the sign-in request record', () => {
       'https://accounts.google.com/v3/signin/identifier',
     ],
     ['wss://example.com/socket?token=secret', 'wss://example.com/socket'],
+    ['ws://localhost:8080/live?session=1', 'ws://localhost:8080/live'],
     ['data:text/html,<b>hi</b>', 'data:'],
     ['not a url', 'unreadable'],
   ])('keeps %s as %s', (url, address) => {

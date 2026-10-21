@@ -1,5 +1,5 @@
 // Libs
-import { appendFileSync } from 'node:fs';
+import { type WriteStream, createWriteStream } from 'node:fs';
 
 // Types
 import type { Session } from 'electron';
@@ -13,6 +13,16 @@ import type { Session } from 'electron';
 
 // Pages, frames and the calls a page makes for itself; images and scripts only when they fail.
 const ALWAYS_LOGGED: ReadonlySet<string> = new Set(['mainFrame', 'subFrame', 'xhr', 'webSocket', 'other']);
+const WITH_PATH: ReadonlySet<string> = new Set(['http:', 'https:', 'ws:', 'wss:']);
+
+// One stream per file, shared by every session, so no request waits on the disk.
+const streams = new Map<string, WriteStream>();
+
+function streamFor(filePath: string): WriteStream {
+  const open = streams.get(filePath) ?? createWriteStream(filePath, { flags: 'a', mode: 0o600 });
+  streams.set(filePath, open);
+  return open;
+}
 
 interface RequestOutcome {
   url: string;
@@ -26,9 +36,7 @@ interface RequestOutcome {
 export function addressOf(url: string): string {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'wss:'
-      ? `${parsed.origin}${parsed.pathname}`
-      : parsed.protocol;
+    return WITH_PATH.has(parsed.protocol) ? `${parsed.origin}${parsed.pathname}` : parsed.protocol;
   } catch {
     return 'unreadable';
   }
@@ -54,10 +62,11 @@ export function startRequestLog(
   if (!filePath) {
     return;
   }
+  const stream = streamFor(filePath);
   const record = (outcome: RequestOutcome) => {
     const line = describeRequest(outcome, partition, new Date());
     if (line) {
-      appendFileSync(filePath, `${line}\n`, { mode: 0o600 });
+      stream.write(`${line}\n`);
     }
   };
   // A completed request also carries error 'net::OK', so only its status says how it went.
