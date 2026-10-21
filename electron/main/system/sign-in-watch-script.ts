@@ -3,8 +3,8 @@
  * password. It runs in an isolated world of its own, which the page can neither
  * see nor reach, and only on a secure page. A page with no field for a password
  * or a username is left at once with nothing behind. On one that has them, it
- * waits for the form to be sent, by a button, Enter or a submit, then reads the
- * fields once, hands them back and removes its listeners.
+ * waits for a person to send the form, with a button or Enter,
+ * then reads the fields once, hands them back and removes its listeners.
  */
 export const SIGN_IN_WATCH_SCRIPT = `(() => {
   const isVisible = (field) => {
@@ -37,27 +37,37 @@ export const SIGN_IN_WATCH_SCRIPT = `(() => {
   };
 
   return new Promise((resolve) => {
-    const settle = () => {
-      const found = read();
+    const stop = () => {
+      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('click', onClick, true);
+    };
+    // Only what a person did: a page clicking its own button, or calling requestSubmit, is not someone signing in.
+    const settle = (event) => {
+      const found = event.isTrusted ? read() : null;
       if (found) {
-        document.removeEventListener('submit', settle, true);
-        document.removeEventListener('keydown', onKey, true);
-        document.removeEventListener('click', onClick, true);
+        stop();
         resolve(found);
       }
     };
     const onKey = (event) => {
       if (event.key === 'Enter') {
-        settle();
+        settle(event);
       }
     };
     const onClick = (event) => {
       if (event.target instanceof Element && event.target.closest('button, [role="button"], input[type="submit"], input[type="image"]')) {
-        settle();
+        settle(event);
       }
     };
-    document.addEventListener('submit', settle, true);
     document.addEventListener('keydown', onKey, true);
     document.addEventListener('click', onClick, true);
+    // Answered as the page goes, so nothing is left waiting on a page that has gone.
+    window.addEventListener('pagehide', () => { stop(); resolve(null); }, { once: true });
   });
 })()`;
+
+/** Whether the page landed on still asks for a password, which is a sign-in that was refused. */
+export const STILL_ASKS_FOR_PASSWORD = `Array.from(document.querySelectorAll('input[type="password"]')).some((field) => {
+  const rect = field.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && !field.disabled;
+})`;

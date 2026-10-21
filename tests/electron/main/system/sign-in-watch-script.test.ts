@@ -11,8 +11,12 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+// jsdom cannot make an event a person made, so this copy takes every event as one; the next describe uses the real one.
+const AS_IF_TRUSTED = SIGN_IN_WATCH_SCRIPT.replace('event.isTrusted ?', 'true ?');
+
 // Run as the main process runs it: an expression whose value is what comes back.
-const watch = (): Promise<unknown> | null => new Function(`return ${SIGN_IN_WATCH_SCRIPT}`)();
+const run = (script: string): Promise<unknown> | null => new Function(`return ${script}`)();
+const watch = () => run(AS_IF_TRUSTED);
 
 const page = (html: string, values: Record<string, string>) => {
   document.body.innerHTML = html;
@@ -77,5 +81,26 @@ describe('what notices a sign-in', () => {
     document.querySelector('button')?.click();
     const later = Symbol('still waiting');
     expect(await Promise.race([sent, new Promise((resolve) => setTimeout(() => resolve(later), 20))])).toBe(later);
+  });
+});
+
+describe('what a page does itself', () => {
+  // A page clicking its own button could raise offers with a username of its choosing in Copacetic's own window.
+  it('is not taken for someone signing in', async () => {
+    page('<input type="email" name="email"><input type="password" name="password"><button>Sign in</button>', {
+      email: 'forged@example.com',
+      password: 'forged',
+    });
+    const sent = run(SIGN_IN_WATCH_SCRIPT);
+    document.querySelector('button')?.click();
+    const later = Symbol('still waiting');
+    expect(await Promise.race([sent, new Promise((resolve) => setTimeout(() => resolve(later), 20))])).toBe(later);
+  });
+
+  it('answers nothing as the page goes, so nothing is left waiting', async () => {
+    page('<input type="password" name="password">', {});
+    const sent = run(SIGN_IN_WATCH_SCRIPT);
+    window.dispatchEvent(new Event('pagehide'));
+    expect(await sent).toBeNull();
   });
 });

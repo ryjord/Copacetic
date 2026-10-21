@@ -67,7 +67,8 @@ export function requestContextFrom(details: RequestDetails): RequestContext | nu
     details.initiatorOrigin ?? (resourceType === 'main_frame' ? undefined : details.webContents?.getURL());
   const initiatorHost = (asker && hostOf(asker)) || null;
   const host = parsed.hostname;
-  const isThirdParty = initiatorHost !== null && registrableDomainOf(host) !== registrableDomainOf(initiatorHost);
+  const siteOf = (name: string) => registrableDomainOf(name) ?? name;
+  const isThirdParty = initiatorHost !== null && siteOf(host) !== siteOf(initiatorHost);
   return {
     request: {
       url: parsed.href,

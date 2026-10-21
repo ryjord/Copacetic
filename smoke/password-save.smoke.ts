@@ -9,9 +9,9 @@ let origin = '';
 const PAGES: Record<string, string> = {
   '/signin':
     '<title>sign in</title><form action="/welcome" method="post"><input type="email" name="email"><input type="password" name="password"><button>Sign in</button></form>',
-  // A sign-in that failed leaves the page where it was.
+  // A refused password, answered as most sites answer one: the sign-in page again, from the server.
   '/wrong':
-    '<title>wrong</title><form onsubmit="event.preventDefault()"><input type="email" name="email"><input type="password" name="password"><button>Sign in</button></form>',
+    '<title>wrong</title><form action="/wrong" method="post"><input type="email" name="email"><input type="password" name="password"><button>Sign in</button></form>',
   '/step-one':
     '<title>step one</title><form action="/step-two"><input type="email" name="identifier"><button>Next</button></form>',
   '/step-two':
@@ -45,16 +45,27 @@ const isShowing = (url: string) =>
 
 const offer = () => copacetic.chrome.evaluate(async () => (await window.copacetic.chrome.getState()).passwordOffer);
 
-/** Opens a page, waits for it to settle, then fills its fields and presses its button as a person would. */
-async function send(path: string, fields: Record<string, string>): Promise<void> {
-  const url = `${origin}${path}`;
-  await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
+/** Fills in a page's fields and presses Enter in the last, as a person would: a page's own click is not taken for one. */
+async function fillAndPressEnter(url: string, fields: Record<string, string>): Promise<void> {
   await copacetic.until(() => isShowing(url), 10_000);
   await new Promise((resolve) => setTimeout(resolve, 800));
   await copacetic.inOpenPage(
     url,
-    `(() => { const fields = ${JSON.stringify(fields)}; Object.entries(fields).forEach(([name, value]) => { document.querySelector('[name="' + name + '"]').value = value; }); document.querySelector('button').click(); return 'sent'; })()`,
+    `(() => { const fields = ${JSON.stringify(fields)}; Object.entries(fields).forEach(([name, value]) => { const field = document.querySelector('[name="' + name + '"]'); field.value = value; field.focus(); }); return 'filled'; })()`,
   );
+  await copacetic.read(({ webContents }, target) => {
+    const page = webContents.getAllWebContents().find((contents) => contents.getURL() === target);
+    page?.focus();
+    page?.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+    page?.sendInputEvent({ type: 'char', keyCode: '\r' });
+    page?.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  }, url);
+}
+
+async function send(path: string, fields: Record<string, string>): Promise<void> {
+  const url = `${origin}${path}`;
+  await copacetic.chrome.evaluate((target) => window.copacetic.tabs.create(target), url);
+  await fillAndPressEnter(url, fields);
 }
 
 describe('offering to save a password', () => {
@@ -68,7 +79,7 @@ describe('offering to save a password', () => {
     expect(await copacetic.until(async () => (await offer()) === null, 5_000)).toBe(true);
   }, 60_000);
 
-  it('offers nothing when the sign-in stays where it was', async () => {
+  it('offers nothing when the site answers with its sign-in page again', async () => {
     await send('/wrong', { email: 'riley@example.com', password: 'mistyped' });
     await new Promise((resolve) => setTimeout(resolve, 2000));
     expect(await offer()).toBeNull();
@@ -76,13 +87,7 @@ describe('offering to save a password', () => {
 
   it('carries the username over from a step before the password', async () => {
     await send('/step-one', { identifier: 'riley@example.com' });
-    const stepTwo = `${origin}/step-two`;
-    await copacetic.until(() => isShowing(stepTwo), 10_000);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    await copacetic.inOpenPage(
-      stepTwo,
-      `(() => { document.querySelector('[name="password"]').value = 'second step'; document.querySelector('button').click(); return 'sent'; })()`,
-    );
+    await fillAndPressEnter(`${origin}/step-two?identifier=riley%40example.com`, { password: 'second step' });
     expect(await copacetic.until(async () => (await offer()) !== null, 10_000)).toBe(true);
     const offered = await offer();
     expect(offered).toMatchObject({ username: 'riley@example.com' });
@@ -111,6 +116,25 @@ describe('offering to save a password', () => {
     60_000,
   );
 
+  it('stops offering on a site once told never to', async () => {
+    await send('/signin', { email: 'riley@example.com', password: 'first' });
+    expect(await copacetic.until(async () => (await offer()) !== null, 10_000)).toBe(true);
+    await copacetic.chrome.evaluate(async () => {
+      const offered = (await window.copacetic.chrome.getState()).passwordOffer;
+      await window.copacetic.vault.answerSaveOffer(offered?.id ?? '', 'never');
+    });
+    const neverOn = await copacetic.until(
+      async () =>
+        (await copacetic.chrome.evaluate(async () => (await window.copacetic.chrome.getState()).settings))
+          .neverSavePasswordsOn.length > 0,
+      5_000,
+    );
+    expect(neverOn).toBe(true);
+    await send('/signin', { email: 'riley@example.com', password: 'second' });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    expect(await offer()).toBeNull();
+  }, 60_000);
+
   it('never watches a Hush tab', async () => {
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.createHush());
     await copacetic.chrome.evaluate(async (target) => {
@@ -127,29 +151,19 @@ describe('offering to save a password', () => {
           .getAllWebContents()
           .find((contents) => contents.getURL() === target && contents.session.isPersistent() === false)
           ?.executeJavaScript(
-            `document.querySelector('[name="email"]').value = 'hush@example.com'; document.querySelector('[name="password"]').value = 'unseen'; document.querySelector('button').click();`,
+            `document.querySelector('[name="email"]').value = 'hush@example.com'; const field = document.querySelector('[name="password"]'); field.value = 'unseen'; field.focus();`,
           ),
       `${origin}/signin`,
     );
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    expect(await offer()).toBeNull();
-  }, 60_000);
-
-  it('stops offering on a site once told never to', async () => {
-    await send('/signin', { email: 'riley@example.com', password: 'first' });
-    expect(await copacetic.until(async () => (await offer()) !== null, 10_000)).toBe(true);
-    await copacetic.chrome.evaluate(async () => {
-      const offered = (await window.copacetic.chrome.getState()).passwordOffer;
-      await window.copacetic.vault.answerSaveOffer(offered?.id ?? '', 'never');
-    });
-    const neverOn = await copacetic.until(
-      async () =>
-        (await copacetic.chrome.evaluate(async () => (await window.copacetic.chrome.getState()).settings))
-          .neverSavePasswordsOn.length > 0,
-      5_000,
-    );
-    expect(neverOn).toBe(true);
-    await send('/signin', { email: 'riley@example.com', password: 'second' });
+    await copacetic.read(({ webContents }, target) => {
+      const page = webContents
+        .getAllWebContents()
+        .find((contents) => contents.getURL() === target && contents.session.isPersistent() === false);
+      page?.focus();
+      page?.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+      page?.sendInputEvent({ type: 'char', keyCode: '\r' });
+      page?.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+    }, `${origin}/signin`);
     await new Promise((resolve) => setTimeout(resolve, 2000));
     expect(await offer()).toBeNull();
   }, 60_000);

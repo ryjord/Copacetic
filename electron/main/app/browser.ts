@@ -262,7 +262,7 @@ export class Browser {
       update: this.updates.getState(),
       siteInfo: this.siteInfo,
       bookmarkSheet: this.bookmarkSheet,
-      passwordOffer: this.passwordSave.offer(),
+      passwordOffer: this.passwordSave.offerFor(activeTabId),
       profile: this.profile.summary(),
       profiles: this.profile.allProfiles(),
     };
