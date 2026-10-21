@@ -6,57 +6,56 @@ vi.mock('electron', () => ({ app: { isPackaged: false, getVersion: () => '1.1.0'
 
 const { describeDelivery, newestRelease, pickAutoUpdater } = await import('../../../../electron/main/system/updates');
 
-const on = (platform: NodeJS.Platform, extra: { isPackaged?: boolean; isAppImage?: boolean } = {}) =>
-  describeDelivery({ platform, isPackaged: true, isAppImage: false, ...extra });
-
 describe('describeDelivery', () => {
-  it('installs updates itself on Windows', () => {
-    expect(on('win32')).toEqual({ delivery: 'automatic', manualReason: null });
-  });
-
-  it('installs updates itself on a Linux AppImage', () => {
-    expect(on('linux', { isAppImage: true })).toEqual({ delivery: 'automatic', manualReason: null });
-  });
-
-  // The two cases this whole split exists for. Both must be `manual` and both
-  // must explain themselves, because a button that silently fails is worse
-  // than no button.
-  it('falls back to a manual download on macOS, because the build is unsigned', () => {
-    const result = on('darwin');
-    expect(result.delivery).toBe('manual');
-    expect(result.manualReason).toMatch(/not code-signed/i);
-  });
-
-  // The .deb registers the signed apt repository when it installs, so the
-  // system genuinely does handle it - while the app itself still must never
-  // write over a file dpkg owns.
-  it('hands a Linux package-managed build to the system', () => {
-    const result = on('linux', { isAppImage: false });
-    expect(result.delivery).toBe('system');
-    expect(result.manualReason).toMatch(/package manager/i);
-  });
-
-  it('never claims a non-automatic platform can update itself', () => {
-    for (const platform of ['darwin', 'linux'] as const) {
-      const result = describeDelivery({ platform, isPackaged: true, isAppImage: false });
-      expect(result.delivery).not.toBe('automatic');
-      expect(result.manualReason).toBeTruthy();
-    }
-  });
-
-  it('reports a development build as having nothing to update', () => {
-    for (const platform of ['darwin', 'win32', 'linux'] as const) {
-      const result = describeDelivery({ platform, isPackaged: false, isAppImage: false });
-      expect(result.delivery).toBe('unsupported');
-      expect(result.manualReason).toMatch(/development build/i);
-    }
-  });
-
+  // Unsigned macOS and the package-managed Linux build must both explain themselves, because a button that silently fails is worse than no button.
+  // The .deb registers the signed apt repository, so the system handles it while the app must never write over a file dpkg owns.
   // An AppImage flag must not rescue macOS, and must not apply on Windows.
-  it('only lets the AppImage flag matter on Linux', () => {
-    expect(describeDelivery({ platform: 'darwin', isPackaged: true, isAppImage: true }).delivery).toBe('manual');
-    expect(describeDelivery({ platform: 'linux', isPackaged: true, isAppImage: false }).delivery).toBe('system');
-    expect(describeDelivery({ platform: 'win32', isPackaged: true, isAppImage: true }).delivery).toBe('automatic');
+  it.each([
+    ['installs itself on Windows', 'win32', true, false, 'automatic', null],
+    ['installs itself on a Linux AppImage', 'linux', true, true, 'automatic', null],
+    [
+      'falls back to a manual download on macOS, because the build is unsigned',
+      'darwin',
+      true,
+      false,
+      'manual',
+      /not code-signed/i,
+    ],
+    ['hands a Linux package-managed build to the system', 'linux', true, false, 'system', /package manager/i],
+    ['ignores the AppImage flag on macOS', 'darwin', true, true, 'manual', /not code-signed/i],
+    ['keeps Windows automatic whatever the AppImage flag says', 'win32', true, true, 'automatic', null],
+    [
+      'reports a development build on macOS as having nothing to update',
+      'darwin',
+      false,
+      false,
+      'unsupported',
+      /development build/i,
+    ],
+    [
+      'reports a development build on Windows as having nothing to update',
+      'win32',
+      false,
+      false,
+      'unsupported',
+      /development build/i,
+    ],
+    [
+      'reports a development build on Linux as having nothing to update',
+      'linux',
+      false,
+      false,
+      'unsupported',
+      /development build/i,
+    ],
+  ] as const)('%s', (_name, platform, isPackaged, isAppImage, delivery, manualReason) => {
+    const result = describeDelivery({ platform, isPackaged, isAppImage });
+    expect(result.delivery).toBe(delivery);
+    if (manualReason === null) {
+      expect(result.manualReason).toBeNull();
+    } else {
+      expect(result.manualReason).toMatch(manualReason);
+    }
   });
 });
 
@@ -71,18 +70,13 @@ describe('describeDelivery', () => {
 describe('loading the updater', () => {
   const usable = { autoDownload: false, quitAndInstall() {}, checkForUpdates: async () => ({}) };
 
-  it('finds it on the namespace', () => {
-    expect(pickAutoUpdater({ autoUpdater: usable })).toBe(usable);
-  });
-
-  // The shape that actually applies to electron-updater today.
-  it('finds it on the default export', () => {
-    expect(pickAutoUpdater({ default: { autoUpdater: usable } })).toBe(usable);
-  });
-
-  it('prefers the namespace when both are present', () => {
-    const other = { ...usable };
-    expect(pickAutoUpdater({ autoUpdater: usable, default: { autoUpdater: other } })).toBe(usable);
+  // The default-export shape is the one that actually applies to electron-updater today.
+  it.each([
+    ['finds it on the namespace', { autoUpdater: usable }],
+    ['finds it on the default export', { default: { autoUpdater: usable } }],
+    ['prefers the namespace when both are present', { autoUpdater: usable, default: { autoUpdater: { ...usable } } }],
+  ])('%s', (_name, shape) => {
+    expect(pickAutoUpdater(shape)).toBe(usable);
   });
 
   // Throwing is right: it is caught and reported as an update error, which is

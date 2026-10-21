@@ -30,14 +30,13 @@ describe('when the HTTPS version does not work', () => {
   });
 
   // A failure Copacetic did not cause gets the ordinary error page, with nothing to offer.
-  it('offers nothing for a page it never upgraded', () => {
-    expect(new HttpsFirst(true).fallbackFor(1, 'https://example.com/')).toBeNull();
-  });
-
-  it('offers nothing in another tab', () => {
+  it.each([
+    ['a page it never upgraded', 1, 'https://example.com/'],
+    ['another tab', 2, 'https://plain.example/'],
+  ])('offers nothing for %s', (_label, tabId, url) => {
     const httpsFirst = new HttpsFirst(true);
     httpsFirst.upgradeFor(page('http://plain.example/', 1));
-    expect(httpsFirst.fallbackFor(2, 'https://plain.example/')).toBeNull();
+    expect(httpsFirst.fallbackFor(tabId, url)).toBeNull();
   });
 
   // Chromium commits its error page with no status; that commit must not erase the way out.

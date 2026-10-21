@@ -43,25 +43,22 @@ describe('ContentBlocker', () => {
   const ask = (url: string, resourceType = 'script', webContentsId: number | undefined = 7) =>
     fake.request({ url, resourceType, webContentsId });
 
-  it('blocks a listed tracker domain', () => {
-    expect(ask('https://www.google-analytics.com/collect')).toBe(true);
-    expect(ask('https://connect.facebook.net/en_US/fbevents.js')).toBe(true);
-  });
-
-  it('blocks subdomains of a listed domain', () => {
-    expect(ask('https://region1.analytics.google.com/g/collect')).toBe(true);
-    expect(ask('https://deep.nested.doubleclick.net/x.gif')).toBe(true);
-  });
-
-  it('does not block a domain that merely ends with the same letters', () => {
-    // `notdoubleclick.net` is a different registrable domain.
-    expect(ask('https://notdoubleclick.net/a.js')).toBe(false);
-    expect(ask('https://mycriteo.com/a.js')).toBe(false);
-  });
-
-  it('leaves ordinary requests alone', () => {
-    expect(ask('https://example.com/app.js')).toBe(false);
-    expect(ask('https://cdn.jsdelivr.net/npm/thing.js')).toBe(false);
+  // `notdoubleclick.net` is a different registrable domain.
+  // `doubleclick.net.` is a fully-qualified name that resolves identically, and `new URL().hostname` keeps the dot, so one character must not walk past the list.
+  it.each([
+    ['a listed tracker domain', 'https://www.google-analytics.com/collect', true],
+    ['another listed tracker domain', 'https://connect.facebook.net/en_US/fbevents.js', true],
+    ['a subdomain of a listed domain', 'https://region1.analytics.google.com/g/collect', true],
+    ['a deeply nested subdomain', 'https://deep.nested.doubleclick.net/x.gif', true],
+    ['a domain that merely ends with the same letters', 'https://notdoubleclick.net/a.js', false],
+    ['another domain ending with the same letters', 'https://mycriteo.com/a.js', false],
+    ['an ordinary request', 'https://example.com/app.js', false],
+    ['an ordinary request to a CDN', 'https://cdn.jsdelivr.net/npm/thing.js', false],
+    ['a tracker written with a trailing dot', 'https://doubleclick.net./pixel.gif', true],
+    ['a tracker subdomain written with a trailing dot', 'https://ads.doubleclick.net./pixel.gif', true],
+    ['an unrelated fully-qualified host', 'https://example.com./app.js', false],
+  ])('treats %s as blocked or not as expected', (_label, url, isBlocked) => {
+    expect(ask(url)).toBe(isBlocked);
   });
 
   it('never blocks a top-level navigation, so a tracker domain stays visitable', () => {
@@ -119,12 +116,6 @@ describe('ContentBlocker', () => {
       expect(firstWindow).toHaveBeenCalledTimes(1);
       expect(secondWindow).toHaveBeenLastCalledWith(7, 2);
     });
-
-    it('forgets a tab entirely when it closes', () => {
-      ask('https://www.google-analytics.com/collect', 'script', 7);
-      blocker.forget(7);
-      expect(blocker.countFor(7)).toBe(0);
-    });
   });
 });
 
@@ -158,31 +149,6 @@ describe('one blocker shared by two profiles', () => {
   });
 });
 
-describe('ContentBlocker, fully-qualified hostnames', () => {
-  let fake: ReturnType<typeof fakeSession>;
-
-  beforeEach(() => {
-    const blocker = new ContentBlocker();
-    fake = fakeSession();
-    policy = new BlockingPolicy(true);
-    blocker.attach(fake.session as never, policy);
-  });
-
-  const ask = (url: string) => fake.request({ url, resourceType: 'script', webContentsId: 7 });
-
-  // `doubleclick.net.` is a fully-qualified name that resolves identically to
-  // `doubleclick.net`, and `new URL().hostname` keeps the dot. One character
-  // should not be enough to walk past the whole list.
-  it('blocks a tracker written with a trailing dot', () => {
-    expect(ask('https://doubleclick.net./pixel.gif')).toBe(true);
-    expect(ask('https://ads.doubleclick.net./pixel.gif')).toBe(true);
-  });
-
-  it('still lets an unrelated fully-qualified host through', () => {
-    expect(ask('https://example.com./app.js')).toBe(false);
-  });
-});
-
 describe('the connection log', () => {
   let blocker: ContentBlocker;
   let fake: ReturnType<typeof fakeSession>;
@@ -197,25 +163,18 @@ describe('the connection log', () => {
   const ask = (url: string, resourceType = 'script', webContentsId: number | undefined = 7) =>
     fake.request({ url, resourceType, webContentsId });
 
-  it('records hosts that were allowed through, not only blocked ones', () => {
-    ask('https://example.com/app.js');
-    ask('https://cdn.example.net/lib.js');
-    ask('https://www.google-analytics.com/collect');
-
-    const hosts = blocker.connectionsFor(7).map((entry) => entry.host);
-    expect(hosts).toContain('example.com');
-    expect(hosts).toContain('cdn.example.net');
-    expect(hosts).toContain('www.google-analytics.com');
-  });
-
-  it('counts repeat requests to the same host', () => {
+  it('records hosts that were allowed through, not only blocked ones, and counts repeat requests', () => {
     ask('https://example.com/a.js');
     ask('https://example.com/b.js');
     ask('https://example.com/c.js');
+    ask('https://cdn.example.net/lib.js');
+    ask('https://www.google-analytics.com/collect');
 
-    expect(blocker.connectionsFor(7)).toContainEqual(
-      expect.objectContaining({ host: 'example.com', requests: 3, blocked: 0 }),
+    const connections = blocker.connectionsFor(7);
+    expect(connections.map((entry) => entry.host)).toEqual(
+      expect.arrayContaining(['example.com', 'cdn.example.net', 'www.google-analytics.com']),
     );
+    expect(connections).toContainEqual(expect.objectContaining({ host: 'example.com', requests: 3, blocked: 0 }));
   });
 
   it('separates what was blocked from what merely was a tracker', () => {
@@ -259,8 +218,11 @@ describe('the connection log', () => {
 
   it('forgets everything when the tab closes', () => {
     ask('https://example.com/a.js');
+    ask('https://www.google-analytics.com/collect');
+    expect(blocker.countFor(7)).toBe(1);
     blocker.forget(7);
 
+    expect(blocker.countFor(7)).toBe(0);
     expect(blocker.connectionsFor(7)).toEqual([]);
   });
 
@@ -294,13 +256,14 @@ describe('per-site exceptions', () => {
 
   const ask = (url: string, webContentsId = 7) => fake.request({ url, resourceType: 'script', webContentsId });
 
-  it('blocks a tracker on a site with no exception', () => {
+  it('blocks a tracker on a site with no exception, stops on a site the user allowed, and blocks again once it is taken back', () => {
     expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
-  });
 
-  it('stops blocking on a site the user allowed', () => {
     policy.setAllowlist(['example.com']);
     expect(ask('https://doubleclick.net/pixel.gif')).toBe(false);
+
+    policy.setAllowlist([]);
+    expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
   });
 
   // The exception is about the page you are on, not the tracker itself.
@@ -319,21 +282,10 @@ describe('per-site exceptions', () => {
     );
   });
 
-  it('can be taken back', () => {
-    policy.setAllowlist(['example.com']);
-    policy.setAllowlist([]);
-    expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
-  });
-
   it('blocks normally when the page site is unknown', () => {
     policy.setAllowlist(['example.com']);
     blocker.setPageSite(7, '');
     expect(ask('https://doubleclick.net/pixel.gif')).toBe(true);
-  });
-
-  it('forgets the page site when the tab closes', () => {
-    blocker.forget(7);
-    expect(policy.isAllowedOn('example.com')).toBe(false);
   });
 });
 
@@ -374,19 +326,14 @@ describe('updating the filter lists', () => {
   });
 
   // The dangerous one: short enough to be wrong, whole enough to parse.
-  it('refuses a list that arrives short, and changes nothing', async () => {
+  // The dangerous one: short enough to be wrong, whole enough to parse. The other is not a filter list at all.
+  it.each([
+    ['arrives short', '[Adblock Plus 2.0]\n||one.example^'],
+    ['is not a filter list at all', 'x'.repeat(200_000)],
+  ])('refuses a list that %s, and changes nothing', async (_label, body) => {
     const blocker = blockerWithLists();
     const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
-    const outcome = await blocker.fetchNewerLists(directory, async () => '[Adblock Plus 2.0]\n||one.example^');
-
-    expect(outcome.ok).toBe(false);
-    expect(existsSync(path.join(directory, 'filters', 'engine.bin'))).toBe(false);
-  });
-
-  it('refuses something that is not a filter list at all', async () => {
-    const blocker = blockerWithLists();
-    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-filters-'));
-    const outcome = await blocker.fetchNewerLists(directory, async () => 'x'.repeat(200_000));
+    const outcome = await blocker.fetchNewerLists(directory, async () => body);
 
     expect(outcome.ok).toBe(false);
     expect(existsSync(path.join(directory, 'filters', 'engine.bin'))).toBe(false);

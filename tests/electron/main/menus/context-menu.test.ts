@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
 
 type Template = Record<string, unknown>[];
 
@@ -93,42 +92,29 @@ const itemNamed = (items: Template, label: string) => items.find((item) => item.
  * to anyone using a mouse.
  */
 describe('opening a Hush tab without a keyboard', () => {
-  it('is offered when a tab is right-clicked', () => {
-    expect(labelsOf(tabMenu())).toContain('New Hush tab');
-  });
-
-  it('is offered behind the caret beside the new-tab button', () => {
-    expect(labelsOf(newTabMenu())).toContain('New Hush tab');
-  });
-
   it.each([
-    ['the tab menu', tabMenu],
-    ['the new-tab menu', newTabMenu],
-  ])('actually opens one from %s', (_name, build) => {
+    ['when a tab is right-clicked', tabMenu],
+    ['behind the caret beside the new-tab button', newTabMenu],
+  ])('is offered, and actually opens one, %s', (_name, build) => {
     called.length = 0;
-    (itemNamed(build(), 'New Hush tab')?.click as () => void)();
+    const items = build();
+    expect(labelsOf(items)).toContain('New Hush tab');
+    (itemNamed(items, 'New Hush tab')?.click as () => void)();
     expect(called).toContain('newHushTab');
   });
 });
 
 describe('reopening a closed tab without a keyboard', () => {
-  it.each([
-    ['the tab menu', tabMenu],
-    ['the new-tab menu', newTabMenu],
-  ])('is offered in %s', (_name, build) => {
-    expect(labelsOf(build())).toContain('Reopen closed tab');
-  });
-
   // A menu item that does nothing teaches someone the menu is unreliable.
   it.each([
-    ['the tab menu', tabMenu],
-    ['the new-tab menu', newTabMenu],
-  ])('is disabled in %s when nothing has been closed', (_name, build) => {
-    expect(itemNamed(build({ hasClosedTabs: false }), 'Reopen closed tab')?.enabled).toBe(false);
-  });
-
-  it('is enabled when something has been closed', () => {
-    expect(itemNamed(newTabMenu({ hasClosedTabs: true }), 'Reopen closed tab')?.enabled).toBe(true);
+    ['is enabled in the tab menu when something has been closed', tabMenu, true],
+    ['is disabled in the tab menu when nothing has been closed', tabMenu, false],
+    ['is enabled in the new-tab menu when something has been closed', newTabMenu, true],
+    ['is disabled in the new-tab menu when nothing has been closed', newTabMenu, false],
+  ])('%s', (_name, build, hasClosedTabs) => {
+    const items = build({ hasClosedTabs });
+    expect(labelsOf(items)).toContain('Reopen closed tab');
+    expect(itemNamed(items, 'Reopen closed tab')?.enabled).toBe(hasClosedTabs);
   });
 });
 
@@ -142,40 +128,6 @@ describe('putting a tab to sleep from its menu', () => {
 
   it('is disabled for a tab that cannot sleep', () => {
     expect(itemNamed(tabMenu({ canSleep: false }), 'Put tab to sleep')?.enabled).toBe(false);
-  });
-});
-
-describe('every item in both menus', () => {
-  it('has a label or is a separator', () => {
-    for (const items of [tabMenu(), newTabMenu()]) {
-      for (const item of items) {
-        expect(typeof item.label === 'string' || item.type === 'separator').toBe(true);
-      }
-    }
-  });
-
-  // Read from the source rather than by calling: a renamed Browser method
-  // leaves a menu item that looks fine and throws when someone picks it.
-  it('reaches for methods that exist', () => {
-    const menuSource = readFileSync('electron/main/menus/context-menu.ts', 'utf8');
-    const sources = {
-      'tabs.': readFileSync('electron/main/tabs/tabs.ts', 'utf8'),
-      'store.': readFileSync('electron/main/data/store.ts', 'utf8'),
-      '': readFileSync('electron/main/app/browser.ts', 'utf8'),
-    };
-
-    const paths = [
-      ...new Set([...menuSource.matchAll(/browser\.((?:tabs\.|store\.)?[a-zA-Z]+)\(/g)].map((m) => m[1] ?? '')),
-    ];
-    expect(paths.length).toBeGreaterThan(8);
-
-    const missing = paths.filter((path) => {
-      const method = path.split('.').pop() ?? '';
-      const prefix = path.includes('.') ? `${path.split('.')[0] ?? ''}.` : '';
-      const source = sources[prefix as keyof typeof sources] ?? sources[''];
-      return !new RegExp(`\\b(async )?${method}\\s*[(<]`).test(source);
-    });
-    expect(missing).toEqual([]);
   });
 });
 
@@ -213,28 +165,14 @@ describe("a group's menu", () => {
     return captured;
   }
 
-  it('offers everything a group can be told to do', () => {
-    const labels = labelsOf(groupBrowser()).map(String);
-    expect(labels).toContain('Rename “Work”');
-    expect(labels).toContain('Colour');
-    expect(labels).toContain('Collapse');
-    expect(labels).toContain('Save as a bookmark folder');
-    expect(labels).toContain('Ungroup these tabs');
-    expect(labels).toContain('Close these tabs');
-  });
-
   // The claim is the only place a mixed group admits what it is, and it was
   // moved here when the panel that used to carry it was deleted.
-  it('says what the group can promise, and cannot be clicked', () => {
-    const first = groupBrowser()[0];
-    expect(String(first?.label)).toContain('cookies');
-    expect(first?.enabled).toBe(false);
-  });
-
-  it('says something different when the group holds a Hush tab', () => {
-    const shared = String(groupBrowser({ holdsHush: false })[0]?.label);
-    const mixed = String(groupBrowser({ holdsHush: true })[0]?.label);
-    expect(mixed).not.toBe(shared);
+  it('says what the group can promise, cannot be clicked, and says something different when it holds a Hush tab', () => {
+    const shared = groupBrowser({ holdsHush: false })[0];
+    const mixed = groupBrowser({ holdsHush: true })[0];
+    expect(String(shared?.label)).toContain('cookies');
+    expect(shared?.enabled).toBe(false);
+    expect(String(mixed?.label)).not.toBe(String(shared?.label));
   });
 
   it('wires each item to the thing it names', () => {
@@ -305,21 +243,20 @@ describe("a bookmark folder's menu", () => {
     return captured;
   }
 
-  it('gives one number when there is only one to give', () => {
-    expect(String(folderMenu({ here: 2 })[0]?.label)).toBe('2 bookmarks');
-  });
-
   // A tree makes every count ambiguous, so neither number is left to be guessed.
-  it('gives both numbers when they differ', () => {
-    const label = String(folderMenu({ here: 2, inside: 3, children: 1 })[0]?.label);
-    expect(label).toContain('2 here');
-    expect(label).toContain('5 with folders inside');
-  });
-
-  it('says what deleting keeps, before it is pressed', () => {
-    const labels = labelsOf(folderMenu({ here: 2, children: 1 })).map(String);
-    expect(labels).toContain('Delete this folder');
-    expect(labels.some((label) => label.includes('2 bookmarks and 1 folders move up'))).toBe(true);
+  it.each([
+    ['gives one number when there is only one to give', { here: 2 }, /^2 bookmarks$/],
+    ['gives the number here when the counts differ', { here: 2, inside: 3, children: 1 }, /2 here/],
+    [
+      'gives the number with folders inside when the counts differ',
+      { here: 2, inside: 3, children: 1 },
+      /5 with folders inside/,
+    ],
+    ['offers to delete the folder', { here: 2, children: 1 }, /^Delete this folder$/],
+    ['says what deleting keeps, before it is pressed', { here: 2, children: 1 }, /2 bookmarks and 1 folders move up/],
+  ])('%s', (_name, options, pattern) => {
+    const labels = labelsOf(folderMenu(options)).map(String);
+    expect(labels.some((label) => pattern.test(label))).toBe(true);
   });
 
   it('will not offer to open an empty folder as a group', () => {

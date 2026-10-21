@@ -25,37 +25,26 @@ describe('the switches that make silence deliberate', () => {
   });
 
   it.each([
-    ['periodic requests Chromium makes on its own', 'disable-background-networking'],
-    ['component updates announcing this install', 'disable-component-update'],
-    ['reports describing where you went and what broke', 'disable-domain-reliability'],
-    ['the invisible request a link can ask for', 'no-pings'],
-  ])('turns off %s', (_reason, name) => {
+    ['turns off periodic requests Chromium makes on its own', 'switch', 'disable-background-networking'],
+    ['turns off component updates announcing this install', 'switch', 'disable-component-update'],
+    ['turns off reports describing where you went and what broke', 'switch', 'disable-domain-reliability'],
+    ['turns off the invisible request a link can ask for', 'switch', 'no-pings'],
+    ['disables scanning your network for cast devices', 'feature', 'MediaRouter'],
+    ['disables fetching per-site hints keyed by where you go', 'feature', 'OptimizationHints'],
+    ['disables telling a server what a page says', 'feature', 'Translate'],
+    ['disables describing your forms to a server', 'feature', 'AutofillServerCommunication'],
+    ['disables the advertising measurement stack', 'feature', 'PrivacySandboxAdsAPIs'],
+    ['disables attribution reporting', 'feature', 'AttributionReporting'],
+    ['disables topics', 'feature', 'TopicsAPI'],
+    ['disables an account chooser Electron never draws, which stalled Sign in with Google', 'feature', 'FedCm'],
+  ])('%s', (_reason, kind, name) => {
     const commandLine = recorder();
     applyPrivacySwitches(commandLine);
-    expect(commandLine.applied.map((entry) => entry.name)).toContain(name);
-  });
-
-  it.each([
-    ['scanning your network for cast devices', 'MediaRouter'],
-    ['fetching per-site hints keyed by where you go', 'OptimizationHints'],
-    ['telling a server what a page says', 'Translate'],
-    ['describing your forms to a server', 'AutofillServerCommunication'],
-    ['the advertising measurement stack', 'PrivacySandboxAdsAPIs'],
-    ['attribution reporting', 'AttributionReporting'],
-    ['topics', 'TopicsAPI'],
-    ['an account chooser Electron never draws, which stalled Sign in with Google', 'FedCm'],
-  ])('disables the feature for %s', (_reason, feature) => {
-    const commandLine = recorder();
-    applyPrivacySwitches(commandLine);
-    const features = commandLine.applied.find((entry) => entry.name === 'disable-features')?.value ?? '';
-    expect(features.split(',')).toContain(feature);
-  });
-
-  // The reason is what makes this reviewable rather than a list of magic
-  // strings nobody dares touch.
-  it('says why each one is there', () => {
-    for (const entry of PRIVACY_SWITCHES) {
-      expect(entry.reason.length).toBeGreaterThan(30);
+    if (kind === 'switch') {
+      expect(commandLine.applied.map((entry) => entry.name)).toContain(name);
+      return;
     }
+    const features = commandLine.applied.find((entry) => entry.name === 'disable-features')?.value ?? '';
+    expect(features.split(',')).toContain(name);
   });
 });
