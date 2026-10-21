@@ -10,8 +10,6 @@ export interface TabRecord {
   isHush: boolean;
   /** Where what it leaves behind goes; for a Hush tab, nowhere. */
   record: BrowsingRecord;
-  /** True while the tab shows Copacetic's own start page instead of a site. */
-  isStartPage: boolean;
   url: string;
   title: string;
   faviconDataUrl: string | null;

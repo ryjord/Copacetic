@@ -10,16 +10,21 @@ const open = (range: 'hour' | 'all', onConfirm = vi.fn()) => {
 };
 
 describe('the clear browsing data dialog', () => {
-  it('starts from history alone for a time range', () => {
-    const onConfirm = open('hour');
+  it.each([
+    {
+      name: 'history alone for a time range',
+      range: 'hour' as const,
+      expected: { history: true, siteData: false, cache: false },
+    },
+    {
+      name: 'everything for all time',
+      range: 'all' as const,
+      expected: { history: true, siteData: true, cache: true },
+    },
+  ])('starts from $name', ({ range, expected }) => {
+    const onConfirm = open(range);
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-    expect(onConfirm).toHaveBeenCalledWith({ history: true, siteData: false, cache: false });
-  });
-
-  it('starts from everything for all time', () => {
-    const onConfirm = open('all');
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-    expect(onConfirm).toHaveBeenCalledWith({ history: true, siteData: true, cache: true });
+    expect(onConfirm).toHaveBeenCalledWith(expected);
   });
 
   it('clears only what is ticked', () => {

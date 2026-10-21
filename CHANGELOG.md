@@ -2,6 +2,80 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.1.0-beta.1 - 21 October 2026
+
+The first beta of 2.1: signing in works where it did not, extension ad
+blockers block, Copacetic offers to save a password you sign in with, and
+Settings, History, Bookmarks and Downloads open in tabs of their own.
+
+**Before you install it:** Copacetic now needs macOS 13 (Ventura) or later, as
+Electron 44 does.
+
+### New
+
+- **Ad blockers block.** Electron does not apply an extension's
+  declarativeNetRequest rules, so Copacetic matches them itself, as Chrome
+  does: the lists an extension ships, the rules it adds as it runs, single
+  shipped rules it switches off, and the count of what it blocked on its
+  toolbar button. Every rule is matched in time proportional to the address,
+  so no rule can hang the browser. uBlock Origin Lite from the store blocks
+  with Copacetic's own blocker off.
+- **Add to Copacetic** in the address bar on an extension's Chrome Web Store
+  page, where the store's own button says to switch to Chrome.
+- **An extensions menu** on the toolbar, for opening, pinning and the options
+  of each extension; an unpinned one keeps working from there.
+- **Store extensions kept up to date** every six hours. An update that asks for
+  more than the version in use waits in Settings until you agree to it, as in
+  Chrome. The check tells the store which store extensions the profile has, and
+  can be turned off in Extensions.
+- **An offer to save a password** once you have signed in with it, or to update
+  the one saved. It comes only when the page moves on and stops asking for a
+  password, so a refused password is not offered, and only for what a person
+  typed and sent. Never in Hush, on a page that is not encrypted or on a site
+  you said never to; Passwords has a switch for it.
+- **Settings, History, Bookmarks and Downloads open in tabs of their own**, so
+  the page you were on stays where it was.
+- **A header of Copacetic's own.** Tabs are pills rather than tabs joined to
+  the toolbar, the buttons sit in capsules, the address leads with how the page
+  arrived and how many trackers were blocked, and the page sits in a rounded
+  frame. Appearance offers a one-line header too, with the address and tabs on
+  one row, which gives the page that height back.
+
+### Changed
+
+- **Sign in with Google opens its pop-up**, now that the FedCM prompt
+  Electron cannot draw is off.
+- **Passkeys and security keys on macOS and Linux:** sites are told at once
+  that there are none, rather than waiting on a dialog Electron does not have,
+  so they offer another way to sign in. On Windows, Windows Hello answers them.
+- **Zoom** in with Cmd/Ctrl+= as well as Cmd/Ctrl+Plus, and pinch to zoom on a
+  trackpad.
+- **Electron 44** (Chromium 152), Next 16.4 and TypeScript 6.
+- What Copacetic sends now names the fourth script it puts in pages, the one
+  that notices a sign-in, and the store's check for extension updates.
+- For diagnosing a sign-in, `npm run record-sign-in` records where its requests
+  went; nothing is recorded unless `COPACETIC_REQUEST_LOG` names a file.
+
+### Fixed
+
+- A long address pushed the toolbar off the window.
+- An IP address was read as a domain name, so 127.0.0.1 and 10.0.0.1 were the
+  same site to password matching, the third-party checks and site exceptions.
+- A tab showed as loading only once the page started, not when it was asked
+  for.
+- A copied password could stay on the clipboard if Copacetic quit while the
+  clear was still reading it back.
+- Downloads said 60 minutes left rather than an hour.
+
+### Limits, stated rather than hidden
+
+- An ad blocker's report of which rules matched is always empty.
+- A sign-in form a page draws after loading, without its address changing, is
+  noticed only if it is there within three seconds; one opened later in a
+  dialog is not offered for saving.
+- Electron 44 closes none of the limits 2.0 stated: cookies, site data and the
+  cache still clear for all time, and find still has no whole-word option.
+
 ## 2.0.0 - 20 October 2026
 
 Copacetic 2.0: a new interface, several windows and profiles, split view,

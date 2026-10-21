@@ -38,7 +38,7 @@ const tab = (): TabState => ({
   blockedCount: 0,
   loadMs: null,
   zoomFactor: 1,
-  isStartPage: false,
+  internalPage: null,
   isBookmarked: false,
 });
 
@@ -91,7 +91,10 @@ describe('a surface keeps the keyboard inside it', () => {
     expect(document.activeElement?.tagName).toBe('BUTTON');
   });
 
-  it('wraps Tab from the last control back to the first', () => {
+  it.each([
+    ['Tab from the last control back to the first', false, 'last', 'first'],
+    ['Shift+Tab from the first control back to the last', true, 'first', 'last'],
+  ] as const)('wraps %s', (_caseName, shiftKey, startsAt, endsAt) => {
     render(
       <SurfaceShell title="History">
         <button type="button">Inside</button>
@@ -100,27 +103,12 @@ describe('a surface keeps the keyboard inside it', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'History' });
     const focusable = [...dialog.querySelectorAll('button')];
-    const last = focusable[focusable.length - 1]!;
-    last.focus();
+    const edges = { first: focusable[0]!, last: focusable[focusable.length - 1]! };
+    edges[startsAt].focus();
 
-    fireEvent.keyDown(document, { key: 'Tab' });
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey });
     expect(dialog.contains(document.activeElement)).toBe(true);
-    expect(document.activeElement).toBe(focusable[0]);
-  });
-
-  it('wraps Shift+Tab from the first control back to the last', () => {
-    render(
-      <SurfaceShell title="History">
-        <button type="button">Inside</button>
-      </SurfaceShell>,
-    );
-
-    const dialog = screen.getByRole('dialog', { name: 'History' });
-    const focusable = [...dialog.querySelectorAll('button')];
-    focusable[0]!.focus();
-
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(focusable[focusable.length - 1]);
+    expect(document.activeElement).toBe(edges[endsAt]);
   });
 
   it('pulls focus back if it somehow ends up outside', () => {
@@ -153,11 +141,5 @@ describe('the live region says what happened elsewhere', () => {
 
     expect(region?.getAttribute('aria-live')).toBe('polite');
     expect(region?.getAttribute('aria-atomic')).toBe('true');
-  });
-
-  it('is not visible, only audible', async () => {
-    const { LiveAnnouncer } = await announce();
-    const { container } = render(<LiveAnnouncer />);
-    expect(container.querySelector('[aria-live]')?.className).toContain('sr-only');
   });
 });

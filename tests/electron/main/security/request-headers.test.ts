@@ -30,13 +30,14 @@ function fakeSession(blockedSites: string[] = ['example.com']) {
         webContents: page(pageUrl),
         requestHeaders: { Cookie: 'id=123', Accept: '*/*' },
       }).requestHeaders as Record<string, string>,
-    response: (url: string, pageUrl: string, resourceType = 'image') =>
-      run(listeners.response!, {
-        url,
-        resourceType,
-        webContents: page(pageUrl),
-        responseHeaders: { 'set-cookie': ['id=123'], 'content-type': ['image/png'] },
-      }).responseHeaders as Record<string, string[]>,
+    response: (
+      url: string,
+      pageUrl: string,
+      resourceType = 'image',
+      responseHeaders: Record<string, string[]> = { 'set-cookie': ['id=123'], 'content-type': ['image/png'] },
+    ) =>
+      run(listeners.response!, { url, resourceType, webContents: page(pageUrl), responseHeaders })
+        .responseHeaders as Record<string, string[]>,
     // As a service worker's request arrives: no page, only the origin that made it.
     fromWorker: (url: string, initiatorOrigin: string) =>
       run(listeners.request!, {
@@ -104,5 +105,49 @@ describe('what it leaves alone', () => {
     expect(session.request('http://static.example.com/a.png', 'https://news.example.com/')).not.toHaveProperty(
       'Sec-CH-UA-Platform',
     );
+  });
+});
+
+describe("an extension's header rules", () => {
+  function withChanges(changes: { header: string; operation: 'set' | 'remove' | 'append'; value?: string }[]) {
+    const listeners: Record<string, Listener> = {};
+    const session = {
+      webRequest: {
+        onBeforeSendHeaders: (listener: Listener) => (listeners.request = listener),
+        onHeadersReceived: (listener: Listener) => (listeners.response = listener),
+      },
+    };
+    installRequestHeaders(session as never, {
+      clientHints: {},
+      blocksThirdPartyCookiesOn: () => false,
+      extensionHeaderChanges: () => changes,
+    });
+    const run = (listener: Listener, details: Record<string, unknown>) => {
+      let result: Record<string, unknown> = {};
+      listener(details, (answer) => (result = answer));
+      return result;
+    };
+    return { listeners, run };
+  }
+
+  it('change what a request sends', () => {
+    const { listeners, run } = withChanges([{ header: 'referer', operation: 'remove' }]);
+    const sent = run(listeners.request!, {
+      url: 'https://example.com/',
+      resourceType: 'script',
+      requestHeaders: { Referer: 'https://news.example/', Accept: '*/*' },
+    }).requestHeaders;
+    expect(sent).toEqual({ Accept: '*/*' });
+  });
+
+  // A response can send Set-Cookie more than once; changing another header must leave each cookie as it was.
+  it('change a response without merging the headers it sends twice', () => {
+    const { listeners, run } = withChanges([{ header: 'x-frame-options', operation: 'remove' }]);
+    const received = run(listeners.response!, {
+      url: 'https://example.com/',
+      resourceType: 'mainFrame',
+      responseHeaders: { 'set-cookie': ['a=1', 'b=2'], 'x-frame-options': ['DENY'] },
+    }).responseHeaders;
+    expect(received).toEqual({ 'set-cookie': ['a=1', 'b=2'] });
   });
 });

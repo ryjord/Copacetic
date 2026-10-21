@@ -15,21 +15,14 @@ const CHROME_MAC =
  * which is what Google's sign-in refuses.
  */
 describe('what the browser says it is', () => {
-  it('claims the Chrome brand the user agent already claims', () => {
+  // Chromium sends a filler brand so that nothing reads the list by position.
+  it('claims the Chrome brand, with the major version for brands and the full one for versions', () => {
     const hints = clientHintsFor(CHROME_MAC, 'darwin');
     expect(hints?.brands).toContainEqual({ brand: 'Google Chrome', version: '150' });
     expect(hints?.brands).toContainEqual({ brand: 'Chromium', version: '150' });
-  });
-
-  it('keeps the major version for brands and the full one for versions', () => {
-    const hints = clientHintsFor(CHROME_MAC, 'darwin');
+    expect(hints?.brands[0]?.brand).toBe('Not;A=Brand');
     expect(hints?.fullVersionList).toContainEqual({ brand: 'Google Chrome', version: '150.0.7871.224' });
     expect(hints?.fullVersion).toBe('150.0.7871.224');
-  });
-
-  // Chromium sends a filler brand so that nothing reads the list by position.
-  it('keeps the filler brand Chromium itself sends', () => {
-    expect(clientHintsFor(CHROME_MAC, 'darwin')?.brands[0]?.brand).toBe('Not;A=Brand');
   });
 
   /**
@@ -51,23 +44,15 @@ describe('what the browser says it is', () => {
   ])('describes %s as %s', (platform, expected) => {
     expect(clientHintsFor(CHROME_MAC, platform)?.platform).toBe(expected);
   });
-
-  it('says it is not a phone', () => {
-    expect(clientHintsFor(CHROME_MAC, 'darwin')?.mobile).toBe(false);
-  });
 });
 
 describe('when it cannot tell', () => {
-  it('says nothing rather than guessing for a user agent without Chrome in it', () => {
-    expect(clientHintsFor('Mozilla/5.0 (X11; Linux) Gecko/20100101 Firefox/130.0', 'linux')).toBeNull();
-  });
-
-  it('says nothing for a platform it has no description of', () => {
-    expect(clientHintsFor(CHROME_MAC, 'aix')).toBeNull();
-  });
-
-  it('says nothing for an empty user agent', () => {
-    expect(clientHintsFor('', 'darwin')).toBeNull();
+  it.each([
+    ['a user agent without Chrome in it', 'Mozilla/5.0 (X11; Linux) Gecko/20100101 Firefox/130.0', 'linux'],
+    ['a platform it has no description of', CHROME_MAC, 'aix'],
+    ['an empty user agent', '', 'darwin'],
+  ])('says nothing rather than guessing for %s', (_caseName, userAgent, platform) => {
+    expect(clientHintsFor(userAgent, platform)).toBeNull();
   });
 });
 
@@ -78,31 +63,14 @@ describe('when it cannot tell', () => {
  * not enough.
  */
 describe('what the browser sends on the wire', () => {
-  const headers = () => clientHintHeaders(clientHintsFor(CHROME_MAC, 'darwin')!);
-
-  it('sends the brand list in the form Chrome sends it', () => {
-    expect(headers()['sec-ch-ua']).toBe('"Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150"');
-  });
-
-  // Chrome sends these only when a site asks for them through Accept-CH.
-  // Volunteering them was both unlike Chrome and more than anyone needs.
-  it.each(['sec-ch-ua-full-version-list', 'sec-ch-ua-platform-version', 'sec-ch-ua-arch'])(
-    'does not volunteer %s',
-    (header) => {
-      expect(headers()[header]).toBeUndefined();
-    },
-  );
-
-  it('sends only the three Chrome sends unprompted', () => {
-    expect(Object.keys(headers()).sort()).toEqual(['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform']);
-  });
-
-  it('says it is not a phone, in the boolean form the header uses', () => {
-    expect(headers()['sec-ch-ua-mobile']).toBe('?0');
-  });
-
-  it('quotes the platform, which the header format requires', () => {
-    expect(headers()['sec-ch-ua-platform']).toBe('"macOS"');
+  // Chrome sends only these three unprompted; the rest go out when a site asks through Accept-CH.
+  it('sends exactly the three Chrome sends, in the form the header format requires', () => {
+    const hints = clientHintsFor(CHROME_MAC, 'darwin')!;
+    expect(clientHintHeaders(hints)).toEqual({
+      'sec-ch-ua': '"Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"macOS"',
+    });
   });
 
   // The wire and the page are built from one object, so they cannot describe
@@ -122,29 +90,23 @@ describe('what the browser sends on the wire', () => {
  * every Chrome carries three is one more way to stand out.
  */
 describe('the languages a request offers', () => {
-  it('widens a regional English to what Chrome sends', () => {
-    expect(acceptLanguagesFor('en-GB')).toBe('en-GB,en-US,en');
-  });
-
-  it('keeps a non-English language first, with English behind it', () => {
-    expect(acceptLanguagesFor('fr-FR')).toBe('fr-FR,fr,en-US,en');
-  });
-
-  it('does not repeat a language it already has', () => {
-    expect(acceptLanguagesFor('en-US')).toBe('en-US,en');
-    expect(acceptLanguagesFor('en')).toBe('en,en-US');
-  });
-
-  it('falls back to a sensible default when there is no locale', () => {
-    expect(acceptLanguagesFor('')).toBe('en-US,en');
+  it.each([
+    ['widens a regional English to what Chrome sends', 'en-GB', 'en-GB,en-US,en'],
+    ['keeps a non-English language first, with English behind it', 'fr-FR', 'fr-FR,fr,en-US,en'],
+    ['does not repeat a language it already has (region)', 'en-US', 'en-US,en'],
+    ['does not repeat a language it already has (base)', 'en', 'en,en-US'],
+    ['falls back to a sensible default when there is no locale', '', 'en-US,en'],
+  ])('%s', (_caseName, locale, expected) => {
+    expect(acceptLanguagesFor(locale)).toBe(expected);
   });
 });
 
 describe('what the browser tells sites it is', () => {
-  it('does not advertise Electron', () => {
-    const stripped = stripElectronFromUserAgent('Mozilla/5.0 Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36');
-    expect(stripped).not.toMatch(/electron/i);
-    expect(stripped).toMatch(/Chrome\/120/);
+  it.each([
+    ['does not advertise Electron', 'Mozilla/5.0 Chrome/120.0.0.0 Electron/28.0.0 Safari/537.36'],
+    ['leaves a user agent without Electron alone', 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36'],
+  ])('%s', (_caseName, userAgent) => {
+    expect(stripElectronFromUserAgent(userAgent)).toBe('Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36');
   });
 
   it('takes the whole of a prerelease token, not just its digits', () => {
@@ -158,11 +120,6 @@ describe('what the browser tells sites it is', () => {
   it('says only the major version of Chrome, as Chrome does', () => {
     expect(stripElectronFromUserAgent(CHROME_MAC)).toContain('Chrome/150.0.0.0 ');
     expect(clientHintsFor(stripElectronFromUserAgent(CHROME_MAC), 'darwin')?.fullVersion).toBe('150.0.0.0');
-  });
-
-  it('leaves a user agent without Electron alone', () => {
-    const plain = 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36';
-    expect(stripElectronFromUserAgent(plain)).toBe(plain);
   });
 });
 

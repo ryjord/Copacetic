@@ -1,14 +1,28 @@
 import { describe, expect, it, vi } from 'vitest';
-import { attachTabEvents, type TabEventDeps } from '../../../../electron/main/tabs/tab-events';
+import {
+  attachTabEvents,
+  dropBlankEntries,
+  markLoadRequested,
+  settleUnstartedLoad,
+  type TabEventDeps,
+} from '../../../../electron/main/tabs/tab-events';
 import type { TabRecord } from '../../../../electron/main/tabs/tab-record';
+import { MAX_PINCH_ZOOM } from '../../../../electron/shared/types';
 import { HUSH_RECORD, storedRecord } from '../../../../electron/main/tabs/browsing-record';
 
 /** A stand-in for the tab's web contents that lets a test fire what a page reports. */
 function fakeContents() {
   const handlers = new Map<string, ((...args: unknown[]) => void)[]>();
+  let url = 'https://example.com/';
   return {
     id: 1,
+    getURL: () => url,
+    showing(next: string) {
+      url = next;
+    },
     setZoomFactor: vi.fn(),
+    setVisualZoomLevelLimits: vi.fn(async () => {}),
+    navigationHistory: { getAllEntries: () => [], getActiveIndex: () => 0, removeEntryAtIndex: vi.fn(() => true) },
     on(name: string, handler: (...args: unknown[]) => void) {
       const existing = handlers.get(name) ?? [];
       existing.push(handler);
@@ -41,7 +55,6 @@ function setup(overrides: Partial<TabRecord> = {}) {
     isHush: false,
     isPinned: false,
     isAsleep: false,
-    isStartPage: false,
     url: 'https://example.com/page',
     title: 'Example',
     faviconDataUrl: null,
@@ -58,6 +71,9 @@ function setup(overrides: Partial<TabRecord> = {}) {
   const deps = {
     store,
     blocker: { resetCount: vi.fn(), setPageSite: vi.fn() },
+    httpsFirst: { committed: vi.fn() },
+    forgetBlockedCount: vi.fn(),
+    onPageChanged: vi.fn(),
     onChanged: vi.fn(),
     applyVisibility: vi.fn(),
     cacheFavicon: vi.fn(),
@@ -109,15 +125,126 @@ describe('what a page reports about itself is not trusted to be sensible', () =>
     expect(deps.cacheFavicon).not.toHaveBeenCalled();
   });
 
-  it('does not record a visit for the start page', () => {
-    const { contents, deps } = setup({ isStartPage: true });
-    contents.emit('page-title-updated', {}, 'New tab');
+  // The blank view behind one of our pages reports a title of its own, which is neither a visit nor the tab's name.
+  it.each(['copacetic://start', 'copacetic://settings/sites'])('neither records nor takes a title on %s', (url) => {
+    const { contents, deps, tab } = setup({ url, title: '' });
+    contents.emit('page-title-updated', {}, 'about:blank');
     expect(deps.store.recordVisit).not.toHaveBeenCalled();
+    expect(tab.title).toBe('');
   });
 
   it('does not record a visit for a page that failed to load', () => {
     const { contents, deps } = setup({ error: { code: -105, name: 'x', description: 'y', url: 'z' } });
     contents.emit('page-title-updated', {}, 'Cannot reach');
     expect(deps.store.recordVisit).not.toHaveBeenCalled();
+  });
+});
+
+describe('a load that ends without Chromium starting it', () => {
+  it('reads as loading from the moment it is asked for', () => {
+    const tab = { isLoading: false };
+    markLoadRequested(tab);
+    expect(tab.isLoading).toBe(true);
+  });
+
+  const contentsThat = (state: { isDestroyed?: boolean; isLoading?: boolean }) => ({
+    isDestroyed: () => state.isDestroyed ?? false,
+    isLoading: () => state.isLoading ?? false,
+  });
+
+  it('stops the tab reading as loading once nothing is', () => {
+    const tab = { isLoading: true };
+    expect(settleUnstartedLoad(tab, contentsThat({}))).toBe(true);
+    expect(tab.isLoading).toBe(false);
+  });
+
+  // A newer navigation took over while this load was being asked for; its spinner is not ours to clear.
+  it('leaves a tab alone while another load is under way', () => {
+    const tab = { isLoading: true };
+    expect(settleUnstartedLoad(tab, contentsThat({ isLoading: true }))).toBe(false);
+    expect(tab.isLoading).toBe(true);
+  });
+
+  it('leaves a tab that already settled', () => {
+    const tab = { isLoading: false };
+    expect(settleUnstartedLoad(tab, contentsThat({}))).toBe(false);
+  });
+
+  it('leaves a tab whose page has gone', () => {
+    const tab = { isLoading: true };
+    expect(settleUnstartedLoad(tab, contentsThat({ isDestroyed: true }))).toBe(false);
+  });
+});
+
+describe('a load ending', () => {
+  // Every view is given an empty page first, which stops loading long before the address asked for starts.
+  it('is not the empty page a view starts on, for a tab on its way to an address', () => {
+    const { contents, tab } = setup({ url: 'https://example.com/', isLoading: true });
+    contents.showing('about:blank');
+    contents.emit('did-start-loading');
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(true);
+    expect(tab.loadMs).toBeNull();
+    contents.showing('https://example.com/');
+    contents.emit('did-navigate', {}, 'https://example.com/', 200);
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(false);
+  });
+
+  // A page that sends itself to an empty one, as some sign-in pop-ups do, has stopped; it is not starting out.
+  it('is an empty page a page went to after a real one', () => {
+    const { contents, tab } = setup({ url: 'https://example.com/', isLoading: true });
+    contents.emit('did-navigate', {}, 'https://example.com/', 200);
+    contents.showing('about:blank');
+    contents.emit('did-start-loading');
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(false);
+  });
+
+  it('is the empty page itself for one of our own pages, which draws over it', () => {
+    const { contents, tab } = setup({ url: 'copacetic://settings', isLoading: true });
+    contents.showing('about:blank');
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(false);
+  });
+});
+
+describe('a page that has committed', () => {
+  // Electron turns trackpad pinching off unless asked, which made pages impossible to pinch closer.
+  it('can be pinched closer, as in any browser', () => {
+    const { contents } = setup();
+    contents.emit('did-navigate', {}, 'https://example.com/next', 200);
+    expect(contents.setVisualZoomLevelLimits).toHaveBeenCalledWith(1, MAX_PINCH_ZOOM);
+  });
+});
+
+describe('the blank page behind one of our pages', () => {
+  const historyOf = (urls: string[], active: number) => {
+    const entries = urls.map((url) => ({ url }));
+    return {
+      entries,
+      getAllEntries: () => entries,
+      getActiveIndex: () => active,
+      removeEntryAtIndex: (index: number) => entries.splice(index, 1).length === 1,
+    };
+  };
+
+  // Settings opened in a site's tab, then a site from History: Back goes to the first site, not to white.
+  it('is taken out of the history once a site commits', () => {
+    const history = historyOf(['https://a.example/', 'about:blank', 'https://b.example/'], 2);
+    dropBlankEntries(history);
+    expect(history.entries.map((entry) => entry.url)).toEqual(['https://a.example/', 'https://b.example/']);
+  });
+
+  it('is left alone while it is the page in front', () => {
+    const history = historyOf(['https://a.example/', 'about:blank'], 1);
+    dropBlankEntries(history);
+    expect(history.entries).toHaveLength(2);
+  });
+
+  it('is taken out wherever it sits, more than once', () => {
+    const history = historyOf(['about:blank', 'https://a.example/', 'about:blank', 'https://b.example/'], 3);
+    dropBlankEntries(history);
+    expect(history.entries.map((entry) => entry.url)).toEqual(['https://a.example/', 'https://b.example/']);
   });
 });

@@ -37,6 +37,12 @@ const DISABLED_FEATURES = [
   'FledgeConsiderKAnonymity',
 ];
 
+/** Features whose dialog Electron never draws; turned off, a site takes the path it takes elsewhere. */
+const UNDRAWN_FEATURES = [
+  // Google's sign-in button waits on FedCM's account chooser; without it, the button opens its pop-up.
+  'FedCm',
+];
+
 export const PRIVACY_SWITCHES: readonly Switch[] = [
   {
     name: 'disable-background-networking',
@@ -61,18 +67,34 @@ export const PRIVACY_SWITCHES: readonly Switch[] = [
   },
   {
     name: 'disable-features',
-    value: DISABLED_FEATURES.join(','),
-    reason: 'Turns off the Chromium features that contact a server without being asked.',
+    value: [...DISABLED_FEATURES, ...UNDRAWN_FEATURES].join(','),
+    reason:
+      'Turns off the Chromium features that contact a server without being asked, and the ones whose dialog Electron never draws.',
   },
 ];
+
+/** Switches that depend on the system, applied with the ones above. */
+export function platformSwitches(platform: NodeJS.Platform): Switch[] {
+  // Windows Hello answers passkeys itself; elsewhere Electron draws no dialog for them, so a request waited forever.
+  return platform === 'win32'
+    ? []
+    : [
+        {
+          name: 'disable-blink-features',
+          value: 'WebAuth',
+          reason:
+            'Tells sites there are no passkeys or security keys here, since Electron has no dialog to answer them, so they offer another way to sign in.',
+        },
+      ];
+}
 
 export interface CommandLine {
   appendSwitch(name: string, value?: string): void;
 }
 
 /** Must run before `app.ready`; Chromium reads its command line once. */
-export function applyPrivacySwitches(commandLine: CommandLine): void {
-  for (const entry of PRIVACY_SWITCHES) {
+export function applyStartupSwitches(commandLine: CommandLine, platform: NodeJS.Platform = process.platform): void {
+  for (const entry of [...PRIVACY_SWITCHES, ...platformSwitches(platform)]) {
     if (entry.value === undefined) {
       commandLine.appendSwitch(entry.name);
     } else {

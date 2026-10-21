@@ -75,6 +75,7 @@ export function stabiliseState(previous: BrowserState, next: BrowserState): Brow
     update: keepIfSame(previous.update, next.update),
     siteInfo: keepIfSame(previous.siteInfo, next.siteInfo),
     bookmarkSheet: keepIfSame(previous.bookmarkSheet, next.bookmarkSheet),
+    passwordOffer: keepIfSame(previous.passwordOffer, next.passwordOffer),
     split: keepIfSame(previous.split, next.split),
     namedSessions: keepIfSame(previous.namedSessions, next.namedSessions),
     profile: keepIfSame(previous.profile, next.profile),

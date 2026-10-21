@@ -7,12 +7,12 @@ import { Profiles } from './app/profiles';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
 import { installApplicationMenu } from './menus/menu';
-import { applyPrivacySwitches } from './system/command-line';
+import { applyStartupSwitches } from './system/command-line';
 import { handleAppProtocol, registerAppProtocolScheme } from './security/protocol';
 import { describeError, log, startDiagnostics } from './system/diagnostics';
-import { applyLaunchMode } from './system/launch-mode';
+import { applyLaunchMode, applyLaunchSwitches } from './system/launch-mode';
 import { markQuit, markRunning } from './system/exit-marker';
-import { clearCopiedSecret } from './vault/vault-clipboard';
+import { clearCopiedSecretBeforeQuit } from './vault/vault-clipboard';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/browsing/url';
@@ -20,7 +20,8 @@ import { t } from '../shared/i18n/translate';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
 // the scheme has to be registered to be treated as a real, secure origin.
-applyPrivacySwitches(app.commandLine);
+applyStartupSwitches(app.commandLine);
+applyLaunchSwitches(app.commandLine);
 registerAppProtocolScheme();
 
 // A browser with two copies of itself running would fight over the session
@@ -145,8 +146,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  clearCopiedSecretBeforeQuit();
   profiles?.prepareForQuit();
-  clearCopiedSecret();
 });
 
 /**
@@ -166,6 +167,8 @@ app.on('before-quit', () => {
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
     try {
+      // First, so nothing that throws below can leave a copied password behind.
+      clearCopiedSecretBeforeQuit();
       profiles?.prepareForQuit();
       markQuit(app.getPath('userData'));
     } finally {

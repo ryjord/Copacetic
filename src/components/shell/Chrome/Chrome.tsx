@@ -4,15 +4,11 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 
 // Components
-import { BookmarksSurface } from '@/components/views/bookmarks/BookmarksSurface';
 import { CommandPalette } from '@/components/views/palette/CommandPalette';
-import { DownloadsSurface } from '@/components/views/downloads/DownloadsSurface';
-import { HistorySurface } from '@/components/views/history/HistorySurface';
 import { ReaderSurface } from '@/components/views/reader/ReaderSurface';
-import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
 import { ErrorPage } from '@/components/views/error/ErrorPage';
-import { StartPage } from '@/components/views/start/StartPage';
 import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
+import { InternalPage } from '@/components/shell/InternalPage/InternalPage';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
 import { SplitView } from '@/components/shell/SplitView/SplitView';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
@@ -34,7 +30,6 @@ import { shownSplit } from '@shared/tabs/split-view';
 export function Chrome() {
   const applyState = useBrowserStore((state) => state.applyState);
   const setSurface = useBrowserStore((state) => state.setSurface);
-  const openSettings = useBrowserStore((state) => state.openSettings);
   const requestOmniboxFocus = useBrowserStore((state) => state.requestOmniboxFocus);
 
   const isReady = useBrowserStore((state) => state.isReady);
@@ -48,6 +43,7 @@ export function Chrome() {
   const groups = useBrowserStore((state) => state.groups);
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
   const showBookmarksBar = useBrowserStore((state) => state.settings.showBookmarksBar);
+  const isOneLine = useBrowserStore((state) => state.settings.headerLayout === 'one-line');
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -65,11 +61,10 @@ export function Chrome() {
       api.on.state(applyState),
       api.on.focusOmnibox(requestOmniboxFocus),
       api.on.openSurface((next) => setSurface(next)),
-      api.on.openSettingsPane((paneId) => openSettings(paneId)),
     ];
 
     // Anything asked for before this listener existed was pushed to nobody. The
-    // main process holds the last one; collecting it here is what makes Cmd+,
+    // main process holds the last one; collecting it here is what makes Cmd+K
     // during the second and a half this page takes to hydrate do something.
     void api.chrome.pendingSurface().then((pending) => {
       if (pending) {
@@ -77,7 +72,7 @@ export function Chrome() {
       }
     });
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, [applyState, requestOmniboxFocus, setSurface, openSettings]);
+  }, [applyState, requestOmniboxFocus, setSurface]);
 
   // --- reporting the content rectangle ------------------------------------
 
@@ -123,21 +118,9 @@ export function Chrome() {
     };
     // The chrome's height changes when these appear, and each change moves the
     // content rectangle the main process needs to match.
-  }, [surface, showBookmarksBar]);
+  }, [surface, showBookmarksBar, isOneLine]);
 
-  /*
-   * Reaching for a tab is asking to see it. The first state arriving is not.
-   *
-   * The panel describes one particular tab, so it must not linger over another.
-   * A surface is worse than lingering: it covers the whole content area and
-   * hides every page view, so clicking a tab switched to it, highlighted it in
-   * the strip, and showed nothing at all - the browser looked like it had
-   * ignored the click.
-   *
-   * These are chrome rather than pages. There is no address to go back to and
-   * nothing to restore, so closing on the way past is what they are: something
-   * opened over the top of what you were doing, and dismissed by returning to it.
-   */
+  // Reaching for another tab is asking to see it, so an overlay over the last one closes; the first state arriving is not.
   const previousTabId = useRef<string | null>(null);
   useEffect(() => {
     const previous = previousTabId.current;
@@ -179,14 +162,24 @@ export function Chrome() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-ground">
-      {/* The right padding is the system's own window controls on Windows and Linux, drawn over this strip. */}
-      <header className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-end gap-1 pl-2.5 pr-[var(--window-controls-width)]">
-        {/* Room for the macOS traffic lights, which sit inside this strip. */}
-        {isMacPlatform() && <div className="w-[74px] shrink-0 self-stretch" aria-hidden />}
-        <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
-      </header>
-
-      <Toolbar tab={activeTab} />
+      {isOneLine ? (
+        <header className="shrink-0">
+          <Toolbar
+            tab={activeTab}
+            tabStrip={<TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} isNarrow />}
+          />
+        </header>
+      ) : (
+        <header className="shrink-0">
+          {/* The right padding is the system's own window controls on Windows and Linux, drawn over this strip. */}
+          <div className="drag-region flex h-[var(--chrome-header-height)] shrink-0 items-center gap-1 pl-2.5 pr-[var(--window-controls-width)]">
+            {/* Room for the macOS traffic lights, which sit inside this strip. */}
+            {isMacPlatform() && <div className="w-[74px] shrink-0 self-stretch" aria-hidden />}
+            <TabStrip tabs={tabs} activeTabId={activeTabId} groups={groups} />
+          </div>
+          <Toolbar tab={activeTab} />
+        </header>
+      )}
 
       {showBookmarksBar && <BookmarksBar />}
 
@@ -194,7 +187,11 @@ export function Chrome() {
 
       <LiveAnnouncer />
 
-      <main ref={contentRef} className="relative isolate min-h-0 flex-1 bg-void">
+      {/* Framed rather than edge to edge: the page's own view is rounded to match in the main process. */}
+      <main
+        ref={contentRef}
+        className="relative isolate mx-2 mb-2 min-h-0 flex-1 overflow-hidden rounded-[var(--frame-radius)] bg-void shadow-[0_0_0_1px_var(--color-line)]"
+      >
         {/*
           Hidden behind a surface, so it must leave the tab order too. Without
           this, Tab walks out of the open panel and into controls nobody can
@@ -204,16 +201,10 @@ export function Chrome() {
           {!isRunningInShell() && <OutsideShellNotice />}
 
           {isReady && split && <SplitView split={split} tabs={tabs} activeTabId={activeTabId} />}
-          {isReady && !split && activeTab?.isStartPage && (
-            <StartPage tabId={activeTab.id} isHush={activeTab.isHush} />
-          )}
+          {isReady && !split && activeTab?.internalPage && <InternalPage tab={activeTab} />}
           {isReady && !split && activeTab?.error && <ErrorPage tabId={activeTab.id} error={activeTab.error} />}
         </div>
 
-        {surface === 'settings' && <SettingsSurface />}
-        {surface === 'history' && <HistorySurface />}
-        {surface === 'bookmarks' && <BookmarksSurface />}
-        {surface === 'downloads' && <DownloadsSurface />}
         {surface === 'palette' && <CommandPalette />}
         {surface === 'tab-search' && <CommandPalette scope="tabs" />}
         {surface === 'reader' && <ReaderSurface />}
@@ -225,7 +216,8 @@ export function Chrome() {
 // A single hairline under the toolbar.
 function LoadingLine({ isLoading }: { isLoading: boolean }) {
   return (
-    <div className="relative h-px w-full shrink-0 overflow-hidden bg-line" aria-hidden>
+    // Inset with the page's frame, and seen only while something loads: an idle line across the window was one more rule.
+    <div className="relative mx-3 h-px shrink-0 overflow-hidden" aria-hidden>
       {isLoading && <div className="animate-indeterminate h-full w-full bg-active" />}
     </div>
   );

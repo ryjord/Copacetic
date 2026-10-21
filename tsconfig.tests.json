@@ -24,7 +24,7 @@
     "tests/**/*.tsx",
     "src/types/global.d.ts",
     "src/types/css-custom-properties.d.ts",
-    "vitest.config.ts"
+    "vitest.config.mts"
   ],
   "exclude": ["node_modules"]
 }

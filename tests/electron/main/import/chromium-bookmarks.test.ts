@@ -10,7 +10,7 @@ const url = (name: string, address: string, dateAdded = '13348540800000000') => 
 const folder = (name: string, children: unknown[]) => ({ type: 'folder', name, children });
 
 describe("a Chromium profile's bookmarks", () => {
-  it('finds them at every depth of every root', () => {
+  it('finds them at every depth of every root, naming each one’s folders from the root down', () => {
     const { bookmarks } = bookmarksFromChromium({
       roots: {
         bookmark_bar: folder('Bookmarks bar', [
@@ -25,6 +25,10 @@ describe("a Chromium profile's bookmarks", () => {
       'https://top.example/',
       'https://deep.example/',
       'https://other.example/',
+    ]);
+    expect(bookmarks.slice(0, 2).map((bookmark) => bookmark.folders)).toEqual([
+      ['Bookmarks bar'],
+      ['Bookmarks bar', 'Work', 'Deep'],
     ]);
   });
 
@@ -60,22 +64,5 @@ describe("a Chromium profile's bookmarks", () => {
 
   it.each([null, 'nonsense', {}, { roots: 4 }])('finds nothing in %j', (raw) => {
     expect(bookmarksFromChromium(raw)).toEqual({ bookmarks: [], skipped: 0 });
-  });
-});
-
-describe('the folders a Chromium profile kept', () => {
-  it("names each bookmark's folders from the root down", () => {
-    const { bookmarks } = bookmarksFromChromium({
-      roots: {
-        bookmark_bar: folder('Bookmarks bar', [
-          url('Top', 'https://top.example/'),
-          folder('Work', [folder('Deep', [url('Deep', 'https://deep.example/')])]),
-        ]),
-      },
-    });
-    expect(bookmarks.map((bookmark) => bookmark.folders)).toEqual([
-      ['Bookmarks bar'],
-      ['Bookmarks bar', 'Work', 'Deep'],
-    ]);
   });
 });

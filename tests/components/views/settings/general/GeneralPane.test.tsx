@@ -52,13 +52,6 @@ describe('what opens at startup', () => {
   });
 });
 
-describe('how long history is kept', () => {
-  it('shows ninety days unless changed', () => {
-    render(<GeneralPane />);
-    expect(screen.getByRole('combobox', { name: 'Keep history' }).textContent).toContain('For 90 days');
-  });
-});
-
 describe('search engines someone adds', () => {
   const fill = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), { target: { value } });

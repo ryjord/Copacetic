@@ -1,6 +1,7 @@
 // Utils
-import { clampZoom } from '../../shared/types';
-import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/browsing/url';
+import { MAX_PINCH_ZOOM, clampZoom } from '../../shared/types';
+import { fallbackTitleFor, hostOf, originOf, siteOfHost } from '../../shared/browsing/url';
+import { internalPageOf } from '../../shared/tabs/internal-pages';
 import { canAcceptRefused } from '../security/certificate-exceptions';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';
@@ -13,6 +14,9 @@ import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { BrowserStore } from '../data/store';
 import type { TabRecord } from './tab-record';
+
+/** How a tab's page changed: a new document, a move within the same one, or a document finished loading. */
+export type PageChange = 'committed' | 'in-page' | 'loaded';
 
 /**
  * What the page can tell us about itself. Everything here is reported by the
@@ -30,6 +34,7 @@ export interface TabEventDeps {
   cacheFavicon: (tab: TabRecord, faviconUrl: string) => void;
   onFoundInPage: (activeMatch: number, matches: number) => void;
   onContextMenu: (tabId: TabId, params: ContextMenuParams) => void;
+  onPageChanged: (tabId: TabId, change: PageChange) => void;
 }
 
 export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
@@ -42,7 +47,12 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     changed();
   });
 
+  // Each view is given an empty page before its first address; until a real page commits, that stopping is not the tab's.
+  let hasArrived = false;
   contents.on('did-stop-loading', () => {
+    if (!hasArrived && contents.getURL() === 'about:blank' && internalPageOf(tab.url) === null) {
+      return;
+    }
     tab.isLoading = false;
     if (tab.loadStartedAt !== null) {
       tab.loadMs = Date.now() - tab.loadStartedAt;
@@ -60,19 +70,20 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     // Set before any subresource request is judged, so an exception applies
     // from the first request of the page rather than the second load.
     const site = hostOf(details.url);
-    deps.blocker.setPageSite(contents.id, registrableDomainOf(site) ?? site);
+    deps.blocker.setPageSite(contents.id, siteOfHost(site));
   });
 
   const commitNavigation = (url: string, isInPage: boolean) => {
     if (url === 'about:blank') {
       return;
     }
+    hasArrived = true;
     tab.url = url;
-    tab.isStartPage = false;
     tab.error = null;
     if (!isInPage) {
       tab.title = fallbackTitleFor(url);
       tab.faviconDataUrl = deps.store.getFavicon(url);
+      dropBlankEntries(contents.navigationHistory);
     }
     // A stored level for this origin wins over whatever the tab was showing,
     // so following a link to a site you zoomed once arrives zoomed.
@@ -85,6 +96,10 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       );
     }
     contents.setZoomFactor(tab.zoomFactor);
+    // Electron turns trackpad pinching off unless asked; asked again on each new page, which may be a fresh renderer.
+    if (!isInPage) {
+      void contents.setVisualZoomLevelLimits(1, MAX_PINCH_ZOOM).catch(() => {});
+    }
     deps.applyVisibility();
     changed();
   };
@@ -125,16 +140,23 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   contents.on('did-navigate', (_event, url, responseCode) => {
     deps.httpsFirst.committed(contents.id, responseCode);
     commitNavigation(url, false);
+    deps.onPageChanged(tab.id, 'committed');
   });
   contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
     if (isMainFrame) {
       commitNavigation(url, true);
+      deps.onPageChanged(tab.id, 'in-page');
     }
   });
+  contents.on('did-finish-load', () => deps.onPageChanged(tab.id, 'loaded'));
 
   contents.on('page-title-updated', (_event, title) => {
+    // The blank view behind one of our pages has a title of its own, which must not stick to the tab.
+    if (internalPageOf(tab.url)) {
+      return;
+    }
     tab.title = title;
-    if (!tab.isStartPage && !tab.error && tab.url.startsWith('http')) {
+    if (!tab.error && tab.url.startsWith('http')) {
       tab.record.recordVisit(tab.url, title);
     }
     changed();
@@ -197,4 +219,40 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   contents.on('context-menu', (_event, params) => {
     deps.onContextMenu(tab.id, params);
   });
+}
+
+/** Marks a tab loading from the moment a page is asked for, ahead of Chromium's did-start-loading. */
+export function markLoadRequested(tab: Pick<TabRecord, 'isLoading'>): void {
+  tab.isLoading = true;
+}
+
+/** Settles a tab whose load ended without Chromium starting it, which sends no did-stop-loading. Says whether it changed. */
+export function settleUnstartedLoad(
+  tab: Pick<TabRecord, 'isLoading'>,
+  contents: { isDestroyed(): boolean; isLoading(): boolean },
+): boolean {
+  if (!tab.isLoading || contents.isDestroyed() || contents.isLoading()) {
+    return false;
+  }
+  tab.isLoading = false;
+  return true;
+}
+
+/**
+ * Takes out the blank pages one of our pages left in a view's history, so Back
+ * and Forward step between sites and never land on a white page with an old address.
+ */
+export function dropBlankEntries(history: {
+  getAllEntries(): { url: string }[];
+  getActiveIndex(): number;
+  removeEntryAtIndex(index: number): boolean;
+}): void {
+  const active = history.getActiveIndex();
+  history
+    .getAllEntries()
+    .map((entry, index) => ({ url: entry.url, index }))
+    .filter((entry) => entry.url === 'about:blank' && entry.index !== active)
+    // From the end, so removing one leaves the positions of those before it alone.
+    .reverse()
+    .forEach((entry) => history.removeEntryAtIndex(entry.index));
 }

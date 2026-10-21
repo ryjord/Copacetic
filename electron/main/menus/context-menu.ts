@@ -1,5 +1,5 @@
 // Libs
-import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, clipboard, dialog, shell } from 'electron';
+import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, dialog, shell } from 'electron';
 
 // Utils
 import { cleanUrl } from '../../shared/browsing/link-cleaning';
@@ -11,6 +11,7 @@ import { isInSplit } from '../../shared/tabs/split-view';
 import { groupIdOf, groupTarget, openRuleFor } from '../../shared/tabs/open-rules';
 import { countIn, pathOf } from '../../shared/data/bookmark-folders';
 import { countTraces, describeTraces, siteOf } from '../../shared/data/forgetting';
+import { copyText } from '../system/clipboard';
 
 // Types
 import type { TabId } from '../../shared/types';
@@ -108,7 +109,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     }
     // The address someone shares is the clean one, when they asked for links to be cleaned.
     const shareable = browser.profile.settings().cleanLinks ? (cleanUrl(linkUrl) ?? linkUrl) : linkUrl;
-    push({ label: t('main.menu.context.copyLinkAddress'), click: () => clipboard.writeText(shareable) });
+    push({ label: t('main.menu.context.copyLinkAddress'), click: () => void copyText(shareable) });
     push({ label: t('main.menu.context.downloadLinkedFile'), click: () => browser.commands.downloadUrl(linkUrl) });
     separate();
   }
@@ -126,7 +127,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
       label: t('main.menu.context.copyImage'),
       click: () => browser.tabs.copyImageAt(tabId, params.x, params.y),
     });
-    push({ label: t('main.menu.context.copyImageAddress'), click: () => clipboard.writeText(imageUrl) });
+    push({ label: t('main.menu.context.copyImageAddress'), click: () => void copyText(imageUrl) });
     push({ label: t('main.menu.context.saveImage'), click: () => browser.commands.downloadUrl(imageUrl) });
     separate();
   }
@@ -201,7 +202,7 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     separate();
     push({
       label: t('main.menu.context.copyPageAddress'),
-      click: () => clipboard.writeText(browser.tabs.urlFor(tabId) ?? ''),
+      click: () => void copyText(browser.tabs.urlFor(tabId) ?? ''),
     });
     push({
       label: t('main.menu.bookmarks.bookmarkThisPage'),
@@ -293,7 +294,11 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
         }
       },
     },
-    { label: t('main.menu.context.copyAddress'), enabled: url !== null, click: () => clipboard.writeText(url ?? '') },
+    {
+      label: t('main.menu.context.copyAddress'),
+      enabled: url !== null,
+      click: () => void copyText(url ?? ''),
+    },
     {
       label: t('main.menu.context.openInDefaultBrowser'),
       enabled: url !== null && (url.startsWith('http://') || url.startsWith('https://')),
@@ -619,7 +624,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
       label: t('main.menu.context.openInNewWindow'),
       click: () => void browser.profile.openWindow({ url: bookmark.url }),
     },
-    { label: t('main.menu.context.copyAddress'), click: () => clipboard.writeText(bookmark.url) },
+    { label: t('main.menu.context.copyAddress'), click: () => void copyText(bookmark.url) },
     { type: 'separator' },
     {
       label: t('main.menu.context.moveToFolder'),
@@ -670,7 +675,7 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
       label: t('main.menu.context.openInNewWindow'),
       click: () => void browser.profile.openWindow({ url: address }),
     },
-    { label: t('main.menu.context.copyAddress'), click: () => clipboard.writeText(address) },
+    { label: t('main.menu.context.copyAddress'), click: () => void copyText(address) },
     { type: 'separator' },
     {
       label: t('main.menu.context.forgetSite', { site }),

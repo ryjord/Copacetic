@@ -143,7 +143,8 @@ export function clampToRun(
 export interface SleepCandidate {
   id: TabId;
   isActive: boolean;
-  isStartPage: boolean;
+  /** A page Copacetic draws, which has nothing of its own to give back. */
+  isInternalPage: boolean;
   isAsleep: boolean;
   /** Playing sound, which someone is listening to whether or not they are looking. */
   isAudible: boolean;
@@ -153,7 +154,7 @@ export interface SleepCandidate {
 /**
  * The tabs left alone long enough to give up their memory.
  *
- * Never the one in front, one playing sound, a start page that holds nothing,
+ * Never the one in front, one playing sound, a page of ours that holds nothing,
  * or one already asleep. Zero minutes means never.
  */
 export function tabsToSleep(tabs: readonly SleepCandidate[], now: number, afterMinutes: number): TabId[] {
@@ -163,7 +164,7 @@ export function tabsToSleep(tabs: readonly SleepCandidate[], now: number, afterM
   const cutoff = now - afterMinutes * 60_000;
   return tabs
     .filter(
-      (tab) => !tab.isActive && !tab.isStartPage && !tab.isAsleep && !tab.isAudible && tab.lastActiveAt <= cutoff,
+      (tab) => !tab.isActive && !tab.isInternalPage && !tab.isAsleep && !tab.isAudible && tab.lastActiveAt <= cutoff,
     )
     .map((tab) => tab.id);
 }

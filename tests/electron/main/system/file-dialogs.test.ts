@@ -10,7 +10,7 @@ const chmod = vi.fn();
 vi.mock('electron', () => ({ dialog: { showOpenDialog, showSaveDialog } }));
 vi.mock('node:fs/promises', () => ({ readFile, writeFile, chmod, default: { readFile, writeFile, chmod } }));
 
-const { readChosenFile, writeChosenFile, fileStamp } = await import('../../../../electron/main/system/file-dialogs');
+const { readChosenFile, writeChosenFile } = await import('../../../../electron/main/system/file-dialogs');
 
 const window = {} as BrowserWindow;
 const openOptions = { title: 'Import', filters: [{ name: 'Any', extensions: ['csv'] }] };
@@ -28,17 +28,12 @@ describe('choosing a file to read', () => {
     expect(await readChosenFile(window, openOptions)).toEqual({ value: 'url,password', message: '' });
   });
 
-  // They know they just cancelled, so telling them would be noise.
-  it('says nothing when the dialog is cancelled', async () => {
-    showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
-
-    expect(await readChosenFile(window, openOptions)).toEqual({ value: null, message: '' });
-    expect(readFile).not.toHaveBeenCalled();
-  });
-
-  // Cancelling on some platforms reports no path rather than a cancel.
-  it('treats an empty selection as a cancellation', async () => {
-    showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [] });
+  // They know they just cancelled, so telling them would be noise. Some platforms report no path rather than a cancel.
+  it.each([
+    ['the dialog is cancelled', { canceled: true, filePaths: [] }],
+    ['the selection is empty', { canceled: false, filePaths: [] }],
+  ])('says nothing when %s', async (_name, dialogResult) => {
+    showOpenDialog.mockResolvedValue(dialogResult);
 
     expect(await readChosenFile(window, openOptions)).toEqual({ value: null, message: '' });
     expect(readFile).not.toHaveBeenCalled();
@@ -53,13 +48,6 @@ describe('choosing a file to read', () => {
       message: 'EACCES: permission denied',
     });
   });
-
-  it('still says something when what was thrown was not an error', async () => {
-    showOpenDialog.mockResolvedValue({ canceled: false, filePaths: ['/tmp/in.csv'] });
-    readFile.mockRejectedValue('nope');
-
-    expect((await readChosenFile(window, openOptions)).message).toBe('The file could not be read.');
-  });
 });
 
 describe('choosing where to write a file', () => {
@@ -71,20 +59,12 @@ describe('choosing where to write a file', () => {
     expect(writeFile).toHaveBeenCalledWith('/tmp/out.csv', 'body', { encoding: 'utf8', mode: 0o600 });
   });
 
-  it('says nothing when the dialog is cancelled', async () => {
-    showSaveDialog.mockResolvedValue({ canceled: true, filePath: undefined });
-
-    expect(await writeChosenFile(window, saveOptions, () => 'body')).toEqual({ value: null, message: '' });
-  });
-
-  // The whole history is serialised to produce these, so doing it for a dialog
-  // nobody accepted is work done for nothing.
-  it('does not produce the contents until somewhere has been chosen', async () => {
+  // The whole history is serialised to produce these, so doing it for a dialog nobody accepted is work done for nothing.
+  it('says nothing, and does not produce the contents, when the dialog is cancelled', async () => {
     showSaveDialog.mockResolvedValue({ canceled: true, filePath: undefined });
     const contents = vi.fn(() => 'body');
 
-    await writeChosenFile(window, saveOptions, contents);
-
+    expect(await writeChosenFile(window, saveOptions, contents)).toEqual({ value: null, message: '' });
     expect(contents).not.toHaveBeenCalled();
   });
 
@@ -98,18 +78,31 @@ describe('choosing where to write a file', () => {
     });
   });
 
-  it('still says something when what was thrown was not an error', async () => {
-    showSaveDialog.mockResolvedValue({ canceled: false, filePath: '/tmp/out.csv' });
-    writeFile.mockRejectedValue('nope');
-
-    expect((await writeChosenFile(window, saveOptions, () => 'body')).message).toBe('The file could not be written.');
-  });
-});
-
-describe('the date a file carries in its name', () => {
-  it('is the day, without the time', () => {
-    expect(fileStamp(Date.UTC(2026, 7, 21, 15, 4, 5))).toBe('2026-08-21');
-  });
+  it.each([
+    [
+      'read',
+      'The file could not be read.',
+      async () => {
+        showOpenDialog.mockResolvedValue({ canceled: false, filePaths: ['/tmp/in.csv'] });
+        readFile.mockRejectedValue('nope');
+        return (await readChosenFile(window, openOptions)).message;
+      },
+    ],
+    [
+      'written',
+      'The file could not be written.',
+      async () => {
+        showSaveDialog.mockResolvedValue({ canceled: false, filePath: '/tmp/out.csv' });
+        writeFile.mockRejectedValue('nope');
+        return (await writeChosenFile(window, saveOptions, () => 'body')).message;
+      },
+    ],
+  ])(
+    'still says something when what was thrown was not an error and the file could not be %s',
+    async (_name, expected, attempt) => {
+      expect(await attempt()).toBe(expected);
+    },
+  );
 });
 
 // A password export is the vault in plain text; on a shared machine 0644 hands it to every account.

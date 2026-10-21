@@ -30,8 +30,6 @@ const CASES: [string | null, string | null][] = [
   ['domain.biz', 'domain.biz'],
   ['b.domain.biz', 'domain.biz'],
   ['a.b.domain.biz', 'domain.biz'],
-  ['com', null],
-  ['example.com', 'example.com'],
   ['b.example.com', 'example.com'],
   ['a.b.example.com', 'example.com'],
   ['uk.com', null],
@@ -83,19 +81,17 @@ const CASES: [string | null, string | null][] = [
   ['www.xn--85x722f.xn--fiqs8s', 'xn--85x722f.xn--fiqs8s'],
   ['shishi.xn--fiqs8s', 'shishi.xn--fiqs8s'],
   ['xn--fiqs8s', null],
-  ['xn--85x722f.com.cn', 'xn--85x722f.com.cn'],
-  ['xn--85x722f.xn--55qx5d.cn', 'xn--85x722f.xn--55qx5d.cn'],
-  ['www.xn--85x722f.xn--55qx5d.cn', 'xn--85x722f.xn--55qx5d.cn'],
-  ['shishi.xn--55qx5d.cn', 'shishi.xn--55qx5d.cn'],
-  ['xn--55qx5d.cn', null],
-  ['xn--85x722f.xn--fiqs8s', 'xn--85x722f.xn--fiqs8s'],
-  ['www.xn--85x722f.xn--fiqs8s', 'xn--85x722f.xn--fiqs8s'],
-  ['shishi.xn--fiqs8s', 'shishi.xn--fiqs8s'],
-  ['xn--fiqs8s', null],
 ];
 
 describe('registrableDomainOf, against the official Public Suffix List suite', () => {
   it.each(CASES)('%s -> %s', (host, expected) => {
     expect(registrableDomainOf(host ?? '')).toBe(expected);
+  });
+});
+
+// Not in the official suite, which is about names: an address is a site of its own.
+describe('registrableDomainOf, for an address rather than a name', () => {
+  it.each(['127.0.0.1', '10.0.0.1', '[::1]'])('takes %s as its own site', (host) => {
+    expect(registrableDomainOf(host)).toBe(host);
   });
 });

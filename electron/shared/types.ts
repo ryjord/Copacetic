@@ -9,6 +9,7 @@ import type { TabGroup } from './tabs/tab-groups';
 import type { SplitView } from './tabs/split-view';
 import type { NamedSessionSummary } from './data/named-sessions';
 import type { OpenRules } from './tabs/open-rules';
+import type { InternalPage } from './tabs/internal-pages';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -94,8 +95,8 @@ export interface TabState {
   /** Wall-clock milliseconds for the last completed load, if measured. */
   loadMs: number | null;
   zoomFactor: number;
-  /** True for a tab parked on the start page, which has no backing view. */
-  isStartPage: boolean;
+  /** The page Copacetic draws in this tab instead of a site, such as the start page or Settings; null for a site. */
+  internalPage: InternalPage | null;
   /** A Hush tab: nothing it does is written to this machine. */
   isHush: boolean;
   /** Kept at the start of the strip as an icon, and brought back pinned. */
@@ -478,6 +479,8 @@ export function isThemeId(value: string): value is ThemeId {
  */
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 5;
+/** How far a trackpad pinch may bring a page closer, on top of its zoom. */
+export const MAX_PINCH_ZOOM = 3;
 
 /**
  * `Math.min` and `Math.max` carry NaN straight through whichever way round they
@@ -497,6 +500,8 @@ export function clampZoom(factor: number): number {
 
 /** How much room the chrome takes. Only sizing - never colour. */
 export type DensityId = 'comfortable' | 'compact';
+/** The tabs on a row of their own above the toolbar, or tabs and address on one row. */
+export type HeaderLayoutId = 'standard' | 'one-line';
 
 /** The pieces the start page can be built from, in the order they appear. */
 export type StartPageWidgetId = 'clock' | 'search' | 'topSites' | 'bookmarks';
@@ -618,6 +623,7 @@ export interface Settings {
   /** The start page's colour, and nothing else's. */
   theme: ThemeId;
   density: DensityId;
+  headerLayout: HeaderLayoutId;
   accentColour: AccentColour;
   interfaceTextSize: InterfaceTextSize;
   toolbarItems: ToolbarItemId[];
@@ -635,6 +641,10 @@ export interface Settings {
   readerStyle: ReaderStyle;
   // Which pieces the start page shows, in order.
   startPageWidgets: StartPageWidgetId[];
+  /** Offer to save a password just signed in with, in tabs that are not Hush. */
+  offerToSavePasswords: boolean;
+  /** Sites, by registrable domain, never offered it. */
+  neverSavePasswordsOn: string[];
   /** Set once someone has read what Hush does and does not do. */
   hushNoticeDismissed: boolean;
   /** Degrees the start page's atmosphere is turned from the theme's own hue. Nothing else in the interface moves. */
@@ -642,6 +652,8 @@ export interface Settings {
   // Ask GitHub whether a newer release exists, on launch and on a long timer.
   checkForUpdates: boolean;
   updateChannel: UpdateChannel;
+  /** Put in newer versions of store extensions, on the same schedule; per profile, like the extensions. */
+  updateExtensions: boolean;
   /** Per-origin permission decisions the user has already made. */
   permissionDecisions: Record<string, PermissionDecision>;
   /** What a site without a decision gets, by kind. */
@@ -699,6 +711,8 @@ export interface BrowserState {
   siteInfo: SiteInfoState | null;
   /** The sheet that names and files a bookmark just added, open for one tab, or null. */
   bookmarkSheet: BookmarkSheetState | null;
+  /** A password just signed in with, offered for saving in the tab in front, or null. */
+  passwordOffer: PasswordOffer | null;
   /** Two tabs paired side by side, shown while either is in front. */
   split: SplitView | null;
   /** Sets of tabs kept by name, newest first. */
@@ -708,6 +722,18 @@ export interface BrowserState {
   /** Every profile, to switch between and to manage. */
   profiles: ProfileSummary[];
 }
+
+/** What the window is told of a password it may save, for the tab in front: never the password itself. */
+export interface PasswordOffer {
+  id: string;
+  /** The registrable domain the password was typed into. */
+  site: string;
+  username: string;
+  /** Update when the vault has this username for the site with another password. */
+  kind: 'save' | 'update';
+}
+
+export type PasswordOfferAnswer = 'save' | 'never' | 'dismiss';
 
 export interface BookmarkSheetState {
   tabId: TabId;

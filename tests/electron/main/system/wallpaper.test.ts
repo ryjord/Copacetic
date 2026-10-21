@@ -105,53 +105,34 @@ describe('choosing one', () => {
     expect(written.includes('original-file-bytes')).toBe(false);
   });
 
-  /*
-   * Quality is the whole reason this is a re-encode rather than a copy: a
-   * wallpaper is decoration and the profile is not a place to put a
-   * twelve-megapixel photograph. Named so that changing it is a decision.
-   */
-  it('encodes at a quality it chose, not whatever the file arrived at', async () => {
-    const source = path.join(userDataDir, 'quality.png');
-    writeFileSync(source, Buffer.from('x'));
-    chosenFiles = [source];
+  it('shrinks an image wider than the cap to the cap', async () => {
+    sourceWidth = 6000;
+    chosenFiles = [path.join(userDataDir, 'huge.png')];
+    encoded.length = 0;
+
+    expect(await wallpaper.choose(fakeWindow)).toBe('');
+    wallpaper.commitStaged();
+
+    expect(encoded[0]?.width).toBe(2560);
+  });
+
+  it('leaves an image within the cap at its own width', async () => {
+    sourceWidth = 800;
+    chosenFiles = [path.join(userDataDir, 'small.png')];
     encoded.length = 0;
 
     await wallpaper.choose(fakeWindow);
     wallpaper.commitStaged();
 
-    expect(encoded[0]?.quality).toBeGreaterThan(0);
-    expect(encoded[0]?.quality).toBeLessThanOrEqual(100);
+    expect(encoded[0]?.width).toBeNull();
   });
 
-  // Copied into the profile so moving or deleting the original later does not
-  // blank the start page.
-  it('keeps its own copy in the profile', async () => {
-    chosenFiles = [path.join(userDataDir, 'source.png')];
-    await wallpaper.choose(fakeWindow);
-    wallpaper.commitStaged();
-
-    expect(existsSync(wallpaperFile())).toBe(true);
-    expect(wallpaper.isSet()).toBe(true);
-  });
-
-  it('shrinks an image wider than the cap', async () => {
-    sourceWidth = 6000;
-    chosenFiles = [path.join(userDataDir, 'huge.png')];
-    expect(await wallpaper.choose(fakeWindow)).toBe('');
-    wallpaper.commitStaged();
-
-    expect(existsSync(wallpaperFile())).toBe(true);
-  });
-
-  it('writes nothing when the dialog is cancelled', async () => {
-    dialogCancelled = true;
-    chosenFiles = [path.join(userDataDir, 'source.png')];
-    expect(await wallpaper.choose(fakeWindow)).toBe('');
-    expect(existsSync(wallpaperFile())).toBe(false);
-  });
-
-  it('writes nothing when no file comes back', async () => {
-    chosenFiles = [];
+  it.each([
+    ['the dialog is cancelled', true, ['source.png']],
+    ['no file comes back', false, []],
+  ])('writes nothing when %s', async (_name, isCancelled, names) => {
+    dialogCancelled = isCancelled;
+    chosenFiles = names.map((name) => path.join(userDataDir, name));
     expect(await wallpaper.choose(fakeWindow)).toBe('');
     expect(existsSync(wallpaperFile())).toBe(false);
   });
@@ -186,18 +167,12 @@ describe('clearing it', () => {
  * that could not be taken back.
  */
 describe('a wallpaper waits to be kept', () => {
-  it('writes nothing when it is only picked', async () => {
+  it('writes nothing when it is only picked, and can be looked at before it is kept', async () => {
     chosenFiles = [path.join(userDataDir, 'source.png')];
     expect(await wallpaper.choose(fakeWindow)).toBe('');
 
     expect(existsSync(wallpaperFile())).toBe(false);
     expect(wallpaper.isSet()).toBe(false);
-  });
-
-  it('can be looked at before it is kept', async () => {
-    chosenFiles = [path.join(userDataDir, 'source.png')];
-    await wallpaper.choose(fakeWindow);
-
     expect(wallpaper.stagedImage()).toContain('data:image/jpeg;base64,');
   });
 

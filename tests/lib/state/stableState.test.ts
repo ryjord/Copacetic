@@ -30,7 +30,7 @@ const tab = (id: string, over: Partial<TabState> = {}): TabState => ({
   blockedCount: 0,
   loadMs: null,
   zoomFactor: 1,
-  isStartPage: false,
+  internalPage: null,
   isBookmarked: false,
   ...over,
 });
@@ -42,6 +42,7 @@ const state = (over: Partial<BrowserState> = {}): BrowserState => ({
   activeTabId: 'one',
   siteInfo: null,
   bookmarkSheet: null,
+  passwordOffer: null,
   split: null,
   namedSessions: [],
   profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },
@@ -165,25 +166,17 @@ describe('stabiliseState', () => {
     expect(result.find).toBe(before.find);
   });
 
-  it('lets a real settings change through', () => {
+  it('lets a real change through and never reports stale data', () => {
     const before = state();
     const after = deserialised(before);
     after.settings = { ...after.settings, density: 'compact' };
-
-    const result = stabiliseState(before, after);
-    expect(result.settings).not.toBe(before.settings);
-    expect(result.settings.density).toBe('compact');
-    expect(result.tabs).toBe(before.tabs);
-  });
-
-  it('never reports stale data', () => {
-    const before = state();
-    const after = deserialised(before);
     after.tabs[0]!.title = 'renamed';
     after.activeTabId = 'two';
     after.hasClosedTabs = true;
 
     const result = stabiliseState(before, after);
+    expect(result.settings).not.toBe(before.settings);
+    expect(result.settings.density).toBe('compact');
     expect(result.tabs[0]?.title).toBe('renamed');
     expect(result.activeTabId).toBe('two');
     expect(result.hasClosedTabs).toBe(true);

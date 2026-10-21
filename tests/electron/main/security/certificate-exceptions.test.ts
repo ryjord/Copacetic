@@ -60,22 +60,15 @@ describe('whose certificate may be trusted without checking it', () => {
     'https://192.168.1.1/',
     'https://10.0.0.1/',
     'https://[::2]/',
-  ])('refuses %s', (url) => {
+    // The exception is about an unverifiable certificate, so it only applies where there is one.
+    'http://localhost:3000/',
+    'ws://localhost/',
+    'file:///etc/passwd',
+    '',
+    'localhost',
+    'not a url',
+  ])('refuses %o', (url) => {
     expect(mayTrustLocally(url)).toBe(false);
-  });
-
-  // The exception is about an unverifiable certificate, so it only applies
-  // where there is one.
-  it('refuses anything that is not https', () => {
-    expect(mayTrustLocally('http://localhost:3000/')).toBe(false);
-    expect(mayTrustLocally('ws://localhost/')).toBe(false);
-    expect(mayTrustLocally('file:///etc/passwd')).toBe(false);
-  });
-
-  it('refuses what is not a url at all', () => {
-    expect(mayTrustLocally('')).toBe(false);
-    expect(mayTrustLocally('localhost')).toBe(false);
-    expect(mayTrustLocally('not a url')).toBe(false);
   });
 });
 
@@ -110,13 +103,8 @@ describe('what happens when Chromium refuses a certificate', () => {
     expect(refuse('https://localhost.example.com/')).toEqual({ prevented: false, trusted: false });
   });
 
-  it('remembers the origin so the badge can stop claiming the certificate was checked', () => {
-    refuse('https://localhost:3000/app');
-    expect(trustedLocally('https://localhost:3000')).toBe(true);
-  });
-
   // One bad certificate on one port says nothing about another.
-  it('does not let one port speak for another', () => {
+  it('remembers the origin so the badge can stop claiming the certificate was checked, for that port only', () => {
     refuse('https://localhost:8443/');
     expect(trustedLocally('https://localhost:8443')).toBe(true);
     expect(trustedLocally('https://localhost:3000')).toBe(false);

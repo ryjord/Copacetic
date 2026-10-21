@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   SPLIT_DIVIDER_WIDTH,
-  SPLIT_FOCUS_STRIP_HEIGHT,
   clampSplitRatio,
   isInSplit,
-  pageWithinPane,
   partnerIn,
   shownSplit,
   splitPanes,
@@ -39,25 +37,11 @@ describe('clampSplitRatio', () => {
   });
 });
 
-describe('pageWithinPane', () => {
-  it('leaves the strip above the page to the chrome', () => {
-    expect(pageWithinPane({ x: 0, y: 88, width: 600, height: 700 })).toEqual({
-      x: 0,
-      y: 88 + SPLIT_FOCUS_STRIP_HEIGHT,
-      width: 600,
-      height: 700 - SPLIT_FOCUS_STRIP_HEIGHT,
-    });
-  });
-});
-
 describe('which tabs a split holds', () => {
-  it('is on screen only while one of its tabs is in front', () => {
+  it('is on screen only while one of its tabs is in front, and knows each tab by the other', () => {
     expect(shownSplit(split, 'left')).toBe(split);
     expect(shownSplit(split, 'elsewhere')).toBeNull();
     expect(shownSplit(null, 'left')).toBeNull();
-  });
-
-  it('knows each tab by the other', () => {
     expect(partnerIn(split, 'left')).toBe('right');
     expect(partnerIn(split, 'right')).toBe('left');
     expect(isInSplit(split, null)).toBe(false);

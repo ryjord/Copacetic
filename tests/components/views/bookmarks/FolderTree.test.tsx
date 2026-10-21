@@ -71,27 +71,6 @@ afterEach(() => {
 });
 
 describe('the folder tree', () => {
-  it('draws every folder, and the two rows that are not folders', () => {
-    draw();
-    expect(screen.getByText('All bookmarks')).toBeTruthy();
-    expect(screen.getByText('Unfiled')).toBeTruthy();
-    for (const name of ['work', 'pacs', 'dashboards', 'reading']) {
-      expect(screen.getByRole('button', { name: new RegExp(`^${name}$`) })).toBeTruthy();
-    }
-  });
-
-  it('indents each row by its depth, so the drop target and the eye agree', () => {
-    draw();
-    const indent = (name: string) =>
-      Number.parseInt(
-        (screen.getByRole('button', { name: new RegExp(`^${name}$`) }).parentElement as HTMLElement).style
-          .paddingLeft,
-        10,
-      );
-    expect(indent('work')).toBeLessThan(indent('pacs'));
-    expect(indent('pacs')).toBeLessThan(indent('dashboards'));
-  });
-
   it('counts what is inside a folder, not just what is directly in it', () => {
     draw();
     const row = screen.getByRole('button', { name: /^work$/ }).parentElement as HTMLElement;
@@ -167,93 +146,51 @@ describe('clicking a folder', () => {
 /**
  * Whether a drag is allowed to land is decided in dragover, before any drop
  * happens - it is what shows the drop as possible or refuses it under the
- * cursor. Every test below this used to fire `drop` directly, so `accepts`
- * could be stubbed to refuse everything, breaking the feature entirely, and
- * all of them still passed.
+ * cursor. Each row checks the verdict and the drop, so stubbing `accepts` to
+ * refuse everything cannot pass.
+ *
+ * A folder dropped into its own child or grandchild is refused, not undone
+ * afterwards: the subtree would detach from the top level and leave nowhere to
+ * drag it back from. Every bookmark is already in All, so a drop there could
+ * only unfile it without saying so.
  */
-describe('dragging over a folder', () => {
-  // fireEvent returns false when the handler called preventDefault, which is
-  // how a drop target says it will take what is being dragged.
-  const dragOver = (name: RegExp, event: ReturnType<typeof carrying>) => {
-    const row = screen.getByRole('button', { name }).parentElement as HTMLElement;
-    return fireEvent.dragOver(row, event) === false;
+describe('dragging onto a folder', () => {
+  const rowFor = (targetName: string): HTMLElement => {
+    if (targetName === 'All bookmarks') {
+      return screen.getByText('All bookmarks').closest('button') as HTMLElement;
+    }
+    return screen.getByRole('button', { name: new RegExp(`^${targetName}$`) }).parentElement as HTMLElement;
   };
 
-  it('takes a bookmark anywhere', () => {
+  it.each([
+    { name: 'a folder into an unrelated folder', kind: DRAG_FOLDER, id: 'work', target: 'reading', allowed: true },
+    { name: 'a folder into its own child', kind: DRAG_FOLDER, id: 'work', target: 'pacs', allowed: false },
+    { name: 'a folder into its own grandchild', kind: DRAG_FOLDER, id: 'work', target: 'dashboards', allowed: false },
+    { name: 'a folder onto itself', kind: DRAG_FOLDER, id: 'work', target: 'work', allowed: false },
+    { name: 'a bookmark into a folder', kind: DRAG_BOOKMARK, id: 'b3', target: 'reading', allowed: true },
+    { name: 'a bookmark onto All bookmarks', kind: DRAG_BOOKMARK, id: 'b1', target: 'All bookmarks', allowed: false },
+    { name: 'something it does not recognise', kind: 'text/plain', id: 'anything', target: 'work', allowed: false },
+  ])('treats $name as allowed: $allowed', ({ kind, id, target, allowed }) => {
     draw();
-    expect(dragOver(/^work$/, carrying(DRAG_BOOKMARK, 'b3'))).toBe(true);
-  });
+    if (kind === DRAG_FOLDER) {
+      fireEvent.dragStart(screen.getByRole('button', { name: new RegExp(`^${id}$`) }), carrying(kind, id));
+    }
+    const row = rowFor(target);
 
-  it('takes a folder dropped somewhere unrelated', () => {
-    draw();
-    fireEvent.dragStart(screen.getByRole('button', { name: /^work$/ }), carrying(DRAG_FOLDER, 'work'));
-    expect(dragOver(/^reading$/, carrying(DRAG_FOLDER, 'work'))).toBe(true);
-  });
+    // fireEvent returns false when the handler called preventDefault, which is
+    // how a drop target says it will take what is being dragged.
+    const takenOnDragOver = fireEvent.dragOver(row, carrying(kind, id)) === false;
+    fireEvent.drop(row, carrying(kind, id));
 
-  it('refuses a folder over its own child while the cursor is still there', () => {
-    draw();
-    fireEvent.dragStart(screen.getByRole('button', { name: /^work$/ }), carrying(DRAG_FOLDER, 'work'));
-    expect(dragOver(/^pacs$/, carrying(DRAG_FOLDER, 'work'))).toBe(false);
-  });
-
-  it('refuses a folder over itself', () => {
-    draw();
-    fireEvent.dragStart(screen.getByRole('button', { name: /^work$/ }), carrying(DRAG_FOLDER, 'work'));
-    expect(dragOver(/^work$/, carrying(DRAG_FOLDER, 'work'))).toBe(false);
-  });
-
-  it('takes nothing it does not recognise', () => {
-    draw();
-    expect(dragOver(/^work$/, carrying('text/plain', 'anything'))).toBe(false);
-  });
-});
-
-describe('dropping onto a folder', () => {
-  it('files a bookmark there', () => {
-    draw();
-    const row = screen.getByRole('button', { name: /^reading$/ }).parentElement as HTMLElement;
-    fireEvent.drop(row, carrying(DRAG_BOOKMARK, 'b3'));
-    expect(file).toHaveBeenCalledWith('b3', 'reading');
-  });
-
-  it('moves a folder into an unrelated one', () => {
-    draw();
-    const row = screen.getByRole('button', { name: /^reading$/ }).parentElement as HTMLElement;
-    fireEvent.drop(row, carrying(DRAG_FOLDER, 'work'));
-    expect(move).toHaveBeenCalledWith('work', 'reading');
-  });
-
-  /*
-   * The drop that makes a folder its own ancestor is one drag away and the
-   * damage is permanent: the subtree detaches from the top level, so there is
-   * nowhere left to drag it back from. It is refused, not undone afterwards.
-   */
-  it('refuses a folder dropped into its own child', () => {
-    draw();
-    const row = screen.getByRole('button', { name: /^pacs$/ }).parentElement as HTMLElement;
-    fireEvent.drop(row, carrying(DRAG_FOLDER, 'work'));
-    expect(move).not.toHaveBeenCalled();
-  });
-
-  it('refuses a folder dropped into its own grandchild', () => {
-    draw();
-    const row = screen.getByRole('button', { name: /^dashboards$/ }).parentElement as HTMLElement;
-    fireEvent.drop(row, carrying(DRAG_FOLDER, 'work'));
-    expect(move).not.toHaveBeenCalled();
-  });
-
-  it('refuses a folder dropped onto itself', () => {
-    draw();
-    const row = screen.getByRole('button', { name: /^work$/ }).parentElement as HTMLElement;
-    fireEvent.drop(row, carrying(DRAG_FOLDER, 'work'));
-    expect(move).not.toHaveBeenCalled();
-  });
-
-  // Every bookmark is already in All, so a drop there could only unfile it without saying so.
-  it('refuses a bookmark dropped on All bookmarks', () => {
-    draw();
-    fireEvent.drop(screen.getByText('All bookmarks').closest('button') as HTMLElement, carrying(DRAG_BOOKMARK, 'b1'));
-    expect(file).not.toHaveBeenCalled();
+    expect(takenOnDragOver).toBe(allowed);
+    if (allowed && kind === DRAG_FOLDER) {
+      expect(move).toHaveBeenCalledWith(id, target);
+    } else if (allowed) {
+      expect(file).toHaveBeenCalledWith(id, target);
+    } else {
+      expect(move).not.toHaveBeenCalled();
+      expect(file).not.toHaveBeenCalled();
+    }
   });
 });
 

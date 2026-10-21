@@ -10,8 +10,6 @@ export const PUSH = {
   focusOmnibox: 'push:focus-omnibox',
   /** Fired when a menu item or shortcut wants the chrome to open a surface. */
   openSurface: 'push:open-surface',
-  /** Settings, at one pane, asked for from a menu or the site card. */
-  openSettingsPane: 'push:open-settings-pane',
   /** A native menu cannot hold a text field, so renaming asks the chrome to make the group's label editable. */
   renameGroup: 'push:rename-group',
   /** Saved bookmarks or folders changed. No tab changes when one is filed, so the tab snapshot cannot say it. */
@@ -39,6 +37,5 @@ export type DataKind = 'history' | 'startTiles';
 
 export type PushChannel = (typeof PUSH)[keyof typeof PUSH];
 
-/** Chrome surfaces that cover the page content and therefore hide the tab view. */
-export type ChromeSurface =
-  'settings' | 'downloads' | 'history' | 'bookmarks' | 'palette' | 'tab-search' | 'reader' | 'none';
+/** Chrome surfaces that cover the page content and therefore hide the tab view; Settings and the lists are tabs of their own. */
+export type ChromeSurface = 'palette' | 'tab-search' | 'reader' | 'none';

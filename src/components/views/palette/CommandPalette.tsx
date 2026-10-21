@@ -31,6 +31,7 @@ import { isInSplit } from '@shared/tabs/split-view';
 import { formatMemory, type TabMemory } from '@shared/tabs/tab-memory';
 import { acceleratorFor, isRebindable } from '@shared/chrome/shortcuts';
 import type { Bookmark, ClearRange, HistoryEntry } from '@shared/types';
+import type { InternalPage } from '@shared/tabs/internal-pages';
 
 interface Command {
   id: string;
@@ -124,12 +125,9 @@ function useFoundElsewhere(query: string, isSearchingEverything: boolean) {
   };
 }
 
-/** One keystroke to reach anything, and a place to learn the shortcut for it. */
-/** Every command and open tab, or, opened as tab search, the open tabs alone. */
+/** One keystroke to reach anything, and a place to learn its shortcut: every command and open tab, or the open tabs alone as tab search. */
 export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' | 'tabs' }) {
   const setSurface = useBrowserStore((state) => state.setSurface);
-  const toggleSurface = useBrowserStore((state) => state.toggleSurface);
-  const openSettings = useBrowserStore((state) => state.openSettings);
   const requestOmniboxFocus = useBrowserStore((state) => state.requestOmniboxFocus);
   const tabs = useBrowserStore((state) => state.orderedTabs);
   const activeTab = useBrowserStore((state) => state.activeTab);
@@ -171,6 +169,8 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       close();
       action();
     };
+    const showPage = (page: InternalPage, section: string | null = null) =>
+      then(() => send((api) => api.chrome.showPage(page, section)));
     const list: Command[] = [
       {
         id: 'new-window',
@@ -279,7 +279,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
             },
       );
 
-      if (!activeTab.isStartPage) {
+      if (activeTab.internalPage === null) {
         const zoomTo = (factor: number) => then(() => send((api) => api.tabs.setZoom(tabId, clampZoom(factor))));
         list.push(
           {
@@ -379,21 +379,21 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         label: t('views.palette.commands.history'),
         accelerator: 'CmdOrCtrl+Y',
         group: 'goTo',
-        run: () => toggleSurface('history'),
+        run: showPage('history'),
       },
       {
         id: 'bookmarks',
         label: t('views.palette.commands.bookmarks'),
         accelerator: 'CmdOrCtrl+Shift+B',
         group: 'goTo',
-        run: () => toggleSurface('bookmarks'),
+        run: showPage('bookmarks'),
       },
       {
         id: 'downloads',
         label: t('views.palette.commands.downloads'),
         accelerator: 'CmdOrCtrl+Shift+J',
         group: 'goTo',
-        run: () => toggleSurface('downloads'),
+        run: showPage('downloads'),
       },
       {
         id: 'settings',
@@ -401,7 +401,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         accelerator: 'CmdOrCtrl+,',
         group: 'goTo',
         keywords: t('views.palette.keywords.settings'),
-        run: () => toggleSurface('settings'),
+        run: showPage('settings'),
       },
       {
         id: 'appearance',
@@ -419,7 +419,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       },
     );
 
-    const sleepable = tabs.filter((tab) => tab.id !== activeTab?.id && !tab.isAsleep && !tab.isStartPage);
+    const sleepable = tabs.filter((tab) => tab.id !== activeTab?.id && !tab.isAsleep && tab.internalPage === null);
     if (sleepable.length > 0) {
       list.push({
         id: 'sleep-others',
@@ -453,7 +453,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
         group: 'yourData',
         keywords: t('views.palette.keywords.import'),
         // A browser has to be chosen and what it holds looked at first, which is the Data pane's job.
-        run: () => openSettings('data'),
+        run: showPage('settings', 'data'),
       },
       {
         id: 'export-bookmarks',
@@ -493,7 +493,7 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
       .map<Command>((tab) => ({
         id: `switch:${tab.id}`,
         tabId: tab.id,
-        label: tab.isStartPage ? t('views.palette.commands.newTab') : tab.title || tab.url,
+        label: tab.title || tab.url,
         group: 'openTabs',
         keywords: tab.url,
         address: tab.url,
@@ -513,7 +513,6 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     appearance,
     defaultZoomFactor,
     hasClosedTabs,
-    openSettings,
     requestOmniboxFocus,
     setSurface,
     scope,
@@ -521,7 +520,6 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
     shortcutOverrides,
     split,
     tabs,
-    toggleSurface,
   ]);
 
   // Opened where the person is looking, as a bookmark or a history entry would be from its own list.
@@ -562,7 +560,10 @@ export function CommandPalette({ scope = 'everything' }: { scope?: 'everything' 
             label: t('views.palette.commands.openSettingsPane', { pane: pane.label }),
             group: 'settings',
             keywords: pane.terms.join(' '),
-            run: () => openSettings(pane.id),
+            run: () => {
+              setSurface('none');
+              send((api) => api.chrome.showPage('settings', pane.id));
+            },
           })),
         ];
 

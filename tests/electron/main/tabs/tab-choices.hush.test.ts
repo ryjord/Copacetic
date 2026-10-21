@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { sessionFrom } from '../../../../electron/main/tabs/tab-choices';
 import path from 'node:path';
 
 vi.mock('electron', () => ({
@@ -25,20 +24,14 @@ const collapse = (path: string) => readFileSync(path, 'utf8').replace(/\s+/g, ' 
 const tabsSource = collapse('electron/main/tabs/tabs.ts');
 
 describe('the partition is what makes the promise true', () => {
-  // Without `persist:` Chromium keeps the entire session in memory and drops
-  // it when the last reference goes. A "private" mode that writes and then
-  // deletes is one crash away from not having deleted.
-  it.each(PROFILES)('is in-memory, not a persisted partition it has to clean up afterwards', (partitions) => {
-    expect(partitions.hush.startsWith('persist:')).toBe(false);
-    expect(partitions.web.startsWith('persist:')).toBe(true);
-  });
-
-  it('is a different partition from ordinary browsing', () => {
-    PROFILES.forEach((partitions) => expect(partitions.hush).not.toBe(partitions.web));
-  });
-
+  // Without `persist:` Chromium keeps the entire session in memory and drops it when the last reference goes. A "private" mode that writes and then deletes is one crash away from not having deleted.
   // A Hush tab in one profile sharing cookies with a Hush tab in another would join the two people up.
-  it('is a different partition in each profile', () => {
+  it('is in-memory, and a different partition from ordinary browsing and from every other profile', () => {
+    PROFILES.forEach((partitions) => {
+      expect(partitions.hush.startsWith('persist:')).toBe(false);
+      expect(partitions.web.startsWith('persist:')).toBe(true);
+      expect(partitions.hush).not.toBe(partitions.web);
+    });
     const [first, work] = PROFILES;
     expect(new Set([first?.web, first?.hush, work?.web, work?.hush]).size).toBe(4);
   });
@@ -47,48 +40,6 @@ describe('the partition is what makes the promise true', () => {
 // History and favicons are guards inside the tab's event handlers, so they are
 // driven for real in tab-events.test.ts rather than read for here.
 describe('nothing a Hush tab does is written down', () => {
-  /*
-   * session.json is on disk, so a Hush URL listed there would be the one place
-   * the tab left a trace.
-   *
-   * This used to read the source of `tabs.ts` for the guard, which broke the
-   * moment the rule moved into a function of its own - and would have passed
-   * just as happily if the guard had been reworded rather than moved. The rule
-   * is a function now, so this runs it.
-   */
-  it('is left out of the session snapshot', () => {
-    const written = sessionFrom(
-      [
-        {
-          id: 'a',
-          url: 'https://ordinary.example/',
-          groupId: null,
-          isStartPage: false,
-          isHush: false,
-          isPinned: false,
-          history: null,
-        },
-        {
-          id: 'h',
-          url: 'https://secret.example/',
-          groupId: 'work',
-          isStartPage: false,
-          isHush: true,
-          isPinned: false,
-          history: {
-            entries: [
-              { url: 'https://secret.example/first', title: 'First' },
-              { url: 'https://secret.example/', title: 'Secret' },
-            ],
-            index: 1,
-          },
-        },
-      ],
-      'a',
-    );
-    expect(written.tabs.map((tab) => tab.url)).toEqual(['https://ordinary.example/']);
-  });
-
   // By construction rather than by a check at each write: a Hush tab is given the record that keeps nothing.
   it('is given the record that keeps nothing, chosen once when it is made', () => {
     expect(tabsSource).toMatch(/record: inherited\.hush \? HUSH_RECORD : this\.storedRecord\(\)/);
@@ -119,16 +70,13 @@ describe('nothing a Hush tab does is written down', () => {
  * came from is browsing, and this tab keeps none of that.
  */
 describe('a Hush download is not written down', () => {
-  it('does not remember what a Hush session downloaded', () => {
-    PROFILES.forEach((partitions) => expect(remembersDownloads(partitions.hush)).toBe(false));
-  });
-
-  // The counterweight: ordinary downloads are still written, and so are a
-  // group's, which is browsing someone chose to keep separate rather than to
-  // stop keeping.
-  it("remembers every other session's downloads", () => {
-    PROFILES.forEach((partitions) => expect(remembersDownloads(partitions.web)).toBe(true));
-    expect(remembersDownloads('persist:copacetic-group-abc')).toBe(true);
+  // The counterweight: ordinary downloads are still written, and so are a group's, which is browsing someone chose to keep separate rather than to stop keeping.
+  it.each([
+    ['a Hush session', PROFILES.map((partitions) => partitions.hush), false],
+    ['an ordinary session', PROFILES.map((partitions) => partitions.web), true],
+    ['a group session', ['persist:copacetic-group-abc'], true],
+  ])('remembers downloads as expected for %s', (_name, sessions, isRemembered) => {
+    sessions.forEach((partition) => expect(remembersDownloads(partition)).toBe(isRemembered));
   });
 });
 

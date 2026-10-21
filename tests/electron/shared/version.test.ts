@@ -53,21 +53,17 @@ describe('compareVersions', () => {
     older('1.2.0-1', '1.2.0-alpha');
     older('1.2.0-beta.2', '1.2.0-beta.abc');
   });
-
-  it('still orders a prerelease of a newer version above the current release', () => {
-    expect(isNewerVersion('1.3.0-beta.1', '1.2.0')).toBe(true);
-  });
 });
 
 describe('isNewerVersion', () => {
-  it('is false for the same version and for older ones', () => {
-    expect(isNewerVersion('1.0.1', '1.0.1')).toBe(false);
-    expect(isNewerVersion('1.0.0', '1.0.1')).toBe(false);
-  });
-
-  it('is true only for a genuinely newer release', () => {
-    expect(isNewerVersion('1.1.0', '1.0.1')).toBe(true);
-    expect(isNewerVersion('v1.1.0', '1.0.1')).toBe(true);
+  it.each([
+    ['the same version', '1.0.1', '1.0.1', false],
+    ['an older version', '1.0.0', '1.0.1', false],
+    ['a newer release', '1.1.0', '1.0.1', true],
+    ['a newer release with a v prefix', 'v1.1.0', '1.0.1', true],
+    ['a prerelease of a newer version', '1.3.0-beta.1', '1.2.0', true],
+  ])('compares %s', (_caseName, candidate, current, expected) => {
+    expect(isNewerVersion(candidate, current)).toBe(expected);
   });
 
   // A malformed tag must never be read as an update available.

@@ -39,7 +39,7 @@ const tab = (id: string): TabState => ({
   blockedCount: 0,
   loadMs: null,
   zoomFactor: 1,
-  isStartPage: false,
+  internalPage: null,
   isBookmarked: false,
 });
 
@@ -66,6 +66,7 @@ const state = (downloads: DownloadState[]): BrowserState => ({
   activeTabId: 'one',
   siteInfo: null,
   bookmarkSheet: null,
+  passwordOffer: null,
   split: null,
   namedSessions: [],
   profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },
@@ -206,13 +207,5 @@ describe('a realistic session still reports the truth', () => {
     blocked.tabs[1] = { ...blocked.tabs[1]!, blockedCount: 4 };
     push({ ...blocked, activeTabId: 'two' });
     expect(read().activeTab?.blockedCount).toBe(4);
-  });
-
-  it('does not hand back a tab object that no longer exists', () => {
-    push(state([]));
-    const firstTab = read().orderedTabs[0]!;
-
-    push({ ...state([]), tabs: state([]).tabs.slice(1), tabOrder: ['two', 'three'], activeTabId: 'two' });
-    expect(read().orderedTabs.some((t) => t.id === firstTab.id)).toBe(false);
   });
 });

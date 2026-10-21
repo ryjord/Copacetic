@@ -46,7 +46,7 @@ const tab = (certificateChange = ''): TabState =>
     blockedCount: 0,
     loadMs: null,
     zoomFactor: 1,
-    isStartPage: false,
+    internalPage: null,
     isHush: false,
     isPinned: false,
     isAsleep: false,
@@ -64,17 +64,12 @@ describe('the certificate change notice', () => {
     expect(screen.queryByText('This certificate has changed')).toBeNull();
   });
 
-  it('appears when there is', () => {
-    render(<SiteInfoCard tab={tab('Something is reading this connection.')} />);
-    expect(screen.getByText('This certificate has changed')).toBeTruthy();
-    expect(document.body.textContent).toContain('Something is reading this connection.');
-  });
-
   // Announced, because someone using a screen reader has no other way to know
   // the panel gained a warning.
-  it('is announced rather than only shown', () => {
+  it('is shown and announced as a status when there is something to say', () => {
     render(<SiteInfoCard tab={tab('Something is reading this connection.')} />);
-    const statuses = document.querySelectorAll('[role="status"]');
-    expect([...statuses].some((node) => node.textContent?.includes('reading this connection'))).toBe(true);
+    expect(screen.getByText('This certificate has changed')).toBeTruthy();
+    const statuses = screen.getAllByRole('status');
+    expect(statuses.some((node) => node.textContent?.includes('reading this connection'))).toBe(true);
   });
 });

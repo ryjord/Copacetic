@@ -5,7 +5,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 
 // Components
 import { ErrorPage } from '@/components/views/error/ErrorPage';
-import { StartPage } from '@/components/views/start/StartPage';
+import { InternalPage } from '@/components/shell/InternalPage/InternalPage';
 
 // Utils
 import { send } from '@/lib/bridge/bridge';
@@ -118,7 +118,7 @@ function Pane({ tab, bounds, isFocused }: { tab: TabState | undefined; bounds: P
         aria-hidden
       />
       <div className="relative min-h-0 flex-1">
-        {tab?.isStartPage && <StartPage tabId={tab.id} isHush={tab.isHush} />}
+        {tab?.internalPage && <InternalPage tab={tab} />}
         {tab?.error && <ErrorPage tabId={tab.id} error={tab.error} />}
       </div>
     </div>

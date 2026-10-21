@@ -1,4 +1,4 @@
-import { registrableDomainOf } from '../browsing/url';
+import { isAddressHost, siteOfHost } from '../browsing/url';
 import { type MessageKey, t } from '../i18n/translate';
 
 /**
@@ -139,13 +139,9 @@ export function siteOf(address: string): string {
 /**
  * What counts as one site for a host that has no registrable domain.
  *
- * An address is not a domain name, and neither is `localhost`. The
- * registrable-domain algorithm keeps the last two labels of anything it does
- * not recognise, which turns every IPv4 address into its last two octets -
- * `192.168.1.5` and `10.20.1.5` become the same "site", and forgetting one
- * machine takes the other with it. For those, the host answers for itself, and
- * the port comes too: two things served from localhost on different ports are
- * two different projects.
+ * An address is not a domain name, and neither is `localhost`, so the host
+ * answers for itself, and the port comes too: two things served from localhost
+ * on different ports are two different projects.
  */
 function authorityOf(host: string, port: string): string {
   // A cookie set with `Domain=example.com` is stored by Chromium as
@@ -154,14 +150,12 @@ function authorityOf(host: string, port: string): string {
   // never matches itself - so forgetting a site skipped every cookie scoped
   // across its subdomains, which is exactly the kind that keeps you signed in.
   const lowered = host.toLowerCase().replace(/^\./, '');
-  const isAddress = IPV4.test(lowered) || lowered.startsWith('[') || !lowered.includes('.');
+  const isAddress = isAddressHost(lowered) || !lowered.includes('.');
   if (!isAddress) {
-    return registrableDomainOf(lowered) ?? lowered;
+    return siteOfHost(lowered);
   }
   return port ? `${lowered}:${port}` : lowered;
 }
-
-const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 export function countTraces(traces: SiteTraces): number {
   return Object.values(traces).reduce((total, count) => total + count, 0);

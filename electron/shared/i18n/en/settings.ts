@@ -1,6 +1,6 @@
-/** Settings: the surface, its navigation and search terms, and every pane except About. Product names on their own stay in the code. */
+/** Settings: the page, its navigation and search terms, and every pane except About. Product names on their own stay in the code. */
 export const settings = {
-  surface: {
+  page: {
     title: 'Settings',
     sections: 'Settings sections',
     search: 'Search settings',
@@ -64,6 +64,7 @@ export const settings = {
       toolbar: 'Toolbar buttons',
       bookmarksBar: 'Bookmarks bar',
       density: 'Density',
+      header: 'Header layout, one line, compact tabs',
       startPage: 'Start page',
       wallpaper: 'Wallpaper',
       photo: 'Photo',
@@ -300,6 +301,12 @@ export const settings = {
         default: 'Default',
         large: 'Large',
         larger: 'Larger',
+      },
+      header: {
+        label: 'Header',
+        help: 'Standard keeps the tabs on a row of their own above the address. One line puts the address and tabs side by side, which leaves more of the window to the page.',
+        standard: 'Standard',
+        oneLine: 'One line',
       },
       density: {
         label: 'Density',
@@ -610,6 +617,9 @@ export const settings = {
       more: 'More for {name}',
       options: 'Options',
       remove: 'Remove…',
+      update: 'Update to {version}…',
+      updateWaiting:
+        'Version {version} is waiting: it asks for more than this one, so it is put in only when you agree.',
       canDo: 'What it can do',
       nothing: 'It asks for nothing beyond its own pages.',
     },
@@ -619,9 +629,13 @@ export const settings = {
       bodyFolder: 'Its folder is left where it is.',
       confirm: 'Remove',
     },
+    updates: {
+      label: 'Update extensions automatically',
+      help: 'Every six hours Copacetic asks the Chrome Web Store for newer versions, telling it which store extensions this profile has, as Chrome does. An update that asks for more than the version in use waits until you agree to it.',
+    },
     compatibility: {
       label: 'What works',
-      help: 'Extensions that change pages, such as Dark Reader, and those with a toolbar popup, such as password managers. Ad blockers do not, because Electron does not apply their rules; Copacetic blocks trackers itself. On Linux, started with --no-sandbox, an extension cannot see tabs or change its toolbar button.',
+      help: 'Extensions that change pages, such as Dark Reader, those with a toolbar popup, such as password managers, and ad blockers such as uBlock Origin Lite. On Linux, started with --no-sandbox, an extension cannot see tabs or change its toolbar button.',
     },
   },
   updates: {
@@ -751,9 +765,16 @@ export const settings = {
     },
   },
   passwords: {
+    offers: {
+      title: 'Saving as you sign in',
+      label: 'Offer to save passwords',
+      help: 'When you sign in to a site, Copacetic offers to save the password, or to update the one it has. A short script, in a world of its own the page cannot see, looks for a sign-in form on each secure page and stops at once where there is none; the password goes nowhere but the vault. Never in Hush.',
+      never: 'Never offered on {site}',
+      offerAgain: 'Offer again',
+    },
     intro: {
       label: 'Passwords are kept on this machine, encrypted',
-      help: 'Filled from the key in the address bar or Fill password on a password box’s menu, and Copacetic never offers to save what you type.',
+      help: 'Filled from the key in the address bar or Fill password on a password box’s menu, and offered for saving once you have signed in with one.',
       protection: 'How they are protected',
     },
     availability: {
@@ -875,7 +896,7 @@ export const settings = {
       contact: {
         question: 'What does it contact on its own?',
         answer:
-          "The update check, which asks GitHub for the latest releases and their notes and sends nothing about you; you can turn it off in Updates. On macOS, Download and open fetches the installer from GitHub only when you press it. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker. Translating an article downloads the model a language needs from Mozilla, once.",
+          "The update check, which asks GitHub for the latest releases and their notes and sends nothing about you; you can turn it off in Updates. Once a profile has extensions from the Chrome Web Store, the store is asked every six hours whether there are newer versions, which tells it their ids, as Chrome does; you can turn that off in Extensions. On macOS, Download and open fetches the installer from GitHub only when you press it. The filter lists are fetched only when you press Check now. A page's icon is fetched in that page's own session, because the page asked for it. On Windows and Linux, checking spelling in a language downloads its dictionary from Google once; nothing you type is sent. macOS uses its own spelling checker. Translating an article downloads the model a language needs from Mozilla, once.",
       },
       translation: {
         question: 'What does translation send?',
@@ -940,16 +961,16 @@ export const settings = {
       offer: {
         question: 'Does it offer to save passwords?',
         answer:
-          'No. Copacetic never offers to save what you type, because noticing it would mean code running in every page all the time. You add passwords in Settings yourself.',
+          'Yes, once you have signed in: the offer comes when the page moves on after you send a sign-in form, so a password that was refused is not offered. It is never offered in Hush, on a page that is not encrypted, or on a site you said never to, and it can be turned off in Passwords. The window is told the site and the username; the password stays in the main process until it is saved.',
       },
     },
     scripts: {
       title: 'Scripts in pages',
       run: {
         question: 'Does Copacetic run code in the pages I visit?',
-        before: 'Three small things. Every page gets a placeholder for the',
+        before: 'Four small things. Every page gets a placeholder for the',
         after:
-          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it. And a page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing.",
+          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
       },
       extensions: {
         question: 'What about extensions?',
@@ -1012,7 +1033,7 @@ export const settings = {
       unsupported: {
         question: 'What does it not support?',
         answer:
-          'Protected video such as Netflix, because the Widevine component is not included. Extensions are a beta: ad blockers do not work, because Electron does not apply their rules, and some others will not either.',
+          'Protected video such as Netflix, because the Widevine component is not included. Passkeys and security keys on macOS and Linux: Electron has no dialog to answer them, so Copacetic tells sites it has none and they offer another way to sign in; on Windows, Windows Hello answers them. Extensions are a beta, and some will not work.',
       },
       report: {
         question: 'Where do I report a problem?',

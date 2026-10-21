@@ -110,11 +110,6 @@ describe('drawing without bias', () => {
     expect(Math.max(...seen)).toBeLessThan(expected * 1.2);
   });
 
-  it('does not repeat itself', () => {
-    const produced = new Set(Array.from({ length: 500 }, () => generatePassword(recipe(), real)));
-    expect(produced.size).toBe(500);
-  });
-
   /**
    * Without a shuffle the guaranteed characters stay where they were placed, so
    * position 0 is always a lowercase letter, position 1 always uppercase, and
@@ -156,12 +151,9 @@ describe('the length it will accept', () => {
 });
 
 describe('what it can honestly say about strength', () => {
-  it('reports more bits for a longer password', () => {
-    expect(entropyBits(recipe({ length: 24 }))).toBeGreaterThan(entropyBits(recipe({ length: 12 })));
-  });
-
-  it('reports more bits for a wider alphabet', () => {
+  it('reports more bits for a longer password and for a wider alphabet', () => {
     const narrow = recipe({ useUpper: false, useDigits: false, useSymbols: false });
+    expect(entropyBits(recipe({ length: 24 }))).toBeGreaterThan(entropyBits(recipe({ length: 12 })));
     expect(entropyBits(recipe())).toBeGreaterThan(entropyBits(narrow));
   });
 

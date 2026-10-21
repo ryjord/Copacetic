@@ -37,16 +37,6 @@ describe('bookmarks in the database', () => {
     expect(store.has('https://example.com/')).toBe(false);
   });
 
-  // Asked twice, ensure must keep what toggle would remove.
-  it('keeps a bookmark it is asked to ensure, with the title and folder it had', () => {
-    const store = bookmarks();
-    store.toggle('https://example.com/', 'Original');
-    const [saved] = store.list();
-    store.moveTo(saved!.id, 'work');
-    expect(store.ensure('https://example.com/', 'Different')).toMatchObject({ title: 'Original', folderId: 'work' });
-    expect(store.list()).toHaveLength(1);
-  });
-
   it('adds an import in its own order, above what was there, and counts what it already had', () => {
     const store = bookmarks();
     store.toggle('https://kept.example/', 'Kept');

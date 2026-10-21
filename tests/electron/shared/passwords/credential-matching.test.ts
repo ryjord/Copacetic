@@ -38,16 +38,12 @@ describe('pages a password may be put into', () => {
  * whoever asked for it and cannot be taken back.
  */
 describe('which saved passwords belong to a page', () => {
-  it('matches the same site', () => {
-    expect(entriesForPage('https://example.com/login', [saved('https://example.com')])).toHaveLength(1);
-  });
-
-  it('matches a sign-in subdomain of the same site', () => {
-    expect(entriesForPage('https://accounts.example.com/login', [saved('https://example.com')])).toHaveLength(1);
-  });
-
-  it('matches when the password was saved on the subdomain instead', () => {
-    expect(entriesForPage('https://example.com/login', [saved('https://accounts.example.com')])).toHaveLength(1);
+  it.each([
+    ['the same site', 'https://example.com/login', 'https://example.com'],
+    ['a sign-in subdomain of the same site', 'https://accounts.example.com/login', 'https://example.com'],
+    ['a password saved on the subdomain instead', 'https://example.com/login', 'https://accounts.example.com'],
+  ])('matches %s', (_caseName, page, savedOrigin) => {
+    expect(entriesForPage(page, [saved(savedOrigin)])).toHaveLength(1);
   });
 
   it.each([
@@ -63,22 +59,20 @@ describe('which saved passwords belong to a page', () => {
    * host like github.io every user gets their own registrable domain, so one
    * person's page cannot claim another's password.
    */
-  it('does not let one user of a hosting domain claim another', () => {
-    expect(entriesForPage('https://attacker.github.io/x', [saved('https://victim.github.io')])).toEqual([]);
-  });
-
-  it('still matches the same user on such a domain', () => {
-    expect(entriesForPage('https://victim.github.io/x', [saved('https://victim.github.io')])).toHaveLength(1);
+  it.each([
+    [
+      'one user of a hosting domain does not claim another',
+      'https://attacker.github.io/x',
+      'https://victim.github.io',
+      0,
+    ],
+    ['the same user on such a domain still matches', 'https://victim.github.io/x', 'https://victim.github.io', 1],
+  ])('%s', (_caseName, page, savedOrigin, expectedCount) => {
+    expect(entriesForPage(page, [saved(savedOrigin)])).toHaveLength(expectedCount);
   });
 
   it('offers every account saved for the site', () => {
     const entries = [saved('https://example.com', 'one'), saved('https://accounts.example.com', 'two')];
     expect(offerFor('https://example.com/login', entries).entries).toHaveLength(2);
-  });
-
-  it('says nothing is saved rather than offering something else', () => {
-    const offer = offerFor('https://other.test/login', [saved('https://example.com')]);
-    expect(offer.entries).toEqual([]);
-    expect(offer.refusal).toBe('Nothing saved for this site.');
   });
 });

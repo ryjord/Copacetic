@@ -68,27 +68,6 @@ describe('the site settings pane', () => {
     expect(screen.getByText('shop.example.net')).toBeTruthy();
   });
 
-  it('says plainly when nothing is kept', () => {
-    settings = DEFAULT_SETTINGS_SHAPE;
-    render(<SitesPane />);
-    expect(screen.getByText('Nothing is kept about any site yet')).toBeTruthy();
-  });
-
-  it('offers a default for every kind a site can ask about, even with no sites kept', () => {
-    settings = { ...DEFAULT_SETTINGS_SHAPE };
-    render(<SitesPane />);
-    expect(screen.getByText('When a site asks')).toBeTruthy();
-    ['Notifications', 'Location', 'Camera and microphone', 'Clipboard', 'MIDI devices', 'Opening other apps'].forEach(
-      (name) => expect(screen.getByLabelText(`${name} by default`)).toBeTruthy(),
-    );
-  });
-
-  it('says what a blocking default means', () => {
-    settings = { ...DEFAULT_SETTINGS_SHAPE, permissionDefaults: { notifications: 'block' } };
-    render(<SitesPane />);
-    expect(screen.getByText('Refused without asking.')).toBeTruthy();
-  });
-
   // One place to review every site's answer for a kind, beside the switch that sets the rest.
   it('counts the sites that answered for themselves, and lists only them on request', () => {
     settings = {

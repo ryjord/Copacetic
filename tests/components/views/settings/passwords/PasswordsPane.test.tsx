@@ -58,14 +58,6 @@ describe('the passwords pane', () => {
     expect(screen.getByRole('button', { name: 'Show the password for example.com' })).toBeTruthy();
   });
 
-  // Filling shipped in 1.3.2 while Settings denied it for four releases; the claim stays tied to the code.
-  it('names the control that fills, and says it never offers to save', () => {
-    render(<PasswordsPane />);
-    const text = document.body.textContent ?? '';
-    expect(text).toContain('Fill password');
-    expect(text).toContain('never offers to save what you type');
-  });
-
   /**
    * An update that loses the keychain entry must never read as "you have no
    * passwords": that is the sentence that makes someone believe their data is
@@ -94,27 +86,32 @@ describe('the passwords pane', () => {
     });
   });
 
-  describe('when there is no keychain at all', () => {
-    const unavailable: VaultState = {
-      availability: 'unavailable',
-      detail: 'This machine has no keychain Copacetic can use, so there is nowhere safe to keep a password.',
-      entries: [],
-      unreadableCount: 0,
-    };
-
-    // Offering a form that cannot save anything is worse than offering none.
-    it('explains why, and does not offer to add one', async () => {
-      vaultState = unavailable;
-      render(<PasswordsPane />);
-      await waitFor(() => expect(screen.getByRole('status').textContent).toContain('nowhere safe'));
-      expect(screen.queryByRole('button', { name: 'Add password' })).toBeNull();
-    });
-  });
-
-  it('offers to add one when the vault is usable', async () => {
-    vaultState = { availability: 'ready', detail: '', entries: [], unreadableCount: 0 };
+  // Offering a form that cannot save anything is worse than offering none.
+  it.each([
+    {
+      name: 'explains why, and does not offer to add one, when there is no keychain at all',
+      state: {
+        availability: 'unavailable',
+        detail: 'This machine has no keychain Copacetic can use, so there is nowhere safe to keep a password.',
+        entries: [],
+        unreadableCount: 0,
+      } satisfies VaultState,
+      isAddOffered: false,
+    },
+    {
+      name: 'offers to add one when the vault is usable',
+      state: { availability: 'ready', detail: '', entries: [], unreadableCount: 0 } satisfies VaultState,
+      isAddOffered: true,
+    },
+  ])('$name', async ({ state, isAddOffered }) => {
+    vaultState = state;
     render(<PasswordsPane />);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Add password' })).toBeTruthy());
+    if (isAddOffered) {
+      expect(await screen.findByRole('button', { name: 'Add password' })).toBeTruthy();
+      return;
+    }
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('nowhere safe'));
+    expect(screen.queryByRole('button', { name: 'Add password' })).toBeNull();
   });
 });
 

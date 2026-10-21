@@ -8,7 +8,7 @@ import type { ChromeSurface } from '../ipc/channels';
  * puts that gap at about 190ms on the machine in the README. A cold first run
  * does not widen it much - it makes the whole launch slower, around 900ms to a
  * window that answers - and slower hardware moves both. Measured before this existed
- * - Cmd+, or Cmd+Y inside that window pushed to a renderer with no listeners
+ * - Cmd+K inside that window pushed to a renderer with no listeners
  * attached and nothing happened, which is indistinguishable from a menu item
  * that is simply broken. Notices had the same failure and were
  * fixed by holding them in the main process until the chrome collects them;

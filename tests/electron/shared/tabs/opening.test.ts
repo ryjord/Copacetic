@@ -13,32 +13,35 @@ import { inheritFromOpener } from '../../../../electron/shared/tabs/opening';
  * whose entire promise is that none of that happens.
  */
 describe('what a tab opened from another tab inherits', () => {
-  it('is Hush when the tab it came from was', () => {
-    expect(inheritFromOpener({ isHush: true, groupId: null })).toEqual({ hush: true, groupId: null });
-  });
-
-  it('is ordinary when the tab it came from was', () => {
-    expect(inheritFromOpener({ isHush: false, groupId: null })).toEqual({ hush: false, groupId: null });
-  });
-
-  it('is ordinary when nothing opened it, which is someone typing an address', () => {
-    expect(inheritFromOpener(null)).toEqual({ hush: false, groupId: null });
-  });
-
-  it('joins the group its opener is in, the way a link followed in place would', () => {
-    expect(inheritFromOpener({ isHush: false, groupId: 'work' })).toEqual({ hush: false, groupId: 'work' });
-  });
-
   /*
    * An explicit request wins, or "New Hush tab" pressed while an ordinary tab
-   * is in front would open an ordinary tab.
+   * is in front would open an ordinary tab. Hush is never quietly dropped: an
+   * explicit `false` is the only way out.
    */
-  it('lets an explicit Hush request through from an ordinary opener', () => {
-    expect(inheritFromOpener({ isHush: false, groupId: null }, { hush: true }).hush).toBe(true);
-  });
-
-  it('lets a tab be put in no group on purpose', () => {
-    expect(inheritFromOpener({ isHush: false, groupId: 'work' }, { groupId: null }).groupId).toBeNull();
+  it.each([
+    ['a Hush opener', { isHush: true, groupId: null }, undefined, { hush: true, groupId: null }],
+    ['an ordinary opener', { isHush: false, groupId: null }, undefined, { hush: false, groupId: null }],
+    ['no opener, which is someone typing an address', null, undefined, { hush: false, groupId: null }],
+    [
+      'an opener in a group, the way a link followed in place would',
+      { isHush: false, groupId: 'work' },
+      undefined,
+      { hush: false, groupId: 'work' },
+    ],
+    [
+      'an explicit Hush request from an ordinary opener',
+      { isHush: false, groupId: null },
+      { hush: true },
+      { hush: true, groupId: null },
+    ],
+    [
+      'a Hush opener and an unrelated option',
+      { isHush: true, groupId: 'work' },
+      { groupId: null },
+      { hush: true, groupId: null },
+    ],
+  ])('inherits from %s', (_caseName, opener, options, expected) => {
+    expect(inheritFromOpener(opener, options)).toEqual(expected);
   });
 
   /*

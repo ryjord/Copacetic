@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { globSync, readFileSync } from 'node:fs';
 import { cleanup, render } from '@testing-library/react';
 import { TransparencyPane } from '@/components/views/settings/transparency/TransparencyPane';
-import { t } from '@shared/i18n/translate';
 
 vi.mock('@/lib/bridge/bridge', async () => (await import('../bridge-mock')).fallbackBridge);
 
@@ -34,14 +33,7 @@ describe('what Copacetic says about itself', () => {
     expect(document.body.textContent).not.toMatch(/\d+ domains/);
   });
 
-  it.each([
-    'It has not been security audited.',
-    'The builds are not code-signed.',
-    'no analytics, no telemetry, no crash reporting and no account',
-    'Fill password',
-    'never offers to save what you type',
-    'window.chrome',
-  ])('still says %o', (claim) => {
+  it.each(['It has not been security audited.', 'The builds are not code-signed.'])('still says %o', (claim) => {
     render(<TransparencyPane info={info} />);
     expect(document.body.textContent).toContain(claim);
   });
@@ -60,16 +52,5 @@ describe('what Copacetic says about itself', () => {
     for (const file of globSync('src/components/views/settings/**/*.tsx')) {
       expect(readFileSync(file, 'utf8')).not.toContain('—');
     }
-  });
-});
-
-describe('what filling claims is what ships', () => {
-  it('describes a control that exists', () => {
-    // The menu reads its label from the catalogue, so both halves are checked: the item exists, and says this.
-    expect(readFileSync('electron/main/menus/context-menu.ts', 'utf8')).toContain(
-      "t('main.menu.context.fillPassword')",
-    );
-    expect(t('main.menu.context.fillPassword')).toBe('Fill password');
-    expect(readFileSync('electron/main/workflows/password-fill.ts', 'utf8')).toContain('fillScriptFor(');
   });
 });

@@ -16,6 +16,8 @@ export interface InstalledExtension {
   /** The unpacked folder: inside the profile for one from the store, wherever it was chosen for one in development. */
   folder: string;
   isEnabled: boolean;
+  /** Shown on the toolbar, rather than only in the extensions menu. */
+  isPinned: boolean;
   installedAt: number;
 }
 
@@ -49,8 +51,8 @@ export class ExtensionStore {
     this.file.update((entries) => [...entries.filter((existing) => existing.id !== entry.id), entry]);
   }
 
-  setEnabled(id: string, isEnabled: boolean): void {
-    this.file.update((entries) => entries.map((entry) => (entry.id === id ? { ...entry, isEnabled } : entry)));
+  change(id: string, change: Partial<Pick<InstalledExtension, 'isEnabled' | 'isPinned'>>): void {
+    this.file.update((entries) => entries.map((entry) => (entry.id === id ? { ...entry, ...change } : entry)));
   }
 
   remove(id: string): void {
@@ -82,6 +84,7 @@ export class ExtensionStore {
           source,
           folder,
           isEnabled: item.isEnabled !== false,
+          isPinned: item.isPinned !== false,
           installedAt: asNumber(item.installedAt, Date.now()),
         },
       ];

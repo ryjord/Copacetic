@@ -72,6 +72,7 @@ function browsing() {
     listen: () => {},
     openOptions: () => {},
     idleState: () => 'active' as const,
+    netRules: (_id: string, method: string) => `rules ${method}`,
   };
   return { api: new ChromeApi(fake, surfaces), created, updated };
 }
@@ -140,5 +141,14 @@ describe('windows and permissions', () => {
 
   it('ignores a call it does not know', () => {
     expect(call('debugger.attach', [{}])).toBeNull();
+  });
+});
+
+describe('declarativeNetRequest', () => {
+  // Its rules are matched in the main process, so the call goes to the part that keeps them.
+  it('is answered by the rules the extension keeps', () => {
+    expect(call('declarativeNetRequest.getDynamicRules', [], grant(['declarativeNetRequest']))).toBe(
+      'rules getDynamicRules',
+    );
   });
 });

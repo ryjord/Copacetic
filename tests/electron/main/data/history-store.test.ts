@@ -30,25 +30,15 @@ beforeEach(() => {
  * checked it read the file directly rather than through the store.
  */
 describe('what survives a restart', () => {
-  it('keeps the blocked-request count, which is the whole point of recording it', () => {
+  it('keeps the blocked-request count, which is the whole point of recording it, and adds it up across pages', () => {
     const first = openStore();
-    first.recordVisit('https://example.com/one', 'One');
-    first.addBlocked('https://example.com/one', 12);
+    first.recordVisit('https://a.example/', 'A');
+    first.recordVisit('https://b.example/', 'B');
+    first.addBlocked('https://a.example/', 3);
+    first.addBlocked('https://b.example/', 4);
     first.flush();
 
     // A second store is a restart: the same file, read back.
-    const second = openStore();
-    expect(second.totalBlocked()).toBe(12);
-  });
-
-  it('adds up across pages rather than reporting only the last', () => {
-    const store = openStore();
-    store.recordVisit('https://a.example/', 'A');
-    store.recordVisit('https://b.example/', 'B');
-    store.addBlocked('https://a.example/', 3);
-    store.addBlocked('https://b.example/', 4);
-    store.flush();
-
     expect(openStore().totalBlocked()).toBe(7);
   });
 
@@ -227,14 +217,39 @@ describe('what forgetting leaves on disk', () => {
       .map((file) => readFileSync(file).toString('latin1'))
       .join('');
 
-  it('leaves no trace of a forgotten site', () => {
+  it.each([
+    {
+      name: 'a forgotten site',
+      secret: 'secret-clinic',
+      forget: (store: InstanceType<typeof HistoryStore>) => store.forgetSite('secret-clinic.example'),
+      url: 'https://secret-clinic.example/appointments',
+    },
+    {
+      name: 'a cleared history',
+      secret: 'private-matter',
+      forget: (store: InstanceType<typeof HistoryStore>) => store.clearHistory('all'),
+      url: 'https://private-matter.example/',
+    },
+    {
+      name: 'one removed entry',
+      secret: 'one-off',
+      forget: (store: InstanceType<typeof HistoryStore>) => store.removeHistory(store.listHistory().entries[0]!.id),
+      url: 'https://one-off.example/',
+    },
+  ])('leaves no trace of $name', ({ secret, forget, url }) => {
+    const store = openStore();
+    store.recordVisit(url, 'Secret');
+    expect(onDisk()).toContain(secret);
+
+    forget(store);
+    expect(onDisk()).not.toContain(secret);
+  });
+
+  it('forgets only the site it was asked about, and says how many entries went', () => {
     const store = openStore();
     store.recordVisit('https://secret-clinic.example/appointments', 'Appointments');
     store.recordVisit('https://news.example.org/', 'News');
-    expect(onDisk()).toContain('secret-clinic');
-
     expect(store.forgetSite('secret-clinic.example')).toBe(1);
-    expect(onDisk()).not.toContain('secret-clinic');
     expect(store.listHistory().total).toBe(1);
   });
 
@@ -265,21 +280,6 @@ describe('what forgetting leaves on disk', () => {
     expect(performance.now() - start).toBeLessThan(1_000);
     // The bound that matters is the one above; filling ten thousand visits is slow on a shared runner.
   }, 30_000);
-
-  it('leaves no trace of a cleared history', () => {
-    const store = openStore();
-    store.recordVisit('https://private-matter.example/', 'Private');
-    store.clearHistory('all');
-    expect(onDisk()).not.toContain('private-matter');
-  });
-
-  it('leaves no trace of one removed entry', () => {
-    const store = openStore();
-    store.recordVisit('https://one-off.example/', 'One off');
-    const [entry] = store.listHistory().entries;
-    store.removeHistory(entry!.id);
-    expect(onDisk()).not.toContain('one-off');
-  });
 });
 
 describe("bringing in another browser's history", () => {

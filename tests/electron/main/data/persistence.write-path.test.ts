@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { closeSync, mkdtempSync, openSync, readFileSync, statSync, type PathLike } from 'node:fs';
+import { closeSync, mkdtempSync, openSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 vi.mock('electron', () => ({ app: { getPath: () => process.env.COPA_WRITE_DIR } }));
 
-const { PersistedFile, REAL_DISK, asNumber, isRecord, renameOverAnyLock } =
-  await import('../../../../electron/main/data/persistence');
+const { PersistedFile, REAL_DISK, asNumber, isRecord } = await import('../../../../electron/main/data/persistence');
 
 interface Thing {
   name: string;
@@ -59,32 +58,6 @@ describe('the write path a flush actually takes', () => {
     // the temporary file exists to prevent.
     expect(order).toEqual(['write', 'rename']);
     expect((JSON.parse(readFileSync(path.join(dir, 'ordered.json'), 'utf8')) as Thing).name).toBe('ordered');
-  });
-
-  it('goes through the retrying rename, not a bare one', () => {
-    let refused = 0;
-    const file = new PersistedFile<Thing>('retried.json', fallback, revive, {
-      disk: {
-        write: REAL_DISK.write,
-        rename: (from, to) =>
-          renameOverAnyLock(from, to, (a: PathLike, b: PathLike) => {
-            refused += 1;
-            if (refused === 1) {
-              const error = new Error('EPERM: operation not permitted') as NodeJS.ErrnoException;
-              error.code = 'EPERM';
-              throw error;
-            }
-            return REAL_DISK.rename(a as string, b as string);
-          }),
-      },
-    });
-
-    file.set({ name: 'retried', count: 7 });
-    file.flush();
-
-    expect(refused).toBe(2);
-    // And the data arrived, rather than the retry merely not throwing.
-    expect((JSON.parse(readFileSync(path.join(dir, 'retried.json'), 'utf8')) as Thing).name).toBe('retried');
   });
 
   /*

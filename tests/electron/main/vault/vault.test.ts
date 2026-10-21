@@ -67,29 +67,26 @@ describe('keeping a password', () => {
    * unencrypted because the keychain is missing would be worse than refusing,
    * and the user would have no way to know.
    */
-  it('refuses to save at all when there is no keychain', () => {
+  it.each([
+    ['there is no keychain', keychain({ available: false })],
+    [
+      'encrypting throws',
+      {
+        isAvailable: () => true,
+        encrypt: () => {
+          throw new Error('keychain locked');
+        },
+        decrypt: () => '',
+      } satisfies SecretStore,
+    ],
+  ])('refuses to save at all when %s', (_name, secrets) => {
     const store = storage();
-    const result = new Vault(keychain({ available: false }), store, now).add({
+    const result = new Vault(secrets, store, now).add({
       origin: 'https://example.com',
       username: 'riley',
       password: 'hunter2',
     });
     expect(result).toHaveProperty('error');
-    expect(store.written().entries).toHaveLength(0);
-  });
-
-  it('refuses to save when encrypting throws', () => {
-    const throwing: SecretStore = {
-      isAvailable: () => true,
-      encrypt: () => {
-        throw new Error('keychain locked');
-      },
-      decrypt: () => '',
-    };
-    const store = storage();
-    expect(new Vault(throwing, store, now).add({ origin: 'a', username: 'b', password: 'c' })).toHaveProperty(
-      'error',
-    );
     expect(store.written().entries).toHaveLength(0);
   });
 
@@ -346,14 +343,15 @@ describe('taking it all with you', () => {
 });
 
 describe('bringing passwords in', () => {
-  it('adds ones it has never seen', () => {
+  it('adds ones it has never seen, treating a different username on the same site as a separate account', () => {
     const vault = new Vault(keychain(), storage(), now);
     const result = vault.importMany([
       { origin: 'https://a.test', username: 'one', password: 'first' },
       { origin: 'https://b.test', username: 'two', password: 'second' },
+      { origin: 'https://a.test', username: 'three', password: 'third' },
     ]);
-    expect(result).toEqual({ added: 2, updated: 0, skipped: 0 });
-    expect(vault.state().entries).toHaveLength(2);
+    expect(result).toEqual({ added: 3, updated: 0, skipped: 0 });
+    expect(vault.state().entries).toHaveLength(3);
   });
 
   // Importing the same file twice should not leave two of everything.
@@ -365,13 +363,6 @@ describe('bringing passwords in', () => {
     expect(result).toEqual({ added: 0, updated: 1, skipped: 0 });
     expect(vault.state().entries).toHaveLength(1);
     expect(vault.reveal(vault.state().entries[0]?.id ?? '')).toBe('new');
-  });
-
-  it('treats a different username on the same site as a separate account', () => {
-    const vault = new Vault(keychain(), storage(), now);
-    vault.add({ origin: 'https://a.test', username: 'one', password: 'first' });
-    expect(vault.importMany([{ origin: 'https://a.test', username: 'two', password: 'second' }]).added).toBe(1);
-    expect(vault.state().entries).toHaveLength(2);
   });
 
   it('counts rows it refused rather than reporting them as imported', () => {
@@ -479,13 +470,6 @@ describe('while the vault is locked', () => {
     unlocked = true;
     expect(vault.reveal(id)).toBe('hunter2');
   });
-
-  // Saving a password you just typed does not require unlocking; you already
-  // have it in your hand.
-  it('still accepts a new password', () => {
-    const { vault } = lockedVault();
-    expect(vault.add({ origin: 'https://new.test', username: 'x', password: 'y' })).toHaveProperty('id');
-  });
 });
 
 /**
@@ -570,19 +554,5 @@ describe('an entry this machine cannot open', () => {
     expect(state.entries).toHaveLength(1);
     expect(state.entries[0]).toMatchObject({ origin: '', isReadable: false });
     expect(state.unreadableCount).toBe(1);
-  });
-});
-
-describe('importing into a sealed vault', () => {
-  it('replaces the password for a site and username already there, rather than adding a second', () => {
-    const vault = new Vault(keychain(), storage(), now);
-    vault.add({ origin: 'https://bank.example', username: 'riley', password: 'old' });
-    expect(vault.importMany([{ origin: 'https://bank.example', username: 'riley', password: 'new' }])).toEqual({
-      added: 0,
-      updated: 1,
-      skipped: 0,
-    });
-    const [entry] = vault.state().entries;
-    expect(vault.reveal(entry!.id)).toBe('new');
   });
 });

@@ -28,26 +28,16 @@ const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate
  * where being wrong is quiet.
  */
 describe('which tab to show after closing the one in front', () => {
-  it('takes the neighbour on the right, which is what every browser does', () => {
-    expect(tabAfterClosing(['a', 'c', 'd'], 1)).toBe('c');
-  });
-
-  it('falls back to the left when the one that closed was last', () => {
-    expect(tabAfterClosing(['a', 'b'], 2)).toBe('b');
-  });
-
-  it('has nothing to show when that was the only tab', () => {
-    expect(tabAfterClosing([], 0)).toBeNull();
-  });
-
-  it('takes the first when the one that closed was', () => {
-    expect(tabAfterClosing(['b', 'c'], 0)).toBe('b');
-  });
-
   // An index from a stale read should still land on a tab rather than nowhere.
-  it('never lands outside the strip', () => {
-    expect(tabAfterClosing(['a', 'b'], 99)).toBe('b');
-    expect(tabAfterClosing(['a', 'b'], -5)).toBe('a');
+  it.each([
+    ['takes the neighbour on the right, which is what every browser does', ['a', 'c', 'd'], 1, 'c'],
+    ['falls back to the left when the one that closed was last', ['a', 'b'], 2, 'b'],
+    ['has nothing to show when that was the only tab', [], 0, null],
+    ['takes the first when the one that closed was', ['b', 'c'], 0, 'b'],
+    ['never lands past the end of the strip', ['a', 'b'], 99, 'b'],
+    ['never lands before the start of the strip', ['a', 'b'], -5, 'a'],
+  ])('%s', (_name, remaining, closedIndex, expected) => {
+    expect(tabAfterClosing(remaining, closedIndex)).toBe(expected);
   });
 });
 
@@ -93,24 +83,22 @@ describe('what is written down to reopen', () => {
    * of the active tab shifts the index by one - so tomorrow the wrong site is in
    * front, quietly, and only for people who keep a start page open.
    */
-  it('counts the active tab against the list it writes, not the strip', () => {
-    const snapshot = sessionFrom([tab('start', { isStartPage: true }), tab('a'), tab('b')], 'b');
-    expect(snapshot.tabs.map((entry) => entry.url)).toEqual(['https://a.example/', 'https://b.example/']);
-    // 'b' is second in the strip and second in the file; with the index taken
-    // from the strip it would be 2, which is past the end.
-    expect(snapshot.activeIndex).toBe(1);
-  });
-
-  it('counts past several start pages, not just one', () => {
-    const snapshot = sessionFrom(
+  it.each([
+    [
+      'a start page',
+      [tab('start', { isStartPage: true }), tab('a'), tab('b')],
+      ['https://a.example/', 'https://b.example/'],
+    ],
+    [
+      'several start pages',
       [tab('s1', { isStartPage: true }), tab('s2', { isStartPage: true }), tab('a'), tab('b')],
-      'b',
-    );
-    expect(snapshot.activeIndex).toBe(1);
-  });
-
-  it('counts past a Hush tab too', () => {
-    const snapshot = sessionFrom([tab('h', { isHush: true }), tab('a'), tab('b')], 'b');
+      ['https://a.example/', 'https://b.example/'],
+    ],
+    ['a Hush tab', [tab('h', { isHush: true }), tab('a'), tab('b')], ['https://a.example/', 'https://b.example/']],
+  ])('counts the active tab against the list it writes, not the strip, past %s', (_name, candidates, urls) => {
+    const snapshot = sessionFrom(candidates, 'b');
+    expect(snapshot.tabs.map((entry) => entry.url)).toEqual(urls);
+    // 'b' is second in the file; with the index taken from the strip it would be past the end.
     expect(snapshot.activeIndex).toBe(1);
   });
 
@@ -131,14 +119,17 @@ describe('pinned tabs in the strip', () => {
   const pinned = new Set(['p1', 'p2']);
   const isPinned = (id: string) => pinned.has(id);
 
-  it('come before every other tab, each run keeping its own order', () => {
-    expect(pinnedFirst(['a', 'p1', 'b', 'p2', 'c'], isPinned)).toEqual(['p1', 'p2', 'a', 'b', 'c']);
-  });
-
   // The stable order is the whole rule: just pinned lands last among the pinned, just unpinned first among the rest.
-  it('put a tab just pinned at the end of the pinned run, and one just let go at the start of the rest', () => {
-    expect(pinnedFirst(['p1', 'a', 'p2', 'b'], isPinned)).toEqual(['p1', 'p2', 'a', 'b']);
-    expect(pinnedFirst(['p1', 'x', 'a'], isPinned)).toEqual(['p1', 'x', 'a']);
+  it.each([
+    [
+      'come before every other tab, each run keeping its own order',
+      ['a', 'p1', 'b', 'p2', 'c'],
+      ['p1', 'p2', 'a', 'b', 'c'],
+    ],
+    ['put a tab just pinned at the end of the pinned run', ['p1', 'a', 'p2', 'b'], ['p1', 'p2', 'a', 'b']],
+    ['put a tab just let go at the start of the rest', ['p1', 'x', 'a'], ['p1', 'x', 'a']],
+  ])('%s', (_name, order, expected) => {
+    expect(pinnedFirst(order, isPinned)).toEqual(expected);
   });
 
   it('keep a move inside its own run', () => {
@@ -166,32 +157,28 @@ describe('which tabs go to sleep', () => {
   const tab = (over: Partial<SleepCandidate> = {}): SleepCandidate => ({
     id: 'a',
     isActive: false,
-    isStartPage: false,
+    isInternalPage: false,
     isAsleep: false,
     isAudible: false,
     lastActiveAt: now - 61 * minute,
     ...over,
   });
 
-  it('is a tab left alone longer than the setting', () => {
-    expect(tabsToSleep([tab()], now, 60)).toEqual(['a']);
-  });
-
-  it('is not one looked at more recently', () => {
-    expect(tabsToSleep([tab({ lastActiveAt: now - 59 * minute })], now, 60)).toEqual([]);
+  it.each([
+    ['a tab left alone longer than the setting', 61, 60, ['a']],
+    ['one looked at more recently', 59, 60, []],
+    ['none at all when sleeping is turned off', 100, 0, []],
+  ])('is %s', (_name, minutesIdle, setting, expected) => {
+    expect(tabsToSleep([tab({ lastActiveAt: now - minutesIdle * minute })], now, setting)).toEqual(expected);
   });
 
   it.each([
     ['the tab in front', { isActive: true }],
     ['a tab playing sound', { isAudible: true }],
-    ['a start page', { isStartPage: true }],
+    ['a page of ours, such as the start page or Settings', { isInternalPage: true }],
     ['a tab already asleep', { isAsleep: true }],
   ] as const)('is never %s', (_name, over) => {
     expect(tabsToSleep([tab(over)], now, 60)).toEqual([]);
-  });
-
-  it('is none at all when sleeping is turned off', () => {
-    expect(tabsToSleep([tab({ lastActiveAt: 0 })], now, 0)).toEqual([]);
   });
 });
 

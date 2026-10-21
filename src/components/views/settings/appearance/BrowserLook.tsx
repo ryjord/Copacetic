@@ -21,6 +21,7 @@ import {
   type AccentColour,
   type AppearanceId,
   type DensityId,
+  type HeaderLayoutId,
   type InterfaceTextSize,
   type Settings,
   type ToolbarItemId,
@@ -48,6 +49,10 @@ const DENSITY_LABELS: Record<DensityId, string> = {
   comfortable: t('settings.appearance.browser.density.comfortable'),
   compact: t('settings.appearance.browser.density.compact'),
 };
+const HEADER_LABELS: Record<HeaderLayoutId, string> = {
+  standard: t('settings.appearance.browser.header.standard'),
+  'one-line': t('settings.appearance.browser.header.oneLine'),
+};
 const TOOLBAR_LABELS: Record<ToolbarItemId, string> = {
   home: t('settings.appearance.browser.toolbar.home'),
   bookmarks: t('settings.appearance.browser.toolbar.bookmarks'),
@@ -66,6 +71,10 @@ export function BrowserLook({ settings }: { settings: Settings }) {
   const densityOptions = labelledOptions(DENSITY_LABELS).map((option) => ({
     ...option,
     preview: <DensityPreview density={option.id} />,
+  }));
+  const headerOptions = labelledOptions(HEADER_LABELS).map((option) => ({
+    ...option,
+    preview: <HeaderPreview layout={option.id} />,
   }));
 
   return (
@@ -96,6 +105,18 @@ export function BrowserLook({ settings }: { settings: Settings }) {
             options={labelledOptions(TEXT_SIZE_LABELS)}
             value={settings.interfaceTextSize}
             onChange={(interfaceTextSize) => updateSettings({ interfaceTextSize })}
+          />
+        }
+      />
+      <SettingRow
+        label={t('settings.appearance.browser.header.label')}
+        help={t('settings.appearance.browser.header.help')}
+        control={
+          <ChoiceCards
+            label={t('settings.appearance.browser.header.label')}
+            options={headerOptions}
+            value={settings.headerLayout}
+            onChange={(headerLayout) => updateSettings({ headerLayout })}
           />
         }
       />
@@ -211,6 +232,31 @@ function ModePreview({ mode }: { mode: AppearanceId }) {
 }
 
 /** The tab strip and toolbar at each density's own heights, scaled down. */
+function HeaderPreview({ layout }: { layout: HeaderLayoutId }) {
+  const tab = <span className="block h-2 w-4 rounded-xs bg-hover" />;
+  const field = <span className="block h-2.5 flex-1 rounded-xs bg-raised" />;
+  return (
+    <span className="flex w-24 flex-col gap-0.5 bg-ground p-1.5">
+      {layout === 'one-line' ? (
+        <span className="flex items-center gap-0.5">
+          {field}
+          {tab}
+          {tab}
+        </span>
+      ) : (
+        <>
+          <span className="flex gap-0.5">
+            {tab}
+            {tab}
+          </span>
+          <span className="flex">{field}</span>
+        </>
+      )}
+      <span className="block h-3 rounded-xs bg-sunken" />
+    </span>
+  );
+}
+
 function DensityPreview({ density }: { density: DensityId }) {
   const isCompact = density === 'compact';
   return (

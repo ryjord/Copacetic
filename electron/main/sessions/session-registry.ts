@@ -5,6 +5,7 @@ import { type Session, app, session as electronSession } from 'electron';
 import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/data/partitions';
 import { type SecurityDelegate, hardenWebSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
+import { startRequestLog } from '../system/request-log';
 import { type SpellcheckChoices, spellcheckLanguagesFor } from '../../shared/chrome/spellcheck';
 
 // Types
@@ -56,12 +57,16 @@ export class SessionRegistry {
     }
     this.prepared.set(partition, session);
 
-    hardenWebSession(session, this.deps.securityDelegate);
-    this.deps.blocker.attach(session, this.deps.blocking);
     // Everything but Hush is remembered. A Hush download's address, redirect
     // chain and time are browsing, and the tab's whole claim is that none of
     // that is written down.
-    this.deps.downloads.attach(session, remembersDownloads(partition), partition);
+    const isRemembered = remembersDownloads(partition);
+    hardenWebSession(session, this.deps.securityDelegate, isRemembered);
+    this.deps.blocker.attach(session, this.deps.blocking, isRemembered);
+    this.deps.downloads.attach(session, isRemembered, partition);
+    if (isRemembered) {
+      startRequestLog(session, partition);
+    }
     session.setSpellCheckerEnabled(this.deps.isSpellcheckOn());
     this.applySpellcheckLanguages(session);
     this.deps.onPrepared?.(session, partition);

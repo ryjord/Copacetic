@@ -1,5 +1,6 @@
 // Utils
 import { START_PAGE_URL } from '../../shared/browsing/url';
+import { chromeNameOf } from '../../shared/tabs/internal-pages';
 
 // Types
 import type { ChromeTab, ChromeWindow, ExtensionBrowsing } from './chrome-api';
@@ -67,7 +68,9 @@ export function profileBrowsing(options: {
           id: chromeIdFor(browser, tab.id),
           windowId: browser.window.id,
           index,
-          ...(tab.isStartPage ? { url: 'chrome://newtab/', title: '' } : { url: tab.url, title: tab.title }),
+          ...(tab.internalPage === null
+            ? { url: tab.url, title: tab.title }
+            : { url: `chrome://${chromeNameOf(tab.internalPage)}/`, title: '' }),
           ...(tab.faviconDataUrl ? { favIconUrl: tab.faviconDataUrl } : {}),
           active: isActive,
           highlighted: isActive,

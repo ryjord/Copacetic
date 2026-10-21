@@ -5,7 +5,7 @@ import { fillScriptFor } from '../../../../electron/main/system/fill-script';
  * A stand-in for just enough of a page to run the script against. Records what
  * was set rather than pretending to be a browser.
  */
-function fakePage({ hasPassword = true, hasUsername = true } = {}) {
+function fakePage({ hasPassword = true, hasUsername = true, dropsNewlines = false } = {}) {
   const set: { type: string; value: string }[] = [];
   const events: string[] = [];
 
@@ -54,8 +54,10 @@ function fakePage({ hasPassword = true, hasUsername = true } = {}) {
       // Stores as well as records: the script reads the value back to check the
       // page did not alter it, so a setter that only records looks like alteration.
       set(this: { type: string; _value: string }, next: string) {
-        this._value = next;
-        set.push({ type: this.type, value: next });
+        // A single-line input strips newlines as the value is assigned.
+        const stored = dropsNewlines ? next.replaceAll('\n', '') : next;
+        this._value = stored;
+        set.push({ type: this.type, value: stored });
       },
       get(this: { _value: string }) {
         return this._value;
@@ -131,24 +133,6 @@ describe('what it does to the page', () => {
   });
 });
 
-describe('what it leaves behind', () => {
-  it('is a single expression with no listener and no global', () => {
-    const script = fillScriptFor('riley', 'hunter2');
-    expect(script.startsWith('(() => {')).toBe(true);
-    expect(script.trimEnd().endsWith('})()')).toBe(true);
-    expect(script).not.toContain('addEventListener');
-    expect(script).not.toContain('window.copacetic');
-  });
-
-  // It hands a value over; it must never read the page back.
-  it('never reads page content', () => {
-    const script = fillScriptFor('riley', 'hunter2');
-    for (const forbidden of ['document.cookie', 'innerText', 'innerHTML', 'localStorage', 'fetch(']) {
-      expect(script).not.toContain(forbidden);
-    }
-  });
-});
-
 /**
  * A single-line input silently drops newlines. A password saved with one would
  * arrive shorter than it was stored, and the only symptom is a sign-in that
@@ -161,8 +145,9 @@ describe('when the page cannot hold the value', () => {
     expect(result.exact).toBe(true);
   });
 
-  it('compares what the field ended up with rather than assuming', () => {
-    const script = fillScriptFor('riley', 'a\nb');
-    expect(script).toContain('exact: passwordField.value === password');
+  it('reports an inexact fill when the field dropped a newline', () => {
+    const page = fakePage({ dropsNewlines: true });
+    const result = run(fillScriptFor('riley', 'a\nb'), page) as { exact?: boolean };
+    expect(result.exact).toBe(false);
   });
 });

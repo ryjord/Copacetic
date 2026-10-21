@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({
   Menu: { buildFromTemplate: () => ({ popup: () => {} }) },
   shell: { openExternal: async () => {} },
-  clipboard: { writeText: () => {} },
+  clipboard: { writeText: async () => {} },
   dialog: { showMessageBox: async () => ({ response: 1 }) },
 }));
 
@@ -25,7 +25,6 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
       adjustZoom: (direction: string) => opened.push(`zoom ${direction}`),
     },
     store: { listNamedSessions: () => [] },
-    openSettingsPane: (pane: string) => opened.push(`settings ${pane}`),
     openDownloadsFolder: () => opened.push('downloads folder'),
     tabs: {
       hasClosedTabs: () => hasClosedTabs,
@@ -41,6 +40,7 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
     },
     openFind: () => {},
     openSurface: (surface: string) => opened.push(surface),
+    showPage: (page: string, section?: string) => opened.push(section ? `${page} ${section}` : page),
     profile: {
       id: 'default',
       settings: () => ({ shortcutOverrides: { find: 'Alt+CmdOrCtrl+F' } }),
@@ -57,12 +57,23 @@ function labels(options?: Parameters<typeof fakeBrowser>[0]) {
 }
 
 describe('the main menu', () => {
-  // The toolbar lost these buttons on the promise that one menu holds them all.
-  it('reaches every surface the toolbar no longer has a button for', () => {
-    expect(labels()).toEqual(expect.arrayContaining(['Bookmarks', 'History', 'Downloads', 'Settings…']));
+  // The toolbar lost these buttons on the promise that one menu holds them all. Windows and Linux have no menu bar, so zoom, reader and split had nowhere else to be.
+  it.each([
+    'Bookmarks',
+    'History',
+    'Downloads',
+    'Settings…',
+    'Zoom 125%',
+    'Zoom in',
+    'Zoom out',
+    'Reader view',
+    'Split view',
+    'Clear browsing data…',
+  ])('reaches %s from the one menu', (label) => {
+    expect(labels()).toContain(label);
   });
 
-  it('opens the surface it names', () => {
+  it('opens the page it names', () => {
     opened.length = 0;
     const history = mainMenuItems(fakeBrowser()).find((item) => item.label === 'History');
     history?.click?.({} as never, undefined, {} as never);
@@ -98,20 +109,6 @@ describe('the main menu', () => {
     submenu('More tools').forEach((item) => item.click?.());
     expect(opened).toEqual(['devtools', 'view source', 'downloads folder']);
     expect(submenu('Help').map((item) => item.label)).toEqual(['Copacetic on GitHub', 'Report a problem']);
-  });
-
-  // Windows and Linux have no menu bar, so zoom, reader and split had nowhere else to be.
-  it('carries zoom, reader view, split view and clearing data', () => {
-    expect(labels()).toEqual(
-      expect.arrayContaining([
-        'Zoom 125%',
-        'Zoom in',
-        'Zoom out',
-        'Reader view',
-        'Split view',
-        'Clear browsing data…',
-      ]),
-    );
   });
 
   it('lists what was closed, a group as one item, and reopens the one chosen', () => {

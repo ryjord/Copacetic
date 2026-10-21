@@ -65,3 +65,17 @@ describe('the buttons someone chose', () => {
     expect(openBookmarksMenu).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('a header laid out on one line', () => {
+  // The tabs share the toolbar's row, and that row is the window's title bar.
+  it('holds the tabs it is given, and can be dragged as the title bar', () => {
+    const { container } = render(<Toolbar tab={null} tabStrip={<div role="tablist" aria-label="Open tabs" />} />);
+    expect(screen.getByRole('tablist', { name: 'Open tabs' })).toBeTruthy();
+    expect(container.firstElementChild?.classList.contains('drag-region')).toBe(true);
+  });
+
+  it('is not the title bar under a tab strip of its own', () => {
+    const { container } = render(<Toolbar tab={null} />);
+    expect(container.firstElementChild?.classList.contains('drag-region')).toBe(false);
+  });
+});

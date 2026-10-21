@@ -53,8 +53,8 @@ export function contentBoundsWithin(
  * cover a page has to hide the view rather than sit on top of it.
  */
 export function shouldTabBeVisible(
-  tab: { isActive: boolean; isStartPage: boolean; hasError: boolean },
+  tab: { isActive: boolean; isInternalPage: boolean; hasError: boolean },
   isOverlayVisible: boolean,
 ): boolean {
-  return tab.isActive && !isOverlayVisible && !tab.isStartPage && !tab.hasError;
+  return tab.isActive && !isOverlayVisible && !tab.isInternalPage && !tab.hasError;
 }

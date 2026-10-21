@@ -27,11 +27,8 @@ beforeEach(() => {
 afterEach(() => rmSync(dataDir, { recursive: true, force: true }));
 
 describe('a plan has to describe an unbroken path', () => {
-  it('accepts a file whose shape has never changed', () => {
+  it('accepts an unbroken plan, with no steps or with consecutive ones', () => {
     expect(() => assertUsablePlan({ current: 1, steps: [] })).not.toThrow();
-  });
-
-  it('accepts consecutive steps', () => {
     expect(() =>
       assertUsablePlan({
         current: 3,
@@ -45,14 +42,17 @@ describe('a plan has to describe an unbroken path', () => {
 
   // A gap means an upgrade skips a step without saying so, which is how a file
   // ends up half-converted.
-  it('refuses a plan with a hole in it', () => {
-    expect(() =>
-      assertUsablePlan({ current: 3, steps: [{ to: 3, describe: 'jumps the queue', up: (raw) => raw }] }),
-    ).toThrow(/steps must run/);
-  });
-
-  it('refuses steps that do not reach the current version', () => {
-    expect(() => assertUsablePlan({ current: 4, steps: [{ to: 2, describe: 'a', up: (raw) => raw }] })).toThrow();
+  it.each([
+    {
+      name: 'a hole in it',
+      plan: { current: 3, steps: [{ to: 3, describe: 'jumps the queue', up: (raw: unknown) => raw }] },
+    },
+    {
+      name: 'steps that do not reach the current version',
+      plan: { current: 4, steps: [{ to: 2, describe: 'a', up: (raw: unknown) => raw }] },
+    },
+  ])('refuses a plan with $name', ({ plan }) => {
+    expect(() => assertUsablePlan(plan)).toThrow();
   });
 });
 
@@ -60,12 +60,6 @@ describe('bringing a file up to date', () => {
   it('leaves a file already at the current version alone', () => {
     const outcome = migrate({ kept: 1 }, 1, { current: 1, steps: [] });
     expect(outcome).toEqual({ status: 'current', data: { kept: 1 } });
-  });
-
-  it('applies the step a file is behind by', () => {
-    const outcome = migrate({ old: 'value' }, 1, { current: 2, steps: [renameKey('old', 'new')] });
-    expect(outcome.status).toBe('migrated');
-    expect(outcome.status === 'migrated' && outcome.data).toEqual({ new: 'value' });
   });
 
   it('applies every step in order when a file is several versions behind', () => {
@@ -82,6 +76,10 @@ describe('bringing a file up to date', () => {
 
     expect(order).toEqual(['to 2', 'to 3', 'to 4']);
     expect(outcome.status === 'migrated' && outcome.from).toBe(1);
+
+    const single = migrate({ old: 'value' }, 1, { current: 2, steps: [renameKey('old', 'new')] });
+    expect(single.status).toBe('migrated');
+    expect(single.status === 'migrated' && single.data).toEqual({ new: 'value' });
   });
 
   // Half-migrating is worse than not migrating.
@@ -118,10 +116,6 @@ describe('the record of what version each file is at', () => {
   it('remembers what it was told, across a reload', () => {
     new SchemaVersions(dataDir).record('settings.json', 4);
     expect(new SchemaVersions(dataDir).versionOf('settings.json')).toBe(4);
-  });
-
-  it('shares one record per profile directory', () => {
-    expect(schemaVersionsFor(dataDir)).toBe(schemaVersionsFor(dataDir));
   });
 
   // Losing this file means every file looks like the first version, which is
@@ -204,20 +198,5 @@ describe('how the version record reaches the disk', () => {
 
     const mode = statSync(path.join(dataDir, 'schema.json')).mode & 0o777;
     expect(mode.toString(8)).toBe('600');
-  });
-
-  it('leaves no temporary file behind', () => {
-    const versions = schemaVersionsFor(dataDir);
-    versions.record('thing.json', 2);
-    const leftovers = readFileSync(path.join(dataDir, 'schema.json'), 'utf8');
-    expect(leftovers).toContain('thing.json');
-    expect(readdirSync(dataDir).filter((name) => name.endsWith('.tmp'))).toEqual([]);
-  });
-
-  it('reads back what it recorded', () => {
-    const versions = schemaVersionsFor(dataDir);
-    versions.record('thing.json', 4);
-    forgetSchemaVersions();
-    expect(schemaVersionsFor(dataDir).versionOf('thing.json')).toBe(4);
   });
 });

@@ -9,9 +9,6 @@ import { Favicon } from '@/components/ui/Favicon/Favicon';
 // Icons
 import { ChevronDown, ChevronsRight, Library } from 'lucide-react';
 
-// Store
-import { useBrowserStore } from '@/store/useBrowserStore';
-
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
@@ -41,7 +38,6 @@ const ICON_BUTTON_CLASSES =
  * behind », rather than past the edge where nothing can reach it.
  */
 export function BookmarksBar() {
-  const toggleSurface = useBrowserStore((state) => state.toggleSurface);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<BookmarkFolder[]>([]);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -98,13 +94,13 @@ export function BookmarksBar() {
     <div
       role="toolbar"
       aria-label={t('shell.bookmarksBar.label')}
-      className="flex h-8 shrink-0 items-center gap-0.5 border-b border-line px-2"
+      className="flex h-8 shrink-0 items-center gap-0.5 px-2"
     >
       <button
         type="button"
         title={t('shell.bookmarksBar.all')}
         aria-label={t('shell.bookmarksBar.all')}
-        onClick={() => toggleSurface('bookmarks')}
+        onClick={() => send((api) => api.chrome.showPage('bookmarks'))}
         className={ICON_BUTTON_CLASSES}
       >
         <Library size={14} strokeWidth={1.75} />

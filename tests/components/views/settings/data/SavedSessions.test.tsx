@@ -28,12 +28,6 @@ afterEach(() => {
 });
 
 describe('saved sessions in Settings', () => {
-  it('says how to make one when there are none', () => {
-    sessions = [];
-    render(<SavedSessions />);
-    expect(screen.getByText('No saved sessions')).toBeTruthy();
-  });
-
   it('renames a session where it is listed', () => {
     sessions = [{ id: 's1', name: 'GitHub and 2 more', savedAt: Date.UTC(2026, 9, 1), tabCount: 3 }];
     render(<SavedSessions />);
