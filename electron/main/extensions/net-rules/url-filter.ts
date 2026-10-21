@@ -87,7 +87,8 @@ function linear(source: string, isCaseSensitive: boolean): RegExp {
 
 /** A regexFilter as Chrome would match it, or null when Chrome would not take it. */
 export function compileRegexFilter(filter: string, isCaseSensitive = false): RegExp | null {
-  if (filter.length > MOST_REGEX_LENGTH) {
+  // The linear engine takes lookbehind, which RE2 refuses, so an extension relying on it here would fail in Chrome.
+  if (filter.length > MOST_REGEX_LENGTH || /(?:^|[^\\])\(\?<?[=!]/.test(filter)) {
     return null;
   }
   try {
