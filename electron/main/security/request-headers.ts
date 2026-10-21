@@ -6,6 +6,20 @@ interface RequestHeaderRules {
   clientHints: Record<string, string>;
   /** Whether a page on this site keeps third-party cookies from reaching or being set. */
   blocksThirdPartyCookiesOn: (site: string) => boolean;
+  /** Whether pages are told passkeys and security keys are unavailable, where there is no dialog to answer them. */
+  refusesWebAuthn: boolean;
+}
+
+// Last, so it wins over the site's own value for these two when Chromium merges the header's lines.
+const REFUSE_WEBAUTHN = 'publickey-credentials-get=(), publickey-credentials-create=()';
+
+/** The response headers with WebAuthn refused, keeping whatever policy the site set for everything else. */
+export function withWebAuthnRefused(headers: Record<string, string[]>): Record<string, string[]> {
+  const existing = Object.entries(headers).find(([key]) => key.toLowerCase() === 'permissions-policy');
+  return {
+    ...withoutHeader(headers, 'Permissions-Policy'),
+    'Permissions-Policy': [...(existing?.[1] ?? []), REFUSE_WEBAUTHN],
+  };
 }
 
 /**
@@ -35,10 +49,13 @@ export function installRequestHeaders(session: Session, rules: RequestHeaderRule
   });
 
   session.webRequest.onHeadersReceived((details, callback) => {
-    const headers = details.responseHeaders;
+    let headers = details.responseHeaders;
     if (headers && isBlockedThirdParty(details.url, pageOf(details), details.resourceType)) {
-      callback({ responseHeaders: withoutHeader(headers, 'Set-Cookie') });
-      return;
+      headers = withoutHeader(headers, 'Set-Cookie');
+    }
+    const isDocument = details.resourceType === 'mainFrame' || details.resourceType === 'subFrame';
+    if (headers && isDocument && rules.refusesWebAuthn) {
+      headers = withWebAuthnRefused(headers);
     }
     callback({ responseHeaders: headers });
   });
