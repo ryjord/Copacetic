@@ -3,7 +3,7 @@ import { type Session, type WebContents, app, desktopCapturer, shell } from 'ele
 
 // Utils
 import { type DisplaySource, displayChoices } from '../../shared/chrome/display-sources';
-import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, isLoopbackHost } from '../../shared/browsing/url';
+import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, START_PAGE_URL, isLoopbackHost } from '../../shared/browsing/url';
 import { observeCertificates } from './certificates';
 import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';
@@ -369,7 +369,11 @@ function hardenAttachedFrames(contents: WebContents): void {
 function isNavigable(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === `${INTERNAL_SCHEME}:` || isLoadedExtensionPage(url)) {
+    // A page may open a new tab, never Copacetic's own settings, history or downloads.
+    if (parsed.protocol === `${INTERNAL_SCHEME}:`) {
+      return url === START_PAGE_URL;
+    }
+    if (isLoadedExtensionPage(url)) {
       return true;
     }
     return PAGE_NAVIGABLE_SCHEMES.has(parsed.protocol);
