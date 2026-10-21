@@ -20,8 +20,20 @@ function recorder() {
 describe('the switches that make silence deliberate', () => {
   it('applies every one of them', () => {
     const commandLine = recorder();
-    applyPrivacySwitches(commandLine);
+    applyPrivacySwitches(commandLine, 'win32');
     expect(commandLine.applied).toHaveLength(PRIVACY_SWITCHES.length);
+  });
+
+  // Electron draws no passkey dialog outside Windows, so sites are told there is no WebAuthn and offer another way in.
+  it.each([
+    ['darwin', true],
+    ['linux', true],
+    ['win32', false],
+  ] as const)('on %s, takes passkeys away from pages: %s', (platform, isTakenAway) => {
+    const commandLine = recorder();
+    applyPrivacySwitches(commandLine, platform);
+    const blink = commandLine.applied.find((entry) => entry.name === 'disable-blink-features');
+    expect(blink?.value === 'WebAuth').toBe(isTakenAway);
   });
 
   it.each([

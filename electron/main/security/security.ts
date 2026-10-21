@@ -167,8 +167,6 @@ export function hardenWebSession(session: Session, delegate: SecurityDelegate): 
   installRequestHeaders(session, {
     clientHints: describeSession(session, process.platform, app.getLocale()),
     blocksThirdPartyCookiesOn: (site) => delegate.blocksThirdPartyCookiesOn(site),
-    // Windows Hello answers passkeys itself; elsewhere Electron has no dialog, so a request would wait forever.
-    refusesWebAuthn: process.platform !== 'win32',
   });
 }
 

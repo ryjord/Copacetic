@@ -76,13 +76,28 @@ export const PRIVACY_SWITCHES: readonly Switch[] = [
   },
 ];
 
+/** Switches that depend on the system, applied with the ones above. */
+export function platformSwitches(platform: NodeJS.Platform): Switch[] {
+  // Windows Hello answers passkeys itself; elsewhere Electron draws no dialog for them, so a request waited forever.
+  return platform === 'win32'
+    ? []
+    : [
+        {
+          name: 'disable-blink-features',
+          value: 'WebAuth',
+          reason:
+            'Tells sites there are no passkeys or security keys here, since Electron has no dialog to answer them, so they offer another way to sign in.',
+        },
+      ];
+}
+
 export interface CommandLine {
   appendSwitch(name: string, value?: string): void;
 }
 
 /** Must run before `app.ready`; Chromium reads its command line once. */
-export function applyPrivacySwitches(commandLine: CommandLine): void {
-  for (const entry of PRIVACY_SWITCHES) {
+export function applyPrivacySwitches(commandLine: CommandLine, platform: NodeJS.Platform = process.platform): void {
+  for (const entry of [...PRIVACY_SWITCHES, ...platformSwitches(platform)]) {
     if (entry.value === undefined) {
       commandLine.appendSwitch(entry.name);
     } else {

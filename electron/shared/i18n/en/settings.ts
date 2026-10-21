@@ -1012,7 +1012,7 @@ export const settings = {
       unsupported: {
         question: 'What does it not support?',
         answer:
-          'Protected video such as Netflix, because the Widevine component is not included. Passkeys and security keys on macOS and Linux: Electron has no dialog to answer them, so Copacetic refuses them at once and the site offers another way to sign in; on Windows, Windows Hello answers them. Extensions are a beta: ad blockers do not work, because Electron does not apply their rules, and some others will not either.',
+          'Protected video such as Netflix, because the Widevine component is not included. Passkeys and security keys on macOS and Linux: Electron has no dialog to answer them, so Copacetic tells sites it has none and they offer another way to sign in; on Windows, Windows Hello answers them. Extensions are a beta: ad blockers do not work, because Electron does not apply their rules, and some others will not either.',
       },
       report: {
         question: 'Where do I report a problem?',

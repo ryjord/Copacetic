@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { installRequestHeaders, withWebAuthnRefused } from '../../../../electron/main/security/request-headers';
+import { installRequestHeaders } from '../../../../electron/main/security/request-headers';
 
 type Listener = (details: Record<string, unknown>, callback: (result: Record<string, unknown>) => void) => void;
 
 /** A session that keeps the listeners it is given, and a way to run a request through them. */
-function fakeSession(blockedSites: string[] = ['example.com'], refusesWebAuthn = true) {
+function fakeSession(blockedSites: string[] = ['example.com']) {
   const listeners: Record<string, Listener> = {};
   const session = {
     webRequest: {
@@ -15,7 +15,6 @@ function fakeSession(blockedSites: string[] = ['example.com'], refusesWebAuthn =
   installRequestHeaders(session as never, {
     clientHints: { 'Sec-CH-UA-Platform': '"macOS"' },
     blocksThirdPartyCookiesOn: (site) => blockedSites.includes(site),
-    refusesWebAuthn,
   });
   const page = (url: string) => ({ getURL: () => url });
   const run = (listener: Listener, details: Record<string, unknown>) => {
@@ -106,40 +105,5 @@ describe('what it leaves alone', () => {
     expect(session.request('http://static.example.com/a.png', 'https://news.example.com/')).not.toHaveProperty(
       'Sec-CH-UA-Platform',
     );
-  });
-});
-
-describe('passkeys where there is no dialog to answer them', () => {
-  const page = 'https://accounts.example.org/signin';
-
-  it.each(['mainFrame', 'subFrame'])('are refused in a %s document', (resourceType) => {
-    const headers = fakeSession().response(page, page, resourceType, { 'content-type': ['text/html'] });
-    expect(headers['Permissions-Policy']).toEqual(['publickey-credentials-get=(), publickey-credentials-create=()']);
-  });
-
-  // Chromium merges the header's lines and the last value for a feature wins, so the site's own policy stays and ours comes last.
-  it("keep the site's own policy, with the refusal after it", () => {
-    const headers = withWebAuthnRefused({
-      'permissions-policy': ['camera=(self), publickey-credentials-get=(self)'],
-    });
-    expect(headers['Permissions-Policy']).toEqual([
-      'camera=(self), publickey-credentials-get=(self)',
-      'publickey-credentials-get=(), publickey-credentials-create=()',
-    ]);
-    expect(headers).not.toHaveProperty('permissions-policy');
-  });
-
-  it('leave everything that is not a document alone', () => {
-    const headers = fakeSession().response('https://cdn.example.org/app.js', page, 'script', {
-      'content-type': ['text/javascript'],
-    });
-    expect(headers).not.toHaveProperty('Permissions-Policy');
-  });
-
-  it('are left to the system where it answers them itself', () => {
-    const headers = fakeSession(['example.com'], false).response(page, page, 'mainFrame', {
-      'content-type': ['text/html'],
-    });
-    expect(headers).not.toHaveProperty('Permissions-Policy');
   });
 });
