@@ -812,7 +812,8 @@ export class TabManager {
     this.order.splice(Math.min(Math.max(0, insertAt), this.order.length), 0, id);
     this.order = pinnedFirst(this.order, (tabId) => this.tabs.get(tabId)?.isPinned === true);
 
-    const described = this.wireView(tab, options.adopting !== undefined);
+    const history = internal ? null : (options.history ?? null);
+    const described = this.wireView(tab, options.adopting !== undefined, history);
 
     if (!internal && !options.adopting) {
       void described.then(() => {
@@ -821,11 +822,9 @@ export class TabManager {
           return;
         }
         const page = pageOf(tab);
-        if (options.history && page) {
-          void page.navigationHistory.restore(options.history).catch(() => this.loadUrl(tab, rawUrl));
-          return;
+        if (page) {
+          this.arrive(tab, page, history, rawUrl);
         }
-        void this.loadUrl(tab, rawUrl);
       });
     }
 
@@ -867,7 +866,7 @@ export class TabManager {
    * resolves once it is ready to navigate. The same for a new tab and one
    * waking, so a woken tab is guarded exactly as it was when it was made.
    */
-  private wireView(tab: TabRecord, isAdopted = false): Promise<void> {
+  private wireView(tab: TabRecord, isAdopted = false, history: SessionHistory | null = null): Promise<void> {
     const { view, id } = tab;
     const settings = this.store.getSettings();
     this.window.contentView.addChildView(view);
@@ -921,10 +920,21 @@ export class TabManager {
     // land, because a tab that starts loading before it does is exactly the tab
     // that needed it. `about:blank` is ignored when a navigation commits, so
     // none of this reaches the tab's state.
-    return view.webContents
-      .loadURL('about:blank')
+    return this.prime(view.webContents, history)
       .catch(() => {})
       .then(() => describeTab(view.webContents, process.platform));
+  }
+
+  // Electron restores history only into a view that has loaded nothing, so a restored one is primed by the restore,
+  // with the empty page after it; the empty page is dropped once the real one commits.
+  private prime(page: WebContents, history: SessionHistory | null): Promise<unknown> {
+    if (!history || history.entries.length === 0) {
+      return page.loadURL('about:blank');
+    }
+    return page.navigationHistory.restore({
+      entries: [...history.entries, { url: 'about:blank', title: '' }],
+      index: history.entries.length,
+    });
   }
 
   /** Whether a tab has a page that could be closed to save memory; the one in front never does. */
@@ -962,25 +972,31 @@ export class TabManager {
       return;
     }
     const history = tab.sleptHistory;
-    void this.givePageBack(tab).then(() => {
+    void this.givePageBack(tab, history).then(() => {
       const page = pageOf(tab);
-      if (this.tabs.get(tab.id) !== tab || !page) {
-        return;
+      if (this.tabs.get(tab.id) === tab && page) {
+        this.arrive(tab, page, history, tab.url);
       }
-      if (history && history.entries.length > 0) {
-        void page.navigationHistory.restore(history).catch(() => this.loadUrl(tab, tab.url));
-        return;
-      }
-      void this.loadUrl(tab, tab.url);
     });
   }
 
   /** A new page for a sleeping tab, there at once; resolves when it can be navigated. */
-  private givePageBack(tab: TabRecord): Promise<unknown> {
+  private givePageBack(tab: TabRecord, history: SessionHistory | null = null): Promise<unknown> {
     tab.view = this.makeView(tab.partition);
     tab.isAsleep = false;
     tab.sleptHistory = null;
-    return this.wireView(tab);
+    return this.wireView(tab, false, history);
+  }
+
+  /** Takes a primed page where it was going: to its place in the history restored, or to its address. */
+  private arrive(tab: TabRecord, page: WebContents, history: SessionHistory | null, url: string): void {
+    const isRestored =
+      history !== null && page.navigationHistory.getAllEntries().length === history.entries.length + 1;
+    if (isRestored) {
+      page.navigationHistory.goToIndex(history.index);
+      return;
+    }
+    void this.loadUrl(tab, url);
   }
 
   private sleepIdleTabs(): void {
