@@ -1,5 +1,5 @@
 // Utils
-import { INTERNAL_SCHEME, START_PAGE_URL } from '../browsing/url';
+import { INTERNAL_SCHEME, START_PAGE_URL, isInternalUrl } from '../browsing/url';
 import { t } from '../i18n/translate';
 
 /** The pages Copacetic draws itself in a tab, with no website behind them. */
@@ -16,7 +16,7 @@ export interface InternalAddress {
   section: string | null;
 }
 
-function isInternalPage(value: string): value is InternalPage {
+export function isInternalPage(value: unknown): value is InternalPage {
   return INTERNAL_PAGES.some((page) => page === value);
 }
 
@@ -34,7 +34,7 @@ export function internalPageUrl(page: InternalPage, section: string | null = nul
 
 /** Which internal page an address is, and where in it; null for anything else, including an unknown page. */
 export function internalAddressOf(url: string): InternalAddress | null {
-  if (!url.startsWith(PREFIX)) {
+  if (!isInternalUrl(url)) {
     return null;
   }
   const [host = '', section = ''] = url.slice(PREFIX.length).split(/[?#]/)[0]?.split('/') ?? [];

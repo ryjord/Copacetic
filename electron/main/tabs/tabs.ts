@@ -24,7 +24,12 @@ import {
   originOf,
   resolveOmniboxInput,
 } from '../../shared/browsing/url';
-import { internalAddressOf, internalPageTitle, internalPageUrl } from '../../shared/tabs/internal-pages';
+import {
+  internalAddressOf,
+  internalPageOf,
+  internalPageTitle,
+  internalPageUrl,
+} from '../../shared/tabs/internal-pages';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
 import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
 import { isLoadedExtensionPage } from '../extensions/extension-pages';
@@ -72,7 +77,7 @@ import { attachTabEvents, markLoadRequested, settleUnstartedLoad } from './tab-e
 import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
 import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
-import { type TabRecord, internalPageIn, pageOf } from './tab-record';
+import { type TabRecord, pageOf } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/browsing/certificate-changes';
 import { type SecurityDelegate, guardTabWebContents } from '../security/security';
@@ -197,15 +202,16 @@ export class TabManager {
     for (const id of this.order) {
       const tab = this.tabs.get(id);
       if (tab) {
+        const internalPage = internalPageOf(tab.url);
         candidates.push({
           id,
           url: tab.url,
           groupId: tab.groupId,
-          isStartPage: internalPageIn(tab) === 'start',
+          isStartPage: internalPage === 'start',
           isHush: tab.isHush,
           isPinned: tab.isPinned,
           // A page Copacetic draws has only the blank page behind it to go back to.
-          history: internalPageIn(tab) === null ? this.historyOf(tab) : null,
+          history: internalPage === null ? this.historyOf(tab) : null,
         });
       }
     }
@@ -226,7 +232,7 @@ export class TabManager {
   private toState(tab: TabRecord): TabState {
     const contents = pageOf(tab);
     const alive = contents !== null;
-    const internalPage = internalPageIn(tab);
+    const internalPage = internalPageOf(tab.url);
     const isSite = internalPage === null;
     return {
       id: tab.id,
@@ -399,7 +405,7 @@ export class TabManager {
 
   urlFor(id: TabId): string | null {
     const tab = this.tabs.get(id);
-    if (!tab || internalPageIn(tab) !== null) {
+    if (!tab || internalPageOf(tab.url) !== null) {
       return null;
     }
     return tab.url;
@@ -560,7 +566,7 @@ export class TabManager {
   async readerDocument(id: TabId): Promise<{ url: string; html: string } | null> {
     const tab = this.tabs.get(id);
     const contents = tab ? pageOf(tab) : null;
-    if (!tab || !contents || internalPageIn(tab) !== null || tab.error) {
+    if (!tab || !contents || internalPageOf(tab.url) !== null || tab.error) {
       return null;
     }
     const html = await documentOf(contents);
@@ -701,7 +707,7 @@ export class TabManager {
       const isVisible = shouldTabBeVisible(
         {
           isActive: id === this.activeId || isInSplit(visible, id),
-          isInternalPage: internalPageIn(tab) !== null,
+          isInternalPage: internalPageOf(tab.url) !== null,
           hasError: tab.error !== null,
         },
         this.overlayVisible,
@@ -927,7 +933,7 @@ export class TabManager {
     return Boolean(
       tab &&
       pageOf(tab) &&
-      internalPageIn(tab) === null &&
+      internalPageOf(tab.url) === null &&
       id !== this.activeId &&
       !isInSplit(this.visibleSplit(), id),
     );
@@ -983,7 +989,7 @@ export class TabManager {
     const candidates = [...this.tabs.values()].map((tab) => ({
       id: tab.id,
       isActive: tab.id === this.activeId || isInSplit(visible, tab.id),
-      isInternalPage: internalPageIn(tab) !== null,
+      isInternalPage: internalPageOf(tab.url) !== null,
       isAsleep: tab.isAsleep,
       isAudible: pageOf(tab)?.isCurrentlyAudible() ?? false,
       lastActiveAt: tab.lastActiveAt,
@@ -1011,7 +1017,7 @@ export class TabManager {
     }
 
     const index = this.order.indexOf(id);
-    if (internalPageIn(tab) !== 'start' && !options.isReplaced) {
+    if (internalPageOf(tab.url) !== 'start' && !options.isReplaced) {
       tab.record.rememberClosedTab({
         url: tab.url,
         title: tab.title,
@@ -1132,7 +1138,7 @@ export class TabManager {
 
   duplicate(id: TabId): void {
     const tab = this.tabs.get(id);
-    if (!tab || internalPageIn(tab) !== null) {
+    if (!tab || internalPageOf(tab.url) !== null) {
       return;
     }
     // Named outright rather than through its page, which a sleeping tab does not have.
@@ -1169,7 +1175,7 @@ export class TabManager {
     const url = internalPageUrl(page, section);
     const openId = this.order.find((id) => {
       const tab = this.tabs.get(id);
-      return tab !== undefined && internalPageIn(tab) === page;
+      return tab !== undefined && internalPageOf(tab.url) === page;
     });
     if (openId) {
       if (section !== null) {
@@ -1224,7 +1230,7 @@ export class TabManager {
   focusActive(): void {
     const tab = this.activeTab();
     // A page of ours or an error is drawn by the chrome, so the keyboard belongs there rather than in a hidden view.
-    if (!tab || internalPageIn(tab) !== null || tab.error) {
+    if (!tab || internalPageOf(tab.url) !== null || tab.error) {
       if (!this.window.isDestroyed()) {
         focusContents(this.window.webContents);
       }
@@ -1268,7 +1274,7 @@ export class TabManager {
   namedSessionTabs(): NamedSessionTab[] {
     return this.order.flatMap((id) => {
       const tab = this.tabs.get(id);
-      return tab && !tab.isHush && internalPageIn(tab) === null && isNavigableUrl(tab.url)
+      return tab && !tab.isHush && internalPageOf(tab.url) === null && isNavigableUrl(tab.url)
         ? [{ url: tab.url, title: tab.title }]
         : [];
     });
@@ -1355,7 +1361,7 @@ export class TabManager {
 
     const internal = internalAddressOf(input);
     if (internal) {
-      const wasSite = internalPageIn(tab) === null;
+      const wasSite = internalPageOf(tab.url) === null;
       tab.url = internalPageUrl(internal.page, internal.section);
       tab.title = '';
       tab.error = null;
@@ -1412,7 +1418,7 @@ export class TabManager {
       this.onChanged();
       return false;
     }
-    const isEmpty = internalPageIn(tab) === 'start' || ['', 'about:blank'].includes(pageOf(tab)?.getURL() ?? '');
+    const isEmpty = internalPageOf(tab.url) === 'start' || ['', 'about:blank'].includes(pageOf(tab)?.getURL() ?? '');
     this.create(url, {
       index: this.order.indexOf(tab.id) + 1,
       activate: this.activeId === tab.id,
@@ -1475,7 +1481,7 @@ export class TabManager {
     if (!tab) {
       return;
     }
-    if (internalPageIn(tab) !== null) {
+    if (internalPageOf(tab.url) !== null) {
       this.onChanged();
       return;
     }
@@ -1520,7 +1526,7 @@ export class TabManager {
     // visit, and setting it again on every visit is the kind of small friction
     // that makes a browser tiring to use.
     // A Hush tab keeps its zoom on the tab: Settings lists every site zoomed, so its record keeps none.
-    if (internalPageIn(tab) === null) {
+    if (internalPageOf(tab.url) === null) {
       tab.record.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
     }
 
