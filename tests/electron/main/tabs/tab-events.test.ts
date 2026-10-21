@@ -13,8 +13,13 @@ import { HUSH_RECORD, storedRecord } from '../../../../electron/main/tabs/browsi
 /** A stand-in for the tab's web contents that lets a test fire what a page reports. */
 function fakeContents() {
   const handlers = new Map<string, ((...args: unknown[]) => void)[]>();
+  let url = 'https://example.com/';
   return {
     id: 1,
+    getURL: () => url,
+    showing(next: string) {
+      url = next;
+    },
     setZoomFactor: vi.fn(),
     setVisualZoomLevelLimits: vi.fn(async () => {}),
     navigationHistory: { getAllEntries: () => [], getActiveIndex: () => 0, removeEntryAtIndex: vi.fn(() => true) },
@@ -168,6 +173,39 @@ describe('a load that ends without Chromium starting it', () => {
   it('leaves a tab whose page has gone', () => {
     const tab = { isLoading: true };
     expect(settleUnstartedLoad(tab, contentsThat({ isDestroyed: true }))).toBe(false);
+  });
+});
+
+describe('a load ending', () => {
+  // Every view is given an empty page first, which stops loading long before the address asked for starts.
+  it('is not the empty page a view starts on, for a tab on its way to an address', () => {
+    const { contents, tab } = setup({ url: 'https://example.com/', isLoading: true });
+    contents.showing('about:blank');
+    contents.emit('did-start-loading');
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(true);
+    expect(tab.loadMs).toBeNull();
+    contents.showing('https://example.com/');
+    contents.emit('did-navigate', {}, 'https://example.com/', 200);
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(false);
+  });
+
+  // A page that sends itself to an empty one, as some sign-in pop-ups do, has stopped; it is not starting out.
+  it('is an empty page a page went to after a real one', () => {
+    const { contents, tab } = setup({ url: 'https://example.com/', isLoading: true });
+    contents.emit('did-navigate', {}, 'https://example.com/', 200);
+    contents.showing('about:blank');
+    contents.emit('did-start-loading');
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(false);
+  });
+
+  it('is the empty page itself for one of our own pages, which draws over it', () => {
+    const { contents, tab } = setup({ url: 'copacetic://settings', isLoading: true });
+    contents.showing('about:blank');
+    contents.emit('did-stop-loading');
+    expect(tab.isLoading).toBe(false);
   });
 });
 

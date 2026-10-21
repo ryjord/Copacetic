@@ -47,7 +47,12 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     changed();
   });
 
+  // Each view is given an empty page before its first address; until a real page commits, that stopping is not the tab's.
+  let hasArrived = false;
   contents.on('did-stop-loading', () => {
+    if (!hasArrived && contents.getURL() === 'about:blank' && internalPageOf(tab.url) === null) {
+      return;
+    }
     tab.isLoading = false;
     if (tab.loadStartedAt !== null) {
       tab.loadMs = Date.now() - tab.loadStartedAt;
@@ -72,6 +77,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     if (url === 'about:blank') {
       return;
     }
+    hasArrived = true;
     tab.url = url;
     tab.error = null;
     if (!isInPage) {
