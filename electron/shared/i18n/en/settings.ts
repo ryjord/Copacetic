@@ -621,7 +621,7 @@ export const settings = {
     },
     compatibility: {
       label: 'What works',
-      help: 'Extensions that change pages, such as Dark Reader, and those with a toolbar popup, such as password managers. Ad blockers do not, because Electron does not apply their rules; Copacetic blocks trackers itself. On Linux, started with --no-sandbox, an extension cannot see tabs or change its toolbar button.',
+      help: 'Extensions that change pages, such as Dark Reader, those with a toolbar popup, such as password managers, and ad blockers such as uBlock Origin Lite. On Linux, started with --no-sandbox, an extension cannot see tabs or change its toolbar button.',
     },
   },
   updates: {
@@ -1012,7 +1012,7 @@ export const settings = {
       unsupported: {
         question: 'What does it not support?',
         answer:
-          'Protected video such as Netflix, because the Widevine component is not included. Passkeys and security keys on macOS and Linux: Electron has no dialog to answer them, so Copacetic tells sites it has none and they offer another way to sign in; on Windows, Windows Hello answers them. Extensions are a beta: ad blockers do not work, because Electron does not apply their rules, and some others will not either.',
+          'Protected video such as Netflix, because the Widevine component is not included. Passkeys and security keys on macOS and Linux: Electron has no dialog to answer them, so Copacetic tells sites it has none and they offer another way to sign in; on Windows, Windows Hello answers them. Extensions are a beta, and some will not work.',
       },
       report: {
         question: 'Where do I report a problem?',

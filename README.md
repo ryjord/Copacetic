@@ -135,8 +135,11 @@ machine. There are no accounts and no telemetry.
   itself: tabs and their events, windows, navigation events, notifications.
 - **Per profile, and never in Hush.** An extension sees a page's address only
   with leave to, as in Chrome. Dark Reader, Bitwarden and uBlock Origin Lite
-  run; ad blockers do not block, because Electron does not apply their rules,
-  and Copacetic's own blocker does that job.
+  run.
+- **Ad blockers block.** Electron does not apply an extension's
+  declarativeNetRequest rules, so Copacetic matches them itself, as Chrome
+  does: the lists an extension ships, the rules it adds as it runs, and the
+  count of what it blocked on its toolbar button.
 
 ### Reading and saving
 
@@ -320,8 +323,8 @@ extension and does nothing in a website's worker. None of it reaches Hush.
   writes it back out in open formats, so that is a statement you can check. The
   only scheduled request is the update check, which reads a version number from
   GitHub and can be turned off.
-- **Extensions are a beta.** Ad blockers do not block, an extension's page
-  opened in a tab lacks the parts of the API Copacetic supplies, and some
+- **Extensions are a beta.** An ad blocker's report of which rules matched is
+  always empty, an extension's page opened in a tab lacks the parts of the API Copacetic supplies, and some
   extensions will not work. On Linux, started with `--no-sandbox`, an
   extension cannot see tabs or change its toolbar button: Electron gives an
   extension's worker Copacetic's script only in a sandboxed process.
