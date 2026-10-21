@@ -43,6 +43,7 @@ describe('the switches that make silence deliberate', () => {
     ['the advertising measurement stack', 'PrivacySandboxAdsAPIs'],
     ['attribution reporting', 'AttributionReporting'],
     ['topics', 'TopicsAPI'],
+    ['an account chooser Electron never draws, which stalled Sign in with Google', 'FedCm'],
   ])('disables the feature for %s', (_reason, feature) => {
     const commandLine = recorder();
     applyPrivacySwitches(commandLine);

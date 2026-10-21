@@ -37,6 +37,15 @@ const DISABLED_FEATURES = [
   'FledgeConsiderKAnonymity',
 ];
 
+/**
+ * Features whose dialog Electron never draws, so a site waits on a prompt that
+ * never comes. Turned off, the site takes the path it uses in other browsers.
+ */
+const UNDRAWN_FEATURES = [
+  // Google's sign-in button waits on FedCM's account chooser; without it, the button opens its pop-up.
+  'FedCm',
+];
+
 export const PRIVACY_SWITCHES: readonly Switch[] = [
   {
     name: 'disable-background-networking',
@@ -61,8 +70,9 @@ export const PRIVACY_SWITCHES: readonly Switch[] = [
   },
   {
     name: 'disable-features',
-    value: DISABLED_FEATURES.join(','),
-    reason: 'Turns off the Chromium features that contact a server without being asked.',
+    value: [...DISABLED_FEATURES, ...UNDRAWN_FEATURES].join(','),
+    reason:
+      'Turns off the Chromium features that contact a server without being asked, and the ones whose dialog Electron never draws.',
   },
 ];
 
