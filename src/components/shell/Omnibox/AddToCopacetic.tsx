@@ -1,10 +1,11 @@
 'use client';
 
 // Libs
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 
 // Utils
-import { ask, getBridge } from '@/lib/bridge/bridge';
+import { ask } from '@/lib/bridge/bridge';
+import { useExtensions } from '@/lib/extensions/useExtensions';
 import { cn } from '@/lib/utils';
 import { webStoreIdFrom } from '@shared/extensions/extensions';
 import { t } from '@shared/i18n/translate';
@@ -31,27 +32,13 @@ function labelFor(attempt: Attempt | null): string {
  */
 export function AddToCopacetic({ tab }: { tab: TabState }) {
   const id = tab.isHush ? null : webStoreIdFrom(tab.url);
-  const [installed, setInstalled] = useState<string[]>([]);
+  const extensions = useExtensions(id !== null);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
-
-  const reload = useCallback(() => {
-    void ask((api) => api.extensions.list(), []).then((extensions) =>
-      setInstalled(extensions.map((extension) => extension.id)),
-    );
-  }, []);
-
-  useEffect(() => {
-    if (id === null) {
-      return;
-    }
-    reload();
-    return getBridge()?.on.extensionsChanged(reload);
-  }, [id, reload]);
 
   if (id === null) {
     return null;
   }
-  if (installed.includes(id)) {
+  if (extensions?.some((extension) => extension.id === id)) {
     return <span className="shrink-0 px-2 text-body-sm text-ink-dim">{t('shell.omnibox.extensionAdded')}</span>;
   }
   const current = attempt?.id === id ? attempt : null;

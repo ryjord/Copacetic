@@ -79,7 +79,7 @@ describe('which rules match a request', () => {
 
   it('refuses a regexFilter it cannot compile, and matches one it can', () => {
     const index = new RuleIndex([rule(1, { regexFilter: '(broken' }), rule(2, { regexFilter: 'pixel\\.gif$' })]);
-    expect(index.refused.map((refused) => refused.id)).toEqual([1]);
+    expect(index.size).toBe(1);
     expect(index.matching(request()).map((matched) => matched.id)).toEqual([2]);
   });
 });

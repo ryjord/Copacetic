@@ -102,6 +102,21 @@ function file<Key>(map: Map<Key, CompiledRule[]>, key: Key, compiled: CompiledRu
   }
 }
 
+/** What a request is looked up by, worked out once for every index it is checked against. */
+export interface RequestKeys {
+  /** Its host and every name above it. */
+  hosts: string[];
+  tokens: Set<string>;
+}
+
+export function keysOf(request: NetRequest): RequestKeys {
+  const labels = request.host.split('.');
+  return {
+    hosts: labels.map((_label, index) => labels.slice(index).join('.')),
+    tokens: tokensIn(request.url),
+  };
+}
+
 /**
  * A set of rules filed so that a request is checked against only the few that
  * could match it: by the domains it names, the host its pattern is anchored
@@ -112,20 +127,20 @@ export class RuleIndex {
   private readonly byToken = new Map<string, CompiledRule[]>();
   private readonly everywhere: CompiledRule[] = [];
   private readonly patterns = new Map<Rule, RegExp | null>();
-  /** Rules whose regexFilter would not compile, refused as Chrome refuses them. */
-  readonly refused: Rule[] = [];
+  /** Whether any rule changes headers, so a request's headers are read only for an index that might. */
+  readonly hasHeaderRules: boolean;
 
-  /** How many rules it holds, not counting those refused. */
+  /** How many rules it holds, leaving out any whose regexFilter was refused. */
   get size(): number {
     return this.patterns.size;
   }
 
   constructor(rules: readonly Rule[]) {
+    this.hasHeaderRules = rules.some((rule) => rule.action.type === 'modifyHeaders');
     for (const rule of rules) {
       const { urlFilter, requestDomains } = rule.condition;
       const pattern = patternOf(rule);
       if (pattern === undefined) {
-        this.refused.push(rule);
         continue;
       }
       this.patterns.set(rule, pattern);
@@ -147,16 +162,15 @@ export class RuleIndex {
   }
 
   /** Every rule that matches the request, in no particular order. */
-  matching(request: NetRequest): Rule[] {
-    const candidates = new Set<CompiledRule>(this.everywhere);
-    const labels = request.host.split('.');
-    labels.forEach((_label, index) => {
-      this.byHost.get(labels.slice(index).join('.'))?.forEach((compiled) => candidates.add(compiled));
-    });
-    tokensIn(request.url).forEach((token) =>
-      this.byToken.get(token)?.forEach((compiled) => candidates.add(compiled)),
-    );
-    return [...candidates]
+  matching(request: NetRequest, keys: RequestKeys = keysOf(request)): Rule[] {
+    if (this.patterns.size === 0) {
+      return [];
+    }
+    // A rule naming several domains is filed under each, so one found twice is kept once.
+    const filed = new Set<CompiledRule>();
+    keys.hosts.forEach((host) => this.byHost.get(host)?.forEach((compiled) => filed.add(compiled)));
+    keys.tokens.forEach((token) => this.byToken.get(token)?.forEach((compiled) => filed.add(compiled)));
+    return [...this.everywhere, ...filed]
       .filter(
         (compiled) =>
           (compiled.pattern === null || compiled.pattern.test(request.url)) && appliesTo(compiled.rule, request),

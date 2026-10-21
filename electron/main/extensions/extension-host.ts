@@ -1,6 +1,7 @@
 // Libs
 import { Notification, type Session, type WebContents, app, powerMonitor } from 'electron';
 import { rmSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import path from 'node:path';
 
 // Utils
@@ -30,8 +31,8 @@ import { NetRulesFile } from './net-rules/net-rules-store';
 import {
   MOST_UPDATE_CHECK_BYTES,
   asksForMore,
-  isNewerVersion,
-  newerVersionsIn,
+  isNewerExtensionVersion,
+  idsWithNewerVersions,
   updateCheckUrl,
 } from './store-updates';
 import { CHECK_INTERVAL_MS } from '../system/updates';
@@ -69,7 +70,7 @@ interface Loaded {
   manifest: Manifest;
   grant: ExtensionGrant;
   // Read once: the toolbar asks for every extension each time a blocked count changes.
-  iconDataUrl: string | null;
+  icon: string | null;
 }
 
 interface MenuItem {
@@ -293,7 +294,7 @@ export class ExtensionHost {
     });
     this.waitingUpdates.delete(staged.id);
     if (previous?.source === 'store' && previous.folder !== folder) {
-      rmSync(previous.folder, { recursive: true, force: true });
+      void rm(previous.folder, { recursive: true, force: true });
     }
   }
 
@@ -332,9 +333,10 @@ export class ExtensionHost {
         updateCheckUrl(installed, process.versions.chrome),
         MOST_UPDATE_CHECK_BYTES,
       );
-      const newer = [...newerVersionsIn(answer.toString('utf8'), installed).keys()];
       // One at a time, since each reloads every extension into each session.
-      await newer.reduce((previous, id) => previous.then(() => this.updateOne(id)), Promise.resolve());
+      for (const id of idsWithNewerVersions(answer.toString('utf8'), installed)) {
+        await this.updateOne(id);
+      }
     } catch (error) {
       log.warn('the store could not be asked for extension updates', describeError(error));
     } finally {
@@ -351,7 +353,7 @@ export class ExtensionHost {
         process.versions.chrome,
       );
       const found = this.loaded.get(id);
-      if (!found || !isNewerVersion(staged.manifest.version, found.manifest.version)) {
+      if (!found || !isNewerExtensionVersion(staged.manifest.version, found.manifest.version)) {
         discardStaged(staged);
         return;
       }
@@ -467,7 +469,7 @@ export class ExtensionHost {
       const found: Loaded = {
         entry,
         manifest,
-        iconDataUrl: iconDataUrl(entry.folder, manifest.icon),
+        icon: iconDataUrl(entry.folder, manifest.icon),
         grant: {
           id: entry.id,
           permissions: manifest.permissions,
@@ -511,7 +513,7 @@ export class ExtensionHost {
   summaries(tabId: number | null): ExtensionSummary[] {
     return [...this.loaded.values()]
       .toSorted((aExtension, bExtension) => aExtension.manifest.name.localeCompare(bExtension.manifest.name))
-      .map(({ entry, manifest, grant, iconDataUrl: icon }) => {
+      .map(({ entry, manifest, grant, icon }) => {
         const action = this.actionFor(entry.id, tabId);
         return {
           id: entry.id,

@@ -7,8 +7,8 @@ import {
   RefusedCall,
   type KeptNetRules,
   type NetRulesExtension,
-  type RequestContext,
 } from '../../../../../electron/main/extensions/net-rules/extension-net-rules';
+import type { RequestContext } from '../../../../../electron/main/extensions/net-rules/request-context';
 
 const ID = 'a'.repeat(32);
 const OTHER = 'b'.repeat(32);
@@ -274,7 +274,14 @@ describe('an extension’s rules', () => {
     const rules = new ExtensionNetRules(store, vi.fn(), vi.fn());
     rules.load(extensionWith({ main: { enabled: true, rules: [blockAds] } }, { permissions: [] }));
     expect(rules.decide(context('https://ads.example/a.js'))).toEqual({ kind: 'none' });
-    expect(rules.hasAny).toBe(false);
+    expect(rules.call(ID, 'getDynamicRules', [])).toBeNull();
+  });
+
+  it('read a request as Electron hands it over, and its headers only when a rule changes them', () => {
+    const { rules } = setup();
+    const details = { url: 'https://ads.example/a.js', method: 'GET', resourceType: 'script', webContentsId: 4 };
+    expect(rules.judge(details)).toEqual({ kind: 'block' });
+    expect(rules.headerChanges(details, 'request')).toEqual([]);
   });
 
   it('go when the extension is removed, kept rules and all', () => {

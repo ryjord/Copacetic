@@ -26,22 +26,21 @@ export function updateCheckUrl(installed: readonly InstalledVersion[], chromiumV
 const attributesOf = (tag: string): Map<string, string> =>
   new Map([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(([, name = '', value = '']) => [name, value]));
 
-/** The extensions the store offers a newer version of, by id, read from its answer and checked against ours. */
-export function newerVersionsIn(answer: string, installed: readonly InstalledVersion[]): Map<string, string> {
+/** The extensions the store offers a newer version of, read from its answer and checked against ours. */
+export function idsWithNewerVersions(answer: string, installed: readonly InstalledVersion[]): string[] {
   const current = new Map(installed.map(({ id, version }) => [id, version]));
   const apps = [...answer.matchAll(/<app\b([^>]*?)(?:\/>|>([\s\S]*?)<\/app>)/g)];
-  const offered = apps.flatMap(([, app = '', inner = '']): [string, string][] => {
+  return apps.flatMap(([, app = '', inner = '']) => {
     const id = attributesOf(app).get('appid') ?? '';
     const check = attributesOf(/<updatecheck\b([^>]*)\/?>/.exec(inner)?.[1] ?? '');
     const version = check.get('version') ?? '';
     const was = current.get(id);
-    return check.get('status') === 'ok' && was !== undefined && isNewerVersion(version, was) ? [[id, version]] : [];
+    return check.get('status') === 'ok' && was !== undefined && isNewerExtensionVersion(version, was) ? [id] : [];
   });
-  return new Map(offered);
 }
 
-/** Chrome's versions are up to four dotted numbers, compared number by number, a missing one counting as 0. */
-export function isNewerVersion(offered: string, current: string): boolean {
+/** Chrome's extension versions are up to four dotted numbers, unlike Copacetic's own (shared/version.ts), compared number by number, a missing one counting as 0. */
+export function isNewerExtensionVersion(offered: string, current: string): boolean {
   const parts = (version: string) => version.split('.').map((part) => Number.parseInt(part, 10));
   const offeredParts = parts(offered);
   const currentParts = parts(current);

@@ -1,9 +1,18 @@
 // Utils
-import { registrableDomainOf } from '../../../shared/browsing/url';
+import { hostOf, registrableDomainOf } from '../../../shared/browsing/url';
 import { REQUEST_METHODS, type RequestMethod, type ResourceType } from './rule';
 
 // Types
-import type { RequestContext } from './extension-net-rules';
+import type { NetRequest } from './rule-index';
+
+/** A request as the network hands it over, with where it came from. */
+export interface RequestContext {
+  request: NetRequest;
+  /** The page it belongs to, which keeps allow-everything and the blocked count per page. */
+  webContentsId: number | null;
+  /** Made by an extension, which no extension's rules may change. */
+  isFromExtension: boolean;
+}
 
 /** The parts of Electron's request details the rules are matched on. */
 export interface RequestDetails {
@@ -32,14 +41,6 @@ const RESOURCE_TYPES: Record<string, ResourceType> = {
   other: 'other',
 };
 
-const hostOf = (url: string): string | null => {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-};
-
 // A name and password before the host would let a rule anchored at a domain match the name instead.
 function withoutCredentials(url: string): URL | null {
   try {
@@ -64,8 +65,8 @@ export function requestContextFrom(details: RequestDetails): RequestContext | nu
   // A page loaded from the address bar has no page that asked for it; anything a page loads was asked for by that page.
   const asker =
     details.initiatorOrigin ?? (resourceType === 'main_frame' ? undefined : details.webContents?.getURL());
-  const initiatorHost = asker ? hostOf(asker) : null;
-  const host = parsed.hostname.toLowerCase();
+  const initiatorHost = (asker && hostOf(asker)) || null;
+  const host = parsed.hostname;
   const isThirdParty = initiatorHost !== null && registrableDomainOf(host) !== registrableDomainOf(initiatorHost);
   return {
     request: {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   asksForMore,
-  isNewerVersion,
-  newerVersionsIn,
+  idsWithNewerVersions,
+  isNewerExtensionVersion,
   updateCheckUrl,
 } from '../../../../electron/main/extensions/store-updates';
 
@@ -40,18 +40,18 @@ describe('asking the store for newer versions', () => {
       { id: DARK_READER, version: '4.9.1' },
       { id: UNKNOWN, version: '1.0' },
     ];
-    expect(newerVersionsIn(ANSWER, installed)).toEqual(new Map([[UBOL, '2026.1021.1354']]));
+    expect(idsWithNewerVersions(ANSWER, installed)).toEqual([UBOL]);
   });
 
   // The store is asked with our version, but its answer is checked rather than trusted.
   it('ignores an offer of the version in use, or an older one, or one we never asked about', () => {
-    expect(newerVersionsIn(ANSWER, [{ id: UBOL, version: '2026.1021.1354' }]).size).toBe(0);
-    expect(newerVersionsIn(ANSWER, [{ id: UBOL, version: '2027.1.1' }]).size).toBe(0);
-    expect(newerVersionsIn(ANSWER, [{ id: DARK_READER, version: '1.0' }]).size).toBe(0);
+    expect(idsWithNewerVersions(ANSWER, [{ id: UBOL, version: '2026.1021.1354' }])).toEqual([]);
+    expect(idsWithNewerVersions(ANSWER, [{ id: UBOL, version: '2027.1.1' }])).toEqual([]);
+    expect(idsWithNewerVersions(ANSWER, [{ id: DARK_READER, version: '1.0' }])).toEqual([]);
   });
 
   it('reads nothing from an answer that is not one', () => {
-    expect(newerVersionsIn('<html>Service unavailable</html>', [{ id: UBOL, version: '1.0' }]).size).toBe(0);
+    expect(idsWithNewerVersions('<html>Service unavailable</html>', [{ id: UBOL, version: '1.0' }])).toEqual([]);
   });
 });
 
@@ -64,7 +64,7 @@ describe('which version is newer', () => {
     ['2026.1021.1354', '2026.1014.1', true],
     ['banana', '1.0', false],
   ])('%s over %s: %s', (offered, current, isNewer) => {
-    expect(isNewerVersion(offered, current)).toBe(isNewer);
+    expect(isNewerExtensionVersion(offered, current)).toBe(isNewer);
   });
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
@@ -20,7 +20,8 @@ import { Ellipsis, Puzzle } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, getBridge, send } from '@/lib/bridge/bridge';
+import { ask, send } from '@/lib/bridge/bridge';
+import { useExtensions } from '@/lib/extensions/useExtensions';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { abilitiesOf } from '@shared/extensions/abilities';
 import { t } from '@shared/i18n/translate';
@@ -30,20 +31,11 @@ import type { ExtensionSummary } from '@shared/extensions/extensions';
 
 export function ExtensionsPane() {
   const isKeptUpdated = useBrowserStore((state) => state.settings.updateExtensions);
-  const [extensions, setExtensions] = useState<ExtensionSummary[] | null>(null);
+  const extensions = useExtensions();
   const [address, setAddress] = useState('');
   const [problem, setProblem] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [removing, setRemoving] = useState<ExtensionSummary | null>(null);
-
-  const reload = useCallback(() => {
-    void ask((api) => api.extensions.list(), []).then(setExtensions);
-  }, []);
-
-  useEffect(() => {
-    reload();
-    return getBridge()?.on.extensionsChanged(reload);
-  }, [reload]);
 
   const add = async (adding: () => Promise<string>) => {
     setIsAdding(true);

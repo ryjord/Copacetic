@@ -5,7 +5,8 @@ import path from 'node:path';
 // Utils
 import { isRecord } from '../../data/persistence';
 import { matchesPattern } from '../../../shared/extensions/extensions';
-import { RuleIndex, type NetRequest } from './rule-index';
+import { RuleIndex, keysOf, type RequestKeys } from './rule-index';
+import { type RequestContext, type RequestDetails, requestContextFrom } from './request-context';
 import { combineVerdicts, headerRules, redirectTarget, winningRule, type NetVerdict } from './outcome';
 import { readRule, type HeaderChange, type Rule } from './rule';
 import { compileRegexFilter } from './url-filter';
@@ -57,15 +58,6 @@ export interface NetRulesExtension {
   hostPermissions: readonly string[];
 }
 
-/** A request as the network hands it over, with where it came from. */
-export interface RequestContext {
-  request: NetRequest;
-  /** The page it belongs to, which keeps allow-everything and the blocked count per page. */
-  webContentsId: number | null;
-  /** Made by an extension, which no extension's rules may change. */
-  isFromExtension: boolean;
-}
-
 interface StaticRuleset {
   path: string;
   isEnabledByManifest: boolean;
@@ -86,6 +78,17 @@ interface ExtensionRules {
 
 const numbersIn = (value: unknown): number[] =>
   Array.isArray(value) ? value.filter((item): item is number => typeof item === 'number') : [];
+
+// declarativeNetRequest's own leave, which needs no host permission.
+const BLOCK_OR_ALLOW = new Set(['block', 'allow', 'allowAllRequests']);
+
+/** The rules in a list that can be used, leaving out the rest, as Chrome does for what an extension shipped or kept. */
+function usableRules(values: readonly unknown[]): Rule[] {
+  return values.flatMap((value) => {
+    const reading = readRule(value);
+    return 'rule' in reading ? [reading.rule] : [];
+  });
+}
 
 const hasNetRules = (extension: NetRulesExtension) =>
   extension.permissions.includes('declarativeNetRequest') ||
@@ -141,10 +144,6 @@ export class ExtensionNetRules {
     private readonly onProblem: (extensionId: string, problem: string) => void,
   ) {}
 
-  get hasAny(): boolean {
-    return this.extensions.size > 0;
-  }
-
   load(extension: NetRulesExtension): void {
     this.unload(extension.id);
     if (!hasNetRules(extension)) {
@@ -161,10 +160,7 @@ export class ExtensionNetRules {
         .filter(([id]) => rulesets.has(id))
         .map(([id, ruleIds]) => [id, new Set(ruleIds)]),
     );
-    const dynamic = (kept?.dynamicRules ?? []).flatMap((value) => {
-      const reading = readRule(value);
-      return 'rule' in reading ? [reading.rule] : [];
-    });
+    const dynamic = usableRules(kept?.dynamicRules ?? []);
     const rules: ExtensionRules = {
       extension,
       rulesets,
@@ -214,6 +210,19 @@ export class ExtensionNetRules {
 
   // ------------------------------------------------------------ the verdict
 
+  /** The verdict for a request as Electron hands it over; it is not read at all while no extension has rules. */
+  judge(details: RequestDetails): NetVerdict {
+    const context = this.extensions.size > 0 ? requestContextFrom(details) : null;
+    return context ? this.decide(context) : { kind: 'none' };
+  }
+
+  /** The header changes for a request as Electron hands it over, read only when some rule changes headers. */
+  headerChanges(details: RequestDetails, stage: 'request' | 'response'): HeaderChange[] {
+    const hasHeaderRules = [...this.extensions.values()].some((rules) => this.hasHeaderRules(rules));
+    const context = hasHeaderRules ? requestContextFrom(details) : null;
+    return context ? this.headerChangesFor(context, stage) : [];
+  }
+
   /** What every extension's rules decided for a request, as one verdict. */
   decide(context: RequestContext): NetVerdict {
     if (context.isFromExtension || this.extensions.size === 0) {
@@ -223,7 +232,8 @@ export class ExtensionNetRules {
     if (context.request.resourceType === 'main_frame' && context.webContentsId !== null) {
       this.pageStarted(context.webContentsId);
     }
-    return combineVerdicts([...this.extensions.values()].map((rules) => this.decideFor(rules, context)));
+    const keys = keysOf(context.request);
+    return combineVerdicts([...this.extensions.values()].map((rules) => this.decideFor(rules, context, keys)));
   }
 
   /** The header changes every extension's rules ask of a request or its response, highest priority first. */
@@ -231,26 +241,42 @@ export class ExtensionNetRules {
     if (context.isFromExtension || this.extensions.size === 0) {
       return [];
     }
+    const keys = keysOf(context.request);
     // The newest extension's first, so its change to a header is the one that settles it, as in Chrome.
     return [...this.extensions.values()].toReversed().flatMap((rules) => {
-      const matched = this.matching(rules, context);
+      if (!this.hasHeaderRules(rules)) {
+        return [];
+      }
+      const matched = this.matching(rules, context, keys);
       return headerRules(matched, winningRule(matched, context.request.url)).flatMap(
         (rule) => (stage === 'request' ? rule.action.requestHeaders : rule.action.responseHeaders) ?? [],
       );
     });
   }
 
-  private matching(rules: ExtensionRules, context: RequestContext): Rule[] {
+  private indexesOf(rules: ExtensionRules): RuleIndex[] {
+    return [
+      ...[...rules.enabled].flatMap((id) => rules.rulesets.get(id)?.index ?? []),
+      rules.dynamicIndex,
+      rules.sessionIndex,
+    ];
+  }
+
+  private hasHeaderRules(rules: ExtensionRules): boolean {
+    return this.indexesOf(rules).some((index) => index.hasHeaderRules);
+  }
+
+  private matching(rules: ExtensionRules, context: RequestContext, keys: RequestKeys): Rule[] {
     const { request } = context;
     const fromRulesets = [...rules.enabled].flatMap((id) => {
-      const found = rules.rulesets.get(id)?.index?.matching(request) ?? [];
+      const found = rules.rulesets.get(id)?.index?.matching(request, keys) ?? [];
       const disabled = rules.disabledStatic.get(id);
       return disabled ? found.filter((rule) => !disabled.has(rule.id)) : found;
     });
     const matched = [
       ...fromRulesets,
-      ...rules.dynamicIndex.matching(request),
-      ...rules.sessionIndex.matching(request),
+      ...rules.dynamicIndex.matching(request, keys),
+      ...rules.sessionIndex.matching(request, keys),
     ].filter((rule) => this.mayChange(rules.extension, rule, request.url));
     const allowedAt =
       context.webContentsId !== null && request.resourceType !== 'main_frame'
@@ -265,16 +291,15 @@ export class ExtensionNetRules {
   // As in Chrome: declarativeNetRequest may block and allow anywhere, and anything else needs the site's host
   // permission, which `tabs` is not.
   private mayChange(extension: NetRulesExtension, rule: Rule, url: string): boolean {
-    const isBlockOrAllow = ['block', 'allow', 'allowAllRequests'].includes(rule.action.type);
-    if (isBlockOrAllow && extension.permissions.includes('declarativeNetRequest')) {
+    if (BLOCK_OR_ALLOW.has(rule.action.type) && extension.permissions.includes('declarativeNetRequest')) {
       return true;
     }
     return extension.hostPermissions.some((pattern) => matchesPattern(pattern, url));
   }
 
-  private decideFor(rules: ExtensionRules, context: RequestContext): NetVerdict {
+  private decideFor(rules: ExtensionRules, context: RequestContext, keys: RequestKeys): NetVerdict {
     const { request, webContentsId } = context;
-    const winner = winningRule(this.matching(rules, context), request.url);
+    const winner = winningRule(this.matching(rules, context, keys), request.url);
     if (request.resourceType === 'main_frame' && webContentsId !== null) {
       const pages = this.allowedPages.get(rules.extension.id) ?? new Map<number, number>();
       if (winner?.action.type === 'allowAllRequests') {
@@ -304,12 +329,11 @@ export class ExtensionNetRules {
   }
 
   private patternFor(rules: ExtensionRules, rule: Rule): RegExp | null {
-    const indexes = [
-      rules.dynamicIndex,
-      rules.sessionIndex,
-      ...[...rules.enabled].flatMap((id) => rules.rulesets.get(id)?.index ?? []),
-    ];
-    return indexes.map((index) => index.patternFor(rule)).find((pattern) => pattern !== null) ?? null;
+    return (
+      this.indexesOf(rules)
+        .map((index) => index.patternFor(rule))
+        .find((pattern) => pattern !== null) ?? null
+    );
   }
 
   private count(extensionId: string, webContentsId: number | null): void {
@@ -403,7 +427,8 @@ export class ExtensionNetRules {
         `The number of regex rules exceeds the limit of ${NET_RULE_LIMITS.MAX_NUMBER_OF_REGEX_RULES}.`,
       );
     }
-    const unreadable = next.find(
+    // Those already kept were checked when they were added.
+    const unreadable = added.find(
       (rule) => rule.condition.regexFilter !== undefined && !compileRegexFilter(rule.condition.regexFilter),
     );
     if (unreadable) {
@@ -481,11 +506,7 @@ export class ExtensionNetRules {
     try {
       const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
       // A static ruleset keeps the rules it can use, as Chrome skips a bad one at install with a warning.
-      const read = (Array.isArray(parsed) ? parsed : []).flatMap((value) => {
-        const reading = readRule(value);
-        return 'rule' in reading ? [reading.rule] : [];
-      });
-      ruleset.index = new RuleIndex(read);
+      ruleset.index = new RuleIndex(usableRules(Array.isArray(parsed) ? parsed : []));
     } catch (error) {
       this.onProblem(
         rules.extension.id,

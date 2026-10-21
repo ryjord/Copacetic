@@ -1,12 +1,11 @@
 // Utils
 import { PersistedFile, isRecord } from '../../data/persistence';
+import { isExtensionId } from '../crx';
 
 // Types
 import type { KeptNetRules, NetRulesStore } from './extension-net-rules';
 
 type KeptByExtension = Record<string, KeptNetRules>;
-
-const EXTENSION_ID = /^[a-p]{32}$/;
 
 /** What each extension's rules kept between runs, read back as untrusted, beside the profile's list of extensions. */
 export class NetRulesFile implements NetRulesStore {
@@ -39,7 +38,7 @@ function revive(raw: unknown): KeptByExtension | null {
   }
   return Object.fromEntries(
     Object.entries(raw).flatMap(([id, value]): [string, KeptNetRules][] => {
-      if (!EXTENSION_ID.test(id) || !isRecord(value)) {
+      if (!isExtensionId(id) || !isRecord(value)) {
         return [];
       }
       const enabled = Array.isArray(value.enabledRulesets)

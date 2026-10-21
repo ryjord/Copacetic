@@ -38,12 +38,8 @@ const ENDS_OPEN = /(?:[*+?]|\})$/;
 const INNERMOST_GROUP = /\((?:\?(?::|<[^>]+>))?([^()]*)\)([*+?]|\{\d*(?:,\d*)?\})?/;
 
 /**
- * Whether a regular expression can backtrack without end, which Chrome's RE2
- * never does and JavaScript does: a repeated group whose inside repeats and is
- * not closed off by a literal, as `(a+)+` or `(\w+\s?)*`, or that holds a
- * wildcard. `(?:[a-z0-9-]+\.)*`, the usual shape for subdomains, is closed off
- * by its dot and is let through. Back-references and lookaround are refused
- * too, since RE2 refuses them.
+ * Whether JavaScript could backtrack without end where Chrome's RE2 cannot: a repeated group that repeats inside and
+ * is not closed off by a literal or holds a wildcard, or a back-reference or lookaround, which RE2 refuses anyway.
  */
 export function canBacktrackForever(source: string): boolean {
   if (/\\[1-9]|\\k<|\(\?<?[=!]/.test(source)) {
