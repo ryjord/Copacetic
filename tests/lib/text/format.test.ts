@@ -51,6 +51,7 @@ describe('formatEta', () => {
     ['the last second below a minute', 100, 6000, 100, '59s left'],
     ['a minute', 0, 6000, 100, '1 min left'],
     ['minutes, rounded', 0, 9000, 100, '2 min left'],
+    ['the last seconds below an hour, which round up to it', 0, 359_900, 100, '1 hr left'],
     ['an hour', 0, 360_000, 100, '1 hr left'],
     ['hours, rounded', 0, 540_000, 100, '2 hr left'],
   ])('says %s', (_caseName, receivedBytes, totalBytes, bytesPerSecond, expected) => {
