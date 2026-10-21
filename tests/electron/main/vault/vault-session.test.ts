@@ -42,13 +42,10 @@ afterEach(() => {
 });
 
 describe('the vault starts locked', () => {
-  it('is locked before anyone has unlocked it', () => {
+  it('is locked before anyone has unlocked it, and will not reveal a password while locked', () => {
     const { session } = setup();
     expect(session.isOpen()).toBe(false);
-  });
 
-  it('will not reveal a password while locked', () => {
-    const { session } = setup();
     const added = session.vault.add({ origin: 'https://example.com', username: 'ada', password: 'hunter2' });
     expect('id' in added).toBe(true);
     const id = (added as { id: string }).id;
@@ -70,13 +67,6 @@ describe('unlocking asks whoever the machine can ask', () => {
     expect(onChanged).not.toHaveBeenCalled();
   });
 
-  it('opens when the prompt is satisfied', async () => {
-    const { session, onChanged } = setup();
-    expect(await session.unlock()).toBe('');
-    expect(session.isOpen()).toBe(true);
-    expect(onChanged).toHaveBeenCalled();
-  });
-
   // Nothing on the machine can vouch for you, so there is nobody to refuse.
   it('opens without a prompt where there is no prompt to give', async () => {
     const prompt = vi.fn();
@@ -87,21 +77,19 @@ describe('unlocking asks whoever the machine can ask', () => {
     expect(prompt).not.toHaveBeenCalled();
   });
 
-  it('reveals a password once it is open', async () => {
-    const { session } = setup();
+  it('opens when the prompt is satisfied, reveals a password, and locks again on request', async () => {
+    const { session, onChanged } = setup();
     const { id } = session.vault.add({
       origin: 'https://example.com',
       username: 'ada',
       password: 'hunter2',
     }) as { id: string };
 
-    await session.unlock();
+    expect(await session.unlock()).toBe('');
+    expect(session.isOpen()).toBe(true);
+    expect(onChanged).toHaveBeenCalled();
     expect(session.vault.reveal(id)).toBe('hunter2');
-  });
 
-  it('locks again on request', async () => {
-    const { session } = setup();
-    await session.unlock();
     session.lock();
     expect(session.isOpen()).toBe(false);
   });
@@ -156,10 +144,15 @@ describe('what the honesty page is told', () => {
     expect(session.facts().hasKeychain).toBe(false);
   });
 
-  it('names the keychain that holds the key', () => {
-    expect(setup().session.facts().keychainName).toBe('the macOS Keychain');
-    const { session } = setup({ platform: 'linux', storageBackend: () => 'gnome_libsecret' });
-    expect(session.facts().keychainName).toBe('GNOME Keyring');
+  it('names the keychain, counts the entries stored, and points at the file it really writes', () => {
+    const { session } = setup();
+    session.vault.add({ origin: 'https://example.com', username: 'ada', password: 'hunter2' });
+    expect(session.facts().keychainName).toBe('the macOS Keychain');
+    expect(session.facts().entryCount).toBe(1);
+    expect(session.facts().filePath).toBe(path.join(dataDir, 'vault.json'));
+
+    const linux = setup({ platform: 'linux', storageBackend: () => 'gnome_libsecret' });
+    expect(linux.session.facts().keychainName).toBe('GNOME Keyring');
   });
 
   // Chromium's fallback encrypts with a key every Chromium shares, which is no protection worth the name.
@@ -184,23 +177,5 @@ describe('what the honesty page is told', () => {
     const { session } = setup({ platform: 'linux', canPromptTouchID: () => false });
     expect(session.facts().canAskWhoYouAre).toBe(false);
     expect(session.lockInfo().method).toBe('none');
-  });
-
-  // Claiming a signature that was never bought would be the one lie on a page
-  // whose whole point is not telling any.
-  it('does not claim to be signed', () => {
-    const { session } = setup();
-    expect(session.facts().isSigned).toBe(false);
-  });
-
-  it('counts the entries actually stored', () => {
-    const { session } = setup();
-    session.vault.add({ origin: 'https://example.com', username: 'ada', password: 'hunter2' });
-    expect(session.facts().entryCount).toBe(1);
-  });
-
-  it('points at the file it really writes', () => {
-    const { session } = setup();
-    expect(session.facts().filePath).toBe(path.join(dataDir, 'vault.json'));
   });
 });

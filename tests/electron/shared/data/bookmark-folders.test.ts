@@ -38,20 +38,18 @@ const mark = (id: string, folderId: string | null): Bookmark => ({
 });
 
 describe('what is inside a folder', () => {
-  it('finds the folders directly inside one', () => {
-    expect(childrenOf(TREE, 'work').map((entry) => entry.id)).toEqual(['pacs', 'unigrade']);
+  it.each([
+    ['the folders directly inside one', 'work', ['pacs', 'unigrade']],
+    ['the folders at the top level', null, ['work', 'reading']],
+  ])('finds %s', (_caseName, parentId, expected) => {
+    expect(childrenOf(TREE, parentId).map((entry) => entry.id)).toEqual(expected);
   });
 
-  it('finds folders at the top level', () => {
-    expect(childrenOf(TREE, null).map((entry) => entry.id)).toEqual(['work', 'reading']);
-  });
-
-  it('reaches every depth, not just the first', () => {
-    expect(descendantsOf(TREE, 'work').map((entry) => entry.id)).toEqual(['pacs', 'unigrade', 'dashboards']);
-  });
-
-  it('says a leaf has nothing under it', () => {
-    expect(descendantsOf(TREE, 'dashboards')).toEqual([]);
+  it.each([
+    ['every depth, not just the first', 'work', ['pacs', 'unigrade', 'dashboards']],
+    ['nothing under a leaf', 'dashboards', []],
+  ])('reaches %s', (_caseName, folderId, expected) => {
+    expect(descendantsOf(TREE, folderId).map((entry) => entry.id)).toEqual(expected);
   });
 
   /*
@@ -72,38 +70,24 @@ describe('what is inside a folder', () => {
  * longer anywhere to drag it back from.
  */
 describe('a folder cannot swallow itself', () => {
-  it('refuses a folder dropped onto itself', () => {
-    expect(wouldCycle(TREE, 'work', 'work')).toBe(true);
-  });
-
-  it('refuses a folder dropped into its own child', () => {
-    expect(wouldCycle(TREE, 'work', 'pacs')).toBe(true);
-  });
-
-  it('refuses a folder dropped into a grandchild', () => {
-    expect(wouldCycle(TREE, 'work', 'dashboards')).toBe(true);
-  });
-
-  it('allows a move to an unrelated folder', () => {
-    expect(wouldCycle(TREE, 'work', 'reading')).toBe(false);
-  });
-
-  it('allows a move up to the top level', () => {
-    expect(wouldCycle(TREE, 'dashboards', null)).toBe(false);
-  });
-
-  it('allows a child to move into its own sibling', () => {
-    expect(wouldCycle(TREE, 'pacs', 'unigrade')).toBe(false);
+  it.each([
+    ['refuses a folder dropped onto itself', 'work', 'work', true],
+    ['refuses a folder dropped into its own child', 'work', 'pacs', true],
+    ['refuses a folder dropped into a grandchild', 'work', 'dashboards', true],
+    ['allows a move to an unrelated folder', 'work', 'reading', false],
+    ['allows a move up to the top level', 'dashboards', null, false],
+    ['allows a child to move into its own sibling', 'pacs', 'unigrade', false],
+  ])('%s', (_caseName, folderId, targetId, expected) => {
+    expect(wouldCycle(TREE, folderId, targetId)).toBe(expected);
   });
 });
 
 describe('where a folder sits', () => {
-  it('reads outermost first, for a breadcrumb', () => {
-    expect(pathOf(TREE, 'dashboards').map((entry) => entry.id)).toEqual(['work', 'pacs', 'dashboards']);
-  });
-
-  it('is just itself at the top level', () => {
-    expect(pathOf(TREE, 'work').map((entry) => entry.id)).toEqual(['work']);
+  it.each([
+    ['outermost first, for a breadcrumb', 'dashboards', ['work', 'pacs', 'dashboards']],
+    ['just itself at the top level', 'work', ['work']],
+  ])('reads %s', (_caseName, folderId, expected) => {
+    expect(pathOf(TREE, folderId).map((entry) => entry.id)).toEqual(expected);
   });
 });
 
@@ -121,16 +105,12 @@ describe('counting what is in a folder', () => {
     mark('f', null),
   ];
 
-  it('separates what is here from what is inside', () => {
-    expect(countIn(marks, TREE, 'work')).toEqual({ here: 2, withDescendants: 4 });
-  });
-
-  it('agrees with itself when a folder has no children', () => {
-    expect(countIn(marks, TREE, 'reading')).toEqual({ here: 1, withDescendants: 1 });
-  });
-
-  it('does not count what is filed nowhere', () => {
-    expect(countIn(marks, TREE, 'dashboards')).toEqual({ here: 1, withDescendants: 1 });
+  it.each([
+    ['separates what is here from what is inside', 'work', { here: 2, withDescendants: 4 }],
+    ['agrees with itself when a folder has no children', 'reading', { here: 1, withDescendants: 1 }],
+    ['does not count what is filed nowhere', 'dashboards', { here: 1, withDescendants: 1 }],
+  ])('%s', (_caseName, folderId, expected) => {
+    expect(countIn(marks, TREE, folderId)).toEqual(expected);
   });
 });
 
@@ -163,35 +143,26 @@ describe('drawing the tree', () => {
 describe('deleting a folder', () => {
   const marks = [mark('a', 'work'), mark('b', 'pacs'), mark('c', null)];
 
-  it('keeps the bookmarks that were in it, one level up', () => {
-    const after = afterDeleting(TREE, marks, 'pacs');
-    expect(after.bookmarks.find((entry) => entry.id === 'b')?.folderId).toBe('work');
-  });
+  it.each([
+    ['one level up', 'pacs', 'b', 'work', 'dashboards', 'work'],
+    ['to the top level when the folder was there', 'work', 'a', null, 'pacs', null],
+  ])(
+    'keeps its bookmarks and folders %s',
+    (_caseName, deletedId, bookmarkId, bookmarkFolderId, folderId, parentId) => {
+      const after = afterDeleting(TREE, marks, deletedId);
+      expect(after.bookmarks.find((entry) => entry.id === bookmarkId)?.folderId).toBe(bookmarkFolderId);
+      expect(after.folders.find((entry) => entry.id === folderId)?.parentId).toBe(parentId);
+    },
+  );
 
-  it('keeps the folders that were in it, one level up', () => {
-    const after = afterDeleting(TREE, marks, 'pacs');
-    expect(after.folders.find((entry) => entry.id === 'dashboards')?.parentId).toBe('work');
-  });
-
-  it('promotes to the top level when the folder was there', () => {
-    const after = afterDeleting(TREE, marks, 'work');
-    expect(after.folders.find((entry) => entry.id === 'pacs')?.parentId).toBeNull();
-    expect(after.bookmarks.find((entry) => entry.id === 'a')?.folderId).toBeNull();
-  });
-
-  it('removes only the folder itself', () => {
-    const after = afterDeleting(TREE, marks, 'pacs');
-    expect(after.folders.map((entry) => entry.id)).toEqual(['work', 'dashboards', 'unigrade', 'reading']);
+  it.each([
+    ['pacs', ['work', 'dashboards', 'unigrade', 'reading'], { folders: 1, bookmarks: 1 }],
+    ['work', ['pacs', 'dashboards', 'unigrade', 'reading'], { folders: 2, bookmarks: 1 }],
+    ['gone', ['work', 'pacs', 'dashboards', 'unigrade', 'reading'], { folders: 0, bookmarks: 0 }],
+  ])('removes only %s, counts what moved and leaves the bookmarks', (deletedId, remainingIds, moved) => {
+    const after = afterDeleting(TREE, marks, deletedId);
+    expect(after.folders.map((entry) => entry.id)).toEqual(remainingIds);
     expect(after.bookmarks).toHaveLength(marks.length);
-  });
-
-  it('counts what moved, so the confirmation can say it', () => {
-    expect(afterDeleting(TREE, marks, 'work').moved).toEqual({ folders: 2, bookmarks: 1 });
-  });
-
-  it('leaves everything alone when the folder is not there', () => {
-    const after = afterDeleting(TREE, marks, 'gone');
-    expect(after.folders).toEqual(TREE);
-    expect(after.moved).toEqual({ folders: 0, bookmarks: 0 });
+    expect(after.moved).toEqual(moved);
   });
 });

@@ -31,6 +31,11 @@ export const shell = {
   },
   connectionBadge: {
     label: 'Connection: {level}. Show details',
+    labelBlocked: {
+      one: 'Connection: {level}, {count} tracker blocked. Show details',
+      other: 'Connection: {level}, {count} trackers blocked. Show details',
+    },
+    blocked: { one: '{count} blocked', other: '{count} blocked' },
   },
   liveAnnouncer: {
     permissionRequested: 'A site is asking for permission.',
@@ -61,6 +66,7 @@ export const shell = {
     reader: 'Reader view',
     split: 'Split view',
     leaveSplit: 'Leave split view',
+    extensions: 'Extensions',
   },
   omnibox: {
     placeholder: 'Search or enter address',
@@ -74,6 +80,11 @@ export const shell = {
     removeBookmark: 'Remove bookmark',
     addBookmark: 'Bookmark this page',
     noHushBookmark: 'A Hush tab keeps nothing, so its page is not bookmarked',
+    addExtension: 'Add to Copacetic',
+    addingExtension: 'Adding…',
+    retryExtension: 'Could not add, try again',
+    extensionNotAdded: 'Could not add the extension: {problem}',
+    extensionAdded: 'In Copacetic',
   },
   tabStrip: {
     openTabs: 'Open tabs',
@@ -132,6 +143,16 @@ export const shell = {
       remember: 'Remember my answer for this site',
       block: 'Block',
       allow: 'Allow',
+    },
+    saveCard: {
+      label: 'Save password',
+      saveTitle: 'Save the password for {site}?',
+      updateTitle: 'Update the saved password for {site}?',
+      noUsername: 'No username',
+      save: 'Save',
+      update: 'Update',
+      never: 'Never for this site',
+      dismiss: 'Not now',
     },
     signInCard: {
       label: 'Sign in',

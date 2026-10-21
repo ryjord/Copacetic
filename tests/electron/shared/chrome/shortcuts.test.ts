@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   SHORTCUT_GROUPS,
   acceleratorFor,
+  aliasesFor,
   acceleratorFromKeys,
   conflictFor,
   isValidAccelerator,
@@ -19,8 +20,8 @@ import {
 // Relative to the project root, which is where vitest runs from. `import.meta`
 // is not a file URL under the test transform.
 const MENU_SOURCE = readFileSync('electron/main/menus/menu.ts', 'utf8');
-// The menu binds through ids now, so a key someone moved is the key it binds.
-const BOUND_IDS = [...MENU_SOURCE.matchAll(/key\('([^']+)'\)/g)].map((match) => match[1]!);
+// The menu binds through ids, directly or with the keys a shortcut also answers to, as zoom does.
+const BOUND_IDS = [...MENU_SOURCE.matchAll(/(?:key|withAliases)\('([^']+)'/g)].map((match) => match[1]!);
 const REBINDABLE_IDS = SHORTCUT_GROUPS.filter((group) => group.isRebindable).flatMap((group) =>
   group.shortcuts.map((shortcut) => shortcut.id),
 );
@@ -124,5 +125,27 @@ describe('readableAccelerator', () => {
   it('leaves a shortcut with no modifier alone', () => {
     expect(readableAccelerator('Delete', true)).toBe('Delete');
     expect(readableAccelerator('Escape', true)).toBe('Esc');
+  });
+});
+
+describe('the other keys a shortcut answers to', () => {
+  // "+" is Shift and = on most keyboards, so zoom in on Cmd+Plus alone was a key almost nobody pressed.
+  it('zooms in on Cmd+= and the number pad too, while zoom in has its default key', () => {
+    expect(aliasesFor('zoom-in', {})).toEqual(['CmdOrCtrl+=', 'CmdOrCtrl+numadd']);
+    expect(aliasesFor('zoom-out', {})).toEqual(['CmdOrCtrl+numsub']);
+  });
+
+  it('answers only to the key someone chose once they have chosen one', () => {
+    expect(aliasesFor('zoom-in', { 'zoom-in': 'CmdOrCtrl+Shift+Z' })).toEqual([]);
+  });
+
+  // Two menu items on one key leave which one fires to chance, so an alias counts as taken.
+  it('counts an alias as taken when another shortcut asks for its key', () => {
+    expect(conflictFor('reload', 'CmdOrCtrl+=', {})).not.toBeNull();
+    expect(conflictFor('reload', 'CmdOrCtrl+=', { 'zoom-in': 'CmdOrCtrl+Shift+Z' })).toBeNull();
+  });
+
+  it('has none for a shortcut with only its own key', () => {
+    expect(aliasesFor('new-tab', {})).toEqual([]);
   });
 });

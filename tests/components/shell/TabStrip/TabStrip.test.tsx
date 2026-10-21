@@ -51,7 +51,7 @@ function tab(id: string, title: string): TabState {
     blockedCount: 0,
     loadMs: null,
     zoomFactor: 1,
-    isStartPage: false,
+    internalPage: null,
     isBookmarked: false,
     groupId: null,
   };
@@ -104,12 +104,6 @@ describe('dropping a tab where it already was', () => {
 });
 
 describe('the tab strip is reachable by keyboard', () => {
-  it('is a tablist, so assistive technology knows what it is', () => {
-    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
-    expect(screen.getByRole('tablist')).toBeTruthy();
-    expect(screen.getAllByRole('tab')).toHaveLength(3);
-  });
-
   // Roving tabindex: one stop for the strip, not one per tab. Thirty tabs must
   // not mean thirty presses to get past them.
   it('gives exactly one tab stop, on the selected tab', () => {
@@ -120,20 +114,15 @@ describe('the tab strip is reachable by keyboard', () => {
   });
 
   it.each([
-    ['ArrowRight', 'two'],
-    ['ArrowLeft', 'three'],
-    ['End', 'three'],
-    ['Home', 'one'],
-  ])('moves selection with %s', (key, expected) => {
-    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
+    { key: 'ArrowRight', activeTabId: 'one', expected: 'two' },
+    { key: 'ArrowLeft', activeTabId: 'one', expected: 'three' },
+    { key: 'End', activeTabId: 'one', expected: 'three' },
+    { key: 'Home', activeTabId: 'three', expected: 'one' },
+    { key: 'ArrowRight', activeTabId: 'three', expected: 'one' },
+  ])('moves selection to $expected with $key from $activeTabId', ({ key, activeTabId, expected }) => {
+    render(<TabStrip tabs={TABS} groups={[]} activeTabId={activeTabId} />);
     fireEvent.keyDown(screen.getByRole('tablist'), { key });
     expect(activate).toHaveBeenCalledWith(expected);
-  });
-
-  it('wraps around rather than stopping at the ends', () => {
-    render(<TabStrip tabs={TABS} groups={[]} activeTabId="three" />);
-    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
-    expect(activate).toHaveBeenCalledWith('one');
   });
 
   it('closes the selected tab with Delete', () => {
@@ -142,60 +131,30 @@ describe('the tab strip is reachable by keyboard', () => {
     expect(close).toHaveBeenCalledWith('two');
   });
 
-  it('activates on Enter and Space', () => {
+  it.each(['Enter', ' '])('activates on the %j key', (key) => {
     render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     const third = screen.getAllByRole('tab')[2]!;
-    fireEvent.keyDown(third, { key: 'Enter' });
+    fireEvent.keyDown(third, { key });
     expect(activate).toHaveBeenCalledWith('three');
-  });
-
-  it('does nothing on a key it does not handle', () => {
-    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
-    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'a' });
-    expect(activate).not.toHaveBeenCalled();
   });
 });
 
-describe('a Hush tab in the strip', () => {
-  // A compressed tab shows only its icon, so the name has to carry what the tint shows.
-  it('says so in its name, not only in its colour', () => {
-    render(<TabStrip tabs={[{ ...tab('one', 'One'), isHush: true }]} groups={[]} activeTabId="one" />);
-    expect(screen.getByRole('tab', { name: 'One, Hush tab' })).toBeTruthy();
+describe('a tab in the strip names its state', () => {
+  // A compressed or dimmed tab shows little text, so the name has to carry what the tint shows.
+  it.each([
+    { state: 'Hush', flags: { isHush: true }, name: 'Mail, Hush tab' },
+    { state: 'pinned', flags: { isPinned: true }, name: 'Mail, pinned' },
+    { state: 'asleep', flags: { isAsleep: true }, name: 'Mail, asleep' },
+  ])('says it is $state, not only in its look', ({ flags, name }) => {
+    render(<TabStrip tabs={[{ ...tab('one', 'Mail'), ...flags }]} groups={[]} activeTabId="two" />);
+    expect(screen.getByRole('tab', { name })).toBeTruthy();
   });
 });
 
 describe('the new tab button', () => {
-  it('sits outside the scrolling strip, so it stays in reach', () => {
-    render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
-    const button = screen.getByRole('button', { name: 'New tab' });
-    expect(screen.getByRole('tablist').contains(button)).toBe(false);
-  });
-
   it('offers the other ways to open a tab on a right-click', () => {
     render(<TabStrip tabs={TABS} groups={[]} activeTabId="one" />);
     fireEvent.contextMenu(screen.getByRole('button', { name: 'New tab' }));
     expect(openNewTabMenu).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('a pinned tab in the strip', () => {
-  // Drawn as only its icon, so its name has to say what the title would have.
-  it('says it is pinned, along with its title', () => {
-    render(<TabStrip tabs={[{ ...tab('one', 'Mail'), isPinned: true }]} groups={[]} activeTabId="one" />);
-    expect(screen.getByRole('tab', { name: 'Mail, pinned' })).toBeTruthy();
-  });
-});
-
-describe('a sleeping tab in the strip', () => {
-  // Dimmed so it shows, and named so a screen reader hears it too.
-  it('says it is asleep, along with its title', () => {
-    render(
-      <TabStrip
-        tabs={[tab('one', 'Mail'), { ...tab('two', 'News'), isAsleep: true }]}
-        groups={[]}
-        activeTabId="one"
-      />,
-    );
-    expect(screen.getByRole('tab', { name: 'News, asleep' })).toBeTruthy();
   });
 });

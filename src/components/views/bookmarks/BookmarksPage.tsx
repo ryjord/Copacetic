@@ -17,7 +17,7 @@ import { Favicon } from '@/components/ui/Favicon/Favicon';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { SearchField } from '@/components/ui/TextField/TextField';
 import { DRAG_BOOKMARK, FolderTree, type FolderSelection } from '@/components/views/bookmarks/FolderTree';
-import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
+import { PageShell } from '@/components/shell/PageShell/PageShell';
 
 // Icons
 import { Bookmark as BookmarkIcon, Ellipsis, FolderOpen, Pencil, Plus, X } from 'lucide-react';
@@ -68,9 +68,8 @@ function pageKey(url: string): string {
   return url.replace(/#.*$/, '').replace(/\/$/, '');
 }
 
-export function BookmarksSurface() {
-  const activeTabId = useBrowserStore((state) => state.activeTabId);
-  const setSurface = useBrowserStore((state) => state.setSurface);
+/** Bookmarks in a tab of its own; opening one takes this tab there, as following a link would. */
+export function BookmarksPage({ tabId }: { tabId: string }) {
   const tabs = useBrowserStore((state) => state.tabs);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<BookmarkFolder[]>([]);
@@ -168,7 +167,6 @@ export function BookmarksSurface() {
       ),
     );
     ticked.clear();
-    setSurface('none');
   };
 
   const transfer = (action: Promise<string>) => {
@@ -183,7 +181,7 @@ export function BookmarksSurface() {
   const counted = selected ? countIn(bookmarks, folders, selected.id) : null;
 
   return (
-    <SurfaceShell
+    <PageShell
       title={t('views.bookmarks.title')}
       scrolls={false}
       actions={
@@ -248,7 +246,6 @@ export function BookmarksSurface() {
                   size="sm"
                   onClick={() => {
                     send((api) => api.bookmarkFolders.openAsGroup(selected.id));
-                    setSurface('none');
                   }}
                 >
                   <FolderOpen size={14} />
@@ -355,13 +352,7 @@ export function BookmarksSurface() {
                         <button
                           type="button"
                           title={bookmark.url}
-                          onClick={() => {
-                            if (!activeTabId) {
-                              return;
-                            }
-                            send((api) => api.tabs.navigate(activeTabId, bookmark.url));
-                            setSurface('none');
-                          }}
+                          onClick={() => send((api) => api.tabs.navigate(tabId, bookmark.url))}
                           // A middle-click opens it behind, as it would on a link.
                           onAuxClick={(event) => {
                             if (event.button === 1) {
@@ -443,7 +434,7 @@ export function BookmarksSurface() {
           </div>
         </div>
       </div>
-    </SurfaceShell>
+    </PageShell>
   );
 }
 

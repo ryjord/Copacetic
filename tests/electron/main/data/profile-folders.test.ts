@@ -22,12 +22,15 @@ const has = (...parts: string[]) => existsSync(path.join(appData, ...parts));
 
 describe('where a profile keeps its things', () => {
   // Everything from before profiles is already there, so the first one must not move.
-  it("keeps the first profile in the app's own folder", () => {
-    expect(profileDirectory(appData, 'default')).toBe(appData);
-  });
-
-  it('gives every other profile a folder of its own', () => {
-    expect(profileDirectory(appData, 'abcdef012345')).toBe(path.join(appData, 'profiles', 'abcdef012345'));
+  it.each([
+    { name: "keeps the first profile in the app's own folder", id: 'default', folder: () => appData },
+    {
+      name: 'gives every other profile a folder of its own',
+      id: 'abcdef012345',
+      folder: () => path.join(appData, 'profiles', 'abcdef012345'),
+    },
+  ])('$name', ({ id, folder }) => {
+    expect(profileDirectory(appData, id)).toBe(folder());
   });
 });
 

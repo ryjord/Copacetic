@@ -18,16 +18,19 @@ const read = () => readFileSync(path.join(dir, 'diagnostics.log'), 'utf8');
  * make that true whatever a call site passes.
  */
 describe('nothing written down identifies where someone has been', () => {
-  it('keeps the scheme of an address and drops the rest', () => {
-    expect(scrub('failed to load https://embarrassing.example/page?q=secret')).toBe(
+  it.each([
+    [
+      'keeps the scheme of an address and drops the rest',
+      'failed to load https://embarrassing.example/page?q=secret',
       'failed to load https://<address>',
-    );
-  });
-
-  it('does the same for every address in a line', () => {
-    expect(scrub('http://one.example redirected to https://two.example')).toBe(
+    ],
+    [
+      'does the same for every address in a line',
+      'http://one.example redirected to https://two.example',
       'http://<address> redirected to https://<address>',
-    );
+    ],
+  ])('%s', (_name, raw, scrubbed) => {
+    expect(scrub(raw)).toBe(scrubbed);
   });
 
   it('removes anything shaped like a key or a token', () => {
@@ -43,14 +46,15 @@ describe('nothing written down identifies where someone has been', () => {
     expect(scrub(raw)).toBe(scrubbed);
   });
 
-  it('scrubs values that arrive through fields, not just the event', () => {
-    new Diagnostics(dir).error('load failed', { url: 'https://private.example/path' });
-    expect(read()).toContain('url=https://<address>');
-    expect(read()).not.toContain('private.example');
-  });
-
-  it('scrubs the event name too', () => {
-    new Diagnostics(dir).info('navigating to https://private.example');
+  it.each([
+    [
+      'values that arrive through fields, not just the event',
+      (diagnostics: Diagnostics) => diagnostics.error('load failed', { url: 'https://private.example/path' }),
+    ],
+    ['the event name', (diagnostics: Diagnostics) => diagnostics.info('navigating to https://private.example')],
+  ])('scrubs %s', (_name, write) => {
+    write(new Diagnostics(dir));
+    expect(read()).toContain('https://<address>');
     expect(read()).not.toContain('private.example');
   });
 

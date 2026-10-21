@@ -26,27 +26,21 @@ describe('resolveWithinRoot', () => {
     expect(resolveWithinRoot(ROOT, '/')).toBe(ROOT);
   });
 
-  // This is the sandbox boundary for the whole app protocol: the one place a
-  // mistake would hand the filesystem to the chrome document.
+  // This is the sandbox boundary for the whole app protocol: the one place a mistake would hand the filesystem to the chrome document.
+  // Traversal is neutralised by clamping, not by refusing: `..` above an absolute path is dropped, so the request lands somewhere harmless inside the root.
   it.each([
-    ['/../../../../etc/passwd', 'plain traversal'],
-    ['/../.ssh/id_rsa', 'one level up'],
-    ['/foo/../../../../etc/passwd', 'traversal after a real segment'],
-    ['/....//....//etc/passwd', 'padded dots'],
-    ['//////../../etc/passwd', 'leading slash run'],
-    ['/./../../etc/shadow', 'dot then traversal'],
-    ['/../../../', 'traversal to filesystem root'],
-    ['/%2e%2e/%2e%2e/etc/passwd', 'already-decoded escapes'],
-  ])('contains %s (%s) rather than letting it escape', (pathname) => {
-    expect(isContained(resolveWithinRoot(ROOT, pathname))).toBe(true);
-  });
-
-  // Traversal is neutralised by clamping, not by refusing: `..` above an
-  // absolute path is dropped, so the request lands somewhere harmless inside
-  // the root and simply fails to exist.
-  it('clamps a traversal to a path under the root', () => {
-    expect(resolveWithinRoot(ROOT, '/../../../../etc/passwd')).toBe(inside('etc/passwd'));
-    expect(resolveWithinRoot(ROOT, '/../.ssh/id_rsa')).toBe(inside('.ssh/id_rsa'));
+    ['/../../../../etc/passwd', 'plain traversal', 'etc/passwd'],
+    ['/../.ssh/id_rsa', 'one level up', '.ssh/id_rsa'],
+    ['/foo/../../../../etc/passwd', 'traversal after a real segment', 'etc/passwd'],
+    ['/....//....//etc/passwd', 'padded dots', '..../..../etc/passwd'],
+    ['//////../../etc/passwd', 'leading slash run', 'etc/passwd'],
+    ['/./../../etc/shadow', 'dot then traversal', 'etc/shadow'],
+    ['/../../../', 'traversal to filesystem root', ''],
+    ['/%2e%2e/%2e%2e/etc/passwd', 'already-decoded escapes', '%2e%2e/%2e%2e/etc/passwd'],
+  ])('contains %s (%s) and clamps it under the root', (pathname, _label, clamped) => {
+    const resolved = resolveWithinRoot(ROOT, pathname);
+    expect(isContained(resolved)).toBe(true);
+    expect(resolved).toBe(inside(clamped));
   });
 
   // `out-secrets` shares a prefix with `out` but is not inside it. The check

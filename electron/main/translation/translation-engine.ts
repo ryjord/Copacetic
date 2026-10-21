@@ -1,5 +1,5 @@
 // Libs
-import { Worker } from 'node:worker_threads';
+import { type UtilityProcess, utilityProcess } from 'electron';
 import path from 'node:path';
 
 // Types
@@ -14,13 +14,15 @@ interface WorkerReply {
 }
 
 /**
- * Bergamot, running in a worker thread of the main process.
+ * Bergamot, running in a utility process of its own. Not a worker thread: the
+ * main process changes V8's flags as it runs, for the extension rules, and a
+ * worker started after that takes the whole app down.
  *
  * The worker only ever sees text and model buffers handed to it here: it has
  * no network of its own, and the models it runs were checked before it got them.
  */
 export class TranslationEngine {
-  private worker: Worker | null = null;
+  private worker: UtilityProcess | null = null;
   private ready: Promise<unknown> | null = null;
   private nextId = 1;
   private readonly waiting = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
@@ -57,7 +59,7 @@ export class TranslationEngine {
   }
 
   dispose(): void {
-    void this.worker?.terminate();
+    this.worker?.kill();
     this.worker = null;
     this.ready = null;
     this.loaded.clear();
@@ -67,7 +69,9 @@ export class TranslationEngine {
 
   private started(): Promise<unknown> {
     if (!this.ready) {
-      const worker = new Worker(path.join(this.engineDirectory, 'translator-worker.js'));
+      const worker = utilityProcess.fork(path.join(this.engineDirectory, 'translator-worker.js'), [], {
+        serviceName: 'Copacetic translation',
+      });
       worker.on('message', (reply: WorkerReply) => {
         const pending = this.waiting.get(reply.id);
         this.waiting.delete(reply.id);
@@ -77,8 +81,7 @@ export class TranslationEngine {
           pending?.resolve(reply.result);
         }
       });
-      // A worker that dies takes its models with it, so the next translation starts a fresh one.
-      worker.on('error', () => this.dispose());
+      // A process that dies takes its models with it, so the next translation starts a fresh one.
       worker.on('exit', () => {
         if (this.worker === worker) {
           this.dispose();

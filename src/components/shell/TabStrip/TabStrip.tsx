@@ -11,15 +11,20 @@ import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenam
 // Icons
 import {
   AlertCircle,
+  Bookmark,
   ChevronDown,
   Columns2,
+  Download,
   EyeOff,
+  History,
   ListChevronsUpDown,
   Lock,
   Plus,
+  Settings,
   Volume2,
   VolumeX,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 
 // Store
@@ -43,6 +48,14 @@ import {
   segmentByGroup,
   type TabGroup,
 } from '@shared/tabs/tab-groups';
+import type { InternalPage } from '@shared/tabs/internal-pages';
+
+const PAGE_ICONS: Partial<Record<InternalPage, LucideIcon>> = {
+  settings: Settings,
+  history: History,
+  bookmarks: Bookmark,
+  downloads: Download,
+};
 
 const CROWDED_TAB_WIDTH = 72;
 // Roughly the system's double-click interval: longer and folding feels slow, shorter and a double-click folds first.
@@ -52,9 +65,11 @@ interface TabStripProps {
   tabs: TabState[];
   activeTabId: string | null;
   groups: TabGroup[];
+  /** Sharing a row with the address, where each tab gets less room. */
+  isNarrow?: boolean;
 }
 
-export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
+export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStripProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -116,12 +131,11 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
   const runStarts = startsOf(runs);
 
   return (
-    <div className="flex h-full min-w-0 flex-1 items-end gap-0.5">
+    <div className="flex h-full min-w-0 flex-1 items-center gap-0.5">
       {isCrowded && (
         <IconButton
           label={t('shell.tabStrip.everyTab', { count: tabs.length })}
           size="sm"
-          className="mb-1"
           onClick={() => toggleSurface('tab-search')}
         >
           <ListChevronsUpDown size={14} strokeWidth={1.75} />
@@ -167,7 +181,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
             stripRef.current.scrollLeft += event.deltaY;
           }
         }}
-        className="hide-scrollbar flex h-full min-w-0 items-end gap-0.5 overflow-x-auto"
+        className="hide-scrollbar flex h-full min-w-0 items-center gap-1 overflow-x-auto"
       >
         {runs.map((run, runIndex) => {
           const group = run.groupId ? groups.find((candidate) => candidate.id === run.groupId) : undefined;
@@ -181,6 +195,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
                 tab={tab}
                 index={index}
                 isActive={tab.id === activeTabId}
+                isNarrow={isNarrow}
                 isDragging={dragId === tab.id}
                 showDropBefore={dropIndex === index && dragId !== tab.id}
                 onDragStart={setDragId}
@@ -207,8 +222,6 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
       <IconButton
         label={t('shell.tabStrip.newTab')}
         size="sm"
-        // Level with the middle of the tabs, which sit on the bottom of the strip.
-        className="mb-1"
         onClick={() => send((api) => api.tabs.create())}
         onContextMenu={(event) => {
           event.preventDefault();
@@ -221,7 +234,7 @@ export function TabStrip({ tabs, activeTabId, groups }: TabStripProps) {
       <IconButton
         label={t('shell.tabStrip.newTabMenu')}
         size="sm"
-        className="mb-1 -ml-1 w-5"
+        className="-ml-1 w-5"
         onClick={() => send((api) => api.tabs.openNewTabMenu())}
       >
         <ChevronDown size={14} strokeWidth={1.75} />
@@ -235,6 +248,7 @@ interface TabProps {
   /** Where it sits in the strip, which is where a drop on it lands. */
   index: number;
   isActive: boolean;
+  isNarrow: boolean;
   isDragging: boolean;
   showDropBefore: boolean;
   onDragStart: (tabId: string) => void;
@@ -258,6 +272,7 @@ const Tab = memo(function Tab({
   tab,
   index,
   isActive,
+  isNarrow,
   isDragging,
   showDropBefore,
   onDragStart,
@@ -265,14 +280,15 @@ const Tab = memo(function Tab({
   onDragOver,
   onDrop,
 }: TabProps) {
-  const title = tab.isStartPage ? t('shell.tabStrip.newTab') : tab.title;
+  const { title } = tab;
+  const PageIcon = tab.internalPage ? PAGE_ICONS[tab.internalPage] : undefined;
   const ref = useRef<HTMLDivElement>(null);
   const isSplit = useBrowserStore((state) => isInSplit(state.split, tab.id));
   const [memoryLine, setMemoryLine] = useState<string | null>(null);
 
   // Measured as the pointer arrives, so the tooltip it is about to show is current.
   const measureMemory = () => {
-    if (tab.isStartPage) {
+    if (tab.internalPage !== null) {
       return;
     }
     void ask((api) => api.tabs.memoryUse(), {}).then((measured) => {
@@ -302,16 +318,16 @@ const Tab = memo(function Tab({
       ref={ref}
       className={cn(
         // A set width, not a basis: container queries zero its natural width. Shrinks to its icon before scrolling.
-        // The active tab joins the toolbar below it, so only its top corners are rounded.
-        'no-drag group @container relative h-[var(--chrome-tab-height)] rounded-t-tab transition-[background-color,opacity] duration-150',
+        // A pill of its own, never joined to the toolbar: the joined tab is the shape every other browser has.
+        'no-drag group @container relative h-[var(--chrome-tab-height)] rounded-tab transition-[background-color,opacity] duration-150',
         // Pinned: always just its icon, which the compact rules below give it without a separate layout.
-        tab.isPinned ? 'w-9 shrink-0' : 'w-55 min-w-9 shrink',
+        tab.isPinned ? 'w-9 shrink-0' : isNarrow ? 'w-40 min-w-9 shrink' : 'w-55 min-w-9 shrink',
         tab.isHush
           ? isActive
-            ? 'bg-hush/14 shadow-[inset_0_2px_0_var(--color-hush)]'
+            ? 'bg-hush/14 shadow-[inset_0_0_0_1px_var(--color-hush)]'
             : 'bg-hush/8 hover:bg-hush/12'
           : isActive
-            ? 'bg-toolbar'
+            ? 'bg-raised shadow-[inset_0_0_0_1px_var(--color-line-strong)]'
             : 'hover:bg-hover/70',
         tab.isAsleep && !isActive && 'opacity-60',
         isDragging && 'opacity-40',
@@ -360,14 +376,22 @@ const Tab = memo(function Tab({
         }
       }}
       onPointerEnter={measureMemory}
-      title={tab.isStartPage ? title : [tab.title, tab.url, memoryLine].filter(Boolean).join('\n')}
+      title={tab.internalPage !== null ? title : [tab.title, tab.url, memoryLine].filter(Boolean).join('\n')}
     >
+      {isActive && !tab.isHush && (
+        <span
+          aria-hidden
+          className="absolute top-1/2 left-1 h-3.5 w-[3px] -translate-y-1/2 rounded-full bg-accent @max-[72px]:hidden"
+        />
+      )}
       <div className="flex h-full items-center gap-2 px-2.5 @max-[72px]:justify-center @max-[72px]:px-0">
         {tab.isLoading ? (
           <span
             aria-label={t('shell.tabStrip.loading')}
             className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-active"
           />
+        ) : PageIcon ? (
+          <PageIcon size={15} strokeWidth={1.75} className="shrink-0 text-ink-dim" aria-hidden />
         ) : (
           <Favicon dataUrl={tab.faviconDataUrl} seed={tab.url} size={15} />
         )}

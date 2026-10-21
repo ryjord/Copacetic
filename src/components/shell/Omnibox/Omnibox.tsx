@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // Components
 import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { AddToCopacetic } from '@/components/shell/Omnibox/AddToCopacetic';
 import { ConnectionBadge } from '@/components/shell/ConnectionBadge/ConnectionBadge';
 
 // Icons
@@ -181,12 +182,12 @@ export function Omnibox({ tab }: OmniboxProps) {
   };
 
   return (
-    <div className="no-drag relative flex-1">
+    <div className="no-drag relative min-w-0 flex-1">
       <div
         ref={fieldRef}
         className={cn(
-          'flex h-[var(--chrome-field-height)] items-center gap-2 rounded-field border px-2 transition-colors duration-150',
-          isEditing ? 'border-accent bg-raised' : 'border-transparent bg-ground hover:bg-hover',
+          'flex h-[var(--chrome-field-height)] items-center gap-2 rounded-[10px] border pr-1.5 pl-1 transition-colors duration-150',
+          isEditing ? 'border-accent bg-raised' : 'border-line bg-raised hover:border-line-strong',
         )}
       >
         <ConnectionBadge tab={tab} />
@@ -218,22 +219,27 @@ export function Omnibox({ tab }: OmniboxProps) {
           <button
             type="button"
             onClick={beginEditing}
-            className="h-full w-full truncate text-left"
+            className="h-full w-full min-w-0 truncate text-left"
             aria-label={t('shell.omnibox.addressAndSearch')}
           >
             <AddressDisplay url={committedUrl} />
           </button>
         )}
 
-        {tab && !tab.isStartPage && <ZoomChip tab={tab} />}
-        {/* Offered on every web page rather than guessed at: finding the article means reading the whole page. */}
-        {tab && !tab.isStartPage && /^https?:/.test(tab.url) && (
-          <IconButton label={t('shell.omnibox.readerView')} size="sm" onClick={() => setSurface('reader')}>
-            <BookOpen size={14} strokeWidth={1.75} />
-          </IconButton>
+        {tab && tab.internalPage === null && (
+          <>
+            <AddToCopacetic tab={tab} />
+            <ZoomChip tab={tab} />
+            {/* Offered on every web page rather than guessed at: finding the article means reading the whole page. */}
+            {/^https?:/.test(tab.url) && (
+              <IconButton label={t('shell.omnibox.readerView')} size="sm" onClick={() => setSurface('reader')}>
+                <BookOpen size={14} strokeWidth={1.75} />
+              </IconButton>
+            )}
+            <PasswordKey tab={tab} />
+            <BookmarkStar tab={tab} />
+          </>
         )}
-        {tab && !tab.isStartPage && <PasswordKey tab={tab} />}
-        {tab && !tab.isStartPage && <BookmarkStar tab={tab} />}
       </div>
 
       {/* The visible list is in another document, which aria-activedescendant cannot reach, so this one is for screen readers. */}
@@ -264,10 +270,10 @@ function AddressDisplay({ url }: { url: string }) {
   }
 
   return (
-    <span className="flex items-baseline truncate font-mono text-body-sm tracking-tight">
+    <span className="flex min-w-0 items-baseline truncate font-mono text-body-sm tracking-tight">
       {parts.scheme !== 'https' && <span className="mr-1 text-ink-faint">{parts.scheme}://</span>}
       {parts.subdomain && <span className="text-ink-faint">{parts.subdomain}</span>}
-      <span className="text-ink">{parts.registrableDomain}</span>
+      <span className="font-semibold text-ink">{parts.registrableDomain}</span>
       {parts.path && <span className="truncate text-ink-dim">{parts.path}</span>}
     </span>
   );

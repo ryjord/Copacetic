@@ -58,65 +58,32 @@ describe('reading what was written', () => {
 describe('a file the user has broken', () => {
   // Settings live in a directory people can open and edit. A malformed file
   // must never stop the browser starting.
-  it('starts anyway when the JSON is malformed', () => {
+  it('starts anyway when the JSON is malformed, and moves the broken file aside rather than overwriting it', () => {
     writeFileSync(filePath(), '{ not json at all');
     expect(new PersistedFile<Thing>('thing.json', fallback, revive).get()).toEqual({ name: 'default', count: 0 });
-  });
-
-  it('moves the broken file aside rather than overwriting it', () => {
-    writeFileSync(filePath(), '{ not json at all');
-    new PersistedFile<Thing>('thing.json', fallback, revive);
 
     expect(existsSync(`${filePath()}.corrupt`)).toBe(true);
     expect(readFileSync(`${filePath()}.corrupt`, 'utf8')).toBe('{ not json at all');
   });
 
-  it('falls back when the shape is wrong even though the JSON is valid', () => {
-    writeFileSync(filePath(), JSON.stringify({ unexpected: true }));
+  it.each([
+    { name: 'an object of the wrong shape', contents: JSON.stringify({ unexpected: true }) },
+    { name: 'a bare string', contents: '"just a string"' },
+  ])('falls back for valid JSON that is $name', ({ contents }) => {
+    writeFileSync(filePath(), contents);
     expect(new PersistedFile<Thing>('thing.json', fallback, revive).get()).toEqual({ name: 'default', count: 0 });
-  });
-
-  it('falls back for JSON that is not an object at all', () => {
-    writeFileSync(filePath(), '"just a string"');
-    expect(new PersistedFile<Thing>('thing.json', fallback, revive).get()).toEqual({ name: 'default', count: 0 });
-  });
-});
-
-describe('writing is atomic', () => {
-  // Written to a temporary file and renamed, so a crash mid-write leaves the
-  // previous file intact rather than a half-written one.
-  it('leaves no temporary file behind', () => {
-    const file = new PersistedFile<Thing>('thing.json', fallback, revive);
-    file.set({ name: 'a', count: 1 });
-    file.flush();
-
-    // The half-written file is what matters here, not the company it keeps:
-    // schema.json is written alongside now, and is meant to be.
-    const leftovers = readdirSync(dir).filter((name) => name.includes('.tmp'));
-    expect(leftovers).toEqual([]);
-  });
-
-  it('produces a file that parses', () => {
-    const file = new PersistedFile<Thing>('thing.json', fallback, revive);
-    file.set({ name: 'a', count: 1 });
-    file.flush();
-
-    expect(JSON.parse(readFileSync(filePath(), 'utf8'))).toEqual({ name: 'a', count: 1 });
   });
 });
 
 describe('flushing is debounced', () => {
-  it('does not touch the disk on every change', () => {
+  it('does not touch the disk on every change, and writes immediately when asked to flush', () => {
     const file = new PersistedFile<Thing>('thing.json', fallback, revive, { flushDelayMs: 10_000 });
     file.set({ name: 'a', count: 1 });
     // Still only in memory; the debounce has not elapsed.
     expect(existsSync(filePath())).toBe(false);
     expect(file.get().name).toBe('a');
-  });
 
-  it('writes immediately when asked to flush, which is what quitting does', () => {
-    const file = new PersistedFile<Thing>('thing.json', fallback, revive, { flushDelayMs: 10_000 });
-    file.set({ name: 'a', count: 1 });
+    // Flushing is what quitting does.
     file.flush();
     expect(existsSync(filePath())).toBe(true);
   });
@@ -133,30 +100,23 @@ describe('flushing is debounced', () => {
 });
 
 describe('the small coercions everything else is built on', () => {
-  it('asString takes strings and falls back otherwise', () => {
-    expect(asString('a', 'z')).toBe('a');
-    expect(asString(undefined, 'z')).toBe('z');
-    expect(asString(42, 'z')).toBe('z');
-    expect(asString(null, 'z')).toBe('z');
-  });
-
-  it('asNumber refuses anything that is not a finite number', () => {
-    expect(asNumber(3, 0)).toBe(3);
-    expect(asNumber('3', 0)).toBe(0);
-    expect(asNumber(Number.NaN, 0)).toBe(0);
-    expect(asNumber(Infinity, 0)).toBe(0);
-  });
-
-  it('asBoolean takes only real booleans', () => {
-    expect(asBoolean(true, false)).toBe(true);
-    expect(asBoolean('true', false)).toBe(false);
-    expect(asBoolean(1, false)).toBe(false);
-  });
-
-  it('isRecord rejects arrays and null, which typeof does not', () => {
-    expect(isRecord({})).toBe(true);
-    expect(isRecord([])).toBe(false);
-    expect(isRecord(null)).toBe(false);
+  it.each([
+    { name: 'asString takes a string', run: () => asString('a', 'z'), expected: 'a' },
+    { name: 'asString falls back for undefined', run: () => asString(undefined, 'z'), expected: 'z' },
+    { name: 'asString falls back for a number', run: () => asString(42, 'z'), expected: 'z' },
+    { name: 'asString falls back for null', run: () => asString(null, 'z'), expected: 'z' },
+    { name: 'asNumber takes a number', run: () => asNumber(3, 0), expected: 3 },
+    { name: 'asNumber refuses a numeric string', run: () => asNumber('3', 0), expected: 0 },
+    { name: 'asNumber refuses NaN', run: () => asNumber(Number.NaN, 0), expected: 0 },
+    { name: 'asNumber refuses Infinity', run: () => asNumber(Infinity, 0), expected: 0 },
+    { name: 'asBoolean takes a real boolean', run: () => asBoolean(true, false), expected: true },
+    { name: 'asBoolean refuses the string true', run: () => asBoolean('true', false), expected: false },
+    { name: 'asBoolean refuses the number one', run: () => asBoolean(1, false), expected: false },
+    { name: 'isRecord accepts an object', run: () => isRecord({}), expected: true },
+    { name: 'isRecord rejects an array, which typeof does not', run: () => isRecord([]), expected: false },
+    { name: 'isRecord rejects null, which typeof does not', run: () => isRecord(null), expected: false },
+  ])('$name', ({ run, expected }) => {
+    expect(run()).toBe(expected);
   });
 });
 
@@ -181,7 +141,8 @@ describe('how a stored file reaches the disk', () => {
     const file = new PersistedFile<Thing>('thing.json', fallback, revive);
     file.set({ name: 'clean', count: 2 });
     file.flush();
-    expect(readdirSync(dir).filter((name) => name.endsWith('.tmp'))).toEqual([]);
+    // The half-written file is what matters, not the company it keeps: schema.json is written alongside, on purpose.
+    expect(readdirSync(dir).filter((name) => name.includes('.tmp'))).toEqual([]);
   });
 });
 

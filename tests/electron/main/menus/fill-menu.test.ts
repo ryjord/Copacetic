@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 const popups: { label?: string }[][] = [];
 vi.mock('electron', () => ({
   Menu: { buildFromTemplate: (items: { label?: string }[]) => ({ popup: () => popups.push(items) }) },
-  clipboard: { writeText: () => {} },
+  clipboard: { writeText: async () => {} },
   dialog: { showMessageBox: async () => ({ response: 1 }) },
   shell: { openExternal: async () => {} },
 }));

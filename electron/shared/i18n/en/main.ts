@@ -25,6 +25,11 @@ export const main = {
       manage: 'Manage profiles…',
       thisWindow: '{name} (this window)',
     },
+    extensions: {
+      pin: 'Pin to toolbar',
+      options: 'Options',
+      manage: 'Manage extensions…',
+    },
     edit: {
       title: 'Edit',
       openAddressBar: 'Open address bar',
@@ -274,6 +279,9 @@ export const main = {
       notEncrypted:
         'This page is not encrypted, so a password typed into it can be read by anyone on the network. Copacetic will not put one there for you.',
       nothingSaved: 'Nothing saved for this site.',
+    },
+    save: {
+      saved: 'Saved the password for {site}.',
     },
     fill: {
       wrongPage: 'That password does not belong to this page.',

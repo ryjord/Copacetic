@@ -2,7 +2,7 @@
 import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
 
 // Utils
-import { acceleratorFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
+import { acceleratorFor, aliasesFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
 
 // Types
@@ -18,6 +18,17 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   // Compared with true: a menu built while a key is being recorded binds none, so the key reaches the recorder.
   const isRecording = profiles.isRecordingShortcut() === true;
   const key = (id: string) => (isRecording ? undefined : acceleratorFor(id, overrides));
+  // The item on its key, then hidden copies on each of its other keys, so the menu shows one while all of them work.
+  const withAliases = (id: string, label: string, click: () => void): MenuItemConstructorOptions[] => [
+    { label, accelerator: key(id), click },
+    ...(isRecording ? [] : aliasesFor(id, overrides)).map((accelerator) => ({
+      label,
+      accelerator,
+      visible: false,
+      acceleratorWorksWhenHidden: true,
+      click,
+    })),
+  ];
   const template: MenuItemConstructorOptions[] = [];
 
   if (isMac) {
@@ -29,7 +40,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         {
           label: t('main.menu.app.settings'),
           accelerator: key('settings'),
-          click: () => inWindow((browser) => browser.openSurface('settings')),
+          click: () => inWindow((browser) => browser.showPage('settings')),
         },
         { type: 'separator' },
         { role: 'services' },
@@ -62,7 +73,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
           { type: 'separator' },
           {
             label: t('main.menu.profiles.manage'),
-            click: () => inWindow((browser) => browser.openSurface('settings')),
+            click: () => inWindow((browser) => browser.showPage('settings')),
           },
         ],
       },
@@ -128,7 +139,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
             {
               label: t('main.menu.app.settings'),
               accelerator: key('settings'),
-              click: () => inWindow((browser) => browser.openSurface('settings')),
+              click: () => inWindow((browser) => browser.showPage('settings')),
             },
             { type: 'separator' },
           ] as MenuItemConstructorOptions[])),
@@ -174,16 +185,12 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.stop(id))),
       },
       { type: 'separator' },
-      {
-        label: t('main.menu.view.zoomIn'),
-        accelerator: key('zoom-in'),
-        click: () => inWindow((browser) => browser.commands.adjustZoom('in')),
-      },
-      {
-        label: t('main.menu.view.zoomOut'),
-        accelerator: key('zoom-out'),
-        click: () => inWindow((browser) => browser.commands.adjustZoom('out')),
-      },
+      ...withAliases('zoom-in', t('main.menu.view.zoomIn'), () =>
+        inWindow((browser) => browser.commands.adjustZoom('in')),
+      ),
+      ...withAliases('zoom-out', t('main.menu.view.zoomOut'), () =>
+        inWindow((browser) => browser.commands.adjustZoom('out')),
+      ),
       {
         label: t('main.menu.view.actualSize'),
         accelerator: key('zoom-reset'),
@@ -237,11 +244,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.history.showAll'),
         accelerator: key('history'),
-        click: () => inWindow((browser) => browser.openSurface('history')),
+        click: () => inWindow((browser) => browser.showPage('history')),
       },
       {
         label: t('main.menu.history.clearBrowsingData'),
-        click: () => inWindow((browser) => browser.openSettingsPane('data')),
+        click: () => inWindow((browser) => browser.showPage('settings', 'data')),
       },
     ],
   });
@@ -257,7 +264,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.bookmarks.showAll'),
         accelerator: key('bookmarks'),
-        click: () => inWindow((browser) => browser.openSurface('bookmarks')),
+        click: () => inWindow((browser) => browser.showPage('bookmarks')),
       },
     ],
   });
@@ -295,7 +302,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.tabs.downloads'),
         accelerator: key('downloads'),
-        click: () => inWindow((browser) => browser.openSurface('downloads')),
+        click: () => inWindow((browser) => browser.showPage('downloads')),
       },
       ...(isMac
         ? ([

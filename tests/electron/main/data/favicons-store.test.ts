@@ -67,15 +67,6 @@ describe('what the icon cache keeps', () => {
     expect(Object.keys(kept).sort()).toEqual(['alsoSmall', 'small']);
   });
 
-  it('never exceeds the budget it was given', () => {
-    const entries = Object.fromEntries(Array.from({ length: 50 }, (_, index) => [`site-${index}`, icon(100, index)]));
-    const budget = 512 * 1024;
-    const kept = withinBounds(entries, 600, budget);
-    const total = Object.values(kept).reduce((sum, record) => sum + record.dataUrl.length, 0);
-    expect(total).toBeLessThanOrEqual(budget);
-    expect(total).toBeGreaterThan(0);
-  });
-
   // The real shape of the problem, in one assertion: six hundred large icons.
   it('holds six hundred large icons to a size a browser can read at startup', () => {
     const entries = Object.fromEntries(

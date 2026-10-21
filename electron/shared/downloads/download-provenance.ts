@@ -2,7 +2,7 @@
 // shorteners sit in between, and a download list that shows only the last hop
 // is showing you the least interesting one.
 
-import { hostOf, registrableDomainOf } from '../browsing/url';
+import { hostOf, siteOfHost } from '../browsing/url';
 import { t } from '../i18n/translate';
 
 export interface Provenance {
@@ -31,7 +31,7 @@ export function hostsInChain(urlChain: readonly string[]): string[] {
  */
 export function crossedSites(urlChain: readonly string[]): boolean {
   const domains = hostsInChain(urlChain)
-    .map((host) => registrableDomainOf(host) ?? host)
+    .map(siteOfHost)
     .filter((domain, index, all) => all.indexOf(domain) === index);
   return domains.length > 1;
 }
@@ -48,7 +48,7 @@ export function describeChain(urlChain: readonly string[]): string {
   const between = hosts.length - 2;
 
   if (!crossedSites(urlChain)) {
-    return t('main.downloads.provenance.redirectedWithin', { site: registrableDomainOf(first) ?? first });
+    return t('main.downloads.provenance.redirectedWithin', { site: siteOfHost(first) });
   }
   if (between <= 0) {
     return t('main.downloads.provenance.cameFrom', { first, last });

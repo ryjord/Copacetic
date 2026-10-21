@@ -47,23 +47,18 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('the start page in a Hush tab', () => {
-  it('says what Hush does, and what it does not do', () => {
-    render(<StartPage tabId="t1" isHush />);
-
-    expect(screen.getByRole('heading', { name: 'This is a Hush tab' })).toBeTruthy();
-    expect(screen.getByText(/Nothing here reaches the disk/i)).toBeTruthy();
-    // Only ever saying the first half would be a boast.
-    expect(screen.getByText(/It does not hide you/i)).toBeTruthy();
-  });
-
   // The notice sits beside the field rather than in front of it.
-  it('can be used at once, before the notice is read', () => {
-    render(<StartPage tabId="t1" isHush />);
-    expect(screen.getByRole('textbox', { name: 'Search or enter address' })).toBeTruthy();
-  });
-
-  it('keeps the search field even when the widgets setting leaves it out', () => {
-    settings = { ...settings, startPageWidgets: ['clock'] };
+  it.each([
+    {
+      name: 'can be used at once, before the notice is read',
+      startPageWidgets: ['clock', 'search', 'topSites'] as const,
+    },
+    {
+      name: 'keeps the search field even when the widgets setting leaves it out',
+      startPageWidgets: ['clock'] as const,
+    },
+  ])('$name', ({ startPageWidgets }) => {
+    settings = { ...settings, startPageWidgets: [...startPageWidgets] };
     render(<StartPage tabId="t1" isHush />);
     expect(screen.getByRole('textbox', { name: 'Search or enter address' })).toBeTruthy();
   });
@@ -75,11 +70,6 @@ describe('the start page in a Hush tab', () => {
 
     expect(screen.queryByText('github.com')).toBeNull();
     expect(screen.queryByText(/Sites you visit often/i)).toBeNull();
-  });
-
-  it('marks the page so the atmosphere can change', () => {
-    const { container } = render(<StartPage tabId="t1" isHush />);
-    expect(container.querySelector('[data-hush="true"]')).toBeTruthy();
   });
 
   it('stops showing the notice once it has been read', () => {

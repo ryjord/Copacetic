@@ -24,6 +24,7 @@ import { launchRestore } from './launch-restore';
 import { ClosedTabs } from '../tabs/closed-tabs';
 import { ExtensionHost } from '../extensions/extension-host';
 import { profileBrowsing } from '../extensions/profile-browsing';
+import type { RequestDetails } from '../extensions/net-rules/request-context';
 import { fetchFromWebStore } from '../extensions/web-store-fetch';
 import { abilitiesOf } from '../../shared/extensions/abilities';
 import { t } from '../../shared/i18n/translate';
@@ -149,6 +150,8 @@ export class Profile {
       prompts: this.prompts,
       tabs: () => this.tabDirectory,
       onPromptsChanged: () => this.scheduleStatePush(),
+      extensionHeaderChanges: (details: RequestDetails, stage: 'request' | 'response') =>
+        this.extensions.netRules.headerChanges(details, stage),
     };
     this.securityDelegate = createSecurityDelegate(delegateDeps);
     this.extensions = new ExtensionHost({
@@ -218,7 +221,9 @@ export class Profile {
     this.sessions.prepare(this.partitions.web);
     this.sessions.prepare(this.partitions.hush);
     this.blocking.setRedirect((details) => this.httpsFirst.upgradeFor(details) ?? this.cleanedNavigation(details));
+    this.blocking.setExtensionJudge((details) => this.extensions.netRules.judge(details));
 
+    this.extensions.keepUpdated(settings.updateExtensions);
     this.stopWatchingAuth = watchAuthChallenges(delegateDeps);
   }
 
@@ -336,7 +341,8 @@ export class Profile {
   /** Reopens last time's windows, closing the new one if nothing was done in it. */
   private async reopenInPlaceOf(fresh: Browser, saved: readonly SessionSnapshot[]): Promise<void> {
     await this.reopenWindows(saved);
-    const isUntouched = this.windows.has(fresh) && fresh.tabs.snapshot().tabs.every((tab) => tab.isStartPage);
+    const isUntouched =
+      this.windows.has(fresh) && fresh.tabs.snapshot().tabs.every((tab) => tab.internalPage === 'start');
     if (isUntouched) {
       fresh.window.close();
     }
@@ -425,6 +431,9 @@ export class Profile {
     if (patch.blockTrackers !== undefined) {
       this.blocking.setEnabled(patch.blockTrackers);
     }
+    if (patch.updateExtensions !== undefined) {
+      this.extensions.keepUpdated(next.updateExtensions);
+    }
     if (patch.blockerAllowlist !== undefined) {
       this.blocking.setAllowlist(next.blockerAllowlist);
     }
@@ -434,8 +443,8 @@ export class Profile {
     if (patch.spellcheckLanguages !== undefined) {
       this.sessions.setSpellcheckLanguages();
     }
-    // The strip changes height with density, and the system's window controls are drawn to match it.
-    if (patch.density !== undefined) {
+    // The strip changes height with density and layout, and the system's window controls are drawn to match it.
+    if (patch.density !== undefined || patch.headerLayout !== undefined) {
       this.windows.forEach((window) => window.repaint());
     }
     if (patch.webRtcPolicy !== undefined) {

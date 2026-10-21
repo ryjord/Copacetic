@@ -16,13 +16,13 @@ const traces = (over: Partial<SiteTraces> = {}): SiteTraces => ({ ...NOTHING, ..
  * of until it turns up in a list they believed was empty.
  */
 describe('which site an address belongs to', () => {
-  it('reduces an address to its registrable domain', () => {
-    expect(siteOf('https://www.example.com/page?q=1')).toBe('example.com');
-    expect(siteOf('https://app.example.com/')).toBe('example.com');
-  });
-
-  it('takes a bare host, because some settings are keyed that way', () => {
-    expect(siteOf('www.example.com')).toBe('example.com');
+  // A bare host is taken as well, because some settings are keyed that way.
+  it.each([
+    ['https://www.example.com/page?q=1', 'example.com'],
+    ['https://app.example.com/', 'example.com'],
+    ['www.example.com', 'example.com'],
+  ])('reduces %s to its registrable domain', (address, expected) => {
+    expect(siteOf(address)).toBe(expected);
   });
 
   /*
@@ -39,21 +39,15 @@ describe('which site an address belongs to', () => {
     expect(sameSite('.www.example.com', 'example.com')).toBe(true);
   });
 
-  it('still keeps a dotted domain from another site apart', () => {
-    expect(sameSite('.example.org', 'example.com')).toBe(false);
-  });
-
-  it('treats subdomains of one site as that site', () => {
-    expect(sameSite('https://app.example.com/a', 'https://www.example.com/b')).toBe(true);
-  });
-
-  it('keeps different sites apart', () => {
-    expect(sameSite('https://example.com/', 'https://example.org/')).toBe(false);
-  });
-
   // Two things that are not addresses are not the same site as each other.
-  it('does not match nothing against nothing', () => {
-    expect(sameSite('', '')).toBe(false);
+  it.each([
+    ['a dotted domain from another site', '.example.org', 'example.com', false],
+    ['subdomains of one site', 'https://app.example.com/a', 'https://www.example.com/b', true],
+    ['different sites', 'https://example.com/', 'https://example.org/', false],
+    ['nothing against nothing', '', '', false],
+    ['one address against itself', 'http://192.168.1.5/a', 'http://192.168.1.5/b', true],
+  ])('compares %s', (_caseName, firstAddress, secondAddress, expected) => {
+    expect(sameSite(firstAddress, secondAddress)).toBe(expected);
   });
 
   /*
@@ -64,10 +58,6 @@ describe('which site an address belongs to', () => {
    */
   it('keeps two unrelated addresses apart', () => {
     expect(sameSite('http://192.168.1.5/', 'http://10.20.1.5/')).toBe(false);
-  });
-
-  it('treats one address as itself', () => {
-    expect(sameSite('http://192.168.1.5/a', 'http://192.168.1.5/b')).toBe(true);
   });
 
   /*
@@ -95,53 +85,25 @@ describe('which site an address belongs to', () => {
  * quietly is indistinguishable from something that did not work.
  */
 describe('what is said before forgetting a site', () => {
-  it('says nothing is kept when nothing is', () => {
-    expect(describeTraces(NOTHING)).toBe('Nothing is kept about this site.');
-  });
-
-  it('names one thing on its own', () => {
-    expect(describeTraces(traces({ visits: 1 }))).toBe('1 visit.');
-  });
-
-  it('counts properly', () => {
-    expect(describeTraces(traces({ visits: 31 }))).toBe('31 visits.');
-  });
-
-  it('joins several with an and, the way a person would', () => {
-    const message = describeTraces(traces({ visits: 31, icons: 1, zoom: 1 }));
-    expect(message).toBe('31 visits, 1 cached icon and 1 zoom.');
-  });
-
   /*
-   * The one that was missing, and the one people actually mean. Forgetting a
-   * site removed its history, icons, zoom, permissions and certificates and
-   * left every cookie in place, so someone told the site was forgotten could
-   * open it and still be signed in.
+   * The cookies are the one that was missing, and the one people actually mean.
+   * Forgetting a site removed its history, icons, zoom, permissions and
+   * certificates and left every cookie in place, so someone told the site was
+   * forgotten could open it and still be signed in.
    */
-  it('names the cookies, which are the part that kept you signed in', () => {
-    expect(describeTraces(traces({ visits: 4, cookies: 12 }))).toBe('4 visits and 12 cookies.');
+  it.each([
+    ['nothing is kept', NOTHING, 'Nothing is kept about this site.'],
+    ['one thing on its own', traces({ visits: 1 }), '1 visit.'],
+    ['a count properly', traces({ visits: 31 }), '31 visits.'],
+    ['several joined with an and', traces({ visits: 31, icons: 1, zoom: 1 }), '31 visits, 1 cached icon and 1 zoom.'],
+    ['the cookies', traces({ visits: 4, cookies: 12 }), '4 visits and 12 cookies.'],
+    ['one cookie properly', traces({ cookies: 1 }), '1 cookie.'],
+  ])('says %s', (_caseName, kept, expected) => {
+    expect(describeTraces(kept)).toBe(expected);
   });
 
-  it('says one cookie properly', () => {
-    expect(describeTraces(traces({ cookies: 1 }))).toBe('1 cookie.');
-  });
-
-  it('counts cookies towards what will go', () => {
+  it('adds up to what will actually go, cookies included', () => {
     expect(countTraces(traces({ visits: 3, cookies: 12 }))).toBe(15);
-  });
-
-  /*
-   * Offering to remove a permission nobody granted makes the rest of the
-   * sentence untrustworthy, and this sentence exists to be trusted.
-   */
-  it('never names something that is not there', () => {
-    const message = describeTraces(traces({ visits: 4 }));
-    expect(message).not.toContain('permission');
-    expect(message).not.toContain('certificate');
-    expect(message).not.toContain('0');
-  });
-
-  it('adds up to what will actually go', () => {
     expect(countTraces(traces({ visits: 31, icons: 1, permissions: 2 }))).toBe(34);
   });
 });

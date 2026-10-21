@@ -15,14 +15,11 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { Menu } from '@/components/ui/Menu/Menu';
 import { SearchField } from '@/components/ui/TextField/TextField';
 import { SkeletonRows } from '@/components/ui/Skeleton/Skeleton';
-import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
+import { PageShell } from '@/components/shell/PageShell/PageShell';
 import { ClearBrowsingDialog } from '@/components/views/clearing/ClearBrowsingDialog';
 
 // Icons
 import { Ellipsis, History, X } from 'lucide-react';
-
-// Store
-import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
@@ -49,9 +46,8 @@ const ORDER_OPTIONS: readonly { id: HistoryOrder; label: string }[] = [
   { id: 'visits', label: t('views.history.order.visits') },
 ];
 
-export function HistorySurface() {
-  const activeTabId = useBrowserStore((state) => state.activeTabId);
-  const setSurface = useBrowserStore((state) => state.setSurface);
+/** History in a tab of its own; opening an entry takes this tab there, as following a link would. */
+export function HistoryPage({ tabId }: { tabId: string }) {
   const [query, setQuery] = useState('');
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -117,11 +113,7 @@ export function HistorySurface() {
   };
 
   const open = (url: string) => {
-    if (!activeTabId) {
-      return;
-    }
-    send((api) => api.tabs.navigate(activeTabId, url));
-    setSurface('none');
+    send((api) => api.tabs.navigate(tabId, url));
   };
 
   const remove = (id: string) => {
@@ -148,7 +140,6 @@ export function HistorySurface() {
       ),
     );
     selection.clear();
-    setSurface('none');
   };
 
   const summary =
@@ -157,7 +148,7 @@ export function HistorySurface() {
       : t('views.history.showing', { shown: entries?.length ?? 0, total });
 
   return (
-    <SurfaceShell
+    <PageShell
       title={t('views.history.title')}
       actions={
         <>
@@ -319,7 +310,7 @@ export function HistorySurface() {
           }}
         />
       )}
-    </SurfaceShell>
+    </PageShell>
   );
 }
 

@@ -1,12 +1,26 @@
-import type { Session } from 'electron';
+// Utils
 import { isThirdParty, pageSiteOf, withoutHeader } from '../../shared/browsing/third-party';
+import { applyHeaderChanges } from '../extensions/net-rules/outcome';
+
+// Types
+import type { Session } from 'electron';
+import type { HeaderChange } from '../extensions/net-rules/rule';
+import type { RequestDetails } from '../extensions/net-rules/request-context';
 
 interface RequestHeaderRules {
   /** What this browser says about itself, sent to secure origins only, as Chrome does. */
   clientHints: Record<string, string>;
   /** Whether a page on this site keeps third-party cookies from reaching or being set. */
   blocksThirdPartyCookiesOn: (site: string) => boolean;
+  /** What extensions' header rules change, where extensions run; absent in Hush. */
+  extensionHeaderChanges?: (details: RequestDetails, stage: 'request' | 'response') => HeaderChange[];
 }
+
+const asLists = (headers: Record<string, string>) =>
+  Object.fromEntries(Object.entries(headers).map(([name, value]) => [name, [value]]));
+// A request carries each header once, so a header appended to is joined as Chrome sends it.
+const asSingles = (headers: Record<string, string[]>) =>
+  Object.fromEntries(Object.entries(headers).map(([name, values]) => [name, values.join(', ')]));
 
 /**
  * Everything this browser changes in a session's requests and responses, in one place.
@@ -31,14 +45,21 @@ export function installRequestHeaders(session: Session, rules: RequestHeaderRule
     if (isBlockedThirdParty(details.url, pageOf(details), details.resourceType)) {
       headers = withoutHeader(headers, 'Cookie');
     }
+    const changes = rules.extensionHeaderChanges?.(details, 'request') ?? [];
+    if (changes.length > 0) {
+      headers = asSingles(applyHeaderChanges(asLists(headers), changes));
+    }
     callback({ requestHeaders: headers });
   });
 
   session.webRequest.onHeadersReceived((details, callback) => {
-    const headers = details.responseHeaders;
+    let headers = details.responseHeaders;
     if (headers && isBlockedThirdParty(details.url, pageOf(details), details.resourceType)) {
-      callback({ responseHeaders: withoutHeader(headers, 'Set-Cookie') });
-      return;
+      headers = withoutHeader(headers, 'Set-Cookie');
+    }
+    const changes = rules.extensionHeaderChanges?.(details, 'response') ?? [];
+    if (headers && changes.length > 0) {
+      headers = applyHeaderChanges(headers, changes);
     }
     callback({ responseHeaders: headers });
   });

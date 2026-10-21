@@ -32,8 +32,10 @@ export function formatEta(receivedBytes: number, totalBytes: number, bytesPerSec
   if (seconds < 60) {
     return t('shell.format.secondsLeft', { count: seconds });
   }
-  if (seconds < 3600) {
-    return t('shell.format.minutesLeft', { count: Math.round(seconds / 60) });
+  const minutes = Math.round(seconds / 60);
+  // Rounded first, so 59 minutes and 59 seconds reads as an hour rather than "60 min".
+  if (minutes < 60) {
+    return t('shell.format.minutesLeft', { count: minutes });
   }
   return t('shell.format.hoursLeft', { count: Math.round(seconds / 3600) });
 }

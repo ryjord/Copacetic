@@ -9,7 +9,7 @@ export const START_PAGE_URL = `${INTERNAL_SCHEME}://start`;
 export const NAVIGABLE_SCHEMES = new Set(['http:', 'https:', 'file:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 /** Schemes a *page* is allowed to drive a tab to. */
-export const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
+const PAGE_NAVIGABLE_SCHEMES = new Set(['http:', 'https:', `${INTERNAL_SCHEME}:`, 'about:']);
 
 export function isNavigableUrl(value: string): boolean {
   try {
@@ -35,7 +35,12 @@ export function viewSourceUrlFor(url: string): string | null {
 /** True when page code may send a tab here. Stricter than `isNavigableUrl`. */
 export function isPageNavigableUrl(value: string): boolean {
   try {
-    return PAGE_NAVIGABLE_SCHEMES.has(new URL(value).protocol);
+    const { protocol } = new URL(value);
+    // Of our own addresses, a page or another program may reach only a new tab, never Settings or History.
+    if (protocol === `${INTERNAL_SCHEME}:`) {
+      return value === START_PAGE_URL;
+    }
+    return PAGE_NAVIGABLE_SCHEMES.has(protocol);
   } catch {
     return false;
   }
@@ -261,11 +266,31 @@ export function publicSuffixLabelCount(host: string): number {
   return prevailing || 1;
 }
 
+/** Whether a host is an address rather than a name: IPv4, or IPv6 with or without its brackets. */
+export function isAddressHost(host: string): boolean {
+  return IPV4.test(host) || host.startsWith('[') || host.includes(':');
+}
+
+/** The site a host belongs to: its registrable domain, or the host itself where it has none, as localhost does. */
+export function siteOfHost(host: string): string {
+  return registrableDomainOf(host) ?? host;
+}
+
+/** The site of an address, or null for one with no host. */
+export function siteOfUrl(url: string): string | null {
+  const host = hostOf(url);
+  return host ? siteOfHost(host) : null;
+}
+
 /** The registrable domain - the public suffix plus the one label a person actually registered. */
 export function registrableDomainOf(host: string): string | null {
   const bare = toAsciiHost(host).replace(/\.$/, '');
   if (!bare || bare.startsWith('.') || bare.includes('..')) {
     return null;
+  }
+  // An address is its own site: read as names, 127.0.0.1 and 10.0.0.1 would both be the site 0.1.
+  if (isAddressHost(bare)) {
+    return bare;
   }
 
   const labels = bare.split('.');
@@ -336,7 +361,7 @@ export function splitUrlForDisplay(value: string): DisplayUrlParts | null {
   }
 
   const host = url.hostname;
-  if (IPV4.test(host) || host.startsWith('[') || !host.includes('.')) {
+  if (isAddressHost(host) || !host.includes('.')) {
     return { scheme, subdomain: '', registrableDomain: host, path, isInternal };
   }
 

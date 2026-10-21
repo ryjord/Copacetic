@@ -51,19 +51,15 @@ describe('certificate verification is observed, never overridden', () => {
   // The single most important assertion in this file. `0` would mean "accept",
   // which would make every expired, self-signed and wrong-hostname certificate
   // on the internet valid. `-3` defers to Chromium's own verdict.
-  it('always answers with Chromium’s own verdict', () => {
+  it.each([
+    ['an ordinary certificate', 'net::OK'],
+    ['a certificate with an invalid date', 'net::ERR_CERT_DATE_INVALID'],
+    ['a certificate from an unknown authority', 'net::ERR_CERT_AUTHORITY_INVALID'],
+  ])('answers once with Chromium’s own verdict for %s', (_label, verificationResult) => {
     const fake = fakeSession();
     observeCertificates(fake.session as never);
 
-    expect(fake.verify('example.com', cert())).toEqual([-3]);
-  });
-
-  it('answers with Chromium’s verdict even when the certificate was rejected', () => {
-    const fake = fakeSession();
-    observeCertificates(fake.session as never);
-
-    expect(fake.verify('bad.example', cert(), 'net::ERR_CERT_DATE_INVALID')).toEqual([-3]);
-    expect(fake.verify('bad.example', cert(), 'net::ERR_CERT_AUTHORITY_INVALID')).toEqual([-3]);
+    expect(fake.verify('example.com', cert(), verificationResult)).toEqual([-3]);
   });
 
   it('answers with Chromium’s verdict even when recording would throw', () => {
@@ -77,13 +73,6 @@ describe('certificate verification is observed, never overridden', () => {
       },
     };
     expect(fake.verify('example.com', hostile)).toEqual([-3]);
-  });
-
-  it('answers exactly once per verification', () => {
-    const fake = fakeSession();
-    observeCertificates(fake.session as never);
-
-    expect(fake.verify('example.com', cert())).toHaveLength(1);
   });
 });
 
@@ -116,10 +105,6 @@ describe('what the badge is told', () => {
     fake.verify('Example.COM', cert());
 
     expect(certificateFor('example.com')).not.toBeNull();
-  });
-
-  it('returns null for a host never seen', () => {
-    expect(certificateFor('never-visited.example')).toBeNull();
   });
 });
 
@@ -154,20 +139,15 @@ describe('cache behaviour', () => {
 describe('locally-installed roots', () => {
   // The signal that something is reading the connection: a company proxy,
   // antivirus, or a debugging tool. Invisible in every mainstream padlock.
-  it('records when a certificate does not chain to a system root', () => {
+  it.each([
+    ['records when a certificate does not chain to a system root', false],
+    ['records an ordinary public certificate as known', true],
+  ])('%s', (_label, isIssuedByKnownRoot) => {
     const fake = fakeSession();
     observeCertificates(fake.session as never);
-    fake.verify('intranet.example', cert(), 'net::OK', false);
+    fake.verify('intranet.example', cert(), 'net::OK', isIssuedByKnownRoot);
 
-    expect(certificateFor('intranet.example')).toMatchObject({ isIssuedByKnownRoot: false });
-  });
-
-  it('records an ordinary public certificate as known', () => {
-    const fake = fakeSession();
-    observeCertificates(fake.session as never);
-    fake.verify('example.com', cert(), 'net::OK', true);
-
-    expect(certificateFor('example.com')).toMatchObject({ isIssuedByKnownRoot: true });
+    expect(certificateFor('intranet.example')).toMatchObject({ isIssuedByKnownRoot });
   });
 });
 

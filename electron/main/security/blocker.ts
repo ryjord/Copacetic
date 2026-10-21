@@ -4,7 +4,7 @@ import path from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
 
 // Utils
-import { registrableDomainOf } from '../../shared/browsing/url';
+import { siteOfHost } from '../../shared/browsing/url';
 import { t } from '../../shared/i18n/translate';
 import { describeError, log } from '../system/diagnostics';
 
@@ -12,6 +12,7 @@ import { describeError, log } from '../system/diagnostics';
 import type { Session } from 'electron';
 import type { ConnectionEntry } from '../../shared/types';
 import type { BlockingPolicy } from './blocking-policy';
+import type { NetVerdict } from '../extensions/net-rules/outcome';
 
 /** What a shipped list says about itself, for a pane that has to name it. */
 export interface FilterListInfo {
@@ -392,7 +393,7 @@ export class ContentBlocker {
     }
     try {
       const { hostname } = new URL(url);
-      const domain = registrableDomainOf(hostname) ?? hostname;
+      const domain = siteOfHost(hostname);
       // A site someone let show trackers is one they found broken, so nothing is hidden on it either.
       if (policy.isAllowedOn(domain)) {
         return '';
@@ -465,14 +466,17 @@ export class ContentBlocker {
     this.pageHosts.delete(webContentsId);
   }
 
-  /** Blocks in a session by the lists, and by what the profile that owns it chose. */
-  attach(session: Session, policy: BlockingPolicy): void {
+  /**
+   * Blocks in a session by the lists, and by what the profile that owns it chose.
+   * Extensions' rules apply only where extensions run, which is never Hush.
+   */
+  attach(session: Session, policy: BlockingPolicy, appliesExtensionRules = false): void {
     this.policies.set(session, policy);
     session.webRequest.onBeforeRequest((details, callback) => {
       // Chromium waits on this answer, so a throw would hang the request; a failure lets it through and is logged.
       let response: Electron.CallbackResponse;
       try {
-        response = this.decide(details, policy);
+        response = this.decide(details, policy, appliesExtensionRules);
       } catch (error) {
         log.warn('the blocker could not judge a request and let it through', describeError(error));
         response = { cancel: false };
@@ -484,10 +488,19 @@ export class ContentBlocker {
   private decide(
     details: Electron.OnBeforeRequestListenerDetails,
     policy: BlockingPolicy,
+    appliesExtensionRules: boolean,
   ): Electron.CallbackResponse {
     const redirectURL = policy.redirectFor(details);
     if (redirectURL) {
       return { redirectURL };
+    }
+    // An extension's own rules, such as an ad blocker's, then Copacetic's: either may stop a request.
+    const verdict: NetVerdict = appliesExtensionRules ? policy.extensionVerdictFor(details) : { kind: 'none' };
+    if (verdict.kind === 'block') {
+      return { cancel: true };
+    }
+    if (verdict.kind === 'redirect') {
+      return { redirectURL: verdict.url };
     }
 
     let hostname: string;

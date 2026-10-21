@@ -19,24 +19,17 @@ describe('which challenges are worth asking about', () => {
     ).toBe(true);
   });
 
-  // The window would say one site while the password went to another. This is
-  // the phishing route Chromium stopped prompting for as well.
+  // The window would say one site while the password went to another. This is the phishing route Chromium stopped prompting for as well.
   it.each([
     ['https://cdn.other-site.example/img.png', 'https://example.com/'],
     ['http://example.com/thing', 'https://example.com/'],
     ['https://sub.example.com/thing', 'https://example.com/'],
     ['https://example.com:8443/thing', 'https://example.com/'],
+    ['https://example.com/', null],
+    ['nonsense', 'https://example.com/'],
+    ['https://example.com/', 'nonsense'],
   ])('refuses a challenge from %s while the page is %s', (challengeUrl, tabUrl) => {
     expect(isPromptWorthy({ isProxy: false, challengeUrl, tabUrl })).toBe(false);
-  });
-
-  it('refuses when there is no page to compare against', () => {
-    expect(isPromptWorthy({ isProxy: false, challengeUrl: 'https://example.com/', tabUrl: null })).toBe(false);
-  });
-
-  it('refuses when either side is not a URL', () => {
-    expect(isPromptWorthy({ isProxy: false, challengeUrl: 'nonsense', tabUrl: 'https://example.com/' })).toBe(false);
-    expect(isPromptWorthy({ isProxy: false, challengeUrl: 'https://example.com/', tabUrl: 'nonsense' })).toBe(false);
   });
 });
 
@@ -68,13 +61,12 @@ describe('sanitiseRealm', () => {
 describe('describeAuthPrompt', () => {
   const base = { id: 'a', tabId: 't', isProxy: false, host: 'example.com', realm: 'Reports', scheme: 'basic' };
 
-  it('hides the port when it is the default for the scheme', () => {
-    expect(describeAuthPrompt({ ...base, port: 443 }).host).toBe('example.com');
-    expect(describeAuthPrompt({ ...base, port: 80 }).host).toBe('example.com');
-  });
-
-  it('shows a non-default port, since it is part of who is asking', () => {
-    expect(describeAuthPrompt({ ...base, port: 8443 }).host).toBe('example.com:8443');
+  it.each([
+    [443, 'example.com'],
+    [80, 'example.com'],
+    [8443, 'example.com:8443'],
+  ])('shows port %i as %s, since a non-default port is part of who is asking', (port, host) => {
+    expect(describeAuthPrompt({ ...base, port }).host).toBe(host);
   });
 
   it('carries the sanitised realm rather than the raw one', () => {

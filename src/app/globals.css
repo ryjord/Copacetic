@@ -203,9 +203,13 @@
  */
 :root {
   --chrome-header-height: 40px;
-  --chrome-tab-height: 32px;
+  --chrome-tab-height: 28px;
   --chrome-toolbar-height: 44px;
   --chrome-field-height: 32px;
+  /* The one row that holds tabs and address together, when the header is laid out on one line. */
+  --chrome-row-height: 46px;
+  /* The page's frame; the main process rounds the page's own view to match (PAGE_FRAME_RADIUS). */
+  --frame-radius: 10px;
   --row-height: 40px;
   /* What the system's window controls cover on Windows and Linux; nothing on macOS, where they are inset. */
   --window-controls-width: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
@@ -229,7 +233,8 @@
 
 :root[data-density='compact'] {
   --chrome-header-height: 34px;
-  --chrome-tab-height: 28px;
+  --chrome-tab-height: 26px;
+  --chrome-row-height: 40px;
   --chrome-toolbar-height: 38px;
   --chrome-field-height: 28px;
   --row-height: 34px;

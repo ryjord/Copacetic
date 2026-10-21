@@ -4,8 +4,8 @@
 import { useRef, type ReactNode } from 'react';
 
 // Components
-import { EmptyState as EmptyStatePrimitive } from '@/components/ui/EmptyState/EmptyState';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { PageShell } from '@/components/shell/PageShell/PageShell';
 
 // Icons
 import { X } from 'lucide-react';
@@ -16,7 +16,6 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { useDismissLayer } from '@/lib/layers/dismissLayer';
 import { useFocusTrap } from '@/lib/layers/focusTrap';
-import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 interface SurfaceShellProps {
@@ -29,10 +28,10 @@ interface SurfaceShellProps {
 }
 
 /**
- * The frame shared by every full-area panel.
+ * A page's frame laid over the page in front, as reader view is: a dialog that
+ * closes with its button or Escape.
  *
- * Rendered after the page in the DOM, so it covers it by order alone. The
- * header is fixed and only the body scrolls, so nothing passes underneath it.
+ * Rendered after the page in the DOM, so it covers it by order alone.
  */
 export function SurfaceShell({ title, actions, scrolls = true, children }: SurfaceShellProps) {
   const setSurface = useBrowserStore((state) => state.setSurface);
@@ -49,27 +48,25 @@ export function SurfaceShell({ title, actions, scrolls = true, children }: Surfa
       aria-modal="true"
       aria-label={title}
       tabIndex={-1}
-      className="animate-fade absolute inset-0 flex flex-col bg-base outline-none"
+      className="animate-fade absolute inset-0 outline-none"
     >
-      <header className="flex h-12 flex-none items-center gap-3 border-b border-line px-4">
-        <h1 className="min-w-0 flex-1 truncate text-title font-semibold text-ink">{title}</h1>
-        {actions}
-        <IconButton
-          label={t('shell.surfaceShell.close', { title: title.toLowerCase() })}
-          onClick={() => setSurface('none')}
-        >
-          <X size={16} />
-        </IconButton>
-      </header>
-
-      <div className={cn('relative flex min-h-0 flex-1 flex-col', scrolls && 'scroll-thin overflow-y-auto')}>
+      <PageShell
+        title={title}
+        scrolls={scrolls}
+        actions={
+          <>
+            {actions}
+            <IconButton
+              label={t('shell.surfaceShell.close', { title: title.toLowerCase() })}
+              onClick={() => setSurface('none')}
+            >
+              <X size={16} />
+            </IconButton>
+          </>
+        }
+      >
         {children}
-      </div>
+      </PageShell>
     </section>
   );
-}
-
-/** Kept for the surfaces not yet moved to the shared primitive. */
-export function EmptyState({ title, hint }: { title: string; hint: string }) {
-  return <EmptyStatePrimitive title={title} hint={hint} />;
 }

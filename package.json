@@ -1,7 +1,7 @@
 {
   "name": "copacetic",
   "productName": "Copacetic",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A calm, honest browser that shows you the true state of every page.",
   "author": {
     "name": "Riley Jordan",
@@ -32,10 +32,11 @@
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "generate:psl": "node scripts/generate-public-suffix-list.mjs",
     "clean:dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "smoke": "vitest run --config vitest.smoke.config.ts",
+    "smoke": "vitest run --config vitest.smoke.config.mts",
     "filters:update": "node scripts/update-filters.mjs",
     "filters:build": "node scripts/build-filters.mjs",
     "measure": "node scripts/measure-performance.mjs",
+    "record-sign-in": "node scripts/record-sign-in.mjs",
     "check:packaged": "node scripts/check-packaged-app.mjs",
     "pretest": "node scripts/check-node.mjs",
     "preverify": "node scripts/check-node.mjs"
@@ -59,18 +60,18 @@
     "babel-plugin-react-compiler": "1.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "concurrently": "^9.2.1",
+    "concurrently": "^10.0.6",
     "cross-env": "^10.1.0",
-    "electron": "^43.8.1",
+    "electron": "^44.9.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "^16.3.3",
+    "eslint-config-next": "^16.4.2",
     "husky": "^9.1.7",
     "jsdom": "^30.0.1",
     "lint-staged": "^17.6.0",
-    "lucide-react": "^0.577.0",
-    "next": "16.3.2",
+    "lucide-react": "^1.59.0",
+    "next": "16.4.2",
     "playwright": "^1.62.1",
     "postcss": "^8.5.26",
     "prettier": "^3.4.2",
@@ -79,7 +80,7 @@
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.11",
     "wait-on": "^9.0.4",
     "zustand": "^5.0.15"
@@ -121,6 +122,7 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
+      "minimumSystemVersion": "13.0",
       "extraResources": [
         {
           "from": "node_modules/electron/dist/LICENSES.chromium.html",
@@ -199,7 +201,7 @@
     ]
   },
   "lint-staged": {
-    "*.{ts,tsx,mjs}": [
+    "*.{ts,tsx,mts,mjs}": [
       "eslint --fix",
       "prettier --write"
     ],

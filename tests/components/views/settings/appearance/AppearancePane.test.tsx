@@ -23,28 +23,15 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('the browser', () => {
-  it('switches light and dark', () => {
+  it.each([
+    { name: 'light and dark', label: 'Dark', patch: { appearance: 'dark' } },
+    { name: 'the density', label: 'Compact', patch: { density: 'compact' } },
+    { name: 'the accent', label: 'Teal', patch: { accentColour: 'teal' } },
+    { name: 'the text size', label: 'Larger', patch: { interfaceTextSize: 'larger' } },
+  ])('changes $name', ({ label, patch }) => {
     render(<AppearancePane />);
-    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
-    expect(updateSettings).toHaveBeenCalledWith({ appearance: 'dark' });
-  });
-
-  it('changes the density', () => {
-    render(<AppearancePane />);
-    fireEvent.click(screen.getByRole('radio', { name: 'Compact' }));
-    expect(updateSettings).toHaveBeenCalledWith({ density: 'compact' });
-  });
-
-  it('changes the accent', () => {
-    render(<AppearancePane />);
-    fireEvent.click(screen.getByRole('radio', { name: 'Teal' }));
-    expect(updateSettings).toHaveBeenCalledWith({ accentColour: 'teal' });
-  });
-
-  it('changes the text size', () => {
-    render(<AppearancePane />);
-    fireEvent.click(screen.getByRole('radio', { name: 'Larger' }));
-    expect(updateSettings).toHaveBeenCalledWith({ interfaceTextSize: 'larger' });
+    fireEvent.click(screen.getByRole('radio', { name: label }));
+    expect(updateSettings).toHaveBeenCalledWith(patch);
   });
 
   it('adds and removes toolbar buttons', () => {
@@ -65,28 +52,18 @@ describe('the start page background', () => {
     expect(updateSettings).toHaveBeenCalledWith({ theme: 'moss', ambientHue: 0 });
   });
 
-  it('offers the two newer colours', () => {
+  it.each([
+    { name: 'turns the colour when one is typed', typed: '#43122f', turns: true },
+    { name: 'ignores what is not a colour rather than jumping somewhere', typed: 'nonsense', turns: false },
+  ])('$name', ({ typed, turns }) => {
     render(<AppearancePane />);
-    expect(screen.getByRole('radio', { name: 'Dusk' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Sand' })).toBeTruthy();
-  });
-
-  it('shows the colour itself before anything is turned', () => {
-    render(<AppearancePane />);
-    expect(screen.getByLabelText('Start page colour as hex')).toHaveProperty('value', '#123043');
-  });
-
-  it('turns the colour when one is typed', () => {
-    render(<AppearancePane />);
-    fireEvent.change(screen.getByLabelText('Start page colour as hex'), { target: { value: '#43122f' } });
+    fireEvent.change(screen.getByLabelText('Start page colour as hex'), { target: { value: typed } });
+    if (!turns) {
+      expect(updateSettings).not.toHaveBeenCalled();
+      return;
+    }
     const [patch] = updateSettings.mock.calls.at(-1) ?? [];
     expect((patch as { ambientHue: number }).ambientHue).toBeGreaterThan(0);
-  });
-
-  it('ignores what is not a colour rather than jumping somewhere', () => {
-    render(<AppearancePane />);
-    fireEvent.change(screen.getByLabelText('Start page colour as hex'), { target: { value: 'nonsense' } });
-    expect(updateSettings).not.toHaveBeenCalled();
   });
 
   // A drag is one change: saving every step wrote the settings file a hundred times a second.

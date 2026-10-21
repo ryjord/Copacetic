@@ -61,18 +61,9 @@ describe('closing a tab answers everything it was waiting on', () => {
     expect(prompts.permissionPrompts()).toHaveLength(0);
   });
 
-  it('cancels the challenge, so the request behind it stops waiting', () => {
-    const prompts = new PendingPrompts();
-    const responded = addRealisticAuth(prompts, 'a1', 't1');
-
-    expect(prompts.dropForTab('t1')).toBe(true);
-    expect(responded).toHaveBeenCalledWith(undefined);
-    expect(prompts.authPrompts()).toHaveLength(0);
-  });
-
   // Each response removes its own entry from the map being walked, so this pins
   // that walking it is still complete.
-  it('cancels every challenge on the tab, not every other one', () => {
+  it('cancels the challenge, so the request stops waiting, for every one on the tab and not every other one', () => {
     const prompts = new PendingPrompts();
     const first = addRealisticAuth(prompts, 'a1', 't1');
     const second = addRealisticAuth(prompts, 'a2', 't1');
@@ -80,9 +71,9 @@ describe('closing a tab answers everything it was waiting on', () => {
 
     prompts.dropForTab('t1');
 
-    expect(first).toHaveBeenCalled();
-    expect(second).toHaveBeenCalled();
-    expect(third).toHaveBeenCalled();
+    expect(first).toHaveBeenCalledWith(undefined);
+    expect(second).toHaveBeenCalledWith(undefined);
+    expect(third).toHaveBeenCalledWith(undefined);
     expect(prompts.authPrompts()).toHaveLength(0);
   });
 

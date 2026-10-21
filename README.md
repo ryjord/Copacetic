@@ -123,20 +123,34 @@ machine. There are no accounts and no telemetry.
   as addresses and titles only.
 - **Sign-in pop-ups that work.** "Sign in with Google" and its like open as a
   tab that stays linked to the page that opened it, never as a window.
+- **Settings, History, Bookmarks and Downloads in tabs of their own**, so the
+  page you were on stays where it was.
+- **A header laid out your way.** Tabs on a row of their own above the address,
+  or the address and tabs on one line, which leaves more of the window to the
+  page.
 
 ### Extensions (beta)
 
-- **From the Chrome Web Store**, checked against the store's own signature
-  before anything is unpacked, or from a folder while you build one. Settings
-  says what each could do, in the words Chrome's warnings use, before it is
-  added.
+- **From the Chrome Web Store**, from Add to Copacetic in the address bar on
+  an extension's store page or by pasting its address into Settings, checked
+  against the store's own signature before anything is unpacked, or from a
+  folder while you build one. Settings says what each could do, in the words
+  Chrome's warnings use, before it is added.
+- **Kept up to date** from the store every six hours. An update that asks for
+  more than the version in use waits in Settings until you agree to it, as in
+  Chrome.
+- **An extensions menu** on the toolbar, for opening, pinning and the options
+  of each extension; an unpinned one keeps working from there.
 - **Toolbar buttons and popups**, extension items in the page menu, and the
   parts of Chrome's extension API Electron leaves out, supplied by Copacetic
   itself: tabs and their events, windows, navigation events, notifications.
 - **Per profile, and never in Hush.** An extension sees a page's address only
   with leave to, as in Chrome. Dark Reader, Bitwarden and uBlock Origin Lite
-  run; ad blockers do not block, because Electron does not apply their rules,
-  and Copacetic's own blocker does that job.
+  run.
+- **Ad blockers block.** Electron does not apply an extension's
+  declarativeNetRequest rules, so Copacetic matches them itself, as Chrome
+  does: the lists an extension ships, the rules it adds as it runs, and the
+  count of what it blocked on its toolbar button.
 
 ### Reading and saving
 
@@ -161,8 +175,9 @@ machine. There are no accounts and no telemetry.
   from the CSV file each browser exports itself. **Export** bookmarks in the
   format every browser reads and history as plain JSON.
 - **Passwords** kept in a vault sealed with your system keychain, generated to
-  the length and character set you choose, and filled only when you ask: a key
-  in the address bar fills a saved one in one click. They can be searched,
+  the length and character set you choose, offered for saving once you have
+  signed in with one, and filled only when you ask: a key in the address bar
+  fills a saved one in one click. They can be searched,
   sorted, edited and copied, and a copied password is cleared from the
   clipboard after 30 seconds, or as soon as the vault locks.
 - **History, bookmarks and downloads you can filter and sort**, with a tick per
@@ -215,6 +230,8 @@ releases only, unless Settings is set to offer betas too.
 Supported versions are 1.4 and later. Older releases have been withdrawn.
 
 ### macOS
+
+Copacetic needs macOS 13 (Ventura) or later.
 
 The builds are not code-signed, so Gatekeeper refuses the app on first launch
 rather than just warning. Right-click it and choose Open, or clear the
@@ -301,13 +318,16 @@ that. To report something that gets past them, see [SECURITY.md](SECURITY.md).
 | Malicious download filenames          | Path components, control characters and bidirectional overrides are stripped before a file is written                                                                                                           |
 | Tampering with the packaged app       | Electron's fuses are set: no `RunAsNode`, no `NODE_OPTIONS`, no inspector flags, ASAR integrity validated, and the app loads only from its archive                                                              |
 
-Three small scripts are the only ones Copacetic puts in a page, and the
+Four small scripts are the only ones Copacetic puts in a page, and the
 transparency page names each of them. One fills in the `window.chrome` object
 that real Chrome has and Electron leaves empty, with three placeholder members
 and nothing of the browser's, because some sign-in pages refuse a browser
-without it. Fill password runs once, when you choose it. And a page left in full
+without it. Fill password runs once, when you choose it. A page left in full
 screen when you switch to another tab is asked to leave it, with one call that
-reads nothing.
+reads nothing. And on each secure page, in a world of its own the page cannot
+see or reach, one looks for a sign-in form: it stops at once where there is
+none, and otherwise reads the username and password once you send them, so
+Copacetic can offer to save them. Not in Hush, and it can be turned off.
 
 An extension you add runs its own code, in the pages it asks for, as it would in
 Chrome. Once one is added, Copacetic gives every service worker in that profile
@@ -318,14 +338,19 @@ extension and does nothing in a website's worker. None of it reaches Hush.
 
 - **No accounts, sync or cloud.** Everything lives on this machine, and Settings
   writes it back out in open formats, so that is a statement you can check. The
-  only scheduled request is the update check, which reads a version number from
-  GitHub and can be turned off.
-- **Extensions are a beta.** Ad blockers do not block, an extension's page
-  opened in a tab lacks the parts of the API Copacetic supplies, and some
-  extensions will not work. On Linux, started with `--no-sandbox`, an
-  extension cannot see tabs or change its toolbar button: Electron gives an
-  extension's worker Copacetic's script only in a sandboxed process.
+  scheduled requests are the update check, which reads a version number from
+  GitHub, and, once a profile has store extensions, the Chrome Web Store's own
+  check for newer versions of them. Each can be turned off.
+- **Extensions are a beta.** An ad blocker's report of which rules matched is
+  always empty, an extension's page opened in a tab lacks the parts of the API
+  Copacetic supplies, and some extensions will not work. On Linux, started
+  with `--no-sandbox`, an extension cannot see tabs or change its toolbar
+  button: Electron gives an extension's worker Copacetic's script only in a
+  sandboxed process.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
+- **Passkeys and security keys on macOS and Linux.** Electron has no dialog to
+  answer them, so Copacetic tells a site at once that there are none and it
+  offers another way to sign in. On Windows, Windows Hello answers them.
 - **What Electron cannot do.** Cookies, site data and the cache clear for all
   time, not for an hour or a day; find in page has no whole-word option; on
   macOS spelling follows the languages in System Settings.
@@ -456,7 +481,7 @@ Every menu shortcut can be moved to other keys in Settings.
 | `Cmd/Ctrl+S` / `Cmd/Ctrl+Shift+S`  | Save page / save a picture of it    |
 | `Cmd/Ctrl+1` to `8` / `Cmd/Ctrl+9` | Select a tab by position / last tab |
 | `Cmd/Ctrl+Y` / `Cmd/Ctrl+Shift+J`  | History / downloads                 |
-| `Cmd/Ctrl+ +` / `-` / `0`          | Zoom in, out, reset                 |
+| `Cmd/Ctrl+ +` or `=` / `-` / `0`   | Zoom in, out, reset                 |
 | `Cmd/Ctrl+,`                       | Settings                            |
 
 ## Where your data lives

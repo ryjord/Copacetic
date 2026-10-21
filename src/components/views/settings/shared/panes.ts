@@ -88,6 +88,7 @@ export const SETTINGS_PANES = [
       t('settings.terms.appearance.toolbar'),
       t('settings.terms.appearance.bookmarksBar'),
       t('settings.terms.appearance.density'),
+      t('settings.terms.appearance.header'),
       t('settings.terms.appearance.startPage'),
       t('settings.terms.appearance.wallpaper'),
       t('settings.terms.appearance.photo'),

@@ -113,15 +113,23 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
       {/* Keyed by tab, so a switch never shows one tab's hosts under another's heading. */}
       <ConnectionLog key={tab.id} tabId={tab.id} />
       <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
-        <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('sites'))}>
+        <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.showPage('settings', 'sites'))}>
           {t('shell.overlay.siteInfo.siteSettings')}
         </Button>
         {!tab.isHush && (
-          <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('passwords'))}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => send((api) => api.chrome.showPage('settings', 'passwords'))}
+          >
             {t('shell.overlay.siteInfo.savePassword')}
           </Button>
         )}
-        <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.openSettingsPane('transparency'))}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => send((api) => api.chrome.showPage('settings', 'transparency'))}
+        >
           {t('shell.overlay.siteInfo.whatItSends')}
         </Button>
       </div>

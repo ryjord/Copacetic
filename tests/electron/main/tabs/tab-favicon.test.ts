@@ -50,17 +50,11 @@ describe('fetching an icon a page asked for', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('refuses a response that is not an image', async () => {
-    const result = await fetchFaviconDataUrl(
-      PAGE,
-      'https://example.com/icon.png',
-      respondWith({ contentType: 'text/html' }),
-    );
-    expect(result).toBeNull();
-  });
-
-  it('refuses a failed response', async () => {
-    const result = await fetchFaviconDataUrl(PAGE, 'https://example.com/icon.png', respondWith({ ok: false }));
+  it.each([
+    ['is not an image', { contentType: 'text/html' }],
+    ['failed', { ok: false }],
+  ])('refuses a response that %s', async (_name, response) => {
+    const result = await fetchFaviconDataUrl(PAGE, 'https://example.com/icon.png', respondWith(response));
     expect(result).toBeNull();
   });
 
@@ -98,16 +92,11 @@ describe('fetching an icon a page asked for', () => {
 });
 
 describe('an icon that tries to be more than an icon', () => {
-  // The guard judged one address; a redirect could aim the same request at a router.
-  it('does not follow redirects', async () => {
+  // The guard judged one address; a redirect could aim the same request at a router. A response that never ends must be given up on.
+  it('does not follow redirects, and gives up on a response that never ends', async () => {
     const fetcher = respondWith({});
     await fetchFaviconDataUrl(PAGE, 'https://example.com/icon.png', fetcher);
     expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
-  });
-
-  it('gives up on a response that never ends', async () => {
-    const fetcher = respondWith({});
-    await fetchFaviconDataUrl(PAGE, 'https://example.com/icon.png', fetcher);
     expect(fetcher.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 

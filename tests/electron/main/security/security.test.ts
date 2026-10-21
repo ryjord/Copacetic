@@ -186,19 +186,15 @@ describe('permissions a page asks for', () => {
   });
 
   // Notifications rather than location, which is refused outright on Linux and tested on its own below.
-  it('asks about the ones a person can judge', async () => {
+  it('asks about the ones a person can judge, and remembers the answer so the same site is not asked twice', async () => {
     expect(await ask(fake.captured, 'notifications')).toBe(true);
     expect(delegated.asked).toEqual([{ origin: 'https://example.com', kind: 'notifications' }]);
+    expect(delegated.remembered['https://example.com|notifications']).toBe('allow');
   });
 
   it('honours a refusal', async () => {
     delegated.answerWith('deny');
     expect(await ask(fake.captured, 'media')).toBe(false);
-  });
-
-  it('remembers the answer so the same site is not asked twice', async () => {
-    await ask(fake.captured, 'notifications');
-    expect(delegated.remembered['https://example.com|notifications']).toBe('allow');
   });
 
   // The checkbox used to be decoration: every answer was kept whether it was ticked or not.
@@ -265,14 +261,13 @@ describe('permissions a page asks for', () => {
 
 describe('what can be asked for on each platform', () => {
   // A yes on Linux could never produce a position, so the question is not asked.
-  it('does not ask for a location Linux cannot provide', () => {
-    expect(promptFor('geolocation', 'linux')).toBeNull();
-    expect(promptFor('geolocation', 'darwin')?.kind).toBe('geolocation');
-    expect(promptFor('geolocation', 'win32')?.kind).toBe('geolocation');
-  });
-
-  it('asks for the camera everywhere', () => {
-    expect(promptFor('media', 'linux')?.kind).toBe('media');
+  it.each([
+    ['geolocation', 'linux', null],
+    ['geolocation', 'darwin', 'geolocation'],
+    ['geolocation', 'win32', 'geolocation'],
+    ['media', 'linux', 'media'],
+  ] as const)('for %s on %s asks about %s', (permission, platform, expectedKind) => {
+    expect(promptFor(permission, platform)?.kind ?? null).toBe(expectedKind);
   });
 });
 
@@ -478,12 +473,15 @@ describe('the chrome document itself', () => {
 });
 
 describe('isTransportSecure', () => {
-  it.each(['https://example.com/', 'http://localhost:3000/', 'http://127.0.0.1/'])('accepts %s', (url) => {
-    expect(isTransportSecure(url)).toBe(true);
-  });
-
-  it.each(['http://example.com/', 'ftp://example.com/', 'nonsense'])('rejects %s', (url) => {
-    expect(isTransportSecure(url)).toBe(false);
+  it.each([
+    ['https://example.com/', true],
+    ['http://localhost:3000/', true],
+    ['http://127.0.0.1/', true],
+    ['http://example.com/', false],
+    ['ftp://example.com/', false],
+    ['nonsense', false],
+  ])('judges %s as %s', (url, expected) => {
+    expect(isTransportSecure(url)).toBe(expected);
   });
 });
 

@@ -24,7 +24,7 @@ vi.mock('@/store/useBrowserStore', () => ({
     selector({ downloads, closeSurface: () => {}, activeSurface: 'downloads' }),
 }));
 
-const { DownloadsSurface } = await import('@/components/views/downloads/DownloadsSurface');
+const { DownloadsPage } = await import('@/components/views/downloads/DownloadsPage');
 
 afterEach(() => {
   cleanup();
@@ -54,44 +54,60 @@ const download = (overrides: Partial<DownloadState> = {}): DownloadState => ({
  * not exist.
  */
 describe('what a download tells you about itself', () => {
-  it('says nothing about a route when the file came straight from where you asked', () => {
-    downloads = [download()];
-    render(<DownloadsSurface />);
-    expect(document.body.textContent).not.toContain('came from');
-  });
-
-  it('names both ends when the file came from somewhere else', () => {
-    downloads = [download({ urlChain: ['https://get.example.com/x', 'https://cdn.other.test/file'] })];
-    render(<DownloadsSurface />);
-    expect(document.body.textContent).toContain('You asked get.example.com and the file came from cdn.other.test');
-  });
-
   // A routine redirect is a detail; it is there when asked for and quiet until then.
-  it('reads as routine when the redirect stayed on one site', () => {
-    downloads = [download({ urlChain: ['https://www.example.com/a', 'https://dl.example.com/b'] })];
-    render(<DownloadsSurface />);
-    expect(document.body.textContent).not.toContain('Redirected within');
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
-    expect(document.body.textContent).toContain('Redirected within example.com');
+  it.each([
+    {
+      name: 'says nothing about a route when the file came straight from where you asked',
+      urlChain: ['https://example.com/installer.dmg'],
+      shown: null,
+      hidden: 'came from',
+      needsDetails: false,
+    },
+    {
+      name: 'names both ends when the file came from somewhere else',
+      urlChain: ['https://get.example.com/x', 'https://cdn.other.test/file'],
+      shown: 'You asked get.example.com and the file came from cdn.other.test',
+      hidden: null,
+      needsDetails: false,
+    },
+    {
+      name: 'reads as routine when the redirect stayed on one site',
+      urlChain: ['https://www.example.com/a', 'https://dl.example.com/b'],
+      shown: 'Redirected within example.com',
+      hidden: 'Redirected within',
+      needsDetails: true,
+    },
+  ])('$name', ({ urlChain, shown, hidden, needsDetails }) => {
+    downloads = [download({ urlChain })];
+    render(<DownloadsPage />);
+    if (hidden !== null) {
+      expect(document.body.textContent).not.toContain(hidden);
+    }
+    if (needsDetails) {
+      fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    }
+    if (shown !== null) {
+      expect(document.body.textContent).toContain(shown);
+    }
   });
 
   it('shows the hash of what actually arrived', () => {
     downloads = [download({ sha256: 'abc123def456' })];
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
     expect(document.body.textContent).toContain('abc123def456');
   });
 
   it('offers no details before a hash has been computed', () => {
     downloads = [download({ sha256: null })];
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     expect(screen.queryByRole('button', { name: 'Show details' })).toBeNull();
   });
 
   // A finished download is the ordinary case and says nothing; one whose file has gone says so.
   it('marks a file that is no longer where it was saved', () => {
     downloads = [download({ fileExists: false })];
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     expect(screen.getByText('Missing')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Show in folder' })).toBeNull();
   });
@@ -106,7 +122,7 @@ describe('narrowing and acting on the list', () => {
 
   it('shows only the failed ones when asked', () => {
     downloads = several();
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     fireEvent.click(screen.getByRole('radio', { name: 'Failed' }));
     expect(screen.queryByText('zebra.pdf')).toBeNull();
     expect(screen.getByText('broken.iso')).toBeTruthy();
@@ -117,7 +133,7 @@ describe('narrowing and acting on the list', () => {
       download(),
       download({ id: 'two', filename: 'notes.txt', url: 'https://files.other.org/notes.txt' }),
     ];
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search by name or site' }), {
       target: { value: 'other.org' },
     });
@@ -127,14 +143,14 @@ describe('narrowing and acting on the list', () => {
 
   it('says how many it will clear', () => {
     downloads = several();
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Clear 3 finished' }));
     expect(sent).toEqual([['clearCompleted']]);
   });
 
   it('removes a selection from the list at once', () => {
     downloads = several();
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select zebra.pdf' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select apple.zip' }));
     fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: 'Remove from list' }));
@@ -144,7 +160,7 @@ describe('narrowing and acting on the list', () => {
   // A program waiting on the person, said in a sentence, and thrown away only once confirmed.
   it('explains a held file and confirms before deleting it', async () => {
     downloads = [download({ status: 'progressing', isHeld: true, completedAt: null })];
-    render(<DownloadsSurface />);
+    render(<DownloadsPage />);
     expect(screen.getByText(/is a program or installer, so it is held/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Delete it' }));
     expect(sent).toEqual([]);

@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Copacetic smoke rules",
+  "version": "1.0",
+  "description": "Blocks with declarativeNetRequest, as an ad blocker does.",
+  "permissions": ["declarativeNetRequest"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "action": {
+    "default_title": "Rules"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "shipped",
+        "enabled": true,
+        "path": "shipped.json"
+      },
+      {
+        "id": "spare",
+        "enabled": false,
+        "path": "spare.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["stand-in.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

@@ -19,34 +19,29 @@ import {
   matchesTerm,
   searchSettings,
 } from '@/components/views/settings/shared/panes';
-import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
+import { PageShell } from '@/components/shell/PageShell/PageShell';
 
 // Icons
 import { Ellipsis } from 'lucide-react';
 
-// Store
-import { useBrowserStore } from '@/store/useBrowserStore';
-
 // Utils
-import { ask } from '@/lib/bridge/bridge';
+import { ask, send } from '@/lib/bridge/bridge';
 import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 import { cn } from '@/lib/utils';
 import { updateSettings } from '@/components/views/settings/shared/options';
+import { internalPageUrl } from '@shared/tabs/internal-pages';
 import { t } from '@shared/i18n/translate';
 
 // Types
 import type { AppInfo } from '@shared/types';
 
-export function SettingsSurface() {
+/** Settings in a tab of its own; the pane is part of the tab's address, so it survives a restart. */
+export function SettingsPage({ tabId, section }: { tabId: string; section: string | null }) {
   const [info, setInfo] = useState<AppInfo | null>(null);
-  const requestedPane = useBrowserStore((state) => state.settingsPane);
-  // Read once: the surface mounts each time it opens, and after that the nav is in charge.
-  const [activePaneId, setActivePaneId] = useState<PaneId>(
-    () => SETTINGS_PANES.find((pane) => pane.id === requestedPane)?.id ?? 'general',
-  );
+  const activePaneId: PaneId = SETTINGS_PANES.find((pane) => pane.id === section)?.id ?? 'general';
   const [query, setQuery] = useState('');
   // What a search result asked for, each request its own, so asking twice for the same row still lands.
-  const [landing, setLanding] = useState<{ term: string; request: number } | null>(null);
+  const [landing, setLanding] = useState<{ term: string; paneId: PaneId; request: number } | null>(null);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
 
@@ -61,15 +56,16 @@ export function SettingsSurface() {
   const openPane = (id: string, term?: string) => {
     const pane = SETTINGS_PANES.find((candidate) => candidate.id === id);
     if (pane) {
-      setActivePaneId(pane.id);
+      send((api) => api.tabs.navigate(tabId, internalPageUrl('settings', pane.id)));
       setQuery('');
-      setLanding((previous) => (term ? { term, request: (previous?.request ?? 0) + 1 } : null));
+      setLanding((previous) => (term ? { term, paneId: pane.id, request: (previous?.request ?? 0) + 1 } : null));
     }
   };
 
   // Lands on the row a search was for, so nobody has to read the pane again to find it.
   useEffect(() => {
-    if (!landing) {
+    // The pane arrives through the tab's address a moment later; until it does, there is nothing to land on.
+    if (!landing || landing.paneId !== activePaneId) {
       return;
     }
     const frame = requestAnimationFrame(() => {
@@ -96,13 +92,13 @@ export function SettingsSurface() {
   const isWide = WIDE_PANES.includes(activePane.id);
 
   return (
-    <SurfaceShell title={t('settings.surface.title')} scrolls={false}>
+    <PageShell title={t('settings.page.title')} scrolls={false}>
       <div className="flex min-h-0 flex-1">
         <nav
-          aria-label={t('settings.surface.sections')}
+          aria-label={t('settings.page.sections')}
           className="flex w-66 flex-none flex-col gap-3 border-r border-line bg-toolbar px-3 py-5"
         >
-          <SearchField value={query} onChange={setQuery} label={t('settings.surface.search')} />
+          <SearchField value={query} onChange={setQuery} label={t('settings.page.search')} />
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="flex flex-col gap-0.5">
               <h3 className="px-2.5 pb-1 pt-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint">
@@ -179,7 +175,7 @@ export function SettingsSurface() {
       >
         {t('settings.pageMenu.resetBody')}
       </ConfirmDialog>
-    </SurfaceShell>
+    </PageShell>
   );
 }
 
@@ -194,9 +190,9 @@ function SearchResults({
 }) {
   return (
     <>
-      <PageHeader title={t('settings.surface.results')} />
+      <PageHeader title={t('settings.page.results')} />
       {matches.length === 0 ? (
-        <p className="text-body text-ink-dim">{t('settings.surface.noMatch', { query })}</p>
+        <p className="text-body text-ink-dim">{t('settings.page.noMatch', { query })}</p>
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-raised">
           {matches.map((match) => (

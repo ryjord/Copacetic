@@ -35,7 +35,7 @@ function tab(id: string, url: string): TabState {
     blockedCount: 0,
     loadMs: 120,
     zoomFactor: 1,
-    isStartPage: false,
+    internalPage: null,
     isBookmarked: false,
   };
 }
@@ -45,22 +45,15 @@ afterEach(cleanup);
 describe('Omnibox render stability', () => {
   // React error #301. Comparing a bare `tab?.id` against state normalised to
   // null made this loop until React gave up, and the chrome rendered nothing.
-  it('renders with no active tab without exceeding the render limit', () => {
+  it('never loops rendering null <-> tab', () => {
     expect(() => render(<Omnibox tab={null} />)).not.toThrow();
-  });
-
-  it('renders with an active tab', () => {
-    render(<Omnibox tab={tab('a', 'https://example.com/')} />);
-    expect(screen.getByLabelText('Address and search')).toBeTruthy();
-  });
-
-  it('survives switching between a tab and no tab repeatedly', () => {
+    cleanup();
     const { rerender } = render(<Omnibox tab={tab('a', 'https://example.com/')} />);
     expect(() => {
-      for (let i = 0; i < 5; i += 1) {
+      Array.from({ length: 5 }, (_unused, index) => {
         rerender(<Omnibox tab={null} />);
-        rerender(<Omnibox tab={tab(`t${i}`, `https://site${i}.com/`)} />);
-      }
+        rerender(<Omnibox tab={tab(`t${index}`, `https://site${index}.com/`)} />);
+      });
     }).not.toThrow();
   });
 
@@ -96,19 +89,23 @@ describe('Omnibox render stability', () => {
 });
 
 describe('Omnibox zoom chip', () => {
-  it('stays hidden at the default zoom', () => {
-    render(<Omnibox tab={tab('a', 'https://example.com/')} />);
-    expect(screen.queryByTitle('Reset zoom')).toBeNull();
-  });
-
-  it('shows the zoom once the page is off the default', () => {
-    render(<Omnibox tab={{ ...tab('a', 'https://example.com/'), zoomFactor: 1.25 }} />);
-    expect(screen.getByTitle('Reset zoom').textContent).toBe('125%');
-    expect(screen.getByLabelText('Zoom 125%, reset to 100%')).toBeTruthy();
-  });
-
-  it('is not shown on the start page', () => {
-    render(<Omnibox tab={{ ...tab('a', 'copacetic://start'), zoomFactor: 1.5, isStartPage: true }} />);
-    expect(screen.queryByTitle('Reset zoom')).toBeNull();
+  it.each([
+    { name: 'stays hidden at the default zoom', zoomFactor: 1, internalPage: null, chipLabel: null },
+    {
+      name: 'shows the zoom once the page is off the default',
+      zoomFactor: 1.25,
+      internalPage: null,
+      chipLabel: '125%',
+    },
+    { name: 'is not shown on the start page', zoomFactor: 1.5, internalPage: 'start' as const, chipLabel: null },
+    { name: 'is not shown on a page of ours', zoomFactor: 1.5, internalPage: 'settings' as const, chipLabel: null },
+  ])('$name', ({ zoomFactor, internalPage, chipLabel }) => {
+    render(<Omnibox tab={{ ...tab('a', 'https://example.com/'), zoomFactor, internalPage }} />);
+    if (chipLabel === null) {
+      expect(screen.queryByTitle('Reset zoom')).toBeNull();
+      return;
+    }
+    expect(screen.getByTitle('Reset zoom').textContent).toBe(chipLabel);
+    expect(screen.getByLabelText(`Zoom ${chipLabel}, reset to 100%`)).toBeTruthy();
   });
 });

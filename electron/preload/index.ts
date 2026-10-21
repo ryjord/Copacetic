@@ -31,7 +31,6 @@ const api = {
     state: (listener: (patch: BrowserStatePatch) => void) => subscribe(PUSH.state, listener),
     focusOmnibox: (listener: () => void) => subscribe(PUSH.focusOmnibox, listener),
     openSurface: (listener: (surface: ChromeSurface) => void) => subscribe(PUSH.openSurface, listener),
-    openSettingsPane: (listener: (paneId: string) => void) => subscribe(PUSH.openSettingsPane, listener),
     renameGroup: (listener: (groupId: string) => void) => subscribe(PUSH.renameGroup, listener),
     bookmarksChanged: (listener: () => void) => subscribe(PUSH.bookmarksChanged, listener),
     dataChanged: (listener: (kind: DataKind) => void) => subscribe(PUSH.dataChanged, listener),

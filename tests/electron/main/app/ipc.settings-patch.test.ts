@@ -29,6 +29,7 @@ describe('every setting can actually be changed', () => {
     ],
     theme: 'moss',
     density: 'compact',
+    headerLayout: 'one-line',
     accentColour: 'teal',
     interfaceTextSize: 'large',
     toolbarItems: ['home', 'reader'],
@@ -45,6 +46,9 @@ describe('every setting can actually be changed', () => {
     startPageWidgets: ['search', 'clock'],
     checkForUpdates: false,
     updateChannel: 'betas',
+    updateExtensions: false,
+    offerToSavePasswords: false,
+    neverSavePasswordsOn: ['example.com'],
     permissionDecisions: { 'https://example.com|media': 'allow' },
     permissionDefaults: { notifications: 'block', geolocation: 'ask' },
     zoomLevels: { 'https://example.com': 1.5 },
@@ -122,41 +126,30 @@ describe('but only settings, and only sane ones', () => {
  */
 describe('what the settings patch refuses', () => {
   // An unknown policy stored would reach Chromium as nothing it recognises.
-  it('drops a WebRTC policy that does not exist', () => {
-    expect(asSettingsPatch({ webRtcPolicy: 'leakEverything' })).not.toHaveProperty('webRtcPolicy');
-  });
-
-  it('takes a theme that exists', () => {
-    expect(asSettingsPatch({ theme: 'ember' }).theme).toBe('ember');
-  });
-
-  it('drops one that does not, rather than storing it', () => {
-    expect(asSettingsPatch({ theme: 'neon' }).theme).toBeUndefined();
-    expect(asSettingsPatch({ theme: '' }).theme).toBeUndefined();
-  });
-
-  it('takes a search engine it knows', () => {
-    expect(asSettingsPatch({ searchEngine: 'duckduckgo' }).searchEngine).toBe('duckduckgo');
-  });
-
-  it('drops one it does not', () => {
-    expect(asSettingsPatch({ searchEngine: 'https://evil.example/?q=' }).searchEngine).toBeUndefined();
+  it.each([
+    ['takes a WebRTC policy that exists', { webRtcPolicy: 'proxiedOnly' }, 'webRtcPolicy', 'proxiedOnly'],
+    ['drops a WebRTC policy that does not exist', { webRtcPolicy: 'leakEverything' }, 'webRtcPolicy', undefined],
+    ['takes a theme that exists', { theme: 'ember' }, 'theme', 'ember'],
+    ['drops a theme that does not, rather than storing it', { theme: 'neon' }, 'theme', undefined],
+    ['drops an empty theme', { theme: '' }, 'theme', undefined],
+    ['takes a search engine it knows', { searchEngine: 'duckduckgo' }, 'searchEngine', 'duckduckgo'],
+    ['drops a search engine it does not', { searchEngine: 'https://evil.example/?q=' }, 'searchEngine', undefined],
+  ])('%s', (_name, patch, key, expected) => {
+    expect(asSettingsPatch(patch)[key as keyof Settings]).toBe(expected);
   });
 
   /*
    * Zoom was stored exactly as given and applied unclamped, so a level of 1000
    * could be written down and read back later as that site's zoom - legible
-   * only as a page that will not display.
+   * only as a page that will not display. An ordinary zoom is left as chosen.
    */
-  it('clamps a zoom level on the way in, not only when it is applied', () => {
-    const patch = asSettingsPatch({ zoomLevels: { 'https://a.example': 1000, 'https://b.example': 0.001 } });
-    expect(patch.zoomLevels?.['https://a.example']).toBe(5);
-    expect(patch.zoomLevels?.['https://b.example']).toBe(0.25);
-  });
-
-  // The counterweight: an ordinary zoom is left exactly as it was chosen.
-  it('leaves a sensible zoom alone', () => {
-    expect(asSettingsPatch({ zoomLevels: { 'https://a.example': 1.5 } }).zoomLevels?.['https://a.example']).toBe(1.5);
+  it.each([
+    ['clamps a zoom level of 1000 down on the way in', 1000, 5],
+    ['clamps a zoom level of 0.001 up on the way in', 0.001, 0.25],
+    ['leaves a sensible zoom alone', 1.5, 1.5],
+  ])('%s', (_name, input, expected) => {
+    const patch = asSettingsPatch({ zoomLevels: { 'https://a.example': input } });
+    expect(patch.zoomLevels?.['https://a.example']).toBe(expected);
   });
 
   /*
@@ -172,10 +165,12 @@ describe('what the settings patch refuses', () => {
     expect(asSettingsPatch({ defaultZoomFactor: Number.POSITIVE_INFINITY }).defaultZoomFactor).toBeUndefined();
   });
 
-  it('clamps a default zoom the same way as the per-site ones', () => {
-    expect(asSettingsPatch({ defaultZoomFactor: 1000 }).defaultZoomFactor).toBe(5);
-    expect(asSettingsPatch({ defaultZoomFactor: 0.001 }).defaultZoomFactor).toBe(0.25);
-    expect(asSettingsPatch({ defaultZoomFactor: 1.25 }).defaultZoomFactor).toBe(1.25);
+  it.each([
+    [1000, 5],
+    [0.001, 0.25],
+    [1.25, 1.25],
+  ])('clamps a default zoom of %d to %d, the same way as the per-site ones', (input, expected) => {
+    expect(asSettingsPatch({ defaultZoomFactor: input }).defaultZoomFactor).toBe(expected);
   });
 });
 

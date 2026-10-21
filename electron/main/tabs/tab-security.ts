@@ -1,6 +1,10 @@
-import { START_PAGE_URL, hostOf, isLoopbackHost } from '../../shared/browsing/url';
-import type { CertificateSummary, SecurityState } from '../../shared/types';
+// Utils
+import { hostOf, isLoopbackHost } from '../../shared/browsing/url';
+import { internalPageOf } from '../../shared/tabs/internal-pages';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { CertificateSummary, SecurityState } from '../../shared/types';
 
 export function describeSecurity(
   url: string,
@@ -18,11 +22,12 @@ export function describeSecurity(
     parsed = null;
   }
 
-  if (!parsed || url === START_PAGE_URL) {
+  const internalPage = internalPageOf(url);
+  if (!parsed || internalPage) {
     return {
       level: 'internal',
       scheme: 'copacetic',
-      host: 'start',
+      host: internalPage ?? 'start',
       detail: t('main.security.internalPage'),
       certificate: null,
       certificateChange: '',

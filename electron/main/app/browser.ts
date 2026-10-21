@@ -15,11 +15,12 @@ import { BookmarkCommands } from '../workflows/bookmarks';
 import { DataTransfer } from '../workflows/data-transfer';
 import { GroupCommands } from '../workflows/groups';
 import { PasswordFill } from '../workflows/password-fill';
+import { PasswordSave } from '../workflows/password-save';
 import { SiteData } from '../workflows/site-data';
 import { TabCommands } from '../workflows/tab-commands';
 import { OverlayLayer } from '../window/overlay';
 import { createChromeWindow } from '../window/window';
-import { groundColour, surfaceColour, titleBarOverlayFor } from '../window/appearance';
+import { groundColour, surfaceColour, titleBarOverlayFor, windowButtonPositionFor } from '../window/appearance';
 import { showPageContextMenu } from '../menus/context-menu';
 import { chromeEntryUrl, isDevelopment } from './env';
 import { t } from '../../shared/i18n/translate';
@@ -40,6 +41,7 @@ import type {
   TabId,
 } from '../../shared/types';
 import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
+import type { InternalPage } from '../../shared/tabs/internal-pages';
 import type { SuggestionView } from '../../shared/browsing/suggestion-view';
 import type { ContentBlocker } from '../security/blocker';
 import type { DownloadManager } from '../data/downloads';
@@ -67,6 +69,7 @@ export class Browser {
   readonly sites: SiteData;
   readonly transfer: DataTransfer;
   readonly passwords: PasswordFill;
+  readonly passwordSave: PasswordSave;
   readonly commands: TabCommands;
 
   private readonly overlays: Record<OverlayRegion, OverlayLayer>;
@@ -105,7 +108,8 @@ export class Browser {
   }
 
   constructor(readonly profile: Profile) {
-    this.window = createChromeWindow(profile.settings().density);
+    const { density, headerLayout } = profile.settings();
+    this.window = createChromeWindow(density, headerLayout);
     this.publisher = new StatePublisher({
       snapshot: () => this.getState(),
       send: (patch) => {
@@ -131,7 +135,10 @@ export class Browser {
       // No tab is born in a partition the registry has not hardened first.
       (partition) => profile.sessions.prepare(partition),
       () => this.scheduleStatePush(),
-      (tabId) => profile.dropPermissionsForTab(tabId),
+      (tabId) => {
+        profile.dropPermissionsForTab(tabId);
+        this.passwordSave.forget(tabId);
+      },
       // Anything drawn over the page has to follow the page, which moves whenever a row of the chrome does.
       (bounds) => this.eachOverlay((overlay) => overlay.setContentBounds(bounds)),
     );
@@ -179,6 +186,18 @@ export class Browser {
       changed,
     });
     this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
+    this.passwordSave = new PasswordSave({
+      tabs: this.tabs,
+      vaultSession: this.vaultSession,
+      notices: this.notices,
+      settings: () => this.profile.settings(),
+      neverOn: (site) => {
+        const { neverSavePasswordsOn } = this.profile.settings();
+        this.profile.updateSettings({ neverSavePasswordsOn: [...new Set([...neverSavePasswordsOn, site])] });
+      },
+      changed,
+    });
+    this.tabs.onPageChange((tabId, change) => this.passwordSave.pageChanged(tabId, change));
     this.commands = new TabCommands({ store: this.store, tabs: this.tabs, notices: this.notices, changed, push });
 
     this.window.on('closed', () => this.dispose());
@@ -244,6 +263,7 @@ export class Browser {
       update: this.updates.getState(),
       siteInfo: this.siteInfo,
       bookmarkSheet: this.bookmarkSheet,
+      passwordOffer: this.passwordSave.offerFor(activeTabId),
       profile: this.profile.summary(),
       profiles: this.profile.allProfiles(),
     };
@@ -269,8 +289,11 @@ export class Browser {
   repaint(): void {
     if (!this.window.isDestroyed()) {
       this.window.setBackgroundColor(groundColour());
-      if (process.platform !== 'darwin') {
-        this.window.setTitleBarOverlay(titleBarOverlayFor(this.profile.settings().density));
+      const { density, headerLayout } = this.profile.settings();
+      if (process.platform === 'darwin') {
+        this.window.setWindowButtonPosition(windowButtonPositionFor(density, headerLayout));
+      } else {
+        this.window.setTitleBarOverlay(titleBarOverlayFor(density, headerLayout));
       }
     }
     this.tabs.setBackgroundColor(surfaceColour());
@@ -447,7 +470,7 @@ export class Browser {
   toggleBookmarkForActiveTab(): void {
     const { tabs, activeTabId } = this.tabs.snapshot();
     const tab = tabs.find((candidate) => candidate.id === activeTabId);
-    if (tab && !tab.isStartPage) {
+    if (tab && tab.internalPage === null) {
       this.toggleBookmark(tab.url, tab.title);
     }
   }
@@ -520,9 +543,12 @@ export class Browser {
     this.pushToChrome(PUSH.openSurface, surface);
   }
 
-  openSettingsPane(paneId: string): void {
+  /** Settings, history, bookmarks or downloads, in a tab of their own rather than over the page. */
+  showPage(page: InternalPage, section: string | null = null): void {
     this.closeSiteInfo();
-    this.pushToChrome(PUSH.openSettingsPane, paneId);
+    // The page is the thing asked for, so an overlay such as the palette gives way to it.
+    this.openSurface('none');
+    this.tabs.showInternalPage(page, section);
   }
 
   /** What was asked for before anyone was listening, collected as the chrome starts. */
@@ -565,7 +591,7 @@ export class Browser {
   toggleSiteInfo(): void {
     const { tabs, activeTabId } = this.tabs.snapshot();
     const activeTab = tabs.find((tab) => tab.id === activeTabId);
-    if (this.siteInfo || !activeTab || activeTab.isStartPage) {
+    if (this.siteInfo || !activeTab || activeTab.internalPage !== null) {
       this.closeSiteInfo();
       return;
     }

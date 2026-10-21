@@ -17,11 +17,14 @@ describe('what an extension could do, in words', () => {
     ]);
   });
 
-  it('says nothing for permissions that need no warning', () => {
-    expect(abilitiesOf(['storage', 'alarms', 'scripting'], [])).toEqual([]);
-  });
-
-  it('says one sentence once, however many permissions lead to it', () => {
-    expect(abilitiesOf(['tabs', 'webNavigation'], [])).toEqual(['Read your browsing history']);
+  it.each([
+    ['nothing for permissions that need no warning', ['storage', 'alarms', 'scripting'], []],
+    [
+      'one sentence once, however many permissions lead to it',
+      ['tabs', 'webNavigation'],
+      ['Read your browsing history'],
+    ],
+  ])('says %s', (_caseName, permissions, expected) => {
+    expect(abilitiesOf(permissions, [])).toEqual(expected);
   });
 });

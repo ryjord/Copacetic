@@ -11,6 +11,7 @@ import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { TextField } from '@/components/ui/TextField/TextField';
 import { GeneratorOptions } from '@/components/views/settings/passwords/GeneratorOptions';
 import { SavedPasswords } from '@/components/views/settings/passwords/SavedPasswords';
+import { SaveOffers } from '@/components/views/settings/passwords/SaveOffers';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -119,6 +120,8 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
           }
         />
       </SettingGroup>
+
+      {isUsable && <SaveOffers />}
 
       <SettingGroup
         title={

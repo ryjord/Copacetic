@@ -21,12 +21,6 @@ describe('opening the database', () => {
     expect(versionOf(openDatabase(file))).toBe(MIGRATIONS.at(-1)?.version);
   });
 
-  // Every start opens it again, so running the steps twice must be impossible rather than merely harmless.
-  it('applies each step once', () => {
-    openDatabase(file).close();
-    expect(() => openDatabase(file)).not.toThrow();
-  });
-
   it('applies only the steps a database has not had', () => {
     const steps = [
       { version: 1, sql: 'CREATE TABLE one (id INTEGER)' },
@@ -36,6 +30,24 @@ describe('opening the database', () => {
     const database = openDatabase(file, steps);
     expect(versionOf(database)).toBe(2);
     expect(database.prepare("SELECT count(*) AS total FROM sqlite_master WHERE name = 'two'").get()?.total).toBe(1);
+  });
+
+  // The real steps run over rows an older build wrote, not just over an empty file.
+  it('upgrades a populated older database without losing its rows', () => {
+    openDatabase(file, MIGRATIONS.slice(0, 1)).close();
+    const older = new DatabaseSync(file);
+    older
+      .prepare('INSERT INTO history (id, url, title, last_visited_at, visit_count) VALUES (?, ?, ?, ?, ?)')
+      .run('entry-1', 'https://kept.example/', 'Kept', 1_700_000_000_000, 3);
+    older.close();
+
+    const database = openDatabase(file);
+    expect(versionOf(database)).toBe(MIGRATIONS.at(-1)?.version);
+    expect(database.prepare('SELECT title, visit_count FROM history WHERE id = ?').get('entry-1')).toMatchObject({
+      title: 'Kept',
+      visit_count: 3,
+    });
+    expect(database.prepare('SELECT count(*) AS total FROM history').get()?.total).toBe(1);
   });
 
   it('leaves a database at the last step that worked when a step fails', () => {

@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { installChromePolyfill } from '../../../../electron/preload/extensions/polyfill';
+import { NET_RULE_LIMITS } from '../../../../electron/main/extensions/net-rules/extension-net-rules';
+import { CALL_REFUSED } from '../../../../electron/shared/extensions/channels';
 
 type Listener = (name: string, args: unknown[]) => void;
 
 function world(chrome: Record<string, unknown>) {
   let deliver: Listener = () => {};
-  const invoke = vi.fn(async (method: string) => (method === 'tabs.query' ? [{ id: 1 }] : null));
+  const invoke = vi.fn(async (method: string): Promise<unknown> => (method === 'tabs.query' ? [{ id: 1 }] : null));
   Reflect.set(globalThis, 'chrome', chrome);
   Reflect.set(globalThis, '__copaceticExtensions', { invoke, onEvent: (listener: Listener) => (deliver = listener) });
   installChromePolyfill();
@@ -77,5 +79,55 @@ describe("the parts of Chrome's API Electron leaves out", () => {
     Reflect.set(globalThis, 'chrome', chrome);
     installChromePolyfill();
     expect(chrome.tabs?.query).toBeUndefined();
+  });
+});
+
+describe('declarativeNetRequest', () => {
+  // Chromium's own binding answers every call and applies none of the rules.
+  it('is answered by the main process, not by the binding Chromium leaves in Electron', async () => {
+    const native = async () => undefined;
+    const chrome: Record<string, Record<string, unknown>> = { declarativeNetRequest: { updateDynamicRules: native } };
+    const { invoke } = world(chrome);
+    const update = chrome.declarativeNetRequest?.updateDynamicRules as (options: unknown) => Promise<unknown>;
+    expect(update).not.toBe(native);
+    await update({ addRules: [] });
+    expect(invoke).toHaveBeenCalledWith('declarativeNetRequest.updateDynamicRules', [{ addRules: [] }]);
+  });
+
+  // The polyfill runs inside the extension and cannot import, so its copy of Chrome's numbers is checked against ours.
+  it('gives the limits the main process enforces', () => {
+    const chrome: Record<string, Record<string, unknown>> = {};
+    world(chrome);
+    for (const [name, value] of Object.entries(NET_RULE_LIMITS)) {
+      expect(chrome.declarativeNetRequest?.[name]).toBe(value);
+    }
+    expect(chrome.declarativeNetRequest?.RuleActionType).toMatchObject({
+      BLOCK: 'block',
+      ALLOW_ALL_REQUESTS: 'allowAllRequests',
+    });
+  });
+
+  it('rejects a call the main process refused, with its reason', async () => {
+    const chrome: Record<string, Record<string, unknown>> = {};
+    const { invoke } = world(chrome);
+    invoke.mockImplementation(async () => ({ [CALL_REFUSED]: 'Rule with id 1 does not have a unique ID.' }));
+    const update = chrome.declarativeNetRequest?.updateDynamicRules as (options: unknown) => Promise<unknown>;
+    await expect(update({})).rejects.toThrow('Rule with id 1 does not have a unique ID.');
+  });
+
+  // An older extension passes a callback and reads runtime.lastError inside it, as in Chrome.
+  it('tells a callback of the refusal through runtime.lastError', async () => {
+    const chrome: Record<string, Record<string, unknown>> = { runtime: {} };
+    const { invoke } = world(chrome);
+    invoke.mockImplementation(async () => ({ [CALL_REFUSED]: 'Invalid ruleset id: x.' }));
+    const seen = await new Promise<unknown>((resolve) => {
+      const update = chrome.declarativeNetRequest?.updateEnabledRulesets as (
+        options: unknown,
+        done: () => void,
+      ) => void;
+      update({}, () => resolve(Reflect.get(chrome.runtime ?? {}, 'lastError')));
+    });
+    expect(seen).toEqual({ message: 'Invalid ruleset id: x.' });
+    expect(Reflect.get(chrome.runtime ?? {}, 'lastError')).toBeUndefined();
   });
 });

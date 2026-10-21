@@ -1,9 +1,32 @@
+import { useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
+import { SettingsPage } from '@/components/views/settings/SettingsPage';
 import { NAV_GROUPS, PANE_TITLES, SETTINGS_PANES, searchSettings } from '@/components/views/settings/shared/panes';
+import { internalAddressOf } from '@shared/tabs/internal-pages';
 
-vi.mock('@/lib/bridge/bridge', async () => (await import('./bridge-mock')).fallbackBridge);
+// The pane is part of the tab's address, so choosing one goes through the tab and comes back as its section.
+const tabAddress = { navigate: (_url: string) => {} };
+const anyCall = new Proxy({}, { get: () => () => undefined });
+const fakeApi = new Proxy({}, { get: (_target, section) => (section === 'tabs' ? tabsApi : anyCall) });
+const tabsApi = { navigate: (_tabId: string, url: string) => tabAddress.navigate(url) };
+vi.mock('@/lib/bridge/bridge', async () => ({
+  ...(await import('./bridge-mock')).fallbackBridge,
+  send: (action: (api: unknown) => unknown) => action(fakeApi),
+}));
+
+function SettingsInATab({ startAt = 'copacetic://settings' }: { startAt?: string }) {
+  const [url, setUrl] = useState(startAt);
+  useEffect(() => {
+    tabAddress.navigate = setUrl;
+  }, []);
+  return (
+    <>
+      <output aria-label="Tab address">{url}</output>
+      <SettingsPage tabId="tab" section={internalAddressOf(url)?.section ?? null} />
+    </>
+  );
+}
 
 afterEach(cleanup);
 
@@ -11,7 +34,7 @@ afterEach(cleanup);
 const PANES = SETTINGS_PANES.map((pane) => pane.label);
 
 const openPane = (label: string) => {
-  render(<SettingsSurface />);
+  render(<SettingsInATab />);
   fireEvent.click(
     within(screen.getByRole('navigation', { name: 'Settings sections' })).getByRole('button', { name: label }),
   );
@@ -19,7 +42,7 @@ const openPane = (label: string) => {
 
 describe('settings is grouped rather than one long page', () => {
   it('lists every section in the sidebar, as a list a screen reader can count', () => {
-    render(<SettingsSurface />);
+    render(<SettingsInATab />);
     const nav = screen.getByRole('navigation', { name: 'Settings sections' });
     // One list under each heading, so the sections are counted a group at a time.
     expect(within(nav).getAllByRole('list')).toHaveLength(NAV_GROUPS.length);
@@ -67,16 +90,14 @@ describe('finding a setting', () => {
     expect(searchSettings('   ')).toEqual([]);
   });
 
-  it('opens the page a result names', () => {
-    render(<SettingsSurface />);
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'wallpaper' } });
+  it('opens the page a result names, and says so when nothing matches', () => {
+    render(<SettingsInATab />);
+    const search = screen.getByRole('searchbox', { name: 'Search settings' });
+    fireEvent.change(search, { target: { value: 'wallpaper' } });
     fireEvent.click(screen.getByRole('button', { name: /Wallpaper/ }));
     expect(screen.getByRole('heading', { level: 2, name: 'Appearance' })).toBeTruthy();
-  });
 
-  it('says so when nothing matches', () => {
-    render(<SettingsSurface />);
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings' }), { target: { value: 'zzzz' } });
+    fireEvent.change(search, { target: { value: 'zzzz' } });
     expect(screen.getByText(/No setting matches/)).toBeTruthy();
   });
 });
@@ -93,5 +114,25 @@ describe('the frame every pane shares', () => {
     const { DEFAULT_SETTINGS_SHAPE } = await import('@/lib/state/defaults');
     const owned = Object.values(PANE_SETTINGS).flat();
     expect(owned.every((key) => key in DEFAULT_SETTINGS_SHAPE)).toBe(true);
+  });
+});
+
+describe('settings in a tab of its own', () => {
+  it('opens on the pane its address names', () => {
+    render(<SettingsInATab startAt="copacetic://settings/privacy" />);
+    expect(
+      screen.getByRole('heading', { level: 2, name: PANE_TITLES.privacy ?? 'Privacy and security' }),
+    ).toBeTruthy();
+  });
+
+  // Kept in the address, so a restart or reopening the closed tab comes back to the same pane.
+  it('puts the pane it moves to in the tab address', () => {
+    openPane('Privacy and security');
+    expect(screen.getByRole('status', { name: 'Tab address' }).textContent).toBe('copacetic://settings/privacy');
+  });
+
+  it('opens on General when the address names no pane it knows', () => {
+    render(<SettingsInATab startAt="copacetic://settings/nonsense" />);
+    expect(screen.getByRole('heading', { level: 2, name: PANE_TITLES.general ?? 'General' })).toBeTruthy();
   });
 });

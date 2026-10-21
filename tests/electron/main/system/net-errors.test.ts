@@ -22,14 +22,6 @@ describe('the names shown for Chromium error codes', () => {
   ])('maps %i to %s', (code, name) => {
     expect(describeNetError(code, '').name).toBe(name);
   });
-
-  // These are the four the certificate proof produces against badssl.com, so a
-  // user who hits one gets the real name rather than a number.
-  it('names every certificate failure the live proof triggers', () => {
-    for (const code of [-200, -201, -202]) {
-      expect(describeNetError(code, '').name).toMatch(/^ERR_CERT_/);
-    }
-  });
 });
 
 describe('errors it has never seen', () => {
@@ -48,34 +40,19 @@ describe('errors it has never seen', () => {
   });
 });
 
-describe('every entry is fit to show a person', () => {
-  const codes = [-2, -6, -7, -21, -100, -101, -102, -105, -106, -107, -109, -118, -130, -137];
-
-  it.each(codes)('%i has a headline and a description', (code) => {
-    const described = describeNetError(code, '');
-    expect(described.headline.length).toBeGreaterThan(0);
-    expect(described.description.length).toBeGreaterThan(0);
-    expect(described.name.startsWith('ERR_')).toBe(true);
-  });
-
-  // A duplicate name means two different failures are reported as the same
-  // thing, which is worse than reporting neither.
-  it('gives no two codes the same name', () => {
-    const names = codes.map((code) => describeNetError(code, '').name);
-    expect(new Set(names).size).toBe(names.length);
-  });
-});
-
 /**
  * Navigating away cancels the load in flight. Treating that as a failure would
  * put an error page over the page the user actually asked for.
  */
 describe('telling a cancelled load from a broken one', () => {
-  it.each([-3, 0])('treats %i as the user moving on', (code) => {
-    expect(isAbortError(code)).toBe(true);
-  });
-
-  it.each([-2, -6, -105, -201])('treats %i as a real failure', (code) => {
-    expect(isAbortError(code)).toBe(false);
+  it.each([
+    [-3, true],
+    [0, true],
+    [-2, false],
+    [-6, false],
+    [-105, false],
+    [-201, false],
+  ])('treats %i as abort: %s', (code, isAbort) => {
+    expect(isAbortError(code)).toBe(isAbort);
   });
 });

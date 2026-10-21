@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { contentBoundsWithin, normaliseInsets, shouldTabBeVisible } from '../../../../electron/main/tabs/tab-layout';
 
 describe('where a tab sits inside the window', () => {
-  it('takes the chrome out of the content area', () => {
-    const bounds = contentBoundsWithin({ width: 1200, height: 800 }, { top: 88, left: 0, right: 0, bottom: 0 });
-    expect(bounds).toEqual({ x: 0, y: 88, width: 1200, height: 712 });
-  });
-
-  it('accounts for a sidebar on either edge', () => {
-    const bounds = contentBoundsWithin({ width: 1200, height: 800 }, { top: 88, left: 300, right: 20, bottom: 10 });
-    expect(bounds).toEqual({ x: 300, y: 88, width: 880, height: 702 });
+  it.each([
+    [
+      'takes the chrome out of the content area',
+      { top: 88, left: 0, right: 0, bottom: 0 },
+      { x: 0, y: 88, width: 1200, height: 712 },
+    ],
+    [
+      'accounts for a sidebar on either edge',
+      { top: 88, left: 300, right: 20, bottom: 10 },
+      { x: 300, y: 88, width: 880, height: 702 },
+    ],
+  ])('%s', (_name, insets, expected) => {
+    expect(contentBoundsWithin({ width: 1200, height: 800 }, insets)).toEqual(expected);
   });
 
   // A video that went fullscreen used to fill a rectangle under the chrome.
@@ -45,25 +50,15 @@ describe('where a tab sits inside the window', () => {
  * straight through it.
  */
 describe('whether a tab is shown at all', () => {
-  const tab = { isActive: true, isStartPage: false, hasError: false };
+  const tab = { isActive: true, isInternalPage: false, hasError: false };
 
-  it('shows the active tab when nothing covers it', () => {
-    expect(shouldTabBeVisible(tab, false)).toBe(true);
-  });
-
-  it('hides every tab that is not the active one', () => {
-    expect(shouldTabBeVisible({ ...tab, isActive: false }, false)).toBe(false);
-  });
-
-  it('hides the page while an overlay is up', () => {
-    expect(shouldTabBeVisible(tab, true)).toBe(false);
-  });
-
-  it('hides the view on the start page, which the chrome draws itself', () => {
-    expect(shouldTabBeVisible({ ...tab, isStartPage: true }, false)).toBe(false);
-  });
-
-  it('hides the view behind an error page, so the failed load cannot show through', () => {
-    expect(shouldTabBeVisible({ ...tab, hasError: true }, false)).toBe(false);
+  it.each([
+    ['shows the active tab when nothing covers it', {}, false, true],
+    ['hides every tab that is not the active one', { isActive: false }, false, false],
+    ['hides the page while an overlay is up', {}, true, false],
+    ['hides the view on a page of ours, which the chrome draws itself', { isInternalPage: true }, false, false],
+    ['hides the view behind an error page, so the failed load cannot show through', { hasError: true }, false, false],
+  ])('%s', (_name, changes, isOverlayUp, expected) => {
+    expect(shouldTabBeVisible({ ...tab, ...changes }, isOverlayUp)).toBe(expected);
   });
 });

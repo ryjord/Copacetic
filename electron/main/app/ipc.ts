@@ -37,10 +37,12 @@ import {
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
+import { isInternalPage, isSection } from '../../shared/tabs/internal-pages';
 import { routeFor } from '../../shared/translation/languages';
 import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start-tiles';
 import { readChosenImage } from '../system/file-dialogs';
-import { clearCopiedSecret, copySecret, copyText } from '../vault/vault-clipboard';
+import { clearCopiedSecret, copySecret } from '../vault/vault-clipboard';
+import { copyText } from '../system/clipboard';
 import { t } from '../../shared/i18n/translate';
 import { webStoreIdFrom } from '../../shared/extensions/extensions';
 import { describeKept, isKeptKind, siteOf as siteOfAddress, type KeptKind } from '../../shared/data/forgetting';
@@ -57,6 +59,7 @@ import {
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
 import { showProfileMenu } from '../menus/profile-menu';
+import { showExtensionsMenu } from '../menus/extensions-menu';
 import { showBookmarkOverflowMenu, showBookmarksMenu } from '../menus/bookmarks-menu';
 import { toSuggestionView } from '../../shared/browsing/suggestion-view';
 import { HISTORY_PAGE_SIZE } from '../data/store';
@@ -71,6 +74,7 @@ import type {
   Settings,
 } from '../../shared/types';
 import type { Browser } from './browser';
+import type { PopupAnchor } from '../extensions/action-popup';
 import type { Profiles } from './profiles';
 
 /**
@@ -341,11 +345,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('chrome.toggleSiteInfo', (browser) => browser.toggleSiteInfo());
   handle('chrome.closeSiteInfo', (browser) => browser.closeSiteInfo());
   handle('chrome.closeBookmarkSheet', (browser) => browser.closeBookmarkSheet());
-  handle('chrome.openSettingsPane', (browser, _event, paneId) => {
-    const id = asString(paneId);
-    // A pane's id, never anything the chrome would treat as more than a name.
-    if (/^[a-z]{1,30}$/.test(id)) {
-      browser.openSettingsPane(id);
+  handle('chrome.showPage', (browser, _event, page, section) => {
+    if (isInternalPage(page)) {
+      browser.showPage(page, isSection(section) ? section : null);
     }
   });
   handle('chrome.setOverlaySize', (browser, event, width, height) =>
@@ -489,22 +491,26 @@ export function registerIpcHandlers(profiles: Profiles): void {
     if (!entry?.isReadable) {
       return false;
     }
-    copyText(entry.username);
-    return true;
+    return copyText(entry.username);
   });
   handle('vault.exportAll', (browser) => browser.transfer.exportPasswords());
   handle('vault.importFile', (browser) => browser.transfer.importPasswords());
   handle('vault.lockState', (browser) => browser.vaultSession.lockInfo());
   handle('vault.unlock', (browser) => browser.vaultSession.unlock());
-  handle('vault.lock', (browser) => {
+  handle('vault.lock', async (browser) => {
     browser.vaultSession.lock();
-    clearCopiedSecret();
+    await clearCopiedSecret();
   });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
   handle('vault.countForTab', (browser, _event, id) => browser.passwords.offerFor(asString(id)).entries.length);
   handle('vault.fillForTab', (browser, _event, id, x, y) =>
     showFillMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
+  handle('vault.answerSaveOffer', (browser, _event, id, answer) => {
+    if (answer === 'save' || answer === 'never' || answer === 'dismiss') {
+      browser.passwordSave.answer(asString(id), answer);
+    }
+  });
   handle('vault.generate', (_browser, _event, recipe) =>
     generatePassword(readRecipe(recipe), (count) => new Uint8Array(randomBytes(count))),
   );
@@ -603,15 +609,22 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('extensions.setEnabled', (browser, _event, id, isEnabled) =>
     browser.profile.extensions.setEnabled(asString(id), isEnabled === true),
   );
+  handle('extensions.setPinned', (browser, _event, id, isPinned) =>
+    browser.profile.extensions.setPinned(asString(id), isPinned === true),
+  );
   handle('extensions.remove', (browser, _event, id) => browser.profile.extensions.remove(asString(id)));
   handle('extensions.press', (browser, _event, id, left, right, bottom) =>
-    browser.profile.extensions.press(asString(id), browser.window, browser.activeChromeTabId(), {
-      left: Math.round(asNumber(left, 0)),
-      right: Math.round(asNumber(right, 0)),
-      bottom: Math.round(asNumber(bottom, 0)),
-    }),
+    browser.profile.extensions.press(
+      asString(id),
+      browser.window,
+      browser.activeChromeTabId(),
+      asAnchor(left, right, bottom),
+    ),
   );
   handle('extensions.openOptions', (browser, _event, id) => browser.profile.extensions.openOptions(asString(id)));
+  handle('extensions.openMenu', (browser, _event, left, right, bottom) =>
+    showExtensionsMenu(browser, asAnchor(left, right, bottom)),
+  );
 
   handle('updates.check', (browser) => browser.updates.check());
   handle('updates.install', (browser) => browser.updates.install());
@@ -647,6 +660,15 @@ function asBoundedInteger(value: unknown, fallback: number, lowest: number, high
 
 function asNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/** Where a toolbar button's edges are in the window, which an extension's popup opens under. */
+function asAnchor(left: unknown, right: unknown, bottom: unknown): PopupAnchor {
+  return {
+    left: Math.round(asNumber(left)),
+    right: Math.round(asNumber(right)),
+    bottom: Math.round(asNumber(bottom)),
+  };
 }
 
 function asInteger(value: unknown, fallback = 0): number {
@@ -735,6 +757,12 @@ function keptRestorer(kind: KeptKind, before: Settings): ((now: Settings) => Par
     case 'downloads':
       return null;
   }
+}
+
+function asSiteList(sites: readonly unknown[]): string[] {
+  return sites
+    .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)
+    .slice(0, MAX_LIST_LENGTH);
 }
 
 function asIdList(value: unknown): string[] {
@@ -843,6 +871,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (value.density === 'comfortable' || value.density === 'compact') {
     patch.density = value.density;
   }
+  if (value.headerLayout === 'standard' || value.headerLayout === 'one-line') {
+    patch.headerLayout = value.headerLayout;
+  }
   if (isAccentColour(value.accentColour)) {
     patch.accentColour = value.accentColour;
   }
@@ -862,6 +893,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (typeof value.checkForUpdates === 'boolean') {
     patch.checkForUpdates = value.checkForUpdates;
+  }
+  if (typeof value.updateExtensions === 'boolean') {
+    patch.updateExtensions = value.updateExtensions;
   }
   if (value.updateChannel === 'releases' || value.updateChannel === 'betas') {
     patch.updateChannel = value.updateChannel;
@@ -957,10 +991,14 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     patch.openRules = rules;
   }
 
+  if (typeof value.offerToSavePasswords === 'boolean') {
+    patch.offerToSavePasswords = value.offerToSavePasswords;
+  }
+  if (Array.isArray(value.neverSavePasswordsOn)) {
+    patch.neverSavePasswordsOn = asSiteList(value.neverSavePasswordsOn);
+  }
   if (Array.isArray(value.blockerAllowlist)) {
-    patch.blockerAllowlist = value.blockerAllowlist
-      .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)
-      .slice(0, MAX_LIST_LENGTH);
+    patch.blockerAllowlist = asSiteList(value.blockerAllowlist);
   }
 
   return patch;

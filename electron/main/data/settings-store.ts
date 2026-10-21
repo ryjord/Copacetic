@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   appearance: 'system',
   theme: 'deep',
   density: 'comfortable',
+  headerLayout: 'standard',
   accentColour: 'blue',
   interfaceTextSize: 'default',
   toolbarItems: ['bookmarks', 'profile', 'downloads'],
@@ -45,9 +46,12 @@ export const DEFAULT_SETTINGS: Settings = {
   readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
+  offerToSavePasswords: true,
+  neverSavePasswordsOn: [],
   showBookmarksBar: false,
   ambientHue: 0,
   checkForUpdates: true,
+  updateExtensions: true,
   updateChannel: 'releases',
   permissionDecisions: {},
   permissionDefaults: {},
@@ -215,6 +219,7 @@ function reviveSettings(raw: unknown): Settings | null {
     appearance: isAppearanceId(appearance) ? appearance : DEFAULT_SETTINGS.appearance,
     theme: isThemeId(theme) ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' ? 'compact' : 'comfortable',
+    headerLayout: raw.headerLayout === 'one-line' ? 'one-line' : 'standard',
     accentColour: isAccentColour(raw.accentColour) ? raw.accentColour : DEFAULT_SETTINGS.accentColour,
     interfaceTextSize: isInterfaceTextSize(raw.interfaceTextSize)
       ? raw.interfaceTextSize
@@ -236,9 +241,14 @@ function reviveSettings(raw: unknown): Settings | null {
       : DEFAULT_SETTINGS.historyRetentionDays,
     startPageWidgets: reviveStartPageWidgets(raw),
     hushNoticeDismissed: raw.hushNoticeDismissed === true,
+    offerToSavePasswords: asBoolean(raw.offerToSavePasswords, DEFAULT_SETTINGS.offerToSavePasswords),
+    neverSavePasswordsOn: Array.isArray(raw.neverSavePasswordsOn)
+      ? raw.neverSavePasswordsOn.filter((site): site is string => typeof site === 'string' && site.length > 0)
+      : [],
     showBookmarksBar: raw.showBookmarksBar === true,
     ambientHue: clampHue(raw.ambientHue),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
+    updateExtensions: asBoolean(raw.updateExtensions, DEFAULT_SETTINGS.updateExtensions),
     updateChannel: raw.updateChannel === 'betas' ? 'betas' : 'releases',
     permissionDecisions: decisions,
     permissionDefaults: readPermissionDefaults(raw.permissionDefaults),

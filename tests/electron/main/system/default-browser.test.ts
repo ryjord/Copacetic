@@ -9,25 +9,17 @@ const { statusFor, urlFromArguments } = await import('../../../../electron/main/
  * each one will actually do rather than what the others do.
  */
 describe('what can be offered on each platform', () => {
-  it('says so when it is already the default', () => {
-    expect(statusFor('darwin', true, true)).toBe('default');
-    expect(statusFor('win32', true, true)).toBe('default');
-  });
-
-  it('can ask on macOS and Linux, where the system will decide', () => {
-    expect(statusFor('darwin', true, false)).toBe('can-ask');
-    expect(statusFor('linux', true, false)).toBe('can-ask');
-  });
-
-  // Windows 10 and 11 will not let an application make itself the default.
-  it('can only point at the settings on Windows', () => {
-    expect(statusFor('win32', true, false)).toBe('settings-only');
-  });
-
-  // It would register the development binary as the system's browser.
-  it('offers nothing from a build that is not packaged', () => {
-    expect(statusFor('darwin', false, false)).toBe('unavailable');
-    expect(statusFor('win32', false, false)).toBe('unavailable');
+  // Windows 10 and 11 will not let an application make itself the default, and an unpackaged build would register the development binary.
+  it.each([
+    ['says so when it is already the default on macOS', 'darwin', true, true, 'default'],
+    ['says so when it is already the default on Windows', 'win32', true, true, 'default'],
+    ['can ask on macOS, where the system will decide', 'darwin', true, false, 'can-ask'],
+    ['can ask on Linux, where the system will decide', 'linux', true, false, 'can-ask'],
+    ['can only point at the settings on Windows', 'win32', true, false, 'settings-only'],
+    ['offers nothing from an unpackaged build on macOS', 'darwin', false, false, 'unavailable'],
+    ['offers nothing from an unpackaged build on Windows', 'win32', false, false, 'unavailable'],
+  ] as const)('%s', (_name, platform, isPackaged, isDefault, expected) => {
+    expect(statusFor(platform, isPackaged, isDefault)).toBe(expected);
   });
 });
 
@@ -36,17 +28,27 @@ describe('what can be offered on each platform', () => {
  * or a system event - so they are checked exactly like a link on a page.
  */
 describe('the address another application asks Copacetic to open', () => {
-  it('takes a web address from the arguments', () => {
-    expect(urlFromArguments(['/path/to/Copacetic', 'https://example.com/page'])).toBe('https://example.com/page');
-    expect(urlFromArguments(['copacetic', 'http://localhost:3000/'])).toBe('http://localhost:3000/');
-  });
-
-  it('ignores the program being run, even where it looks like an address', () => {
-    expect(urlFromArguments(['https://example.com/'])).toBeNull();
-  });
-
-  it('ignores switches', () => {
-    expect(urlFromArguments(['copacetic', '--inspect', '--user-data-dir=/tmp/x'])).toBeNull();
+  it.each([
+    [
+      'takes a web address from the arguments',
+      ['/path/to/Copacetic', 'https://example.com/page'],
+      'https://example.com/page',
+    ],
+    ['takes a local address from the arguments', ['copacetic', 'http://localhost:3000/'], 'http://localhost:3000/'],
+    ['ignores the program being run, even where it looks like an address', ['https://example.com/'], null],
+    ['ignores switches', ['copacetic', '--inspect', '--user-data-dir=/tmp/x'], null],
+    [
+      'takes the first address when several are given',
+      ['copacetic', 'https://first.example/', 'https://second.example/'],
+      'https://first.example/',
+    ],
+    [
+      'finds an address that comes after a switch',
+      ['copacetic', '--flag', 'https://example.com/'],
+      'https://example.com/',
+    ],
+  ])('%s', (_name, argumentList, expected) => {
+    expect(urlFromArguments(argumentList)).toBe(expected);
   });
 
   // Nothing else stops an argument becoming a tab, and these are the schemes a
@@ -61,15 +63,5 @@ describe('the address another application asks Copacetic to open', () => {
     '',
   ])('refuses %s', (argument) => {
     expect(urlFromArguments(['copacetic', argument])).toBeNull();
-  });
-
-  it('takes the first address when several are given', () => {
-    expect(urlFromArguments(['copacetic', 'https://first.example/', 'https://second.example/'])).toBe(
-      'https://first.example/',
-    );
-  });
-
-  it('finds an address that comes after a switch', () => {
-    expect(urlFromArguments(['copacetic', '--flag', 'https://example.com/'])).toBe('https://example.com/');
   });
 });

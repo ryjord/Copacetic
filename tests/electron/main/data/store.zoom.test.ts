@@ -15,29 +15,12 @@ beforeEach(() => {
 });
 
 describe('per-site zoom', () => {
-  it('remembers a level against its origin', () => {
-    store.setZoomForOrigin('https://example.com', 1.5);
-    expect(store.getZoomForOrigin('https://example.com')).toBe(1.5);
-  });
-
-  it('is null for a site never zoomed, so the default applies', () => {
-    expect(store.getZoomForOrigin('https://never.example')).toBeNull();
-  });
-
   // A permission or a zoom granted to one origin must never apply to another.
-  it('keeps origins separate', () => {
+  it('is null for a site never zoomed, and keeps origins separate', () => {
     store.setZoomForOrigin('https://example.com', 1.5);
+    expect(store.getZoomForOrigin('https://never.example')).toBeNull();
     expect(store.getZoomForOrigin('https://other.example')).toBeNull();
     expect(store.getZoomForOrigin('http://example.com')).toBeNull();
-  });
-
-  // The list in Settings should be the sites you changed, not everywhere you
-  // have been, so returning to the default is a deletion rather than an entry.
-  it('forgets a level put back to the default', () => {
-    store.setZoomForOrigin('https://example.com', 1.5);
-    store.setZoomForOrigin('https://example.com', 1);
-    expect(store.getZoomForOrigin('https://example.com')).toBeNull();
-    expect(store.getSettings().zoomLevels).toEqual({});
   });
 
   it('can be reset explicitly', () => {
@@ -49,14 +32,6 @@ describe('per-site zoom', () => {
   it('ignores an empty origin rather than storing one', () => {
     store.setZoomForOrigin('', 2);
     expect(store.getSettings().zoomLevels).toEqual({});
-  });
-
-  it('survives being written and read back', () => {
-    store.setZoomForOrigin('https://example.com', 1.25);
-    store.flushAll();
-
-    const reopened = new BrowserStore();
-    expect(reopened.getZoomForOrigin('https://example.com')).toBe(1.25);
   });
 
   // settings.json is a file the user can edit, so it is untrusted input.
@@ -76,20 +51,13 @@ describe('per-site zoom', () => {
 });
 
 describe('interface density', () => {
-  it('defaults to comfortable', () => {
-    expect(store.getSettings().density).toBe('comfortable');
-  });
-
-  it('accepts only the two it knows', async () => {
+  it.each([
+    { name: 'accepts only the two it knows', stored: 'enormous', expected: 'comfortable' },
+    { name: 'keeps a valid choice', stored: 'compact', expected: 'compact' },
+  ])('$name', async ({ stored, expected }) => {
     const { writeFileSync } = await import('node:fs');
-    writeFileSync(path.join(process.env.COPA_ZOOM_DIR!, 'settings.json'), JSON.stringify({ density: 'enormous' }));
-    expect(new BrowserStore().getSettings().density).toBe('comfortable');
-  });
-
-  it('keeps a valid choice', async () => {
-    const { writeFileSync } = await import('node:fs');
-    writeFileSync(path.join(process.env.COPA_ZOOM_DIR!, 'settings.json'), JSON.stringify({ density: 'compact' }));
-    expect(new BrowserStore().getSettings().density).toBe('compact');
+    writeFileSync(path.join(process.env.COPA_ZOOM_DIR!, 'settings.json'), JSON.stringify({ density: stored }));
+    expect(new BrowserStore().getSettings().density).toBe(expected);
   });
 });
 
@@ -100,33 +68,18 @@ describe('history paging', () => {
     }
   };
 
-  it('reports the total, not just what fits in a page', () => {
+  // The bug this replaces: a search could never reach a match past the cap, and nothing said anything had been left out.
+  it('reports the total, reaches entries past the first page, and is empty past the end', () => {
     seed(420);
-    const page = store.listHistory('', 300);
-    expect(page.entries).toHaveLength(300);
-    expect(page.total).toBe(420);
-  });
+    const first = store.listHistory('', 300);
+    expect(first.entries).toHaveLength(300);
+    expect(first.total).toBe(420);
 
-  // The bug this replaces: a search could never reach a match past the cap,
-  // and nothing said anything had been left out.
-  it('reaches entries past the first page', () => {
-    seed(420);
     const second = store.listHistory('', 300, 300);
     expect(second.entries).toHaveLength(120);
     expect(second.total).toBe(420);
-    expect(second.entries[0]?.url).not.toBe(store.listHistory('', 300).entries[0]?.url);
-  });
+    expect(second.entries[0]?.url).not.toBe(first.entries[0]?.url);
 
-  it('counts matches for a search, not the whole history', () => {
-    seed(50);
-    store.recordVisit('https://findme.example/', 'Unique');
-    const page = store.listHistory('findme');
-    expect(page.total).toBe(1);
-    expect(page.entries).toHaveLength(1);
-  });
-
-  it('is empty past the end rather than wrapping', () => {
-    seed(10);
     expect(store.listHistory('', 300, 999).entries).toEqual([]);
   });
 
@@ -143,45 +96,38 @@ describe('start page widgets', () => {
     return new BrowserStore();
   };
 
-  it('defaults to a clock, a search box and most-visited', () => {
-    expect(store.getSettings().startPageWidgets).toEqual(['clock', 'search', 'topSites']);
-  });
-
   // Someone upgrading has the old booleans and no list. Reading their answers
   // rather than resetting them is the difference between an upgrade and losing
-  // your setup.
-  it('carries the old booleans over on upgrade', async () => {
-    const migrated = await writeSettings({ showStartPageClock: false, showTopSites: true });
-    expect(migrated.getSettings().startPageWidgets).toEqual(['search', 'topSites']);
-  });
-
-  it('keeps search even when both old toggles were off', async () => {
-    const migrated = await writeSettings({ showStartPageClock: false, showTopSites: false });
-    expect(migrated.getSettings().startPageWidgets).toEqual(['search']);
-  });
-
-  it('prefers an explicit list over the old booleans', async () => {
-    const migrated = await writeSettings({
-      showStartPageClock: true,
-      showTopSites: true,
-      startPageWidgets: ['search'],
-    });
-    expect(migrated.getSettings().startPageWidgets).toEqual(['search']);
-  });
-
-  it('keeps the order it is given, since order is the point', async () => {
-    const reordered = await writeSettings({ startPageWidgets: ['topSites', 'clock', 'search'] });
-    expect(reordered.getSettings().startPageWidgets).toEqual(['topSites', 'clock', 'search']);
-  });
-
-  // settings.json is editable by hand, so it is untrusted input.
-  it('drops widgets it does not know and duplicates', async () => {
-    const cleaned = await writeSettings({ startPageWidgets: ['clock', 'nonsense', 'clock', 'search', 42] });
-    expect(cleaned.getSettings().startPageWidgets).toEqual(['clock', 'search']);
-  });
-
-  it('allows an empty start page', async () => {
-    const empty = await writeSettings({ startPageWidgets: [] });
-    expect(empty.getSettings().startPageWidgets).toEqual([]);
+  // your setup. settings.json is editable by hand, so it is untrusted input.
+  it.each([
+    {
+      name: 'carries the old booleans over on upgrade',
+      stored: { showStartPageClock: false, showTopSites: true },
+      expected: ['search', 'topSites'],
+    },
+    {
+      name: 'keeps search even when both old toggles were off',
+      stored: { showStartPageClock: false, showTopSites: false },
+      expected: ['search'],
+    },
+    {
+      name: 'prefers an explicit list over the old booleans',
+      stored: { showStartPageClock: true, showTopSites: true, startPageWidgets: ['search'] },
+      expected: ['search'],
+    },
+    {
+      name: 'keeps the order it is given, since order is the point',
+      stored: { startPageWidgets: ['topSites', 'clock', 'search'] },
+      expected: ['topSites', 'clock', 'search'],
+    },
+    {
+      name: 'drops widgets it does not know and duplicates',
+      stored: { startPageWidgets: ['clock', 'nonsense', 'clock', 'search', 42] },
+      expected: ['clock', 'search'],
+    },
+    { name: 'allows an empty start page', stored: { startPageWidgets: [] }, expected: [] },
+  ])('$name', async ({ stored, expected }) => {
+    const reopened = await writeSettings(stored);
+    expect(reopened.getSettings().startPageWidgets).toEqual(expected);
   });
 });

@@ -25,11 +25,14 @@ import { selectActiveDownloadCount, selectDownloadProgress, useBrowserStore } fr
 
 // Utils
 import { send } from '@/lib/bridge/bridge';
+import { isMacPlatform } from '@/lib/platform';
+import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
 import { START_PAGE_URL } from '@shared/browsing/url';
 import { shownSplit } from '@shared/tabs/split-view';
+import type { ReactNode } from 'react';
 import type { TabState } from '@shared/types';
 
 const ICON = { size: 16, strokeWidth: 1.75 } as const;
@@ -40,16 +43,53 @@ function belowButton(button: HTMLElement): { x: number; y: number } {
   return { x: Math.round(box.left), y: Math.round(box.bottom + 4) };
 }
 
-export function Toolbar({ tab }: { tab: TabState | null }) {
+interface ToolbarProps {
+  tab: TabState | null;
+  /** The tabs, for a header laid out on one line: they share this row, and it is the window's title bar. */
+  tabStrip?: ReactNode;
+}
+
+// The navigation and the tools each sit in a capsule of their own, rather than loose along the bar.
+const CAPSULE = 'flex shrink-0 items-center gap-0.5 rounded-[10px] bg-sunken p-0.5';
+
+export function Toolbar({ tab, tabStrip }: ToolbarProps) {
+  const isOneLine = tabStrip !== undefined;
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 items-center gap-2 bg-ground',
+        isOneLine
+          ? 'drag-region h-[var(--chrome-row-height)] pr-[calc(var(--window-controls-width)+0.625rem)] pl-2.5'
+          : 'h-[var(--chrome-toolbar-height)] px-2.5',
+      )}
+    >
+      {/* Room for the macOS traffic lights, which sit inside this row when it is the title bar. */}
+      {isOneLine && isMacPlatform() && <div className="w-[66px] shrink-0 self-stretch" aria-hidden />}
+      <NavigationButtons tab={tab} />
+      {isOneLine ? (
+        <div className="flex w-[min(38%,520px)] min-w-56 shrink-0">
+          <Omnibox tab={tab} />
+        </div>
+      ) : (
+        // Centred and capped, as the design draws it: a field the width of a wide window is hard to read across.
+        <div className="mx-1 flex min-w-0 flex-1 justify-center">
+          <div className="flex w-full min-w-0 max-w-[760px]">
+            <Omnibox tab={tab} />
+          </div>
+        </div>
+      )}
+      {tabStrip}
+      <ToolButtons tab={tab} />
+    </div>
+  );
+}
+
+function NavigationButtons({ tab }: { tab: TabState | null }) {
   const isBusy = tab?.isLoading ?? false;
   const toolbarItems = useBrowserStore((state) => state.settings.toolbarItems);
   const homeUrl = useBrowserStore((state) => state.settings.homeUrl);
-  const isSplit = useBrowserStore((state) => shownSplit(state.split, state.activeTabId) !== null);
-  const setSurface = useBrowserStore((state) => state.setSurface);
-  const isPage = tab !== null && !tab.isStartPage;
-
   return (
-    <div className="flex h-[var(--chrome-toolbar-height)] shrink-0 items-center gap-1 border-b border-line bg-toolbar px-2.5">
+    <div className={CAPSULE}>
       <IconButton
         label={t('shell.toolbar.back')}
         disabled={!tab?.canGoBack}
@@ -66,7 +106,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       </IconButton>
       <IconButton
         label={isBusy ? t('shell.toolbar.stop') : t('shell.toolbar.reload')}
-        disabled={!tab || tab.isStartPage}
+        disabled={!tab || tab.internalPage !== null}
         onClick={() => tab && send((api) => (isBusy ? api.tabs.stop(tab.id) : api.tabs.reload(tab.id)))}
       >
         {isBusy ? <X {...ICON} /> : <RotateCw {...ICON} />}
@@ -74,7 +114,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       {toolbarItems.includes('home') && (
         <IconButton
           label={t('shell.toolbar.home')}
-          disabled={!tab || (tab.isStartPage && homeUrl === null)}
+          disabled={!tab || (tab.internalPage === 'start' && homeUrl === null)}
           onClick={() => tab && send((api) => api.tabs.navigate(tab.id, homeUrl ?? START_PAGE_URL))}
         >
           <House {...ICON} />
@@ -91,40 +131,47 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
           <Bookmark {...ICON} />
         </IconButton>
       )}
-      {/* Centred and capped, as the design draws it: a field the width of a wide window is hard to read across. */}
-      <div className="mx-1 flex min-w-0 flex-1 justify-center">
-        <div className="flex w-full min-w-0 max-w-[760px]">
-          <Omnibox tab={tab} />
-        </div>
-      </div>
-      {toolbarItems.includes('reader') && (
-        <IconButton label={t('shell.toolbar.reader')} disabled={!isPage} onClick={() => setSurface('reader')}>
-          <BookOpen {...ICON} />
-        </IconButton>
-      )}
-      {toolbarItems.includes('split') && (
-        <IconButton
-          label={isSplit ? t('shell.toolbar.leaveSplit') : t('shell.toolbar.split')}
-          tone={isSplit ? 'active' : 'default'}
-          disabled={!tab}
-          onClick={() => send((api) => (isSplit ? api.tabs.leaveSplit() : api.tabs.splitWith(null)))}
-        >
-          <Columns2 {...ICON} />
-        </IconButton>
-      )}
-      <ExtensionButtons />
-      {toolbarItems.includes('profile') && <ProfileButton />}
-      {toolbarItems.includes('downloads') && <DownloadsButton />}
-      <IconButton
-        label={t('shell.toolbar.menu')}
-        onClick={(event) => {
-          const { x, y } = belowButton(event.currentTarget);
-          send((api) => api.chrome.openMainMenu(x, y));
-        }}
-      >
-        <Menu {...ICON} />
-      </IconButton>
     </div>
+  );
+}
+
+function ToolButtons({ tab }: { tab: TabState | null }) {
+  const toolbarItems = useBrowserStore((state) => state.settings.toolbarItems);
+  const isSplit = useBrowserStore((state) => shownSplit(state.split, state.activeTabId) !== null);
+  const setSurface = useBrowserStore((state) => state.setSurface);
+  const isPage = tab !== null && tab.internalPage === null;
+  return (
+    <>
+      <div className={CAPSULE}>
+        {toolbarItems.includes('reader') && (
+          <IconButton label={t('shell.toolbar.reader')} disabled={!isPage} onClick={() => setSurface('reader')}>
+            <BookOpen {...ICON} />
+          </IconButton>
+        )}
+        {toolbarItems.includes('split') && (
+          <IconButton
+            label={isSplit ? t('shell.toolbar.leaveSplit') : t('shell.toolbar.split')}
+            tone={isSplit ? 'active' : 'default'}
+            disabled={!tab}
+            onClick={() => send((api) => (isSplit ? api.tabs.leaveSplit() : api.tabs.splitWith(null)))}
+          >
+            <Columns2 {...ICON} />
+          </IconButton>
+        )}
+        <ExtensionButtons />
+        {toolbarItems.includes('downloads') && <DownloadsButton />}
+        <IconButton
+          label={t('shell.toolbar.menu')}
+          onClick={(event) => {
+            const { x, y } = belowButton(event.currentTarget);
+            send((api) => api.chrome.openMainMenu(x, y));
+          }}
+        >
+          <Menu {...ICON} />
+        </IconButton>
+      </div>
+      {toolbarItems.includes('profile') && <ProfileButton />}
+    </>
   );
 }
 
@@ -150,10 +197,9 @@ function ProfileButton() {
 const RING_RADIUS = 11;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
-/** The one surface with its own button, because it is the one with something to report while you browse. */
+/** The one page of ours with its own button, because it is the one with something to report while you browse. */
 function DownloadsButton() {
-  const isOpen = useBrowserStore((state) => state.surface === 'downloads');
-  const toggleSurface = useBrowserStore((state) => state.toggleSurface);
+  const isOpen = useBrowserStore((state) => state.activeTab?.internalPage === 'downloads');
   const activeCount = useBrowserStore(selectActiveDownloadCount);
   const progress = useBrowserStore(selectDownloadProgress);
   const label =
@@ -164,7 +210,7 @@ function DownloadsButton() {
       label={label}
       tone={isOpen ? 'active' : 'default'}
       className="relative"
-      onClick={() => toggleSurface('downloads')}
+      onClick={() => send((api) => api.chrome.showPage('downloads'))}
     >
       <Download {...ICON} />
       {activeCount > 0 && (

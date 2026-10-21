@@ -1,6 +1,7 @@
 // Types
 import type { KeptAboutSites, KeptKind, SiteTraces } from '../data/forgetting';
 import type { ChromeSurface, DataKind } from './channels';
+import type { InternalPage } from '../tabs/internal-pages';
 import type { BookmarkFolder } from '../data/bookmark-folders';
 import type { Notice } from '../chrome/notices';
 import type { BrowserStatePatch } from './state-slices';
@@ -24,6 +25,7 @@ import type {
   ExportKind,
   HistoryFilter,
   HistoryPage,
+  PasswordOfferAnswer,
   PermissionDecision,
   PermissionKind,
   Settings,
@@ -136,8 +138,8 @@ export interface CopaceticApi {
     toggleSiteInfo(): Promise<void>;
     closeSiteInfo(): Promise<void>;
     closeBookmarkSheet(): Promise<void>;
-    /** Settings, opened at one pane; from the site card, which cannot reach the chrome's own state. */
-    openSettingsPane(paneId: string): Promise<void>;
+    /** One of our pages in a tab of its own: focused if open, opened beside the tab in front if not. */
+    showPage(page: InternalPage, section?: string | null): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;
@@ -307,6 +309,8 @@ export interface CopaceticApi {
     countForTab(id: TabId): Promise<number>;
     /** Fills the one saved for this page, or asks which, in a menu at this point. Asked for, never offered by the page. */
     fillForTab(id: TabId, x: number, y: number): Promise<void>;
+    /** Save, never for this site, or not now, for the password a sign-in just offered. */
+    answerSaveOffer(id: string, answer: PasswordOfferAnswer): Promise<void>;
   };
 
   profiles: {
@@ -393,10 +397,13 @@ export interface CopaceticApi {
     /** From a folder chosen in the main process's own dialog, for someone building one. */
     addFromFolder(): Promise<string>;
     setEnabled(id: string, isEnabled: boolean): Promise<void>;
+    setPinned(id: string, isPinned: boolean): Promise<void>;
     remove(id: string): Promise<void>;
     /** Its toolbar button was pressed, at these edges in the window. */
     press(id: string, left: number, right: number, bottom: number): Promise<void>;
     openOptions(id: string): Promise<void>;
+    /** Every extension, under the extensions button at these edges, where an unpinned one's popup opens too. */
+    openMenu(left: number, right: number, bottom: number): Promise<void>;
   };
   updates: {
     /** Ask now, rather than waiting for the periodic check. */
@@ -413,7 +420,6 @@ export interface CopaceticApi {
     state(listener: (patch: BrowserStatePatch) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
-    openSettingsPane(listener: (paneId: string) => void): Unsubscribe;
     /** Something finished, or something needs deciding before it can. */
     notice(listener: (notice: Notice) => void): Unsubscribe;
     /** A notice was answered or dismissed somewhere else, so stop showing it. */

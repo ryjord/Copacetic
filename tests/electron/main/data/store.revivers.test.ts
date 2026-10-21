@@ -69,28 +69,21 @@ describe('the saved session, read back off disk', () => {
     ).toBe(0.8);
   });
 
-  // A window with nothing to reopen is not a window to bring back.
-  it('leaves out a window with no tabs at all', () => {
-    expect(
-      reviveSession({
-        windows: [
-          { tabs: [], activeIndex: 3 },
-          { tabs: tabs('a'), activeIndex: 0 },
-        ],
-      }),
-    ).toEqual({
-      windows: [{ tabs: tabs('a'), activeIndex: 0 }],
-    });
-  });
-
-  it('keeps every window, in the order they were saved', () => {
+  // A window with nothing to reopen is not a window to bring back; the rest keep the order they were saved in.
+  it('leaves out a window with no tabs at all, and keeps every other window in order', () => {
     const saved = reviveSession({
+      windows: [
+        { tabs: tabs('a'), activeIndex: 0 },
+        { tabs: [], activeIndex: 3 },
+        { tabs: tabs('b', 'c'), activeIndex: 1 },
+      ],
+    });
+    expect(saved).toEqual({
       windows: [
         { tabs: tabs('a'), activeIndex: 0 },
         { tabs: tabs('b', 'c'), activeIndex: 1 },
       ],
     });
-    expect(saved?.windows.map((window) => window.tabs.map((tab) => tab.url))).toEqual([['a'], ['b', 'c']]);
   });
 
   it('drops entries with no address', () => {
@@ -99,23 +92,29 @@ describe('the saved session, read back off disk', () => {
     );
   });
 
-  it('keeps which group each tab was in', () => {
-    expect(oneWindow({ tabs: [{ url: 'a', groupId: 'g1' }], activeIndex: 0 })?.tabs).toEqual([
-      { url: 'a', groupId: 'g1' },
-    ]);
-  });
-
-  it('keeps a tab pinned, and reads one from before pinning as not', () => {
-    expect(oneWindow({ tabs: [{ url: 'a', isPinned: true }, { url: 'b' }], activeIndex: 0 })?.tabs).toEqual([
-      { url: 'a', groupId: null, isPinned: true },
-      { url: 'b', groupId: null },
-    ]);
-  });
-
-  it('treats a group id that is not a string as no group', () => {
-    expect(oneWindow({ tabs: [{ url: 'a', groupId: 42 }], activeIndex: 0 })?.tabs).toEqual([
-      { url: 'a', groupId: null },
-    ]);
+  it.each([
+    {
+      name: 'keeps which group a tab was in',
+      entry: { url: 'a', groupId: 'g1' },
+      expected: { url: 'a', groupId: 'g1' },
+    },
+    {
+      name: 'keeps a tab pinned',
+      entry: { url: 'a', isPinned: true },
+      expected: { url: 'a', groupId: null, isPinned: true },
+    },
+    {
+      name: 'reads a tab from before pinning as not pinned',
+      entry: { url: 'b' },
+      expected: { url: 'b', groupId: null },
+    },
+    {
+      name: 'treats a group id that is not a string as no group',
+      entry: { url: 'a', groupId: 42 },
+      expected: { url: 'a', groupId: null },
+    },
+  ])('$name', ({ entry, expected }) => {
+    expect(oneWindow({ tabs: [entry], activeIndex: 0 })?.tabs).toEqual([expected]);
   });
 
   it('refuses a file that holds no list of windows', () => {
@@ -174,12 +173,10 @@ describe('bookmarks, read back off disk', () => {
     expect(reviveBookmarks([{ id: 'a', url, title: 'x', createdAt: 1 }])).toEqual([]);
   });
 
-  it('falls back to the url when there is no title', () => {
-    expect(reviveBookmarks([{ url: 'https://a.test/x' }])?.[0]?.title).toBe('https://a.test/x');
-  });
-
-  it('gives an entry an id when the file has none', () => {
-    expect(reviveBookmarks([{ url: 'https://a.test/x' }])?.[0]?.id).toBeTruthy();
+  it('falls back to the url when there is no title, and gives an entry an id when the file has none', () => {
+    const [bookmark] = reviveBookmarks([{ url: 'https://a.test/x' }]) ?? [];
+    expect(bookmark?.title).toBe('https://a.test/x');
+    expect(bookmark?.id).toBeTruthy();
   });
 });
 
@@ -195,20 +192,6 @@ describe('bookmark folders, read back off disk', () => {
     ]);
   });
 
-  it('refuses a file that is not a list', () => {
-    expect(reviveFolders({ id: 'f1' })).toBeNull();
-  });
-
-  it('drops an entry with no id, because nothing could be filed in it', () => {
-    expect(reviveFolders([{ name: 'Nameless' }, { id: 'f1', name: 'Work' }])).toHaveLength(1);
-  });
-
-  // The same fallback groups use, rather than a second opinion about it.
-  it('keeps a folder whose colour this build does not have', () => {
-    const [folder] = reviveFolders([{ id: 'f1', name: 'Work', colour: 'chartreuse' }]) ?? [];
-    expect(folder?.colour).toBe(GROUP_COLOURS[0].id);
-  });
-
   it('files a folder whose parent is not in the file at the top level', () => {
     // Otherwise it is neither a root nor anybody's child, and it and everything
     // under it vanish from every view while staying on disk.
@@ -220,24 +203,41 @@ describe('bookmark folders, read back off disk', () => {
     expect(folders?.find((entry) => entry.id === 'kept')?.parentId).toBe('child');
   });
 
-  it('names an unnamed folder rather than showing a blank row', () => {
-    const [folder] = reviveFolders([{ id: 'f1', name: '   ' }]) ?? [];
-    expect(folder?.name).toBe('Folder');
-  });
-
-  it('clamps a name long enough to break the row it is drawn in', () => {
-    const [folder] = reviveFolders([{ id: 'f1', name: 'x'.repeat(400) }]) ?? [];
-    expect(folder?.name).toHaveLength(60);
-  });
-
-  it('treats a non-string parent as the top level', () => {
-    const [folder] = reviveFolders([{ id: 'f1', name: 'Work', parentId: 12 }]) ?? [];
-    expect(folder?.parentId).toBeNull();
-  });
-
-  it('treats anything but true as not collapsed, so nothing hides itself', () => {
-    const [folder] = reviveFolders([{ id: 'f1', name: 'Work', collapsed: 'yes' }]) ?? [];
-    expect(folder?.collapsed).toBe(false);
+  // The same fallback groups use for the colour, rather than a second opinion about it.
+  it.each([
+    {
+      name: 'keeps a folder whose colour this build does not have',
+      entry: { id: 'f1', name: 'Work', colour: 'chartreuse' },
+      field: 'colour',
+      expected: GROUP_COLOURS[0].id,
+    },
+    {
+      name: 'names an unnamed folder rather than showing a blank row',
+      entry: { id: 'f1', name: '   ' },
+      field: 'name',
+      expected: 'Folder',
+    },
+    {
+      name: 'clamps a name long enough to break the row it is drawn in',
+      entry: { id: 'f1', name: 'x'.repeat(400) },
+      field: 'name',
+      expected: 'x'.repeat(60),
+    },
+    {
+      name: 'treats a non-string parent as the top level',
+      entry: { id: 'f1', name: 'Work', parentId: 12 },
+      field: 'parentId',
+      expected: null,
+    },
+    {
+      name: 'treats anything but true as not collapsed, so nothing hides itself',
+      entry: { id: 'f1', name: 'Work', collapsed: 'yes' },
+      field: 'collapsed',
+      expected: false,
+    },
+  ])('$name', ({ entry, field, expected }) => {
+    const [folder] = reviveFolders([entry]) ?? [];
+    expect(folder?.[field as keyof typeof folder]).toEqual(expected);
   });
 });
 
@@ -247,36 +247,48 @@ describe('bookmark folders, read back off disk', () => {
  * the reviver for that now, rather than on a schema step.
  */
 describe('bookmarks written by an older version', () => {
-  it('files a bookmark from before folders nowhere', () => {
+  // The folder a bookmark was filed in survives; a bookmark from before folders, or with a non-string folder, is unfiled.
+  it.each([
+    { name: 'files a bookmark from before folders nowhere', folderId: undefined, expected: null },
+    { name: 'keeps the folder it was filed in', folderId: 'f1', expected: 'f1' },
+    { name: 'treats a non-string folder as unfiled rather than dropping the bookmark', folderId: 42, expected: null },
+  ])('$name', ({ folderId, expected }) => {
     const [bookmark] =
-      reviveBookmarks([{ id: 'b1', url: 'https://example.com/', title: 'Example', createdAt: 5 }]) ?? [];
+      reviveBookmarks([
+        {
+          id: 'b1',
+          url: 'https://example.com/',
+          title: 'Example',
+          createdAt: 5,
+          ...(folderId === undefined ? {} : { folderId }),
+        },
+      ]) ?? [];
     expect(bookmark).toEqual({
       id: 'b1',
       url: 'https://example.com/',
       title: 'Example',
       createdAt: 5,
-      folderId: null,
+      folderId: expected,
     });
-  });
-
-  it('refuses a file that is not a list at all, so the import brings in nothing', () => {
-    expect(reviveBookmarks({ bookmarks: 'nope' })).toBeNull();
-  });
-
-  it('drops entries it cannot read and keeps the rest', () => {
-    expect(reviveBookmarks(['not-a-bookmark', { id: 'b1', url: 'https://example.com/' }])).toHaveLength(1);
   });
 });
 
-describe('a bookmark filed somewhere, read back off disk', () => {
-  it('keeps the folder it was filed in', () => {
-    const [bookmark] = reviveBookmarks([{ id: 'b1', url: 'https://example.com/', folderId: 'f1' }]) ?? [];
-    expect(bookmark?.folderId).toBe('f1');
+/** The lists that hold folders, groups and bookmarks share the same rules about what is not a list and what has no id. */
+describe('every stored list, read back off disk', () => {
+  it.each([
+    { name: 'bookmarks', revive: reviveBookmarks, raw: { bookmarks: 'nope' } },
+    { name: 'bookmark folders', revive: reviveFolders, raw: { id: 'f1' } },
+    { name: 'tab groups', revive: reviveGroups, raw: { id: 'g1' } },
+  ])('refuses $name that are not a list, so nothing is brought in', ({ revive, raw }) => {
+    expect(revive(raw)).toBeNull();
   });
 
-  it('treats a non-string folder as unfiled rather than dropping the bookmark', () => {
-    const [bookmark] = reviveBookmarks([{ id: 'b1', url: 'https://example.com/', folderId: 42 }]) ?? [];
-    expect(bookmark?.folderId).toBeNull();
+  // Nothing could be filed in, or point at, an entry with no id, so it is dropped rather than repaired.
+  it.each([
+    { name: 'bookmark folders', revive: reviveFolders },
+    { name: 'tab groups', revive: reviveGroups },
+  ])('drops an entry of $name with no id', ({ revive }) => {
+    expect(revive([{ name: 'Nameless' }, { id: 'x1', name: 'Work' }])).toHaveLength(1);
   });
 });
 
@@ -292,19 +304,6 @@ describe('tab groups, read back off disk', () => {
     expect(groups).toEqual([{ id: 'g1', name: 'Work', colour: 'violet', ownSession: true, collapsed: false }]);
   });
 
-  it('refuses a file that is not a list', () => {
-    expect(reviveGroups({ id: 'g1' })).toBeNull();
-  });
-
-  it('drops an entry with no id, because no tab could point at it', () => {
-    expect(reviveGroups([{ name: 'Nameless' }, { id: 'g1', name: 'Work' }])).toHaveLength(1);
-  });
-
-  it('keeps a group whose colour this build does not have', () => {
-    const [group] = reviveGroups([{ id: 'g1', name: 'Work', colour: 'chartreuse' }]) ?? [];
-    expect(group?.colour).toBe(GROUP_COLOURS[0].id);
-  });
-
   /*
    * The dangerous direction is only one way round. A group that kept its own
    * browsing and is read back as sharing would put its tabs in the ordinary
@@ -318,9 +317,22 @@ describe('tab groups, read back off disk', () => {
     expect(separate?.ownSession).toBe(true);
   });
 
-  it('treats anything but true as not collapsed, so nothing hides itself', () => {
-    const [group] = reviveGroups([{ id: 'g1', name: 'Work', collapsed: 'yes' }]) ?? [];
-    expect(group?.collapsed).toBe(false);
+  it.each([
+    {
+      name: 'keeps a group whose colour this build does not have',
+      entry: { id: 'g1', name: 'Work', colour: 'chartreuse' },
+      field: 'colour',
+      expected: GROUP_COLOURS[0].id,
+    },
+    {
+      name: 'treats anything but true as not collapsed, so nothing hides itself',
+      entry: { id: 'g1', name: 'Work', collapsed: 'yes' },
+      field: 'collapsed',
+      expected: false,
+    },
+  ])('$name', ({ entry, field, expected }) => {
+    const [group] = reviveGroups([entry]) ?? [];
+    expect(group?.[field as keyof typeof group]).toEqual(expected);
   });
 });
 
@@ -332,15 +344,14 @@ describe('tab groups, read back off disk', () => {
 describe('a session file that is not what it should be', () => {
   const migrated = (raw: unknown) => migrate(raw, 1, SESSION_PLAN);
 
-  it('survives a file that is not a record at all', () => {
-    expect(() => migrated('nonsense')).not.toThrow();
-    expect(() => migrated(null)).not.toThrow();
-    expect(() => migrated([1, 2, 3])).not.toThrow();
-  });
-
-  it('survives urls being the wrong shape entirely', () => {
-    expect(() => migrated({ urls: 'https://example.com/' })).not.toThrow();
-    expect(() => migrated({ urls: null })).not.toThrow();
+  it.each([
+    { name: 'a string', raw: 'nonsense' },
+    { name: 'null', raw: null },
+    { name: 'an array', raw: [1, 2, 3] },
+    { name: 'urls that are a string', raw: { urls: 'https://example.com/' } },
+    { name: 'urls that are null', raw: { urls: null } },
+  ])('survives a file that is $name', ({ raw }) => {
+    expect(() => migrated(raw)).not.toThrow();
   });
 
   it('keeps the addresses it can read and drops the ones it cannot', () => {

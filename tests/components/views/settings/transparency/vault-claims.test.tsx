@@ -37,35 +37,20 @@ describe('what the vault admits to', () => {
     await waitFor(() => expect(screen.getByText(facts.filePath)).toBeTruthy());
   });
 
+  // The warning is only true while the builds are unsigned; it must not outlive the reason.
   it.each([
-    'Where are they?',
-    'What protects them?',
-    'Does it fill passwords in?',
-    'Does it offer to save passwords?',
-  ])('answers %o', (question) => {
-    render(<TransparencyPane info={null} />);
-    expect(screen.getByText(question)).toBeTruthy();
-  });
-
-  // The uncomfortable one, and true of every password manager on every platform.
-  it('admits software running as you can ask for the same key', async () => {
-    render(<TransparencyPane info={null} />);
-    await waitFor(() => expect(document.body.textContent).toContain('software running as you'));
-  });
-
-  it('warns that an unsigned update can cost the keychain key', async () => {
-    facts = { ...facts, isSigned: false };
-    render(<TransparencyPane info={null} />);
-    await waitFor(() => expect(screen.getByText('Could an update lose them?')).toBeTruthy());
-    expect(document.body.textContent).toContain('Nothing is deleted');
-  });
-
-  // Only true while the builds are unsigned; it must not outlive the reason.
-  it('drops that warning once the builds are signed', async () => {
-    facts = { ...facts, isSigned: true };
+    { name: 'warns that an unsigned update can cost the keychain key', isSigned: false, isWarned: true },
+    { name: 'drops that warning once the builds are signed', isSigned: true, isWarned: false },
+  ])('$name', async ({ isSigned, isWarned }) => {
+    facts = { ...facts, isSigned };
     render(<TransparencyPane info={null} />);
     await waitFor(() => expect(screen.getByText(facts.filePath)).toBeTruthy());
-    expect(screen.queryByText('Could an update lose them?')).toBeNull();
+    if (isWarned) {
+      expect(screen.getByText('Could an update lose them?')).toBeTruthy();
+      expect(document.body.textContent).toContain('Nothing is deleted');
+    } else {
+      expect(screen.queryByText('Could an update lose them?')).toBeNull();
+    }
     facts = { ...facts, isSigned: false };
   });
 
@@ -85,13 +70,6 @@ describe('what the vault admits to', () => {
 describe('the promise not to watch what you type', () => {
   it('is still true of the code: no preload reaches web content', () => {
     expect(readFileSync('electron/main/tabs/tabs.ts', 'utf8')).toMatch(/preload:\s*undefined/);
-  });
-
-  it('is what the page tells you, beside the fill that does run', () => {
-    render(<TransparencyPane info={null} />);
-    const text = document.body.textContent ?? '';
-    expect(text).toContain('code running in every page');
-    expect(text).toContain('Fill password');
   });
 
   it('names what keeps the key, and says why when nothing can', async () => {

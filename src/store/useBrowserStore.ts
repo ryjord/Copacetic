@@ -23,14 +23,11 @@ interface BrowserStoreState extends BrowserState {
   surface: ChromeSurface;
   /** Incremented to ask the omnibox to take focus and select its contents. */
   omniboxFocusToken: number;
-  /** The settings pane to open on, when something asked for one; settings opens on its first pane otherwise. */
-  settingsPane: string | null;
 
   /** The whole state on first load, then only the parts that changed. */
   applyState(next: BrowserStatePatch): void;
   setSurface(surface: ChromeSurface): void;
   toggleSurface(surface: Exclude<ChromeSurface, 'none'>): void;
-  openSettings(paneId: string): void;
   requestOmniboxFocus(): void;
 }
 
@@ -47,6 +44,7 @@ const EMPTY_STATE: BrowserState = {
   hasClosedTabs: false,
   siteInfo: null,
   bookmarkSheet: null,
+  passwordOffer: null,
   split: null,
   namedSessions: [],
   update: {
@@ -71,7 +69,6 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   activeTab: null,
   surface: 'none',
   omniboxFocusToken: 0,
-  settingsPane: null,
 
   applyState: (incoming) => {
     const current = get();
@@ -98,11 +95,9 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
     });
   },
 
-  setSurface: (surface) => set({ surface, settingsPane: null }),
+  setSurface: (surface) => set({ surface }),
 
-  toggleSurface: (surface) => set({ surface: get().surface === surface ? 'none' : surface, settingsPane: null }),
-
-  openSettings: (paneId) => set({ surface: 'settings', settingsPane: paneId }),
+  toggleSurface: (surface) => set({ surface: get().surface === surface ? 'none' : surface }),
 
   requestOmniboxFocus: () => set({ omniboxFocusToken: get().omniboxFocusToken + 1 }),
 }));
