@@ -29,7 +29,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         {
           label: t('main.menu.app.settings'),
           accelerator: key('settings'),
-          click: () => inWindow((browser) => browser.openSurface('settings')),
+          click: () => inWindow((browser) => browser.showPage('settings')),
         },
         { type: 'separator' },
         { role: 'services' },
@@ -62,7 +62,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
           { type: 'separator' },
           {
             label: t('main.menu.profiles.manage'),
-            click: () => inWindow((browser) => browser.openSurface('settings')),
+            click: () => inWindow((browser) => browser.showPage('settings')),
           },
         ],
       },
@@ -128,7 +128,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
             {
               label: t('main.menu.app.settings'),
               accelerator: key('settings'),
-              click: () => inWindow((browser) => browser.openSurface('settings')),
+              click: () => inWindow((browser) => browser.showPage('settings')),
             },
             { type: 'separator' },
           ] as MenuItemConstructorOptions[])),
@@ -237,7 +237,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.history.showAll'),
         accelerator: key('history'),
-        click: () => inWindow((browser) => browser.openSurface('history')),
+        click: () => inWindow((browser) => browser.showPage('history')),
       },
       {
         label: t('main.menu.history.clearBrowsingData'),
@@ -257,7 +257,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.bookmarks.showAll'),
         accelerator: key('bookmarks'),
-        click: () => inWindow((browser) => browser.openSurface('bookmarks')),
+        click: () => inWindow((browser) => browser.showPage('bookmarks')),
       },
     ],
   });
@@ -295,7 +295,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.tabs.downloads'),
         accelerator: key('downloads'),
-        click: () => inWindow((browser) => browser.openSurface('downloads')),
+        click: () => inWindow((browser) => browser.showPage('downloads')),
       },
       ...(isMac
         ? ([

@@ -40,6 +40,7 @@ import type {
   TabId,
 } from '../../shared/types';
 import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
+import type { InternalPage } from '../../shared/tabs/internal-pages';
 import type { SuggestionView } from '../../shared/browsing/suggestion-view';
 import type { ContentBlocker } from '../security/blocker';
 import type { DownloadManager } from '../data/downloads';
@@ -447,7 +448,7 @@ export class Browser {
   toggleBookmarkForActiveTab(): void {
     const { tabs, activeTabId } = this.tabs.snapshot();
     const tab = tabs.find((candidate) => candidate.id === activeTabId);
-    if (tab && !tab.isStartPage) {
+    if (tab && tab.internalPage === null) {
       this.toggleBookmark(tab.url, tab.title);
     }
   }
@@ -520,9 +521,14 @@ export class Browser {
     this.pushToChrome(PUSH.openSurface, surface);
   }
 
-  openSettingsPane(paneId: string): void {
+  /** Settings, history, bookmarks or downloads, in a tab of their own rather than over the page. */
+  showPage(page: InternalPage, section: string | null = null): void {
     this.closeSiteInfo();
-    this.pushToChrome(PUSH.openSettingsPane, paneId);
+    this.tabs.showInternalPage(page, section);
+  }
+
+  openSettingsPane(paneId: string): void {
+    this.showPage('settings', paneId);
   }
 
   /** What was asked for before anyone was listening, collected as the chrome starts. */
@@ -565,7 +571,7 @@ export class Browser {
   toggleSiteInfo(): void {
     const { tabs, activeTabId } = this.tabs.snapshot();
     const activeTab = tabs.find((tab) => tab.id === activeTabId);
-    if (this.siteInfo || !activeTab || activeTab.isStartPage) {
+    if (this.siteInfo || !activeTab || activeTab.internalPage !== null) {
       this.closeSiteInfo();
       return;
     }

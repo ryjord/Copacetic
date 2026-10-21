@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/ui/EmptyState/EmptyState';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { SearchField } from '@/components/ui/TextField/TextField';
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
-import { SurfaceShell } from '@/components/shell/SurfaceShell/SurfaceShell';
+import { PageShell } from '@/components/shell/PageShell/PageShell';
 
 // Icons
 import { ChevronDown, Download, File, FolderOpen, Pause, Play, RotateCw, X } from 'lucide-react';
@@ -66,7 +66,7 @@ const SORTERS: Record<DownloadSort, (aDownload: DownloadState, bDownload: Downlo
     Math.max(bDownload.totalBytes, bDownload.receivedBytes) - Math.max(aDownload.totalBytes, aDownload.receivedBytes),
 };
 
-export function DownloadsSurface() {
+export function DownloadsPage() {
   const downloads = useBrowserStore((state) => state.downloads);
   const [query, setQuery] = useState('');
   const [notice, setNotice] = useState('');
@@ -90,7 +90,7 @@ export function DownloadsSurface() {
   };
 
   return (
-    <SurfaceShell
+    <PageShell
       title={t('views.downloads.title')}
       actions={
         <>
@@ -171,7 +171,7 @@ export function DownloadsSurface() {
           )
         )}
       </div>
-    </SurfaceShell>
+    </PageShell>
   );
 }
 

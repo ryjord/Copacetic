@@ -39,10 +39,10 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     {
       label: t('main.menu.bookmarks.title'),
       ...shortcut('bookmarks'),
-      click: () => browser.openSurface('bookmarks'),
+      click: () => browser.showPage('bookmarks'),
     },
-    { label: t('main.menu.history.title'), ...shortcut('history'), click: () => browser.openSurface('history') },
-    { label: t('main.menu.tabs.downloads'), ...shortcut('downloads'), click: () => browser.openSurface('downloads') },
+    { label: t('main.menu.history.title'), ...shortcut('history'), click: () => browser.showPage('history') },
+    { label: t('main.menu.tabs.downloads'), ...shortcut('downloads'), click: () => browser.showPage('downloads') },
     { label: t('main.menu.history.clearBrowsingData'), click: () => browser.openSettingsPane('data') },
     { type: 'separator' },
     // Windows and Linux have no menu bar, so the zoom, reader and split controls have to live here too.
@@ -78,7 +78,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
       ...shortcut('palette'),
       click: () => browser.openSurface('palette'),
     },
-    { label: t('main.menu.app.settings'), ...shortcut('settings'), click: () => browser.openSurface('settings') },
+    { label: t('main.menu.app.settings'), ...shortcut('settings'), click: () => browser.showPage('settings') },
     // Windows and Linux show no menu bar, so this is the only menu a pointer can reach there.
     {
       label: t('main.menu.mainMenu.moreTools'),

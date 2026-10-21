@@ -51,7 +51,7 @@ function tab(id: string, title: string): TabState {
     blockedCount: 0,
     loadMs: null,
     zoomFactor: 1,
-    isStartPage: false,
+    internalPage: null,
     isBookmarked: false,
     groupId: null,
   };

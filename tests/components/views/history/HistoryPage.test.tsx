@@ -46,13 +46,11 @@ vi.mock('@/lib/bridge/bridge', () => ({
   isRunningInShell: () => false,
 }));
 
-const setSurface = vi.fn();
 vi.mock('@/store/useBrowserStore', () => ({
-  useBrowserStore: (select: (state: { activeTabId: string; setSurface: () => void }) => unknown) =>
-    select({ activeTabId: 'tab', setSurface }),
+  useBrowserStore: (select: (state: { activeTabId: string }) => unknown) => select({ activeTabId: 'tab' }),
 }));
 
-const { HistorySurface } = await import('@/components/views/history/HistorySurface');
+const { HistoryPage } = await import('@/components/views/history/HistoryPage');
 
 beforeEach(() => {
   listed.length = 0;
@@ -63,7 +61,7 @@ afterEach(cleanup);
 
 describe('the history list', () => {
   it('drops a slow search that answers after a newer one', async () => {
-    render(<HistorySurface />);
+    render(<HistoryPage />);
     await screen.findByText('Inbox');
     const search = screen.getByRole('searchbox');
     fireEvent.change(search, { target: { value: 'held' } });
@@ -77,14 +75,14 @@ describe('the history list', () => {
   });
 
   it('asks for only the days chosen, and in the order chosen', async () => {
-    render(<HistorySurface />);
+    render(<HistoryPage />);
     await screen.findByText('Inbox');
     fireEvent.click(screen.getByRole('radio', { name: 'Yesterday' }));
     await waitFor(() => expect(listed.at(-1)).toEqual(['', 0, { range: 'yesterday', order: 'recent' }]));
   });
 
   it('deletes everything selected at once', async () => {
-    render(<HistorySurface />);
+    render(<HistoryPage />);
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Inbox' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select The Morning Brief' }));
     expect(screen.getByText('2 selected')).toBeTruthy();
@@ -94,7 +92,7 @@ describe('the history list', () => {
   });
 
   it('opens what is selected in tabs, in the order listed', async () => {
-    render(<HistorySurface />);
+    render(<HistoryPage />);
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select The Morning Brief' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Inbox' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open in tabs' }));
@@ -104,7 +102,7 @@ describe('the history list', () => {
   });
 
   it('groups by site when asked', async () => {
-    render(<HistorySurface />);
+    render(<HistoryPage />);
     await screen.findByText('Inbox');
     fireEvent.click(screen.getByRole('button', { name: 'Group by site' }));
     expect(screen.getByRole('heading', { name: 'mail.example.com' })).toBeTruthy();

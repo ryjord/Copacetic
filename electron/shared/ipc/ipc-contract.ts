@@ -84,6 +84,7 @@ export const CHANNELS = {
   'chrome.closeSiteInfo': 'chrome:close-site-info',
   'chrome.closeBookmarkSheet': 'chrome:close-bookmark-sheet',
   'chrome.openSettingsPane': 'chrome:open-settings-pane',
+  'chrome.showPage': 'chrome:show-page',
   'chrome.getState': 'chrome:get-state',
   'chrome.pendingSurface': 'surface:pending',
   'chrome.openMainMenu': 'chrome:open-main-menu',

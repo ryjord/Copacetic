@@ -64,115 +64,104 @@ describe('the app starts', () => {
 
 /**
  * The menu bar is not decoration, and the only way to know an item works is to
- * press it. This one was reported broken during the blocking work and was not:
- * the test pressed it before the renderer had hydrated, so the push it sends
- * arrived at a window that was not yet listening. At the time the fix was the
- * test. The request is now held in the main process instead, which is the
- * subject of the spec below.
+ * press it. Settings is a tab of its own now, so pressing it opens one, which
+ * is closed again so the specs after this find the page they expect.
  */
 describe('the Settings item in the menu bar', () => {
-  it('opens the settings surface', async () => {
+  it('opens settings in a tab of its own', async () => {
     expect(await copacetic.waitForReady()).toBe(true);
-
     expect(await pressMenuItem('Settings…')).toBe(true);
 
-    // Waited for rather than slept through: the push crosses a process boundary
-    // and then React renders, and a fixed pause is a guess about how long that
-    // takes on a machine nobody has measured.
-    const opened = await copacetic.waitForChrome(() =>
-      Boolean(document.querySelector('[role="dialog"][aria-label="Settings"]')),
-    );
-    expect(opened).toBe(true);
+    const activeUrl = () =>
+      copacetic.chrome.evaluate(async () => {
+        const state = await window.copacetic.chrome.getState();
+        return state.tabs.find((tab) => tab.id === state.activeTabId)?.url ?? null;
+      });
+    expect(await copacetic.until(async () => (await activeUrl()) === 'copacetic://settings', 10_000)).toBe(true);
+    expect(await copacetic.chrome.getByRole('region', { name: 'Settings' }).isVisible()).toBe(true);
 
-    // Put it back. A surface covers the content area, so leaving it open hides
-    // the page view and the next test finds nothing where the page should be.
-    await copacetic.chrome.getByRole('button', { name: 'Close settings' }).click();
+    await copacetic.chrome.evaluate(async () => {
+      const state = await window.copacetic.chrome.getState();
+      if (state.activeTabId) {
+        await window.copacetic.tabs.close(state.activeTabId);
+      }
+    });
     await new Promise((resolve) => setTimeout(resolve, 800));
   }, 90_000);
+
+  // A tab of ours is ordinary state, so a chrome that reloads draws it again with nothing held for it.
+  it('is still drawn after the interface reloads', async () => {
+    expect(await pressMenuItem('Settings…')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.webContents.reload());
+    expect(await copacetic.waitForReady()).toBe(true);
+    expect(
+      await copacetic.waitForChrome(() => Boolean(document.querySelector('section[aria-label="Settings"]'))),
+    ).toBe(true);
+    await copacetic.chrome.evaluate(async () => {
+      const state = await window.copacetic.chrome.getState();
+      if (state.activeTabId) {
+        await window.copacetic.tabs.close(state.activeTabId);
+      }
+    });
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }, 120_000);
 });
 
 /**
- * The other half of the item above, and the reason its comment no longer blames
- * the test.
- *
  * The chrome is a page, and the window paints before anything in it is
  * listening - about 190ms apart on the machine `npm run measure` reports, and
- * further into a cold start, which is slower throughout. A push sent inside that window
- * reaches a renderer with no listeners attached and is simply gone, so Cmd+, during startup did nothing and looked identical to a
- * menu item that is broken. The request is now held in the main process and
- * collected when the renderer starts listening.
+ * further into a cold start. A push sent inside that window reaches a renderer
+ * with no listeners attached and is simply gone, so Cmd+K during startup did
+ * nothing and looked identical to a menu item that is broken. The request is
+ * held in the main process and collected when the renderer starts listening.
  *
  * This presses the item after hydration, because the race cannot be forced from
- * out here. What it proves is the part that a unit test cannot: that the
- * channel is registered, the preload exposes it, and the main process really is
- * keeping the request - a rule with nothing wired to it passes its own tests
- * perfectly.
+ * out here. What it proves is the part a unit test cannot: that the channel is
+ * registered, the preload exposes it, and the main process really is keeping
+ * the request.
  */
 describe('a surface asked for before the chrome is listening', () => {
+  const paletteShowing = () =>
+    copacetic.chrome.evaluate(() => Boolean(document.querySelector('[role="dialog"][aria-label="Command palette"]')));
+
   it('is kept for a renderer that starts later, and handed over once', async () => {
     expect(await copacetic.waitForReady()).toBe(true);
-    expect(await pressMenuItem('Show all history')).toBe(true);
+    expect(await pressMenuItem('Command palette')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    // What a chrome starting now would be given. The push also reached this
-    // already-hydrated renderer, which is not what is being measured here.
     const held = await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
-    expect(held).toBe('history');
-
-    // Handed over once: a second renderer asking is a reload, not a person
-    // asking again, and it must not reopen a pane that was already closed.
+    expect(held).toBe('palette');
+    // Handed over once: a second renderer asking is a reload, not a person asking again.
     const again = await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
     expect(again).toBeNull();
 
-    // Put it back, or the surface hides the page view for every spec after it.
-    await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await copacetic.chrome.keyboard.press('Escape');
+    await new Promise((resolve) => setTimeout(resolve, 600));
   }, 90_000);
 
-  /*
-   * The one that matters, and the one the two above cannot see.
-   *
-   * They assert what the main process hands back, which is only half the
-   * journey: the renderer still has to collect it and still be showing it once
-   * the first state arrives. Reloading the chrome with a request held is the
-   * only way to reproduce a renderer starting up from out here, and it is a
-   * real case in its own right.
-   */
+  // Reloading the chrome with a request held is the one way to reproduce a renderer starting up from out here.
   it('is actually on screen once the interface has finished starting', async () => {
-    expect(await pressMenuItem('Show all history')).toBe(true);
+    expect(await pressMenuItem('Command palette')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 400));
 
     await copacetic.main(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.webContents.reload());
     expect(await copacetic.waitForReady()).toBe(true);
-    // Long enough for the first state push to land and everything it triggers
-    // to settle. The failure this catches happens after hydration, not during.
     await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(await paletteShowing()).toBe(true);
 
-    const showing = await copacetic.chrome.evaluate(() =>
-      Boolean(document.querySelector('[role="dialog"][aria-label="History"]')),
-    );
-    expect(showing).toBe(true);
-
-    await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await copacetic.chrome.keyboard.press('Escape');
+    await new Promise((resolve) => setTimeout(resolve, 600));
   }, 120_000);
 
-  /*
-   * The counterweight. Holding a close would mean a chrome that finished
-   * starting a second later opened, and then immediately shut, a pane nobody
-   * had asked for.
-   */
+  // Holding a close would mean a chrome that started a second later opened, then shut, a pane nobody asked for.
   it('never keeps a close', async () => {
     await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
-    expect(await pressMenuItem('Show all history')).toBe(true);
+    expect(await pressMenuItem('Command palette')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await copacetic.chrome.keyboard.press('Escape');
     await new Promise((resolve) => setTimeout(resolve, 600));
 
-    await copacetic.chrome.getByRole('button', { name: 'Close history' }).click();
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    // Closing goes through the renderer only, so the request the main process
-    // is holding is still the open. Pressing the item again and letting the
-    // close land is the shape that matters: what is held must never be 'none'.
     const held = await copacetic.chrome.evaluate(() => window.copacetic.chrome.pendingSurface());
     expect(held).not.toBe('none');
   }, 90_000);

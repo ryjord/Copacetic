@@ -57,13 +57,13 @@ export function bookmarksMenuItems(browser: Browser): MenuItemConstructorOptions
   return [
     {
       label: active?.isBookmarked ? t('main.menu.context.removeBookmark') : t('main.menu.bookmarks.bookmarkThisPage'),
-      enabled: active !== undefined && !active.isStartPage,
+      enabled: active !== undefined && active.internalPage === null,
       click: () => browser.toggleBookmarkForActiveTab(),
     },
     { type: 'separator' },
     ...(hasAny ? itemsIn(browser, null, folders, bookmarks) : []),
     ...(hasAny ? [{ type: 'separator' as const }] : []),
-    { label: t('main.menu.bookmarks.showAll'), click: () => browser.openSurface('bookmarks') },
+    { label: t('main.menu.bookmarks.showAll'), click: () => browser.showPage('bookmarks') },
   ];
 }
 

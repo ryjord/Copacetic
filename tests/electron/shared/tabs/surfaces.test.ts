@@ -9,7 +9,7 @@ import {
 } from '../../../../electron/shared/tabs/surfaces';
 
 const asked = (over: Partial<SurfaceRequest> = {}): SurfaceRequest => ({
-  surface: 'settings',
+  surface: 'palette',
   askedAt: 1_000_000,
   ...over,
 });
@@ -18,7 +18,7 @@ const asked = (over: Partial<SurfaceRequest> = {}): SurfaceRequest => ({
  * The window paints before anything in it is listening, by about 190ms on the
  * machine `npm run measure` reports, and later still into a cold start, which
  * is slower throughout. Measured before
- * this existed: Cmd+, inside that window pushed to a renderer with no listeners
+ * this existed: Cmd+K inside that window pushed to a renderer with no listeners
  * attached, and the menu item was indistinguishable from one that does nothing
  * at all.
  */
@@ -48,11 +48,9 @@ describe('a surface asked for before anyone was listening', () => {
  */
 describe('which requests are worth holding', () => {
   it.each([
-    ['settings', true],
-    ['downloads', true],
-    ['history', true],
-    ['bookmarks', true],
     ['palette', true],
+    ['tab-search', true],
+    ['reader', true],
     ['none', false],
   ] as const)('holds %s: %s', (surface, expected) => {
     expect(worthHolding(surface)).toBe(expected);

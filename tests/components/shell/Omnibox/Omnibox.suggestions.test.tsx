@@ -66,7 +66,7 @@ function tab(id: string, url: string): TabState {
     blockedCount: 0,
     loadMs: 120,
     zoomFactor: 1,
-    isStartPage: false,
+    internalPage: null,
     isBookmarked: false,
   };
 }

@@ -46,7 +46,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
   const homeUrl = useBrowserStore((state) => state.settings.homeUrl);
   const isSplit = useBrowserStore((state) => shownSplit(state.split, state.activeTabId) !== null);
   const setSurface = useBrowserStore((state) => state.setSurface);
-  const isPage = tab !== null && !tab.isStartPage;
+  const isPage = tab !== null && tab.internalPage === null;
 
   return (
     <div className="flex h-[var(--chrome-toolbar-height)] shrink-0 items-center gap-1 border-b border-line bg-toolbar px-2.5">
@@ -66,7 +66,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       </IconButton>
       <IconButton
         label={isBusy ? t('shell.toolbar.stop') : t('shell.toolbar.reload')}
-        disabled={!tab || tab.isStartPage}
+        disabled={!tab || tab.internalPage !== null}
         onClick={() => tab && send((api) => (isBusy ? api.tabs.stop(tab.id) : api.tabs.reload(tab.id)))}
       >
         {isBusy ? <X {...ICON} /> : <RotateCw {...ICON} />}
@@ -74,7 +74,7 @@ export function Toolbar({ tab }: { tab: TabState | null }) {
       {toolbarItems.includes('home') && (
         <IconButton
           label={t('shell.toolbar.home')}
-          disabled={!tab || (tab.isStartPage && homeUrl === null)}
+          disabled={!tab || (tab.internalPage === 'start' && homeUrl === null)}
           onClick={() => tab && send((api) => api.tabs.navigate(tab.id, homeUrl ?? START_PAGE_URL))}
         >
           <House {...ICON} />
@@ -152,8 +152,9 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
 /** The one surface with its own button, because it is the one with something to report while you browse. */
 function DownloadsButton() {
-  const isOpen = useBrowserStore((state) => state.surface === 'downloads');
-  const toggleSurface = useBrowserStore((state) => state.toggleSurface);
+  const isOpen = useBrowserStore(
+    (state) => state.tabs.find((tab) => tab.id === state.activeTabId)?.internalPage === 'downloads',
+  );
   const activeCount = useBrowserStore(selectActiveDownloadCount);
   const progress = useBrowserStore(selectDownloadProgress);
   const label =
@@ -164,7 +165,7 @@ function DownloadsButton() {
       label={label}
       tone={isOpen ? 'active' : 'default'}
       className="relative"
-      onClick={() => toggleSurface('downloads')}
+      onClick={() => send((api) => api.chrome.showPage('downloads'))}
     >
       <Download {...ICON} />
       {activeCount > 0 && (

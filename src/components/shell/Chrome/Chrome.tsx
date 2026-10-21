@@ -4,15 +4,11 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 
 // Components
-import { BookmarksSurface } from '@/components/views/bookmarks/BookmarksSurface';
 import { CommandPalette } from '@/components/views/palette/CommandPalette';
-import { DownloadsSurface } from '@/components/views/downloads/DownloadsSurface';
-import { HistorySurface } from '@/components/views/history/HistorySurface';
 import { ReaderSurface } from '@/components/views/reader/ReaderSurface';
-import { SettingsSurface } from '@/components/views/settings/SettingsSurface';
 import { ErrorPage } from '@/components/views/error/ErrorPage';
-import { StartPage } from '@/components/views/start/StartPage';
 import { BookmarksBar } from '@/components/shell/BookmarksBar/BookmarksBar';
+import { InternalPage } from '@/components/shell/InternalPage/InternalPage';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
 import { SplitView } from '@/components/shell/SplitView/SplitView';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
@@ -34,7 +30,6 @@ import { shownSplit } from '@shared/tabs/split-view';
 export function Chrome() {
   const applyState = useBrowserStore((state) => state.applyState);
   const setSurface = useBrowserStore((state) => state.setSurface);
-  const openSettings = useBrowserStore((state) => state.openSettings);
   const requestOmniboxFocus = useBrowserStore((state) => state.requestOmniboxFocus);
 
   const isReady = useBrowserStore((state) => state.isReady);
@@ -65,11 +60,10 @@ export function Chrome() {
       api.on.state(applyState),
       api.on.focusOmnibox(requestOmniboxFocus),
       api.on.openSurface((next) => setSurface(next)),
-      api.on.openSettingsPane((paneId) => openSettings(paneId)),
     ];
 
     // Anything asked for before this listener existed was pushed to nobody. The
-    // main process holds the last one; collecting it here is what makes Cmd+,
+    // main process holds the last one; collecting it here is what makes Cmd+K
     // during the second and a half this page takes to hydrate do something.
     void api.chrome.pendingSurface().then((pending) => {
       if (pending) {
@@ -77,7 +71,7 @@ export function Chrome() {
       }
     });
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, [applyState, requestOmniboxFocus, setSurface, openSettings]);
+  }, [applyState, requestOmniboxFocus, setSurface]);
 
   // --- reporting the content rectangle ------------------------------------
 
@@ -204,16 +198,10 @@ export function Chrome() {
           {!isRunningInShell() && <OutsideShellNotice />}
 
           {isReady && split && <SplitView split={split} tabs={tabs} activeTabId={activeTabId} />}
-          {isReady && !split && activeTab?.isStartPage && (
-            <StartPage tabId={activeTab.id} isHush={activeTab.isHush} />
-          )}
+          {isReady && !split && activeTab?.internalPage && <InternalPage tab={activeTab} />}
           {isReady && !split && activeTab?.error && <ErrorPage tabId={activeTab.id} error={activeTab.error} />}
         </div>
 
-        {surface === 'settings' && <SettingsSurface />}
-        {surface === 'history' && <HistorySurface />}
-        {surface === 'bookmarks' && <BookmarksSurface />}
-        {surface === 'downloads' && <DownloadsSurface />}
         {surface === 'palette' && <CommandPalette />}
         {surface === 'tab-search' && <CommandPalette scope="tabs" />}
         {surface === 'reader' && <ReaderSurface />}

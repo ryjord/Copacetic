@@ -46,7 +46,6 @@ function setup(overrides: Partial<TabRecord> = {}) {
     isHush: false,
     isPinned: false,
     isAsleep: false,
-    isStartPage: false,
     url: 'https://example.com/page',
     title: 'Example',
     faviconDataUrl: null,
@@ -114,10 +113,12 @@ describe('what a page reports about itself is not trusted to be sensible', () =>
     expect(deps.cacheFavicon).not.toHaveBeenCalled();
   });
 
-  it('does not record a visit for the start page', () => {
-    const { contents, deps } = setup({ isStartPage: true });
-    contents.emit('page-title-updated', {}, 'New tab');
+  // The blank view behind one of our pages reports a title of its own, which is neither a visit nor the tab's name.
+  it.each(['copacetic://start', 'copacetic://settings/sites'])('neither records nor takes a title on %s', (url) => {
+    const { contents, deps, tab } = setup({ url, title: '' });
+    contents.emit('page-title-updated', {}, 'about:blank');
     expect(deps.store.recordVisit).not.toHaveBeenCalled();
+    expect(tab.title).toBe('');
   });
 
   it('does not record a visit for a page that failed to load', () => {

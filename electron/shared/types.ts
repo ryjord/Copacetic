@@ -9,6 +9,7 @@ import type { TabGroup } from './tabs/tab-groups';
 import type { SplitView } from './tabs/split-view';
 import type { NamedSessionSummary } from './data/named-sessions';
 import type { OpenRules } from './tabs/open-rules';
+import type { InternalPage } from './tabs/internal-pages';
 
 /** Domain types shared by the main process, the preload bridge and the renderer. */
 
@@ -94,8 +95,8 @@ export interface TabState {
   /** Wall-clock milliseconds for the last completed load, if measured. */
   loadMs: number | null;
   zoomFactor: number;
-  /** True for a tab parked on the start page, which has no backing view. */
-  isStartPage: boolean;
+  /** The page Copacetic draws in this tab instead of a site, such as the start page or Settings; null for a site. */
+  internalPage: InternalPage | null;
   /** A Hush tab: nothing it does is written to this machine. */
   isHush: boolean;
   /** Kept at the start of the strip as an icon, and brought back pinned. */

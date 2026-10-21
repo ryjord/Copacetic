@@ -31,7 +31,7 @@ const tab = (id: string, over: Partial<TabState> = {}): TabState => ({
   blockedCount: 0,
   loadMs: null,
   zoomFactor: 1,
-  isStartPage: false,
+  internalPage: null,
   isBookmarked: false,
   ...over,
 });

@@ -1,6 +1,7 @@
 // Types
 import type { KeptAboutSites, KeptKind, SiteTraces } from '../data/forgetting';
 import type { ChromeSurface, DataKind } from './channels';
+import type { InternalPage } from '../tabs/internal-pages';
 import type { BookmarkFolder } from '../data/bookmark-folders';
 import type { Notice } from '../chrome/notices';
 import type { BrowserStatePatch } from './state-slices';
@@ -138,6 +139,8 @@ export interface CopaceticApi {
     closeBookmarkSheet(): Promise<void>;
     /** Settings, opened at one pane; from the site card, which cannot reach the chrome's own state. */
     openSettingsPane(paneId: string): Promise<void>;
+    /** One of our pages in a tab of its own: focused if open, opened beside the tab in front if not. */
+    showPage(page: InternalPage, section?: string | null): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;
@@ -413,7 +416,6 @@ export interface CopaceticApi {
     state(listener: (patch: BrowserStatePatch) => void): Unsubscribe;
     focusOmnibox(listener: () => void): Unsubscribe;
     openSurface(listener: (surface: ChromeSurface) => void): Unsubscribe;
-    openSettingsPane(listener: (paneId: string) => void): Unsubscribe;
     /** Something finished, or something needs deciding before it can. */
     notice(listener: (notice: Notice) => void): Unsubscribe;
     /** A notice was answered or dismissed somewhere else, so stop showing it. */

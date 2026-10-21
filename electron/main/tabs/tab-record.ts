@@ -1,4 +1,9 @@
+// Utils
+import { internalPageOf } from '../../shared/tabs/internal-pages';
+
+// Types
 import type { WebContents, WebContentsView } from 'electron';
+import type { InternalPage } from '../../shared/tabs/internal-pages';
 import type { PageError, TabId } from '../../shared/types';
 import type { BrowsingRecord } from './browsing-record';
 
@@ -10,8 +15,6 @@ export interface TabRecord {
   isHush: boolean;
   /** Where what it leaves behind goes; for a Hush tab, nowhere. */
   record: BrowsingRecord;
-  /** True while the tab shows Copacetic's own start page instead of a site. */
-  isStartPage: boolean;
   url: string;
   title: string;
   faviconDataUrl: string | null;
@@ -46,4 +49,9 @@ export interface TabRecord {
 export function pageOf(tab: TabRecord): WebContents | null {
   const contents: WebContents | undefined = tab.view.webContents;
   return tab.isAsleep || !contents || contents.isDestroyed() ? null : contents;
+}
+
+/** The page Copacetic draws in this tab instead of a site, read from its address; null while it shows a site. */
+export function internalPageIn(tab: Pick<TabRecord, 'url'>): InternalPage | null {
+  return internalPageOf(tab.url);
 }

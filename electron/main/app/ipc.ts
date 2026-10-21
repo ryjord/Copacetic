@@ -37,6 +37,7 @@ import {
 import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-browser';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
+import { INTERNAL_PAGES, isSection } from '../../shared/tabs/internal-pages';
 import { routeFor } from '../../shared/translation/languages';
 import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start-tiles';
 import { readChosenImage } from '../system/file-dialogs';
@@ -343,10 +344,15 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('chrome.closeSiteInfo', (browser) => browser.closeSiteInfo());
   handle('chrome.closeBookmarkSheet', (browser) => browser.closeBookmarkSheet());
   handle('chrome.openSettingsPane', (browser, _event, paneId) => {
-    const id = asString(paneId);
     // A pane's id, never anything the chrome would treat as more than a name.
-    if (/^[a-z]{1,30}$/.test(id)) {
-      browser.openSettingsPane(id);
+    if (isSection(paneId)) {
+      browser.openSettingsPane(paneId);
+    }
+  });
+  handle('chrome.showPage', (browser, _event, page, section) => {
+    const known = INTERNAL_PAGES.find((candidate) => candidate === page);
+    if (known) {
+      browser.showPage(known, isSection(section) ? section : null);
     }
   });
   handle('chrome.setOverlaySize', (browser, event, width, height) =>

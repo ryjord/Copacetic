@@ -336,7 +336,8 @@ export class Profile {
   /** Reopens last time's windows, closing the new one if nothing was done in it. */
   private async reopenInPlaceOf(fresh: Browser, saved: readonly SessionSnapshot[]): Promise<void> {
     await this.reopenWindows(saved);
-    const isUntouched = this.windows.has(fresh) && fresh.tabs.snapshot().tabs.every((tab) => tab.isStartPage);
+    const isUntouched =
+      this.windows.has(fresh) && fresh.tabs.snapshot().tabs.every((tab) => tab.internalPage === 'start');
     if (isUntouched) {
       fresh.window.close();
     }

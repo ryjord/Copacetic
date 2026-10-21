@@ -11,15 +11,20 @@ import { InlineRenameField } from '@/components/ui/InlineRenameField/InlineRenam
 // Icons
 import {
   AlertCircle,
+  Bookmark,
   ChevronDown,
   Columns2,
+  Download,
   EyeOff,
+  History,
   ListChevronsUpDown,
   Lock,
   Plus,
+  Settings,
   Volume2,
   VolumeX,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 
 // Store
@@ -43,6 +48,14 @@ import {
   segmentByGroup,
   type TabGroup,
 } from '@shared/tabs/tab-groups';
+import type { InternalPage } from '@shared/tabs/internal-pages';
+
+const PAGE_ICONS: Partial<Record<InternalPage, LucideIcon>> = {
+  settings: Settings,
+  history: History,
+  bookmarks: Bookmark,
+  downloads: Download,
+};
 
 const CROWDED_TAB_WIDTH = 72;
 // Roughly the system's double-click interval: longer and folding feels slow, shorter and a double-click folds first.
@@ -265,14 +278,15 @@ const Tab = memo(function Tab({
   onDragOver,
   onDrop,
 }: TabProps) {
-  const title = tab.isStartPage ? t('shell.tabStrip.newTab') : tab.title;
+  const title = tab.internalPage === 'start' ? t('shell.tabStrip.newTab') : tab.title;
+  const PageIcon = tab.internalPage ? PAGE_ICONS[tab.internalPage] : undefined;
   const ref = useRef<HTMLDivElement>(null);
   const isSplit = useBrowserStore((state) => isInSplit(state.split, tab.id));
   const [memoryLine, setMemoryLine] = useState<string | null>(null);
 
   // Measured as the pointer arrives, so the tooltip it is about to show is current.
   const measureMemory = () => {
-    if (tab.isStartPage) {
+    if (tab.internalPage !== null) {
       return;
     }
     void ask((api) => api.tabs.memoryUse(), {}).then((measured) => {
@@ -360,7 +374,7 @@ const Tab = memo(function Tab({
         }
       }}
       onPointerEnter={measureMemory}
-      title={tab.isStartPage ? title : [tab.title, tab.url, memoryLine].filter(Boolean).join('\n')}
+      title={tab.internalPage !== null ? title : [tab.title, tab.url, memoryLine].filter(Boolean).join('\n')}
     >
       <div className="flex h-full items-center gap-2 px-2.5 @max-[72px]:justify-center @max-[72px]:px-0">
         {tab.isLoading ? (
@@ -368,6 +382,8 @@ const Tab = memo(function Tab({
             aria-label={t('shell.tabStrip.loading')}
             className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-active"
           />
+        ) : PageIcon ? (
+          <PageIcon size={15} strokeWidth={1.75} className="shrink-0 text-ink-dim" aria-hidden />
         ) : (
           <Favicon dataUrl={tab.faviconDataUrl} seed={tab.url} size={15} />
         )}

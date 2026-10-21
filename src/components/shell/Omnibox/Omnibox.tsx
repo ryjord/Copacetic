@@ -225,15 +225,15 @@ export function Omnibox({ tab }: OmniboxProps) {
           </button>
         )}
 
-        {tab && !tab.isStartPage && <ZoomChip tab={tab} />}
+        {tab && tab.internalPage === null && <ZoomChip tab={tab} />}
         {/* Offered on every web page rather than guessed at: finding the article means reading the whole page. */}
-        {tab && !tab.isStartPage && /^https?:/.test(tab.url) && (
+        {tab && tab.internalPage === null && /^https?:/.test(tab.url) && (
           <IconButton label={t('shell.omnibox.readerView')} size="sm" onClick={() => setSurface('reader')}>
             <BookOpen size={14} strokeWidth={1.75} />
           </IconButton>
         )}
-        {tab && !tab.isStartPage && <PasswordKey tab={tab} />}
-        {tab && !tab.isStartPage && <BookmarkStar tab={tab} />}
+        {tab && tab.internalPage === null && <PasswordKey tab={tab} />}
+        {tab && tab.internalPage === null && <BookmarkStar tab={tab} />}
       </div>
 
       {/* The visible list is in another document, which aria-activedescendant cannot reach, so this one is for screen readers. */}

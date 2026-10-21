@@ -50,13 +50,13 @@ describe('where a tab sits inside the window', () => {
  * straight through it.
  */
 describe('whether a tab is shown at all', () => {
-  const tab = { isActive: true, isStartPage: false, hasError: false };
+  const tab = { isActive: true, isInternalPage: false, hasError: false };
 
   it.each([
     ['shows the active tab when nothing covers it', {}, false, true],
     ['hides every tab that is not the active one', { isActive: false }, false, false],
     ['hides the page while an overlay is up', {}, true, false],
-    ['hides the view on the start page, which the chrome draws itself', { isStartPage: true }, false, false],
+    ['hides the view on a page of ours, which the chrome draws itself', { isInternalPage: true }, false, false],
     ['hides the view behind an error page, so the failed load cannot show through', { hasError: true }, false, false],
   ])('%s', (_name, changes, isOverlayUp, expected) => {
     expect(shouldTabBeVisible({ ...tab, ...changes }, isOverlayUp)).toBe(expected);

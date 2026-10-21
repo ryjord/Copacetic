@@ -1,6 +1,7 @@
 // Utils
 import { clampZoom } from '../../shared/types';
 import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/browsing/url';
+import { internalPageOf } from '../../shared/tabs/internal-pages';
 import { canAcceptRefused } from '../security/certificate-exceptions';
 import { describeNetError, isAbortError } from '../system/net-errors';
 import { log } from '../system/diagnostics';
@@ -68,7 +69,6 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
       return;
     }
     tab.url = url;
-    tab.isStartPage = false;
     tab.error = null;
     if (!isInPage) {
       tab.title = fallbackTitleFor(url);
@@ -133,8 +133,12 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   });
 
   contents.on('page-title-updated', (_event, title) => {
+    // The blank view behind one of our pages has a title of its own, which must not stick to the tab.
+    if (internalPageOf(tab.url)) {
+      return;
+    }
     tab.title = title;
-    if (!tab.isStartPage && !tab.error && tab.url.startsWith('http')) {
+    if (!tab.error && tab.url.startsWith('http')) {
       tab.record.recordVisit(tab.url, title);
     }
     changed();

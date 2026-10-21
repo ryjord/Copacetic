@@ -35,7 +35,7 @@ function tab(id: string, url: string): TabState {
     blockedCount: 0,
     loadMs: 120,
     zoomFactor: 1,
-    isStartPage: false,
+    internalPage: null,
     isBookmarked: false,
   };
 }
@@ -90,16 +90,17 @@ describe('Omnibox render stability', () => {
 
 describe('Omnibox zoom chip', () => {
   it.each([
-    { name: 'stays hidden at the default zoom', zoomFactor: 1, isStartPage: false, chipLabel: null },
+    { name: 'stays hidden at the default zoom', zoomFactor: 1, internalPage: null, chipLabel: null },
     {
       name: 'shows the zoom once the page is off the default',
       zoomFactor: 1.25,
-      isStartPage: false,
+      internalPage: null,
       chipLabel: '125%',
     },
-    { name: 'is not shown on the start page', zoomFactor: 1.5, isStartPage: true, chipLabel: null },
-  ])('$name', ({ zoomFactor, isStartPage, chipLabel }) => {
-    render(<Omnibox tab={{ ...tab('a', 'https://example.com/'), zoomFactor, isStartPage }} />);
+    { name: 'is not shown on the start page', zoomFactor: 1.5, internalPage: 'start' as const, chipLabel: null },
+    { name: 'is not shown on a page of ours', zoomFactor: 1.5, internalPage: 'settings' as const, chipLabel: null },
+  ])('$name', ({ zoomFactor, internalPage, chipLabel }) => {
+    render(<Omnibox tab={{ ...tab('a', 'https://example.com/'), zoomFactor, internalPage }} />);
     if (chipLabel === null) {
       expect(screen.queryByTitle('Reset zoom')).toBeNull();
       return;

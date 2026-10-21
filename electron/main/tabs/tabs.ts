@@ -19,10 +19,12 @@ import {
   START_PAGE_URL,
   fallbackTitleFor,
   hostOf,
+  isInternalUrl,
   isNavigableUrl,
   originOf,
   resolveOmniboxInput,
 } from '../../shared/browsing/url';
+import { internalAddressOf, internalPageTitle, internalPageUrl } from '../../shared/tabs/internal-pages';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
 import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
 import { isLoadedExtensionPage } from '../extensions/extension-pages';
@@ -70,7 +72,7 @@ import { attachTabEvents, markLoadRequested, settleUnstartedLoad } from './tab-e
 import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
 import { applyWebRtcPolicy } from '../security/web-rtc';
 import { type BrowsingRecord, HUSH_RECORD, storedRecord } from './browsing-record';
-import { type TabRecord, pageOf } from './tab-record';
+import { type TabRecord, internalPageIn, pageOf } from './tab-record';
 import { certificateFor } from '../security/certificates';
 import { compareCertificate, rememberCertificate } from '../../shared/browsing/certificate-changes';
 import { type SecurityDelegate, guardTabWebContents } from '../security/security';
@@ -78,6 +80,7 @@ import { t } from '../../shared/i18n/translate';
 
 // Types
 import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
+import type { InternalPage } from '../../shared/tabs/internal-pages';
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { SessionHistory, SessionSnapshot } from '../data/session-store';
@@ -198,10 +201,11 @@ export class TabManager {
           id,
           url: tab.url,
           groupId: tab.groupId,
-          isStartPage: tab.isStartPage,
+          isStartPage: internalPageIn(tab) === 'start',
           isHush: tab.isHush,
           isPinned: tab.isPinned,
-          history: this.historyOf(tab),
+          // A page Copacetic draws has only the blank page behind it to go back to.
+          history: internalPageIn(tab) === null ? this.historyOf(tab) : null,
         });
       }
     }
@@ -222,39 +226,40 @@ export class TabManager {
   private toState(tab: TabRecord): TabState {
     const contents = pageOf(tab);
     const alive = contents !== null;
+    const internalPage = internalPageIn(tab);
+    const isSite = internalPage === null;
     return {
       id: tab.id,
-      url: tab.isStartPage ? START_PAGE_URL : tab.url,
-      displayUrl: tab.isStartPage ? '' : tab.url,
-      title: tab.title || fallbackTitleFor(tab.url),
+      url: tab.url,
+      // The start page's field stays empty for typing; any other page of ours shows where it is.
+      displayUrl: internalPage === 'start' ? '' : tab.url,
+      title: internalPage ? internalPageTitle(internalPage) : tab.title || fallbackTitleFor(tab.url),
       faviconDataUrl: tab.faviconDataUrl,
       isLoading: tab.isLoading,
       // A sleeping tab keeps its history to restore, so it can still go back once it wakes.
-      canGoBack: alive
-        ? !tab.isStartPage && contents.navigationHistory.canGoBack()
-        : (tab.sleptHistory?.index ?? 0) > 0,
+      canGoBack: alive ? isSite && contents.navigationHistory.canGoBack() : (tab.sleptHistory?.index ?? 0) > 0,
       canGoForward: alive
-        ? !tab.isStartPage && contents.navigationHistory.canGoForward()
+        ? isSite && contents.navigationHistory.canGoForward()
         : (tab.sleptHistory?.index ?? 0) < (tab.sleptHistory?.entries.length ?? 0) - 1,
       isAudible: contents?.isCurrentlyAudible() ?? false,
       isMuted: tab.isMuted,
       security: describeSecurity(
-        tab.isStartPage ? START_PAGE_URL : tab.url,
-        tab.isStartPage ? null : certificateFor(hostOf(tab.url)),
-        tab.isStartPage || tab.error !== null ? '' : this.certificateChangeFor(tab),
-        tab.isStartPage ? null : exceptionFor(originOf(tab.url), contents?.session),
+        tab.url,
+        isSite ? certificateFor(hostOf(tab.url)) : null,
+        !isSite || tab.error !== null ? '' : this.certificateChangeFor(tab),
+        isSite ? exceptionFor(originOf(tab.url), contents?.session) : null,
         tab.error !== null,
       ),
       error: tab.error,
       blockedCount: alive ? this.blocker.countFor(contents.id) : 0,
       loadMs: tab.loadMs,
       zoomFactor: tab.zoomFactor,
-      isStartPage: tab.isStartPage,
+      internalPage,
       isHush: tab.isHush,
       isPinned: tab.isPinned,
       isAsleep: tab.isAsleep,
       groupId: tab.groupId,
-      isBookmarked: !tab.isStartPage && this.store.isBookmarked(tab.url),
+      isBookmarked: isSite && this.store.isBookmarked(tab.url),
     };
   }
 
@@ -307,7 +312,7 @@ export class TabManager {
   }
 
   private reopenInGroup(tab: TabRecord, groupId: string | null): void {
-    const replacement = this.create(tab.isStartPage ? START_PAGE_URL : tab.url, {
+    const replacement = this.create(tab.url, {
       index: this.order.indexOf(tab.id),
       activate: this.activeId === tab.id,
       hush: tab.isHush,
@@ -394,7 +399,7 @@ export class TabManager {
 
   urlFor(id: TabId): string | null {
     const tab = this.tabs.get(id);
-    if (!tab || tab.isStartPage) {
+    if (!tab || internalPageIn(tab) !== null) {
       return null;
     }
     return tab.url;
@@ -555,7 +560,7 @@ export class TabManager {
   async readerDocument(id: TabId): Promise<{ url: string; html: string } | null> {
     const tab = this.tabs.get(id);
     const contents = tab ? pageOf(tab) : null;
-    if (!tab || !contents || tab.isStartPage || tab.error) {
+    if (!tab || !contents || internalPageIn(tab) !== null || tab.error) {
       return null;
     }
     const html = await documentOf(contents);
@@ -696,7 +701,7 @@ export class TabManager {
       const isVisible = shouldTabBeVisible(
         {
           isActive: id === this.activeId || isInSplit(visible, id),
-          isStartPage: tab.isStartPage,
+          isInternalPage: internalPageIn(tab) !== null,
           hasError: tab.error !== null,
         },
         this.overlayVisible,
@@ -731,8 +736,11 @@ export class TabManager {
     // refusing here means no future caller can quietly open a `data:` or
     // `javascript:` tab by forgetting a check of its own.
     // An installed extension's own page, such as its options, is the one other kind of address a tab may open.
+    // A copacetic:// address is one of our own pages or nothing: an unknown one opens a new tab instead.
     const isAllowed =
-      requestedUrl === START_PAGE_URL || isNavigableUrl(requestedUrl) || isLoadedExtensionPage(requestedUrl);
+      internalAddressOf(requestedUrl) !== null ||
+      (isNavigableUrl(requestedUrl) && !isInternalUrl(requestedUrl)) ||
+      isLoadedExtensionPage(requestedUrl);
     const rawUrl = isAllowed ? requestedUrl : START_PAGE_URL;
 
     // What the opener was, this tab is, unless the caller said otherwise. A
@@ -765,17 +773,21 @@ export class TabManager {
 
     const view = this.makeView(partition, options.adopting);
 
-    const isStartPage = rawUrl === START_PAGE_URL && !options.adopting;
+    const internal = options.adopting ? null : internalAddressOf(rawUrl);
     const tab: TabRecord = {
       id,
       view,
       isHush: inherited.hush,
       isPinned: options.pinned === true,
       record: inherited.hush ? HUSH_RECORD : this.storedRecord(),
-      isStartPage,
-      url: isStartPage ? START_PAGE_URL : rawUrl,
+      // An adopted page is a site whatever it was opened at, so it never takes one of our addresses.
+      url: internal
+        ? internalPageUrl(internal.page, internal.section)
+        : isInternalUrl(rawUrl)
+          ? 'about:blank'
+          : rawUrl,
       title: '',
-      faviconDataUrl: isStartPage ? null : this.store.getFavicon(rawUrl),
+      faviconDataUrl: internal ? null : this.store.getFavicon(rawUrl),
       isLoading: false,
       error: null,
       loadStartedAt: null,
@@ -797,7 +809,7 @@ export class TabManager {
 
     const described = this.wireView(tab, options.adopting !== undefined);
 
-    if (!isStartPage && !options.adopting) {
+    if (!internal && !options.adopting) {
       void described.then(() => {
         // It can be closed, or sent somewhere else, while it waits.
         if (this.tabs.get(id) !== tab || tab.url !== rawUrl) {
@@ -913,7 +925,11 @@ export class TabManager {
   canSleep(id: TabId): boolean {
     const tab = this.tabs.get(id);
     return Boolean(
-      tab && pageOf(tab) && !tab.isStartPage && id !== this.activeId && !isInSplit(this.visibleSplit(), id),
+      tab &&
+      pageOf(tab) &&
+      internalPageIn(tab) === null &&
+      id !== this.activeId &&
+      !isInSplit(this.visibleSplit(), id),
     );
   }
 
@@ -967,7 +983,7 @@ export class TabManager {
     const candidates = [...this.tabs.values()].map((tab) => ({
       id: tab.id,
       isActive: tab.id === this.activeId || isInSplit(visible, tab.id),
-      isStartPage: tab.isStartPage,
+      isInternalPage: internalPageIn(tab) !== null,
       isAsleep: tab.isAsleep,
       isAudible: pageOf(tab)?.isCurrentlyAudible() ?? false,
       lastActiveAt: tab.lastActiveAt,
@@ -995,7 +1011,7 @@ export class TabManager {
     }
 
     const index = this.order.indexOf(id);
-    if (!tab.isStartPage && !options.isReplaced) {
+    if (internalPageIn(tab) !== 'start' && !options.isReplaced) {
       tab.record.rememberClosedTab({
         url: tab.url,
         title: tab.title,
@@ -1116,7 +1132,7 @@ export class TabManager {
 
   duplicate(id: TabId): void {
     const tab = this.tabs.get(id);
-    if (!tab || tab.isStartPage) {
+    if (!tab || internalPageIn(tab) !== null) {
       return;
     }
     // Named outright rather than through its page, which a sleeping tab does not have.
@@ -1146,6 +1162,25 @@ export class TabManager {
         tab.view.setBackgroundColor(colour);
       }
     }
+  }
+
+  /** Brings one of our pages forward: its tab in this window if one is open, otherwise a new one beside the tab in front. */
+  showInternalPage(page: InternalPage, section: string | null = null): TabId {
+    const url = internalPageUrl(page, section);
+    const openId = this.order.find((id) => {
+      const tab = this.tabs.get(id);
+      return tab !== undefined && internalPageIn(tab) === page;
+    });
+    if (openId) {
+      if (section !== null) {
+        this.navigate(openId, url);
+      }
+      this.activate(openId);
+      return openId;
+    }
+    const activeIndex = this.activeId ? this.order.indexOf(this.activeId) : this.order.length - 1;
+    // Placed here on purpose, so no open rule or Hush opener decides where Settings goes.
+    return this.create(url, { index: activeIndex + 1, hush: false, groupId: null });
   }
 
   activate(id: TabId): void {
@@ -1188,8 +1223,8 @@ export class TabManager {
 
   focusActive(): void {
     const tab = this.activeTab();
-    // A start page or an error is drawn by the chrome, so the keyboard belongs there rather than in a hidden view.
-    if (!tab || tab.isStartPage || tab.error) {
+    // A page of ours or an error is drawn by the chrome, so the keyboard belongs there rather than in a hidden view.
+    if (!tab || internalPageIn(tab) !== null || tab.error) {
       if (!this.window.isDestroyed()) {
         focusContents(this.window.webContents);
       }
@@ -1233,7 +1268,7 @@ export class TabManager {
   namedSessionTabs(): NamedSessionTab[] {
     return this.order.flatMap((id) => {
       const tab = this.tabs.get(id);
-      return tab && !tab.isHush && !tab.isStartPage && isNavigableUrl(tab.url)
+      return tab && !tab.isHush && internalPageIn(tab) === null && isNavigableUrl(tab.url)
         ? [{ url: tab.url, title: tab.title }]
         : [];
     });
@@ -1318,16 +1353,20 @@ export class TabManager {
       return;
     }
 
-    if (input === START_PAGE_URL) {
-      tab.isStartPage = true;
-      tab.url = START_PAGE_URL;
+    const internal = internalAddressOf(input);
+    if (internal) {
+      const wasSite = internalPageIn(tab) === null;
+      tab.url = internalPageUrl(internal.page, internal.section);
       tab.title = '';
       tab.error = null;
       tab.faviconDataUrl = null;
       tab.isLoading = false;
-      pageOf(tab)
-        ?.loadURL('about:blank')
-        .catch(() => {});
+      // Only a site leaves a page behind to clear; one of our pages already has a blank view.
+      if (wasSite) {
+        pageOf(tab)
+          ?.loadURL('about:blank')
+          .catch(() => {});
+      }
       this.applyVisibility();
       this.onChanged();
       return;
@@ -1373,7 +1412,7 @@ export class TabManager {
       this.onChanged();
       return false;
     }
-    const isEmpty = tab.isStartPage || ['', 'about:blank'].includes(pageOf(tab)?.getURL() ?? '');
+    const isEmpty = internalPageIn(tab) === 'start' || ['', 'about:blank'].includes(pageOf(tab)?.getURL() ?? '');
     this.create(url, {
       index: this.order.indexOf(tab.id) + 1,
       activate: this.activeId === tab.id,
@@ -1393,7 +1432,6 @@ export class TabManager {
       return;
     }
 
-    tab.isStartPage = false;
     tab.error = null;
     tab.url = url;
     markLoadRequested(tab);
@@ -1437,7 +1475,7 @@ export class TabManager {
     if (!tab) {
       return;
     }
-    if (tab.isStartPage) {
+    if (internalPageIn(tab) !== null) {
       this.onChanged();
       return;
     }
@@ -1482,7 +1520,7 @@ export class TabManager {
     // visit, and setting it again on every visit is the kind of small friction
     // that makes a browser tiring to use.
     // A Hush tab keeps its zoom on the tab: Settings lists every site zoomed, so its record keeps none.
-    if (!tab.isStartPage) {
+    if (internalPageIn(tab) === null) {
       tab.record.setZoomForOrigin(originOf(tab.url), tab.zoomFactor);
     }
 

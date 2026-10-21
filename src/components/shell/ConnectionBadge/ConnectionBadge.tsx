@@ -25,9 +25,13 @@ const LEVEL_STYLES: Record<SecurityLevel, { icon: typeof Lock; className: string
 export function ConnectionBadge({ tab }: { tab: TabState | null }) {
   const openTabId = useBrowserStore((state) => state.siteInfo?.tabId ?? null);
 
-  if (!tab || tab.isStartPage) {
+  if (!tab || tab.internalPage === 'start') {
     // Nothing has been loaded yet, so there is no connection to vouch for.
     return <Search size={14} strokeWidth={1.75} className="shrink-0 text-ink-faint" aria-hidden />;
+  }
+  if (tab.internalPage !== null) {
+    // One of our own pages: nothing came over a connection, so there is no card to open.
+    return <FileText size={14} strokeWidth={1.75} className="shrink-0 text-ink-dim" aria-hidden />;
   }
 
   const style = LEVEL_STYLES[tab.security.level];

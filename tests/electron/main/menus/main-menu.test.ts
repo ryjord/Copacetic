@@ -41,6 +41,7 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
     },
     openFind: () => {},
     openSurface: (surface: string) => opened.push(surface),
+    showPage: (page: string) => opened.push(page),
     profile: {
       id: 'default',
       settings: () => ({ shortcutOverrides: { find: 'Alt+CmdOrCtrl+F' } }),
@@ -73,7 +74,7 @@ describe('the main menu', () => {
     expect(labels()).toContain(label);
   });
 
-  it('opens the surface it names', () => {
+  it('opens the page it names', () => {
     opened.length = 0;
     const history = mainMenuItems(fakeBrowser()).find((item) => item.label === 'History');
     history?.click?.({} as never, undefined, {} as never);

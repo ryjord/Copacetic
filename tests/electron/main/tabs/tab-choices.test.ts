@@ -157,7 +157,7 @@ describe('which tabs go to sleep', () => {
   const tab = (over: Partial<SleepCandidate> = {}): SleepCandidate => ({
     id: 'a',
     isActive: false,
-    isStartPage: false,
+    isInternalPage: false,
     isAsleep: false,
     isAudible: false,
     lastActiveAt: now - 61 * minute,
@@ -175,7 +175,7 @@ describe('which tabs go to sleep', () => {
   it.each([
     ['the tab in front', { isActive: true }],
     ['a tab playing sound', { isAudible: true }],
-    ['a start page', { isStartPage: true }],
+    ['a page of ours, such as the start page or Settings', { isInternalPage: true }],
     ['a tab already asleep', { isAsleep: true }],
   ] as const)('is never %s', (_name, over) => {
     expect(tabsToSleep([tab(over)], now, 60)).toEqual([]);
