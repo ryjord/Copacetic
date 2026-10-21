@@ -25,7 +25,6 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
       adjustZoom: (direction: string) => opened.push(`zoom ${direction}`),
     },
     store: { listNamedSessions: () => [] },
-    openSettingsPane: (pane: string) => opened.push(`settings ${pane}`),
     openDownloadsFolder: () => opened.push('downloads folder'),
     tabs: {
       hasClosedTabs: () => hasClosedTabs,
@@ -41,7 +40,7 @@ function fakeBrowser({ hasClosedTabs = true } = {}) {
     },
     openFind: () => {},
     openSurface: (surface: string) => opened.push(surface),
-    showPage: (page: string) => opened.push(page),
+    showPage: (page: string, section?: string) => opened.push(section ? `${page} ${section}` : page),
     profile: {
       id: 'default',
       settings: () => ({ shortcutOverrides: { find: 'Alt+CmdOrCtrl+F' } }),

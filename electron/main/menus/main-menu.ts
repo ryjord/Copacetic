@@ -43,7 +43,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     },
     { label: t('main.menu.history.title'), ...shortcut('history'), click: () => browser.showPage('history') },
     { label: t('main.menu.tabs.downloads'), ...shortcut('downloads'), click: () => browser.showPage('downloads') },
-    { label: t('main.menu.history.clearBrowsingData'), click: () => browser.openSettingsPane('data') },
+    { label: t('main.menu.history.clearBrowsingData'), click: () => browser.showPage('settings', 'data') },
     { type: 'separator' },
     // Windows and Linux have no menu bar, so the zoom, reader and split controls have to live here too.
     {

@@ -527,10 +527,6 @@ export class Browser {
     this.tabs.showInternalPage(page, section);
   }
 
-  openSettingsPane(paneId: string): void {
-    this.showPage('settings', paneId);
-  }
-
   /** What was asked for before anyone was listening, collected as the chrome starts. */
   pendingSurface(): ChromeSurface | null {
     const surface = stillWanted(this.requestedSurface, Date.now());

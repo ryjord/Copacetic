@@ -343,12 +343,6 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('chrome.toggleSiteInfo', (browser) => browser.toggleSiteInfo());
   handle('chrome.closeSiteInfo', (browser) => browser.closeSiteInfo());
   handle('chrome.closeBookmarkSheet', (browser) => browser.closeBookmarkSheet());
-  handle('chrome.openSettingsPane', (browser, _event, paneId) => {
-    // A pane's id, never anything the chrome would treat as more than a name.
-    if (isSection(paneId)) {
-      browser.openSettingsPane(paneId);
-    }
-  });
   handle('chrome.showPage', (browser, _event, page, section) => {
     if (isInternalPage(page)) {
       browser.showPage(page, isSection(section) ? section : null);

@@ -137,8 +137,6 @@ export interface CopaceticApi {
     toggleSiteInfo(): Promise<void>;
     closeSiteInfo(): Promise<void>;
     closeBookmarkSheet(): Promise<void>;
-    /** Settings, opened at one pane; from the site card, which cannot reach the chrome's own state. */
-    openSettingsPane(paneId: string): Promise<void>;
     /** One of our pages in a tab of its own: focused if open, opened beside the tab in front if not. */
     showPage(page: InternalPage, section?: string | null): Promise<void>;
     getState(): Promise<BrowserState>;

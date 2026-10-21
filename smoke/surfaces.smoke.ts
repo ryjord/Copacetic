@@ -62,7 +62,7 @@ describe('history, settings and the lists', () => {
 
   // The pane is in the address, so it is what a restart or a reopened tab comes back to.
   it('open settings at the pane asked for, and keep it in the address', async () => {
-    await copacetic.chrome.evaluate(() => window.copacetic.chrome.openSettingsPane('sites'));
+    await copacetic.chrome.evaluate(() => window.copacetic.chrome.showPage('settings', 'sites'));
     expect(await copacetic.until(async () => (await activeUrl()) === 'copacetic://settings/sites', 10_000)).toBe(
       true,
     );
