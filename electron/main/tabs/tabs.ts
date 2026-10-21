@@ -1015,9 +1015,10 @@ export class TabManager {
 
     const index = this.order.indexOf(id);
     if (internalPageOf(tab.url) !== 'start' && !options.isReplaced) {
+      const internalPage = internalPageOf(tab.url);
       tab.record.rememberClosedTab({
         url: tab.url,
-        title: tab.title,
+        title: internalPage ? internalPageTitle(internalPage) : tab.title,
         index,
         groupId: tab.groupId,
         isPinned: tab.isPinned,
@@ -1094,6 +1095,12 @@ export class TabManager {
   }
 
   private reopen(entry: ClosedEntry | null): void {
+    const internal = entry?.kind === 'tab' ? internalAddressOf(entry.tab.url) : null;
+    // One of our pages comes back the way any request for it does, so a second copy never opens.
+    if (internal) {
+      this.showInternalPage(internal.page, internal.section);
+      return;
+    }
     if (entry?.kind === 'tab') {
       // A group that has since been deleted is dropped by create, which leaves an ordinary tab.
       this.create(entry.tab.url, {
@@ -1170,9 +1177,11 @@ export class TabManager {
   /** Brings one of our pages forward: its tab in this window if one is open, otherwise a new one beside the tab in front. */
   showInternalPage(page: InternalPage, section: string | null = null): TabId {
     const url = internalPageUrl(page, section);
+    // Hush from a Hush tab, so a site reached from History opened there stays out of the record too.
+    const isHush = this.activeTab()?.isHush ?? false;
     const openId = this.order.find((id) => {
       const tab = this.tabs.get(id);
-      return tab !== undefined && internalPageOf(tab.url) === page;
+      return tab !== undefined && internalPageOf(tab.url) === page && tab.isHush === isHush;
     });
     if (openId) {
       if (section !== null) {
@@ -1182,8 +1191,8 @@ export class TabManager {
       return openId;
     }
     const activeIndex = this.activeId ? this.order.indexOf(this.activeId) : this.order.length - 1;
-    // Placed here on purpose, so no open rule or Hush opener decides where Settings goes.
-    return this.create(url, { index: activeIndex + 1, hush: false, groupId: null });
+    // Placed here on purpose, so no open rule decides where Settings goes.
+    return this.create(url, { index: activeIndex + 1, hush: isHush, groupId: null });
   }
 
   activate(id: TabId): void {
@@ -1364,8 +1373,10 @@ export class TabManager {
       tab.error = null;
       tab.faviconDataUrl = null;
       tab.isLoading = false;
-      // Only a site leaves a page behind to clear; one of our pages already has a blank view.
-      if (wasSite) {
+      // A sleeping tab gets a fresh view, blank already, and its site's history goes with the site.
+      if (tab.isAsleep) {
+        void this.givePageBack(tab);
+      } else if (wasSite) {
         pageOf(tab)
           ?.loadURL('about:blank')
           .catch(() => {});

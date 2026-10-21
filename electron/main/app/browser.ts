@@ -524,6 +524,8 @@ export class Browser {
   /** Settings, history, bookmarks or downloads, in a tab of their own rather than over the page. */
   showPage(page: InternalPage, section: string | null = null): void {
     this.closeSiteInfo();
+    // The page is the thing asked for, so an overlay such as the palette gives way to it.
+    this.openSurface('none');
     this.tabs.showInternalPage(page, section);
   }
 

@@ -97,3 +97,29 @@ describe('a website', () => {
     expect(after.length).toBe(before);
   }, 60_000);
 });
+
+describe('one of our pages and the tab it came from', () => {
+  // A site reached from History opened in Hush must stay out of the record too.
+  it('is Hush when asked for from a Hush tab', async () => {
+    await copacetic.chrome.evaluate(() => window.copacetic.tabs.createHush());
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await copacetic.chrome.evaluate(() => window.copacetic.chrome.showPage('history'));
+    const historyTab = await copacetic.until(async () => {
+      const state = await copacetic.chrome.evaluate(() => window.copacetic.chrome.getState());
+      return state.tabs.some((tab) => tab.internalPage === 'history' && tab.isHush);
+    }, 10_000);
+    expect(historyTab).toBe(true);
+  }, 60_000);
+
+  it('comes back once, not twice, when reopened while it is still open', async () => {
+    await copacetic.chrome.evaluate(() => window.copacetic.chrome.showPage('downloads'));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    const first = (await tabsNow()).find((tab) => tab.internalPage === 'downloads');
+    await copacetic.chrome.evaluate((id) => window.copacetic.tabs.close(id), first?.id ?? '');
+    await copacetic.chrome.evaluate(() => window.copacetic.chrome.showPage('downloads'));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await copacetic.chrome.evaluate(() => window.copacetic.tabs.reopenClosed());
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect((await tabsNow()).filter((tab) => tab.internalPage === 'downloads')).toHaveLength(1);
+  }, 60_000);
+});

@@ -73,6 +73,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     if (!isInPage) {
       tab.title = fallbackTitleFor(url);
       tab.faviconDataUrl = deps.store.getFavicon(url);
+      dropBlankEntries(contents.navigationHistory);
     }
     // A stored level for this origin wins over whatever the tab was showing,
     // so following a link to a site you zoomed once arrives zoomed.
@@ -222,4 +223,23 @@ export function settleUnstartedLoad(
   }
   tab.isLoading = false;
   return true;
+}
+
+/**
+ * Takes out the blank pages one of our pages left in a view's history, so Back
+ * and Forward step between sites and never land on a white page with an old address.
+ */
+export function dropBlankEntries(history: {
+  getAllEntries(): { url: string }[];
+  getActiveIndex(): number;
+  removeEntryAtIndex(index: number): boolean;
+}): void {
+  const active = history.getActiveIndex();
+  history
+    .getAllEntries()
+    .map((entry, index) => ({ url: entry.url, index }))
+    .filter((entry) => entry.url === 'about:blank' && entry.index !== active)
+    // From the end, so removing one leaves the positions of those before it alone.
+    .reverse()
+    .forEach((entry) => history.removeEntryAtIndex(entry.index));
 }

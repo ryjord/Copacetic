@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   attachTabEvents,
+  dropBlankEntries,
   markLoadRequested,
   settleUnstartedLoad,
   type TabEventDeps,
@@ -16,6 +17,7 @@ function fakeContents() {
     id: 1,
     setZoomFactor: vi.fn(),
     setVisualZoomLevelLimits: vi.fn(async () => {}),
+    navigationHistory: { getAllEntries: () => [], getActiveIndex: () => 0, removeEntryAtIndex: vi.fn(() => true) },
     on(name: string, handler: (...args: unknown[]) => void) {
       const existing = handlers.get(name) ?? [];
       existing.push(handler);
@@ -172,5 +174,36 @@ describe('a page that has committed', () => {
     const { contents } = setup();
     contents.emit('did-navigate', {}, 'https://example.com/next', 200);
     expect(contents.setVisualZoomLevelLimits).toHaveBeenCalledWith(1, MAX_PINCH_ZOOM);
+  });
+});
+
+describe('the blank page behind one of our pages', () => {
+  const historyOf = (urls: string[], active: number) => {
+    const entries = urls.map((url) => ({ url }));
+    return {
+      entries,
+      getAllEntries: () => entries,
+      getActiveIndex: () => active,
+      removeEntryAtIndex: (index: number) => entries.splice(index, 1).length === 1,
+    };
+  };
+
+  // Settings opened in a site's tab, then a site from History: Back goes to the first site, not to white.
+  it('is taken out of the history once a site commits', () => {
+    const history = historyOf(['https://a.example/', 'about:blank', 'https://b.example/'], 2);
+    dropBlankEntries(history);
+    expect(history.entries.map((entry) => entry.url)).toEqual(['https://a.example/', 'https://b.example/']);
+  });
+
+  it('is left alone while it is the page in front', () => {
+    const history = historyOf(['https://a.example/', 'about:blank'], 1);
+    dropBlankEntries(history);
+    expect(history.entries).toHaveLength(2);
+  });
+
+  it('is taken out wherever it sits, more than once', () => {
+    const history = historyOf(['about:blank', 'https://a.example/', 'about:blank', 'https://b.example/'], 3);
+    dropBlankEntries(history);
+    expect(history.entries.map((entry) => entry.url)).toEqual(['https://a.example/', 'https://b.example/']);
   });
 });
