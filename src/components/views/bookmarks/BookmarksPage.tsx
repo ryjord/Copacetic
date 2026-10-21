@@ -68,8 +68,8 @@ function pageKey(url: string): string {
   return url.replace(/#.*$/, '').replace(/\/$/, '');
 }
 
-export function BookmarksPage() {
-  const activeTabId = useBrowserStore((state) => state.activeTabId);
+/** Bookmarks in a tab of its own; opening one takes this tab there, as following a link would. */
+export function BookmarksPage({ tabId }: { tabId: string }) {
   const tabs = useBrowserStore((state) => state.tabs);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<BookmarkFolder[]>([]);
@@ -352,12 +352,7 @@ export function BookmarksPage() {
                         <button
                           type="button"
                           title={bookmark.url}
-                          onClick={() => {
-                            if (!activeTabId) {
-                              return;
-                            }
-                            send((api) => api.tabs.navigate(activeTabId, bookmark.url));
-                          }}
+                          onClick={() => send((api) => api.tabs.navigate(tabId, bookmark.url))}
                           // A middle-click opens it behind, as it would on a link.
                           onAuxClick={(event) => {
                             if (event.button === 1) {

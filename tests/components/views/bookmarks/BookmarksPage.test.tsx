@@ -40,8 +40,7 @@ vi.mock('@/lib/bridge/bridge', () => ({
   isRunningInShell: () => false,
 }));
 vi.mock('@/store/useBrowserStore', () => ({
-  useBrowserStore: (select: (state: { activeTabId: string; tabs: [] }) => unknown) =>
-    select({ activeTabId: 'tab', tabs: [] }),
+  useBrowserStore: (select: (state: { tabs: [] }) => unknown) => select({ tabs: [] }),
 }));
 
 const { BookmarksPage } = await import('@/components/views/bookmarks/BookmarksPage');
@@ -59,14 +58,14 @@ afterEach(cleanup);
 
 describe('the bookmarks list', () => {
   it('sorts by name, and by newest', async () => {
-    render(<BookmarksPage />);
+    render(<BookmarksPage tabId="tab" />);
     await screen.findByText('Zebra facts');
     expect(titles()[0]).toContain('Apple pie');
     expect(titles().at(-1)).toContain('Zebra facts');
   });
 
   it('shows only what was added this week', async () => {
-    render(<BookmarksPage />);
+    render(<BookmarksPage tabId="tab" />);
     await screen.findByText('Zebra facts');
     fireEvent.click(screen.getByRole('radio', { name: 'Added this week' }));
     expect(screen.queryByText('Zebra facts')).toBeNull();
@@ -75,7 +74,7 @@ describe('the bookmarks list', () => {
 
   // The same page twice, one with a trailing slash: what someone tidying would want to see.
   it('finds the same page saved twice', async () => {
-    render(<BookmarksPage />);
+    render(<BookmarksPage tabId="tab" />);
     await screen.findByText('Zebra facts');
     fireEvent.click(screen.getByRole('radio', { name: 'Duplicates' }));
     expect(screen.queryByText('Zebra facts')).toBeNull();
@@ -83,7 +82,7 @@ describe('the bookmarks list', () => {
   });
 
   it('deletes a selection at once', async () => {
-    render(<BookmarksPage />);
+    render(<BookmarksPage tabId="tab" />);
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Zebra facts' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Apple pie' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
@@ -91,7 +90,7 @@ describe('the bookmarks list', () => {
   });
 
   it('adds a bookmark typed by hand', async () => {
-    render(<BookmarksPage />);
+    render(<BookmarksPage tabId="tab" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Add bookmark' }));
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Docs' } });
     fireEvent.change(screen.getByLabelText('Address'), { target: { value: 'docs.example' } });

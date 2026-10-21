@@ -13,19 +13,24 @@ import { internalAddressOf } from '@shared/tabs/internal-pages';
 // Types
 import type { TabState } from '@shared/types';
 
-/** What a tab shows when the page in it is one Copacetic draws rather than a site. */
+/**
+ * What a tab shows when the page in it is one Copacetic draws rather than a site.
+ *
+ * Keyed by the tab, so two tabs of the same page each keep their own search and
+ * selection rather than one handing its state to the other.
+ */
 export function InternalPage({ tab }: { tab: TabState }) {
   switch (tab.internalPage) {
     case 'start':
-      return <StartPage tabId={tab.id} isHush={tab.isHush} />;
+      return <StartPage key={tab.id} tabId={tab.id} isHush={tab.isHush} />;
     case 'settings':
-      return <SettingsPage tabId={tab.id} section={internalAddressOf(tab.url)?.section ?? null} />;
+      return <SettingsPage key={tab.id} tabId={tab.id} section={internalAddressOf(tab.url)?.section ?? null} />;
     case 'history':
-      return <HistoryPage />;
+      return <HistoryPage key={tab.id} tabId={tab.id} />;
     case 'bookmarks':
-      return <BookmarksPage />;
+      return <BookmarksPage key={tab.id} tabId={tab.id} />;
     case 'downloads':
-      return <DownloadsPage />;
+      return <DownloadsPage key={tab.id} />;
     case null:
       return null;
   }

@@ -18,6 +18,7 @@ const ENTRIES = [
 const listed: unknown[] = [];
 const removedMany: string[][] = [];
 const created: string[] = [];
+const navigated: [string, string][] = [];
 // A search held here answers only when the test says so.
 const held = new Map<string, () => void>();
 const api = {
@@ -36,7 +37,10 @@ const api = {
     removeMany: (ids: string[]) => removedMany.push(ids),
     openContextMenu: vi.fn(),
   },
-  tabs: { create: async (url: string) => created.push(url) },
+  tabs: {
+    create: async (url: string) => created.push(url),
+    navigate: (tabId: string, url: string) => navigated.push([tabId, url]),
+  },
   favicons: { forUrls: async () => ({}) },
 };
 vi.mock('@/lib/bridge/bridge', () => ({
@@ -44,10 +48,6 @@ vi.mock('@/lib/bridge/bridge', () => ({
   ask: async (call: (bridge: typeof api) => Promise<unknown>) => call(api),
   getBridge: () => null,
   isRunningInShell: () => false,
-}));
-
-vi.mock('@/store/useBrowserStore', () => ({
-  useBrowserStore: (select: (state: { activeTabId: string }) => unknown) => select({ activeTabId: 'tab' }),
 }));
 
 const { HistoryPage } = await import('@/components/views/history/HistoryPage');
@@ -60,8 +60,15 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('the history list', () => {
+  // In split view the tab in front can be the other pane, so the entry goes to the tab History is drawn in.
+  it('opens an entry in the tab it is drawn in', async () => {
+    render(<HistoryPage tabId="history-tab" />);
+    fireEvent.click(await screen.findByText('Inbox'));
+    expect(navigated.at(-1)).toEqual(['history-tab', 'https://mail.example.com/inbox']);
+  });
+
   it('drops a slow search that answers after a newer one', async () => {
-    render(<HistoryPage />);
+    render(<HistoryPage tabId="tab" />);
     await screen.findByText('Inbox');
     const search = screen.getByRole('searchbox');
     fireEvent.change(search, { target: { value: 'held' } });
@@ -75,14 +82,14 @@ describe('the history list', () => {
   });
 
   it('asks for only the days chosen, and in the order chosen', async () => {
-    render(<HistoryPage />);
+    render(<HistoryPage tabId="tab" />);
     await screen.findByText('Inbox');
     fireEvent.click(screen.getByRole('radio', { name: 'Yesterday' }));
     await waitFor(() => expect(listed.at(-1)).toEqual(['', 0, { range: 'yesterday', order: 'recent' }]));
   });
 
   it('deletes everything selected at once', async () => {
-    render(<HistoryPage />);
+    render(<HistoryPage tabId="tab" />);
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Inbox' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select The Morning Brief' }));
     expect(screen.getByText('2 selected')).toBeTruthy();
@@ -92,7 +99,7 @@ describe('the history list', () => {
   });
 
   it('opens what is selected in tabs, in the order listed', async () => {
-    render(<HistoryPage />);
+    render(<HistoryPage tabId="tab" />);
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select The Morning Brief' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Inbox' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open in tabs' }));
@@ -102,7 +109,7 @@ describe('the history list', () => {
   });
 
   it('groups by site when asked', async () => {
-    render(<HistoryPage />);
+    render(<HistoryPage tabId="tab" />);
     await screen.findByText('Inbox');
     fireEvent.click(screen.getByRole('button', { name: 'Group by site' }));
     expect(screen.getByRole('heading', { name: 'mail.example.com' })).toBeTruthy();
