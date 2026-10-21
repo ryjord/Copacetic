@@ -93,7 +93,7 @@ import type { NamedSessionTab } from '../../shared/data/named-sessions';
 import { type TabMemory, memoryByTab } from '../../shared/tabs/tab-memory';
 import type { ProfilePartitions } from '../../shared/data/partitions';
 import type { BrowserStore } from '../data/store';
-import type { PageChange } from '../workflows/password-save';
+import type { PageChange } from './tab-events';
 
 export class TabManager {
   private readonly tabs = new Map<TabId, TabRecord>();

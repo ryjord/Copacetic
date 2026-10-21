@@ -16,14 +16,15 @@ import { t } from '@shared/i18n/translate';
 export function SaveOffers() {
   const isOffering = useBrowserStore((state) => state.settings.offerToSavePasswords);
   const neverOn = useBrowserStore((state) => state.settings.neverSavePasswordsOn);
+  const label = t('settings.passwords.offers.label');
   return (
     <SettingGroup title={t('settings.passwords.offers.title')}>
       <SettingRow
-        label={t('settings.passwords.offers.label')}
+        label={label}
         help={t('settings.passwords.offers.help')}
         control={
           <Switch
-            label={t('settings.passwords.offers.label')}
+            label={label}
             checked={isOffering}
             onChange={(offerToSavePasswords) => updateSettings({ offerToSavePasswords })}
           />

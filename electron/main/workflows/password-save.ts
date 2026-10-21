@@ -2,13 +2,15 @@
 import { randomUUID } from 'node:crypto';
 
 // Utils
-import { entriesForPage, isFillablePage, siteOf } from '../../shared/passwords/credential-matching';
+import { entriesForPage, isFillablePage } from '../../shared/passwords/credential-matching';
+import { siteOfUrl } from '../../shared/browsing/url';
 import { SIGN_IN_WATCH_SCRIPT, STILL_ASKS_FOR_PASSWORD } from '../system/sign-in-watch-script';
 import { t } from '../../shared/i18n/translate';
 import { isRecord } from '../data/persistence';
 
 // Types
 import type { WebContents } from 'electron';
+import type { PageChange } from '../tabs/tab-events';
 import type { PasswordOffer, PasswordOfferAnswer, Settings, TabId } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { VaultSession } from '../vault/vault-session';
@@ -28,9 +30,6 @@ const OFFER_KEPT_MS = 5 * 60_000;
 const USERNAME_KEPT_MS = 60_000;
 // Longer than any username or password a site takes; anything longer is not one.
 const MOST_FIELD_LENGTH = 4096;
-
-/** How a tab's page changed: a new document, a move within the same one, or a document finished loading. */
-export type PageChange = 'committed' | 'in-page' | 'loaded';
 
 interface PasswordSaveDeps {
   tabs: TabManager;
@@ -52,6 +51,7 @@ interface Submitted {
 }
 
 interface HeldOffer extends PasswordOffer {
+  tabId: TabId;
   origin: string;
   password: string;
   /** The saved entry an update would change. */
@@ -75,12 +75,7 @@ function readSubmitted(value: unknown): { username: string; password: string } |
 
 const later = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-/**
- * Offering to save a password you have just signed in with. The fields are read
- * in a world the page cannot reach, and the password stays in the main process:
- * the window is told only the site and the username. The offer comes once the
- * page has moved on and no longer asks for a password, so one refused offers nothing.
- */
+/** Offering to save a password once a sign-in has worked; the password never leaves the main process unsaved. */
 export class PasswordSave {
   private readonly submitted = new Map<TabId, Submitted>();
   private readonly usernames = new Map<TabId, Omit<Submitted, 'password' | 'hasMovedOn'>>();
@@ -105,7 +100,7 @@ export class PasswordSave {
       return null;
     }
     const { id, site, username, kind } = held;
-    return { id, tabId: activeTabId ?? held.tabId, site, username, kind };
+    return { id, site, username, kind };
   }
 
   pageChanged(tabId: TabId, change: PageChange): void {
@@ -118,7 +113,8 @@ export class PasswordSave {
     }
     if (change !== 'committed') {
       void this.judge(tabId, change === 'in-page' ? SETTLED_AFTER_MS : 0);
-      void this.watch(tabId);
+      // A new document is looked at again later for a form drawn after loading; a move within one is not.
+      void this.watch(tabId, change === 'in-page');
     }
   }
 
@@ -139,15 +135,13 @@ export class PasswordSave {
   }
 
   answer(id: string, answer: PasswordOfferAnswer): void {
-    const tabId = [...this.offers].find(([, held]) => held.id === id)?.[0];
-    const held = tabId === undefined ? (this.orphan?.id === id ? this.orphan : null) : this.offers.get(tabId);
+    const held = [...this.offers.values(), this.orphan].find((candidate) => candidate?.id === id);
     if (!held) {
       return;
     }
-    if (tabId === undefined) {
+    this.offers.delete(held.tabId);
+    if (this.orphan === held) {
       this.orphan = null;
-    } else {
-      this.offers.delete(tabId);
     }
     this.deps.changed();
     if (answer === 'never') {
@@ -173,6 +167,9 @@ export class PasswordSave {
   }
 
   private dropExpired(): void {
+    if (this.offers.size === 0 && !this.orphan) {
+      return;
+    }
     const isExpired = (held: HeldOffer) => this.now() - held.at > OFFER_KEPT_MS;
     [...this.offers].filter(([, held]) => isExpired(held)).forEach(([tabId]) => this.offers.delete(tabId));
     if (this.orphan && isExpired(this.orphan)) {
@@ -182,13 +179,13 @@ export class PasswordSave {
 
   private isWatched(url: string): boolean {
     const settings = this.deps.settings();
-    const site = siteOf(url);
+    const site = siteOfUrl(url);
     return (
       settings.offerToSavePasswords &&
       site !== null &&
       isFillablePage(url) &&
       !settings.neverSavePasswordsOn.includes(site) &&
-      this.deps.vaultSession.facts().hasKeychain
+      this.deps.vaultSession.hasKeychain()
     );
   }
 
@@ -200,8 +197,8 @@ export class PasswordSave {
 
   // One watch per document: the one already there sees a form drawn after the address moved, too.
   private async watch(tabId: TabId, isLookingAgain = false): Promise<void> {
-    const contents = this.watchable(tabId);
-    if (!contents || this.watching.has(tabId)) {
+    const contents = this.watching.has(tabId) ? null : this.watchable(tabId);
+    if (!contents) {
       return;
     }
     const url = contents.getURL();
@@ -239,7 +236,7 @@ export class PasswordSave {
     }
     const earlier = this.usernames.get(tabId);
     const isEarlierStep =
-      earlier !== undefined && siteOf(earlier.origin) === siteOf(origin) && at - earlier.at < USERNAME_KEPT_MS;
+      earlier !== undefined && siteOfUrl(earlier.origin) === siteOfUrl(origin) && at - earlier.at < USERNAME_KEPT_MS;
     const username = submitted.username || (isEarlierStep ? earlier.username : '');
     this.submitted.set(tabId, { origin, username, password: submitted.password, at, hasMovedOn: false });
   }
@@ -247,7 +244,7 @@ export class PasswordSave {
   private movedOn(tabId: TabId): void {
     const url = this.deps.tabs.contentsForTab(tabId)?.getURL() ?? '';
     const held = this.offers.get(tabId);
-    if (held && siteOf(url) !== held.shownOn) {
+    if (held && siteOfUrl(url) !== held.shownOn) {
       this.offers.delete(tabId);
       this.deps.changed();
     }
@@ -272,24 +269,29 @@ export class PasswordSave {
     }
     this.submitted.delete(tabId);
     const url = contents.getURL();
-    const isSameSite = siteOf(url) === siteOf(submitted.origin);
-    let stillAsks = false;
-    try {
-      stillAsks =
-        isSameSite &&
-        (await contents.executeJavaScriptInIsolatedWorld(WATCH_WORLD, [{ code: STILL_ASKS_FOR_PASSWORD }])) === true;
-    } catch {
+    if (siteOfUrl(url) === siteOfUrl(submitted.origin) && (await this.stillAsksForPassword(contents))) {
       return;
     }
-    const offer = stillAsks ? null : this.offerOf(tabId, submitted, siteOf(url));
+    const offer = this.offerOf(tabId, submitted, siteOfUrl(url));
     if (offer) {
       this.offers.set(tabId, offer);
       this.deps.changed();
     }
   }
 
+  // A page that went before answering counts as asking, so nothing is offered on a guess.
+  private async stillAsksForPassword(contents: WebContents): Promise<boolean> {
+    try {
+      return (
+        (await contents.executeJavaScriptInIsolatedWorld(WATCH_WORLD, [{ code: STILL_ASKS_FOR_PASSWORD }])) !== false
+      );
+    } catch {
+      return true;
+    }
+  }
+
   private offerOf(tabId: TabId, submitted: Submitted, shownOn: string | null): HeldOffer | null {
-    const site = siteOf(submitted.origin);
+    const site = siteOfUrl(submitted.origin);
     // Asked again here: the switch, the keychain or the Never list can have changed since the page was watched.
     if (!site || !this.isWatched(submitted.origin)) {
       return null;

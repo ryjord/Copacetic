@@ -118,9 +118,7 @@ function TrailingRegion() {
   const passwordOffer = useBrowserStore((state) => state.passwordOffer);
   return (
     <>
-      {passwordOffer && passwordOffer.tabId === activeTabId && (
-        <SavePasswordCard key={passwordOffer.id} offer={passwordOffer} />
-      )}
+      {passwordOffer && <SavePasswordCard key={passwordOffer.id} offer={passwordOffer} />}
       {bookmarkSheet && bookmarkSheet.tabId === activeTabId && (
         <BookmarkSheet key={bookmarkSheet.bookmarkId} bookmarkId={bookmarkSheet.bookmarkId} />
       )}

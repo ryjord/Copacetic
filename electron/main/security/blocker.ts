@@ -4,7 +4,7 @@ import path from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
 
 // Utils
-import { registrableDomainOf } from '../../shared/browsing/url';
+import { siteOfHost } from '../../shared/browsing/url';
 import { t } from '../../shared/i18n/translate';
 import { describeError, log } from '../system/diagnostics';
 
@@ -393,7 +393,7 @@ export class ContentBlocker {
     }
     try {
       const { hostname } = new URL(url);
-      const domain = registrableDomainOf(hostname) ?? hostname;
+      const domain = siteOfHost(hostname);
       // A site someone let show trackers is one they found broken, so nothing is hidden on it either.
       if (policy.isAllowedOn(domain)) {
         return '';

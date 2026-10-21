@@ -86,12 +86,18 @@ export class VaultSession {
     return unlockMethodFor(this.host.platform, this.host.canPromptTouchID());
   }
 
+  /** Whether there is a keychain to seal a password with, asked once rather than for all the facts. */
+  hasKeychain(): boolean {
+    return this.keychain().problem === '';
+  }
+
   facts(): VaultFacts {
+    const keychain = this.keychain();
     return {
       filePath: path.join(this.host.profileDirectory(), 'vault.json'),
-      hasKeychain: this.keychain().problem === '',
-      keychainName: this.keychain().name,
-      keychainProblem: this.keychain().problem,
+      hasKeychain: keychain.problem === '',
+      keychainName: keychain.name,
+      keychainProblem: keychain.problem,
       canAskWhoYouAre: this.method() !== 'none',
       // No certificate is bought, so this is false everywhere until one is.
       isSigned: false,

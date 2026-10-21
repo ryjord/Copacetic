@@ -18,7 +18,6 @@ afterEach(() => {
 
 const offer = {
   id: 'offer-1',
-  tabId: 'tab-1',
   site: 'example.com',
   username: 'riley@example.com',
   kind: 'save',

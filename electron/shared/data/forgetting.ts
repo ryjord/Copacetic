@@ -1,4 +1,4 @@
-import { registrableDomainOf } from '../browsing/url';
+import { isAddressHost, siteOfHost } from '../browsing/url';
 import { type MessageKey, t } from '../i18n/translate';
 
 /**
@@ -150,14 +150,12 @@ function authorityOf(host: string, port: string): string {
   // never matches itself - so forgetting a site skipped every cookie scoped
   // across its subdomains, which is exactly the kind that keeps you signed in.
   const lowered = host.toLowerCase().replace(/^\./, '');
-  const isAddress = IPV4.test(lowered) || lowered.startsWith('[') || !lowered.includes('.');
+  const isAddress = isAddressHost(lowered) || !lowered.includes('.');
   if (!isAddress) {
-    return registrableDomainOf(lowered) ?? lowered;
+    return siteOfHost(lowered);
   }
   return port ? `${lowered}:${port}` : lowered;
 }
-
-const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 export function countTraces(traces: SiteTraces): number {
   return Object.values(traces).reduce((total, count) => total + count, 0);

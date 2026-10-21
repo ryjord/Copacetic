@@ -48,7 +48,7 @@ function setup(options: Options = {}) {
   let now = 1_000;
   const save = new PasswordSave({
     tabs: { contentsForTab: () => contents, isHush: () => options.isHush === true } as never,
-    vaultSession: { vault, isOpen: () => options.isOpen ?? true, facts: () => ({ hasKeychain: true }) } as never,
+    vaultSession: { vault, isOpen: () => options.isOpen ?? true, hasKeychain: () => true } as never,
     notices: { notify: vi.fn() } as never,
     settings: () => settings,
     neverOn,
@@ -99,7 +99,7 @@ describe('offering to save a password', () => {
   it('offers to save one signed in with, and tells the window nothing of the password', async () => {
     const { offer, signIn } = setup();
     await signIn({ username: 'riley@example.com', password: 'secret' });
-    expect(offer()).toMatchObject({ tabId: TAB, site: 'example.com', username: 'riley@example.com', kind: 'save' });
+    expect(offer()).toMatchObject({ site: 'example.com', username: 'riley@example.com', kind: 'save' });
     expect(JSON.stringify(offer())).not.toContain('secret');
   });
 
@@ -221,6 +221,6 @@ describe('offering to save a password', () => {
     const { save, signIn } = setup();
     await signIn({ username: 'riley', password: 'secret' });
     save.forget(TAB);
-    expect(save.offerFor('another-tab')).toMatchObject({ tabId: 'another-tab', username: 'riley' });
+    expect(save.offerFor('another-tab')).toMatchObject({ username: 'riley' });
   });
 });

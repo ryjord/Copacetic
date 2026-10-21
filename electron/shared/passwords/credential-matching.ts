@@ -2,7 +2,7 @@
 // here errs towards offering nothing: a password filled into the wrong place is
 // handed to whoever asked for it, and cannot be taken back.
 
-import { isLoopbackHost, registrableDomainOf } from '../browsing/url';
+import { isLoopbackHost, siteOfUrl } from '../browsing/url';
 import { t } from '../i18n/translate';
 
 export interface MatchableEntry {
@@ -15,16 +15,6 @@ export interface FillOffer {
   entries: MatchableEntry[];
   /** Why nothing is offered, in the words shown to the user. Empty when entries were found. */
   refusal: string;
-}
-
-/** The registrable domain an address belongs to, which a saved password is matched on. */
-export function siteOf(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    return registrableDomainOf(parsed.hostname) ?? parsed.hostname ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -49,19 +39,19 @@ export function isFillablePage(url: string): boolean {
  * domain is the whole thing, so one user's page cannot claim another's.
  */
 export function entriesForPage(url: string, entries: readonly MatchableEntry[]): MatchableEntry[] {
-  const site = siteOf(url);
+  const site = siteOfUrl(url);
   if (!site) {
     return [];
   }
   return entries.filter((entry) => {
-    const entrySite = siteOf(entry.origin);
+    const entrySite = siteOfUrl(entry.origin);
     return entrySite !== null && entrySite === site;
   });
 }
 
 /** What can be offered here, or why nothing can. */
 export function offerFor(url: string, entries: readonly MatchableEntry[]): FillOffer {
-  if (!siteOf(url)) {
+  if (!siteOfUrl(url)) {
     return { entries: [], refusal: t('main.passwords.refusal.noSite') };
   }
   if (!isFillablePage(url)) {

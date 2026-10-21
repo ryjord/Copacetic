@@ -1,6 +1,6 @@
 // Utils
 import { MAX_PINCH_ZOOM, clampZoom } from '../../shared/types';
-import { fallbackTitleFor, hostOf, originOf, registrableDomainOf } from '../../shared/browsing/url';
+import { fallbackTitleFor, hostOf, originOf, siteOfHost } from '../../shared/browsing/url';
 import { internalPageOf } from '../../shared/tabs/internal-pages';
 import { canAcceptRefused } from '../security/certificate-exceptions';
 import { describeNetError, isAbortError } from '../system/net-errors';
@@ -14,13 +14,15 @@ import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { BrowserStore } from '../data/store';
 import type { TabRecord } from './tab-record';
-import type { PageChange } from '../workflows/password-save';
 
 /**
  * What the page can tell us about itself. Everything here is reported by the
  * tab's own web contents, so it arrives whenever the page decides - long after
  * the navigation that caused it, and sometimes for a tab already closed.
  */
+/** How a tab's page changed: a new document, a move within the same one, or a document finished loading. */
+export type PageChange = 'committed' | 'in-page' | 'loaded';
+
 export interface TabEventDeps {
   store: BrowserStore;
   blocker: ContentBlocker;
@@ -63,7 +65,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
     // Set before any subresource request is judged, so an exception applies
     // from the first request of the page rather than the second load.
     const site = hostOf(details.url);
-    deps.blocker.setPageSite(contents.id, registrableDomainOf(site) ?? site);
+    deps.blocker.setPageSite(contents.id, siteOfHost(site));
   });
 
   const commitNavigation = (url: string, isInPage: boolean) => {

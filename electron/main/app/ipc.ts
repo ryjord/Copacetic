@@ -759,6 +759,12 @@ function keptRestorer(kind: KeptKind, before: Settings): ((now: Settings) => Par
   }
 }
 
+function asSiteList(sites: readonly unknown[]): string[] {
+  return sites
+    .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)
+    .slice(0, MAX_LIST_LENGTH);
+}
+
 function asIdList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string').slice(0, 1000) : [];
 }
@@ -986,14 +992,10 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     patch.offerToSavePasswords = value.offerToSavePasswords;
   }
   if (Array.isArray(value.neverSavePasswordsOn)) {
-    patch.neverSavePasswordsOn = value.neverSavePasswordsOn
-      .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)
-      .slice(0, MAX_LIST_LENGTH);
+    patch.neverSavePasswordsOn = asSiteList(value.neverSavePasswordsOn);
   }
   if (Array.isArray(value.blockerAllowlist)) {
-    patch.blockerAllowlist = value.blockerAllowlist
-      .filter((site): site is string => typeof site === 'string' && site.length > 0 && site.length <= MAX_SITE_LENGTH)
-      .slice(0, MAX_LIST_LENGTH);
+    patch.blockerAllowlist = asSiteList(value.blockerAllowlist);
   }
 
   return patch;

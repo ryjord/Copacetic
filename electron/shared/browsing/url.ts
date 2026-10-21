@@ -266,6 +266,22 @@ export function publicSuffixLabelCount(host: string): number {
   return prevailing || 1;
 }
 
+/** Whether a host is an address rather than a name: IPv4, or IPv6 with or without its brackets. */
+export function isAddressHost(host: string): boolean {
+  return IPV4.test(host) || host.startsWith('[') || host.includes(':');
+}
+
+/** The site a host belongs to: its registrable domain, or the host itself where it has none, as localhost does. */
+export function siteOfHost(host: string): string {
+  return registrableDomainOf(host) ?? host;
+}
+
+/** The site of an address, or null for one with no host. */
+export function siteOfUrl(url: string): string | null {
+  const host = hostOf(url);
+  return host ? siteOfHost(host) : null;
+}
+
 /** The registrable domain - the public suffix plus the one label a person actually registered. */
 export function registrableDomainOf(host: string): string | null {
   const bare = toAsciiHost(host).replace(/\.$/, '');
@@ -273,7 +289,7 @@ export function registrableDomainOf(host: string): string | null {
     return null;
   }
   // An address is its own site: read as names, 127.0.0.1 and 10.0.0.1 would both be the site 0.1.
-  if (IPV4.test(bare) || bare.includes(':')) {
+  if (isAddressHost(bare)) {
     return bare;
   }
 
@@ -345,7 +361,7 @@ export function splitUrlForDisplay(value: string): DisplayUrlParts | null {
   }
 
   const host = url.hostname;
-  if (IPV4.test(host) || host.startsWith('[') || !host.includes('.')) {
+  if (isAddressHost(host) || !host.includes('.')) {
     return { scheme, subdomain: '', registrableDomain: host, path, isInternal };
   }
 

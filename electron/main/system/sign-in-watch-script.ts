@@ -1,11 +1,4 @@
-/**
- * The script that notices a sign-in, so Copacetic can offer to save the
- * password. It runs in an isolated world of its own, which the page can neither
- * see nor reach, and only on a secure page. A page with no field for a password
- * or a username is left at once with nothing behind. On one that has them, it
- * waits for a person to send the form, with a button or Enter,
- * then reads the fields once, hands them back and removes its listeners.
- */
+/** Notices a person sending a sign-in form, in an isolated world; a page without one is left at once. */
 export const SIGN_IN_WATCH_SCRIPT = `(() => {
   const isVisible = (field) => {
     const rect = field.getBoundingClientRect();

@@ -708,7 +708,7 @@ export interface BrowserState {
   siteInfo: SiteInfoState | null;
   /** The sheet that names and files a bookmark just added, open for one tab, or null. */
   bookmarkSheet: BookmarkSheetState | null;
-  /** A password just signed in with, offered for saving in one of this window's tabs, or null. */
+  /** A password just signed in with, offered for saving in the tab in front, or null. */
   passwordOffer: PasswordOffer | null;
   /** Two tabs paired side by side, shown while either is in front. */
   split: SplitView | null;
@@ -720,10 +720,9 @@ export interface BrowserState {
   profiles: ProfileSummary[];
 }
 
-/** What the window is told of a password it may save: never the password itself. */
+/** What the window is told of a password it may save, for the tab in front: never the password itself. */
 export interface PasswordOffer {
   id: string;
-  tabId: TabId;
   /** The registrable domain the password was typed into. */
   site: string;
   username: string;

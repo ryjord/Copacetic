@@ -1,5 +1,5 @@
 // Utils
-import { hostOf, registrableDomainOf } from '../../../shared/browsing/url';
+import { hostOf, siteOfHost } from '../../../shared/browsing/url';
 import { REQUEST_METHODS, type RequestMethod, type ResourceType } from './rule';
 
 // Types
@@ -67,8 +67,7 @@ export function requestContextFrom(details: RequestDetails): RequestContext | nu
     details.initiatorOrigin ?? (resourceType === 'main_frame' ? undefined : details.webContents?.getURL());
   const initiatorHost = (asker && hostOf(asker)) || null;
   const host = parsed.hostname;
-  const siteOf = (name: string) => registrableDomainOf(name) ?? name;
-  const isThirdParty = initiatorHost !== null && siteOf(host) !== siteOf(initiatorHost);
+  const isThirdParty = initiatorHost !== null && siteOfHost(host) !== siteOfHost(initiatorHost);
   return {
     request: {
       url: parsed.href,
