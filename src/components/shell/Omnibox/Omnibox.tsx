@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // Components
 import { IconButton } from '@/components/ui/IconButton/IconButton';
+import { AddToCopacetic } from '@/components/shell/Omnibox/AddToCopacetic';
 import { ConnectionBadge } from '@/components/shell/ConnectionBadge/ConnectionBadge';
 
 // Icons
@@ -227,6 +228,7 @@ export function Omnibox({ tab }: OmniboxProps) {
 
         {tab && tab.internalPage === null && (
           <>
+            <AddToCopacetic tab={tab} />
             <ZoomChip tab={tab} />
             {/* Offered on every web page rather than guessed at: finding the article means reading the whole page. */}
             {/^https?:/.test(tab.url) && (

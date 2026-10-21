@@ -74,6 +74,11 @@ export const shell = {
     removeBookmark: 'Remove bookmark',
     addBookmark: 'Bookmark this page',
     noHushBookmark: 'A Hush tab keeps nothing, so its page is not bookmarked',
+    addExtension: 'Add to Copacetic',
+    addingExtension: 'Adding…',
+    retryExtension: 'Could not add, try again',
+    extensionNotAdded: 'Could not add the extension: {problem}',
+    extensionAdded: 'In Copacetic',
   },
   tabStrip: {
     openTabs: 'Open tabs',
