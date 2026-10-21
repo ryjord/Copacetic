@@ -272,6 +272,10 @@ export function registrableDomainOf(host: string): string | null {
   if (!bare || bare.startsWith('.') || bare.includes('..')) {
     return null;
   }
+  // An address is its own site: read as names, 127.0.0.1 and 10.0.0.1 would both be the site 0.1.
+  if (IPV4.test(bare) || bare.includes(':')) {
+    return bare;
+  }
 
   const labels = bare.split('.');
   const suffixLabels = publicSuffixLabelCount(bare);

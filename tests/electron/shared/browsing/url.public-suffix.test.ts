@@ -88,3 +88,10 @@ describe('registrableDomainOf, against the official Public Suffix List suite', (
     expect(registrableDomainOf(host ?? '')).toBe(expected);
   });
 });
+
+// Not in the official suite, which is about names: an address is a site of its own.
+describe('registrableDomainOf, for an address rather than a name', () => {
+  it.each(['127.0.0.1', '10.0.0.1', '[::1]'])('takes %s as its own site', (host) => {
+    expect(registrableDomainOf(host)).toBe(host);
+  });
+});
