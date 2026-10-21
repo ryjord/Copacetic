@@ -479,6 +479,8 @@ export function isThemeId(value: string): value is ThemeId {
  */
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 5;
+/** How far a trackpad pinch may bring a page closer, on top of its zoom. */
+export const MAX_PINCH_ZOOM = 3;
 
 /**
  * `Math.min` and `Math.max` carry NaN straight through whichever way round they

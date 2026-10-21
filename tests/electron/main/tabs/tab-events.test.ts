@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  MAX_PINCH_ZOOM,
   attachTabEvents,
   markLoadRequested,
   settleUnstartedLoad,
   type TabEventDeps,
 } from '../../../../electron/main/tabs/tab-events';
 import type { TabRecord } from '../../../../electron/main/tabs/tab-record';
+import { MAX_PINCH_ZOOM } from '../../../../electron/shared/types';
 import { HUSH_RECORD, storedRecord } from '../../../../electron/main/tabs/browsing-record';
 
 /** A stand-in for the tab's web contents that lets a test fire what a page reports. */
