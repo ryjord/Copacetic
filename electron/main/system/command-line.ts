@@ -37,10 +37,7 @@ const DISABLED_FEATURES = [
   'FledgeConsiderKAnonymity',
 ];
 
-/**
- * Features whose dialog Electron never draws, so a site waits on a prompt that
- * never comes. Turned off, the site takes the path it uses in other browsers.
- */
+/** Features whose dialog Electron never draws; turned off, a site takes the path it takes elsewhere. */
 const UNDRAWN_FEATURES = [
   // Google's sign-in button waits on FedCM's account chooser; without it, the button opens its pop-up.
   'FedCm',

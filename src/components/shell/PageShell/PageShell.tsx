@@ -15,11 +15,7 @@ interface PageShellProps {
   children: ReactNode;
 }
 
-/**
- * The frame for a page Copacetic draws in a tab of its own: Settings, History,
- * Bookmarks, Downloads. Closing it is closing the tab, so it has no close
- * button and Escape is left to whatever has focus inside it.
- */
+/** The frame for a page Copacetic draws in a tab; no close button, since closing it is closing the tab. */
 export function PageShell({ title, actions, scrolls = true, children }: PageShellProps) {
   return (
     <section aria-label={title} className="absolute inset-0 flex flex-col bg-base">

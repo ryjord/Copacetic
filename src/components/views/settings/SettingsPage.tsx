@@ -92,13 +92,13 @@ export function SettingsPage({ tabId, section }: { tabId: string; section: strin
   const isWide = WIDE_PANES.includes(activePane.id);
 
   return (
-    <PageShell title={t('settings.surface.title')} scrolls={false}>
+    <PageShell title={t('settings.page.title')} scrolls={false}>
       <div className="flex min-h-0 flex-1">
         <nav
-          aria-label={t('settings.surface.sections')}
+          aria-label={t('settings.page.sections')}
           className="flex w-66 flex-none flex-col gap-3 border-r border-line bg-toolbar px-3 py-5"
         >
-          <SearchField value={query} onChange={setQuery} label={t('settings.surface.search')} />
+          <SearchField value={query} onChange={setQuery} label={t('settings.page.search')} />
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="flex flex-col gap-0.5">
               <h3 className="px-2.5 pb-1 pt-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint">
@@ -190,9 +190,9 @@ function SearchResults({
 }) {
   return (
     <>
-      <PageHeader title={t('settings.surface.results')} />
+      <PageHeader title={t('settings.page.results')} />
       {matches.length === 0 ? (
-        <p className="text-body text-ink-dim">{t('settings.surface.noMatch', { query })}</p>
+        <p className="text-body text-ink-dim">{t('settings.page.noMatch', { query })}</p>
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-raised">
           {matches.map((match) => (

@@ -27,11 +27,7 @@ const activeUrl = () =>
     return state.tabs.find((tab) => tab.id === state.activeTabId)?.url ?? null;
   });
 
-/**
- * Settings and the lists used to cover whatever page was in front, with no
- * way back to it but switching tabs. Each is a tab of its own now, so the page
- * stays where it was and closing the screen is closing its tab.
- */
+// Each is a tab of its own, so the page in front stays where it was and closing one is closing its tab.
 describe('history, settings and the lists', () => {
   it('open in a tab of their own and leave the page where it was', async () => {
     await copacetic.chooseMenuItem('Show all history');

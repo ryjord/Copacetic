@@ -62,11 +62,7 @@ describe('the app starts', () => {
   });
 });
 
-/**
- * The menu bar is not decoration, and the only way to know an item works is to
- * press it. Settings is a tab of its own now, so pressing it opens one, which
- * is closed again so the specs after this find the page they expect.
- */
+// Pressed, because that is the only way to know a menu item works; the tab it opens is closed for the specs after.
 describe('the Settings item in the menu bar', () => {
   it('opens settings in a tab of its own', async () => {
     expect(await copacetic.waitForReady()).toBe(true);

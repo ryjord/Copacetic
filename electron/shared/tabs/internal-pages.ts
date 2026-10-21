@@ -59,7 +59,7 @@ export function internalPageTitle(page: InternalPage): string {
     case 'start':
       return t('main.tabs.newTabTitle');
     case 'settings':
-      return t('settings.surface.title');
+      return t('settings.page.title');
     case 'history':
       return t('views.history.title');
     case 'bookmarks':

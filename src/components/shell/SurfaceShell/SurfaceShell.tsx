@@ -4,7 +4,6 @@
 import { useRef, type ReactNode } from 'react';
 
 // Components
-import { EmptyState as EmptyStatePrimitive } from '@/components/ui/EmptyState/EmptyState';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { PageShell } from '@/components/shell/PageShell/PageShell';
 
@@ -70,9 +69,4 @@ export function SurfaceShell({ title, actions, scrolls = true, children }: Surfa
       </PageShell>
     </section>
   );
-}
-
-/** Kept for the surfaces not yet moved to the shared primitive. */
-export function EmptyState({ title, hint }: { title: string; hint: string }) {
-  return <EmptyStatePrimitive title={title} hint={hint} />;
 }

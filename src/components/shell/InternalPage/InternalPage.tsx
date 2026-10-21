@@ -13,12 +13,7 @@ import { internalAddressOf } from '@shared/tabs/internal-pages';
 // Types
 import type { TabState } from '@shared/types';
 
-/**
- * What a tab shows when the page in it is one Copacetic draws rather than a site.
- *
- * Keyed by the tab, so two tabs of the same page each keep their own search and
- * selection rather than one handing its state to the other.
- */
+/** What a tab of ours shows; keyed by tab, so two tabs of one page keep their own search and selection. */
 export function InternalPage({ tab }: { tab: TabState }) {
   switch (tab.internalPage) {
     case 'start':

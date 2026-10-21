@@ -1,17 +1,9 @@
 /**
- * Opens the built app on a fresh profile at Google's sign-in page, for a person
- * to sign in by hand, and records where each request went and what came back.
- *
- * Signing in has to be done by a person and in an ordinary launch: under
- * Playwright a page reports navigator.webdriver, and Google refuses a browser
- * that says it is automated. So this starts the app as someone would and only
- * reads the record once they quit it.
- *
- * The record keeps addresses without their query, the request type and the
- * status, and nothing that was typed, sent or received. It and the profile are
- * removed afterwards unless KEEP=1.
- *
- * Run it with `npm run record-sign-in` after `npm run build`.
+ * Opens the built app on a fresh profile at Google's sign-in page for a person
+ * to sign in by hand, in an ordinary launch since Google refuses a browser that
+ * reports navigator.webdriver, then prints the requests that failed and the
+ * pages in order. Run `npm run record-sign-in` after `npm run build`; KEEP=1
+ * keeps the record and profile.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -35,15 +27,20 @@ const app = spawn(electronBinary, ['.', `--user-data-dir=${profile}`, START_AT],
 });
 
 app.on('exit', () => {
-  const lines = existsSync(record) ? readFileSync(record, 'utf8').trim().split('\n').filter(Boolean) : [];
-  const failures = lines.filter((line) => {
-    const result = line.split('\t')[4] ?? '';
-    return !/^[123]\d\d$/.test(result);
-  });
-  console.log(`\n${lines.length} requests recorded, ${failures.length} failed or refused:\n`);
-  console.log(failures.join('\n') || 'none');
-  const documents = lines.filter((line) => line.split('\t')[2] === 'mainFrame');
-  console.log(`\nPages, in order:\n${documents.map((line) => line.split('\t').slice(4).join('  ')).join('\n')}`);
+  const text = existsSync(record) ? readFileSync(record, 'utf8') : '';
+  // Columns as request-log.ts writes them: when, partition, type, method, result, address.
+  const requests = text
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [, , resourceType = '', , result = '', address = ''] = line.split('\t');
+      return { line, resourceType, result, address };
+    });
+  const failures = requests.filter((request) => !/^[123]\d\d$/.test(request.result));
+  console.log(`\n${requests.length} requests recorded, ${failures.length} failed or refused:\n`);
+  console.log(failures.map((request) => request.line).join('\n') || 'none');
+  const pages = requests.filter((request) => request.resourceType === 'mainFrame');
+  console.log(`\nPages, in order:\n${pages.map((request) => `${request.result}  ${request.address}`).join('\n')}`);
   if (process.env.KEEP === '1') {
     console.log(`\nKept: ${workspace}`);
     return;

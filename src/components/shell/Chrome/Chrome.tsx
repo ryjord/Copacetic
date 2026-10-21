@@ -119,19 +119,7 @@ export function Chrome() {
     // content rectangle the main process needs to match.
   }, [surface, showBookmarksBar]);
 
-  /*
-   * Reaching for a tab is asking to see it. The first state arriving is not.
-   *
-   * The panel describes one particular tab, so it must not linger over another.
-   * A surface is worse than lingering: it covers the whole content area and
-   * hides every page view, so clicking a tab switched to it, highlighted it in
-   * the strip, and showed nothing at all - the browser looked like it had
-   * ignored the click.
-   *
-   * These are chrome rather than pages. There is no address to go back to and
-   * nothing to restore, so closing on the way past is what they are: something
-   * opened over the top of what you were doing, and dismissed by returning to it.
-   */
+  // Reaching for another tab is asking to see it, so an overlay over the last one closes; the first state arriving is not.
   const previousTabId = useRef<string | null>(null);
   useEffect(() => {
     const previous = previousTabId.current;

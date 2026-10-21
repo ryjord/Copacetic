@@ -4,12 +4,7 @@ import { type WriteStream, createWriteStream } from 'node:fs';
 // Types
 import type { Session } from 'electron';
 
-/**
- * A record of where a session's requests went and what came back, written only
- * when COPACETIC_REQUEST_LOG names a file: `npm run record-sign-in` sets it so a
- * sign-in that fails shows exactly which request did. Addresses lose their
- * query and fragment, and nothing that was sent or received is written.
- */
+/** Where requests went and what came back, only when COPACETIC_REQUEST_LOG names a file; never a query, body or input. */
 
 // Pages, frames and the calls a page makes for itself; images and scripts only when they fail.
 const ALWAYS_LOGGED: ReadonlySet<string> = new Set(['mainFrame', 'subFrame', 'xhr', 'webSocket', 'other']);

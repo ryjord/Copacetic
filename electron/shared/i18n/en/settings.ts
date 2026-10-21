@@ -1,6 +1,6 @@
-/** Settings: the surface, its navigation and search terms, and every pane except About. Product names on their own stay in the code. */
+/** Settings: the page, its navigation and search terms, and every pane except About. Product names on their own stay in the code. */
 export const settings = {
-  surface: {
+  page: {
     title: 'Settings',
     sections: 'Settings sections',
     search: 'Search settings',
