@@ -182,7 +182,7 @@ export function Omnibox({ tab }: OmniboxProps) {
   };
 
   return (
-    <div className="no-drag relative flex-1">
+    <div className="no-drag relative min-w-0 flex-1">
       <div
         ref={fieldRef}
         className={cn(
@@ -219,7 +219,7 @@ export function Omnibox({ tab }: OmniboxProps) {
           <button
             type="button"
             onClick={beginEditing}
-            className="h-full w-full truncate text-left"
+            className="h-full w-full min-w-0 truncate text-left"
             aria-label={t('shell.omnibox.addressAndSearch')}
           >
             <AddressDisplay url={committedUrl} />
@@ -270,7 +270,7 @@ function AddressDisplay({ url }: { url: string }) {
   }
 
   return (
-    <span className="flex items-baseline truncate font-mono text-body-sm tracking-tight">
+    <span className="flex min-w-0 items-baseline truncate font-mono text-body-sm tracking-tight">
       {parts.scheme !== 'https' && <span className="mr-1 text-ink-faint">{parts.scheme}://</span>}
       {parts.subdomain && <span className="text-ink-faint">{parts.subdomain}</span>}
       <span className="text-ink">{parts.registrableDomain}</span>
