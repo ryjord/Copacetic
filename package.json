@@ -36,6 +36,7 @@
     "filters:update": "node scripts/update-filters.mjs",
     "filters:build": "node scripts/build-filters.mjs",
     "measure": "node scripts/measure-performance.mjs",
+    "record-sign-in": "node scripts/record-sign-in.mjs",
     "check:packaged": "node scripts/check-packaged-app.mjs",
     "pretest": "node scripts/check-node.mjs",
     "preverify": "node scripts/check-node.mjs"
