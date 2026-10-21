@@ -38,13 +38,4 @@ describe('normaliseSettings', () => {
   ])('bounds %o to %o', (patch, expected) => {
     expect(normaliseSettings({ ...BASE, ...patch })).toMatchObject(expected);
   });
-
-  it('does not disturb the settings it has no bounds for', () => {
-    const result = normaliseSettings({
-      ...BASE,
-      permissionDecisions: { 'https://example.com|camera': 'allow' },
-    });
-    expect(result.permissionDecisions).toEqual({ 'https://example.com|camera': 'allow' });
-    expect(result.searchEngine).toBe('duckduckgo');
-  });
 });

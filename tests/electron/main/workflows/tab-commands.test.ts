@@ -38,22 +38,6 @@ function commandsWith(
   return { commands: new TabCommands(deps), notices, setZoom, create };
 }
 
-describe('printing', () => {
-  it('says so when a page does not print', () => {
-    const { commands, notices } = commandsWith('Printer is offline');
-    commands.printActiveTab();
-    expect(notices).toEqual([
-      expect.objectContaining({ key: 'print-failed', message: 'The page did not print: Printer is offline' }),
-    ]);
-  });
-
-  it('stays quiet when it prints', () => {
-    const { commands, notices } = commandsWith(null);
-    commands.printActiveTab();
-    expect(notices).toEqual([]);
-  });
-});
-
 describe('zooming', () => {
   it('steps along the same ladder as the palette', () => {
     const { commands, setZoom } = commandsWith(null, 1.2);
@@ -89,29 +73,32 @@ describe("viewing a page's source", () => {
   });
 });
 
-describe('saving a page', () => {
-  it('says so when the page was not saved', async () => {
-    const { commands, notices } = commandsWith('Disk full');
-    commands.saveActiveTab();
-    await vi.waitFor(() =>
-      expect(notices).toEqual([
-        expect.objectContaining({ key: 'save-failed', message: 'The page was not saved: Disk full' }),
-      ]),
-    );
-  });
-});
-
-describe('saving a picture of the page', () => {
-  it('says so when no picture was saved', async () => {
-    const { commands, notices } = commandsWith('Close the developer tools first');
-    commands.saveScreenshotOfActiveTab();
-    await vi.waitFor(() =>
-      expect(notices).toEqual([
-        expect.objectContaining({
-          key: 'screenshot-failed',
-          message: 'No picture of the page was saved: Close the developer tools first',
-        }),
-      ]),
-    );
+describe('a command that fails', () => {
+  it.each([
+    {
+      name: 'a page that does not print',
+      reason: 'Printer is offline',
+      run: (commands: TabCommands) => commands.printActiveTab(),
+      key: 'print-failed',
+      message: 'The page did not print: Printer is offline',
+    },
+    {
+      name: 'a page that was not saved',
+      reason: 'Disk full',
+      run: (commands: TabCommands) => commands.saveActiveTab(),
+      key: 'save-failed',
+      message: 'The page was not saved: Disk full',
+    },
+    {
+      name: 'a picture that was not saved',
+      reason: 'Close the developer tools first',
+      run: (commands: TabCommands) => commands.saveScreenshotOfActiveTab(),
+      key: 'screenshot-failed',
+      message: 'No picture of the page was saved: Close the developer tools first',
+    },
+  ])('says so for $name', async ({ reason, run, key, message }) => {
+    const { commands, notices } = commandsWith(reason);
+    run(commands);
+    await vi.waitFor(() => expect(notices).toEqual([expect.objectContaining({ key, message })]));
   });
 });

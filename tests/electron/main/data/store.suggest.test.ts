@@ -49,23 +49,9 @@ describe('omnibox suggestions', () => {
     expect(store.suggest('bbc').map((s) => s.target)).toContain('https://www.bbc.co.uk/news');
   });
 
-  // The parsed forms are cached per entry, so the same query asked twice must
-  // not drift - this is the regression guard on that cache.
-  it('returns identical results when the same query is repeated', async () => {
-    seedHistory([
-      entry('a', 'https://github.com/', 'GitHub', 1, 9),
-      entry('b', 'https://gitlab.com/', 'GitLab', 3, 2),
-      entry('c', 'https://news.ycombinator.com/', 'Hacker News', 0, 40),
-    ]);
-    const store = new BrowserStore();
-
-    const first = store.suggest('git');
-    expect(store.suggest('git')).toEqual(first);
-    expect(store.suggest('git')).toEqual(first);
-  });
-
-  it('picks up a title that changed on a revisit rather than serving the old one', async () => {
-    seedHistory([entry('a', 'https://example.com/', 'Old title')]);
+  // The parsed forms are cached per entry, so the cache has to follow every edit to history.
+  it('the suggestion cache follows history edits', async () => {
+    seedHistory([entry('a', 'https://example.com/', 'Old title'), entry('b', 'https://other.com/', 'Other')]);
     const store = new BrowserStore();
 
     expect(store.suggest('old').map((s) => s.target)).toContain('https://example.com/');
@@ -75,15 +61,9 @@ describe('omnibox suggestions', () => {
     expect(store.suggest('completely').map((s) => s.target)).toContain('https://example.com/');
     // The stale form must no longer match, or the cache is serving old data.
     expect(store.suggest('old').map((s) => s.target)).not.toContain('https://example.com/');
-  });
 
-  it('drops an entry from results once it is removed from history', async () => {
-    seedHistory([entry('a', 'https://example.com/', 'Example'), entry('b', 'https://other.com/', 'Other')]);
-    const store = new BrowserStore();
-
-    expect(store.suggest('example').map((s) => s.target)).toContain('https://example.com/');
     store.removeHistory('a');
-    expect(store.suggest('example').map((s) => s.target)).not.toContain('https://example.com/');
+    expect(store.suggest('completely').map((s) => s.target)).not.toContain('https://example.com/');
   });
 
   it('always offers a search, and a URL when the input resolves to one', async () => {

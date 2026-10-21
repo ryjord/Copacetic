@@ -23,32 +23,18 @@ beforeEach(() => {
  * group as a folder did to every tab in it that was already bookmarked.
  */
 describe('making sure a page is bookmarked', () => {
-  it('adds one that is not there', () => {
-    const bookmark = store.ensureBookmark('https://example.com/', 'Example');
-    expect(bookmark.url).toBe('https://example.com/');
-    expect(store.listBookmarks()).toHaveLength(1);
-  });
-
-  it('keeps the one that is, rather than removing it', () => {
-    const first = store.ensureBookmark('https://example.com/', 'Example');
-    const again = store.ensureBookmark('https://example.com/', 'Example');
-    expect(again.id).toBe(first.id);
-    expect(store.listBookmarks()).toHaveLength(1);
-  });
-
-  it('keeps the title and the date the first save had', () => {
+  it('adds once and never alters or removes an existing bookmark (id, title, createdAt, folder)', () => {
+    const folder = store.createBookmarkFolder('Work', 'violet', null);
     const first = store.ensureBookmark('https://example.com/', 'The name I gave it');
+    expect(first.url).toBe('https://example.com/');
+    expect(store.listBookmarks()).toHaveLength(1);
+    store.fileBookmark(first.id, folder.id);
+
     const again = store.ensureBookmark('https://example.com/', 'Something else');
+    expect(again.id).toBe(first.id);
     expect(again.title).toBe('The name I gave it');
     expect(again.createdAt).toBe(first.createdAt);
-  });
-
-  it('leaves the folder it was already filed in alone', () => {
-    const folder = store.createBookmarkFolder('Work', 'violet', null);
-    const bookmark = store.ensureBookmark('https://example.com/', 'Example');
-    store.fileBookmark(bookmark.id, folder.id);
-
-    store.ensureBookmark('https://example.com/', 'Example');
+    expect(store.listBookmarks()).toHaveLength(1);
     expect(store.listBookmarks()[0]?.folderId).toBe(folder.id);
   });
 });

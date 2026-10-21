@@ -67,9 +67,10 @@ describe('every migration step is idempotent', () => {
    * A plan added later and never listed above would make all of this pass while
    * testing nothing, so the count is checked against the source. If this fails,
    * a new SchemaPlan exists: add it to PLANS with samples either side of its
-   * step, rather than raising the number.
+   * step, rather than raising the number. A plan with no samples or no steps
+   * would likewise produce no `it()` at all, a green run that tested nothing.
    */
-  it('covers every plan in the data folder', () => {
+  it('covers every plan in the data folder, with samples and steps to run', () => {
     const directory = path.join(process.cwd(), 'electron', 'main', 'data');
     const declared = readdirSync(directory, { recursive: true, encoding: 'utf8' })
       .filter((name) => name.endsWith('.ts'))
@@ -85,23 +86,8 @@ describe('every migration step is idempotent', () => {
       .filter((name) => name !== 'UNVERSIONED');
 
     expect([...new Set(declared)].sort()).toEqual(['SESSION_PLAN']);
-  });
-
-  /*
-   * The check above only says a plan is listed in PLANS. A plan listed there
-   * with no samples produces no `it()` at all - a green run that tested nothing,
-   * which is the failure mode this whole file exists to prevent.
-   */
-  it('has samples for every plan it covers', () => {
-    for (const file of Object.keys(PLANS)) {
-      expect(SAMPLES[file] ?? []).not.toHaveLength(0);
-    }
-  });
-
-  // And every plan's steps are actually reached, rather than a plan with an
-  // empty `steps` array quietly contributing nothing.
-  it('has at least one step to run twice', () => {
     for (const [file, plan] of Object.entries(PLANS)) {
+      expect(SAMPLES[file] ?? []).not.toHaveLength(0);
       expect(plan.steps.length, `${file} has no migration steps`).toBeGreaterThan(0);
     }
   });

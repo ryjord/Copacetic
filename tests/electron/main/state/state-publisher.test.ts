@@ -68,21 +68,15 @@ const state = (over: Partial<BrowserState> = {}): BrowserState => ({
 });
 
 describe('what a push carries', () => {
-  it('carries everything the first time', () => {
-    const { patch } = changedSlices(new Map(), state());
-    expect(Object.keys(patch).sort()).toEqual(Object.keys(state()).sort());
-  });
-
   // A download's progress used to re-send every tab and the whole settings record.
-  it('carries only what changed after that', () => {
-    const { sent } = changedSlices(new Map(), state());
-    const { patch } = changedSlices(sent, state({ hasClosedTabs: true }));
-    expect(patch).toEqual({ hasClosedTabs: true });
-  });
+  it('carries everything the first time, then only what changed, then nothing', () => {
+    const first = changedSlices(new Map(), state());
+    expect(Object.keys(first.patch).sort()).toEqual(Object.keys(state()).sort());
 
-  it('carries nothing when nothing changed', () => {
-    const { sent } = changedSlices(new Map(), state());
-    expect(changedSlices(sent, state()).patch).toEqual({});
+    const second = changedSlices(first.sent, state({ hasClosedTabs: true }));
+    expect(second.patch).toEqual({ hasClosedTabs: true });
+
+    expect(changedSlices(second.sent, state({ hasClosedTabs: true })).patch).toEqual({});
   });
 });
 
