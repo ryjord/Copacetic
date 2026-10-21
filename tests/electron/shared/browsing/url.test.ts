@@ -142,6 +142,14 @@ describe('isPageNavigableUrl', () => {
     expect(isPageNavigableUrl('copacetic://start')).toBe(true);
   });
 
+  // A link, an extension or another program may open a new tab, never Copacetic's own settings or history.
+  it.each(['copacetic://settings', 'copacetic://settings/passwords', 'copacetic://history', 'copacetic://downloads'])(
+    'refuses %s, one of our pages a page must not open',
+    (url) => {
+      expect(isPageNavigableUrl(url)).toBe(false);
+    },
+  );
+
   // The split that matters: a user typing a local path means it, a page
   // saying `window.open('file:///…')` does not.
   it('refuses file: even though a typed address may use it', () => {

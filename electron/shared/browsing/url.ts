@@ -35,7 +35,12 @@ export function viewSourceUrlFor(url: string): string | null {
 /** True when page code may send a tab here. Stricter than `isNavigableUrl`. */
 export function isPageNavigableUrl(value: string): boolean {
   try {
-    return PAGE_NAVIGABLE_SCHEMES.has(new URL(value).protocol);
+    const { protocol } = new URL(value);
+    // Of our own addresses, a page or another program may reach only a new tab, never Settings or History.
+    if (protocol === `${INTERNAL_SCHEME}:`) {
+      return value === START_PAGE_URL;
+    }
+    return PAGE_NAVIGABLE_SCHEMES.has(protocol);
   } catch {
     return false;
   }

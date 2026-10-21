@@ -3,7 +3,7 @@ import { type Session, type WebContents, app, desktopCapturer, shell } from 'ele
 
 // Utils
 import { type DisplaySource, displayChoices } from '../../shared/chrome/display-sources';
-import { INTERNAL_SCHEME, PAGE_NAVIGABLE_SCHEMES, START_PAGE_URL, isLoopbackHost } from '../../shared/browsing/url';
+import { isLoopbackHost, isPageNavigableUrl } from '../../shared/browsing/url';
 import { observeCertificates } from './certificates';
 import { installRequestHeaders } from './request-headers';
 import { describeSession } from '../system/browser-identity';
@@ -365,19 +365,7 @@ function hardenAttachedFrames(contents: WebContents): void {
 
 // Every caller here is reacting to something *page code* did, so this is the strict set - a page cannot reach `file:` even though the user can type it.
 function isNavigable(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    // A page may open a new tab, never Copacetic's own settings, history or downloads.
-    if (parsed.protocol === `${INTERNAL_SCHEME}:`) {
-      return url === START_PAGE_URL;
-    }
-    if (isLoadedExtensionPage(url)) {
-      return true;
-    }
-    return PAGE_NAVIGABLE_SCHEMES.has(parsed.protocol);
-  } catch {
-    return false;
-  }
+  return isLoadedExtensionPage(url) || isPageNavigableUrl(url);
 }
 
 function isChromeDocument(url: string): boolean {
