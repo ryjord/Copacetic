@@ -132,6 +132,21 @@ export function acceleratorFor(id: string, overrides: ShortcutOverrides): string
   return chosen || undefined;
 }
 
+/**
+ * Keys that also do a shortcut's job while it is on its default, as Chrome's do.
+ * "+" is Shift and = on most keyboards, so Cmd+= has to zoom in as well, and the
+ * number pad's + and - must too.
+ */
+const ALIASES: Readonly<Record<string, readonly string[]>> = {
+  'zoom-in': ['CmdOrCtrl+=', 'CmdOrCtrl+numadd'],
+  'zoom-out': ['CmdOrCtrl+numsub'],
+};
+
+/** The other keys bound to a shortcut, none once someone has chosen their own key for it. */
+export function aliasesFor(id: string, overrides: ShortcutOverrides): readonly string[] {
+  return Object.hasOwn(overrides, id) ? [] : (ALIASES[id] ?? []);
+}
+
 const MODIFIERS = ['CmdOrCtrl', 'Ctrl', 'Alt', 'Shift'];
 const NAMED_KEYS = [
   'Plus',

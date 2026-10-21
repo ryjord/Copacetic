@@ -2,7 +2,7 @@
 import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
 
 // Utils
-import { acceleratorFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
+import { acceleratorFor, aliasesFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
 
 // Types
@@ -18,6 +18,17 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   // Compared with true: a menu built while a key is being recorded binds none, so the key reaches the recorder.
   const isRecording = profiles.isRecordingShortcut() === true;
   const key = (id: string) => (isRecording ? undefined : acceleratorFor(id, overrides));
+  // Hidden, so the menu shows one key while the others work too; none while a key is being recorded.
+  const aliases = (id: string, label: string, click: () => void): MenuItemConstructorOptions[] =>
+    isRecording
+      ? []
+      : aliasesFor(id, overrides).map((accelerator) => ({
+          label,
+          accelerator,
+          visible: false,
+          acceleratorWorksWhenHidden: true,
+          click,
+        }));
   const template: MenuItemConstructorOptions[] = [];
 
   if (isMac) {
@@ -184,6 +195,12 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         accelerator: key('zoom-out'),
         click: () => inWindow((browser) => browser.commands.adjustZoom('out')),
       },
+      ...aliases('zoom-in', t('main.menu.view.zoomIn'), () =>
+        inWindow((browser) => browser.commands.adjustZoom('in')),
+      ),
+      ...aliases('zoom-out', t('main.menu.view.zoomOut'), () =>
+        inWindow((browser) => browser.commands.adjustZoom('out')),
+      ),
       {
         label: t('main.menu.view.actualSize'),
         accelerator: key('zoom-reset'),

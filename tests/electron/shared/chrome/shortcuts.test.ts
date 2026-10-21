@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   SHORTCUT_GROUPS,
   acceleratorFor,
+  aliasesFor,
   acceleratorFromKeys,
   conflictFor,
   isValidAccelerator,
@@ -124,5 +125,21 @@ describe('readableAccelerator', () => {
   it('leaves a shortcut with no modifier alone', () => {
     expect(readableAccelerator('Delete', true)).toBe('Delete');
     expect(readableAccelerator('Escape', true)).toBe('Esc');
+  });
+});
+
+describe('the other keys a shortcut answers to', () => {
+  // "+" is Shift and = on most keyboards, so zoom in on Cmd+Plus alone was a key almost nobody pressed.
+  it('zooms in on Cmd+= and the number pad too, while zoom in has its default key', () => {
+    expect(aliasesFor('zoom-in', {})).toEqual(['CmdOrCtrl+=', 'CmdOrCtrl+numadd']);
+    expect(aliasesFor('zoom-out', {})).toEqual(['CmdOrCtrl+numsub']);
+  });
+
+  it('answers only to the key someone chose once they have chosen one', () => {
+    expect(aliasesFor('zoom-in', { 'zoom-in': 'CmdOrCtrl+Shift+Z' })).toEqual([]);
+  });
+
+  it('has none for a shortcut with only its own key', () => {
+    expect(aliasesFor('new-tab', {})).toEqual([]);
   });
 });
