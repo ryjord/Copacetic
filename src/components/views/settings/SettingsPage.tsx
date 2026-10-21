@@ -41,7 +41,7 @@ export function SettingsPage({ tabId, section }: { tabId: string; section: strin
   const activePaneId: PaneId = SETTINGS_PANES.find((pane) => pane.id === section)?.id ?? 'general';
   const [query, setQuery] = useState('');
   // What a search result asked for, each request its own, so asking twice for the same row still lands.
-  const [landing, setLanding] = useState<{ term: string; request: number } | null>(null);
+  const [landing, setLanding] = useState<{ term: string; paneId: PaneId; request: number } | null>(null);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
 
@@ -58,13 +58,14 @@ export function SettingsPage({ tabId, section }: { tabId: string; section: strin
     if (pane) {
       send((api) => api.tabs.navigate(tabId, internalPageUrl('settings', pane.id)));
       setQuery('');
-      setLanding((previous) => (term ? { term, request: (previous?.request ?? 0) + 1 } : null));
+      setLanding((previous) => (term ? { term, paneId: pane.id, request: (previous?.request ?? 0) + 1 } : null));
     }
   };
 
   // Lands on the row a search was for, so nobody has to read the pane again to find it.
   useEffect(() => {
-    if (!landing) {
+    // The pane arrives through the tab's address a moment later; until it does, there is nothing to land on.
+    if (!landing || landing.paneId !== activePaneId) {
       return;
     }
     const frame = requestAnimationFrame(() => {
