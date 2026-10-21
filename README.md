@@ -123,6 +123,8 @@ machine. There are no accounts and no telemetry.
   as addresses and titles only.
 - **Sign-in pop-ups that work.** "Sign in with Google" and its like open as a
   tab that stays linked to the page that opened it, never as a window.
+- **Settings, History, Bookmarks and Downloads in tabs of their own**, so the
+  page you were on stays where it was.
 
 ### Extensions (beta)
 
@@ -225,6 +227,8 @@ releases only, unless Settings is set to offer betas too.
 Supported versions are 1.4 and later. Older releases have been withdrawn.
 
 ### macOS
+
+Copacetic needs macOS 13 (Ventura) or later.
 
 The builds are not code-signed, so Gatekeeper refuses the app on first launch
 rather than just warning. Right-click it and choose Open, or clear the
@@ -341,6 +345,9 @@ extension and does nothing in a website's worker. None of it reaches Hush.
   button: Electron gives an extension's worker Copacetic's script only in a
   sandboxed process.
 - **No DRM.** Widevine is not bundled, so Netflix and Spotify will not play.
+- **Passkeys and security keys on macOS and Linux.** Electron has no dialog to
+  answer them, so Copacetic tells a site at once that there are none and it
+  offers another way to sign in. On Windows, Windows Hello answers them.
 - **What Electron cannot do.** Cookies, site data and the cache clear for all
   time, not for an hour or a day; find in page has no whole-word option; on
   macOS spelling follows the languages in System Settings.
@@ -471,7 +478,7 @@ Every menu shortcut can be moved to other keys in Settings.
 | `Cmd/Ctrl+S` / `Cmd/Ctrl+Shift+S`  | Save page / save a picture of it    |
 | `Cmd/Ctrl+1` to `8` / `Cmd/Ctrl+9` | Select a tab by position / last tab |
 | `Cmd/Ctrl+Y` / `Cmd/Ctrl+Shift+J`  | History / downloads                 |
-| `Cmd/Ctrl+ +` / `-` / `0`          | Zoom in, out, reset                 |
+| `Cmd/Ctrl+ +` or `=` / `-` / `0`   | Zoom in, out, reset                 |
 | `Cmd/Ctrl+,`                       | Settings                            |
 
 ## Where your data lives
