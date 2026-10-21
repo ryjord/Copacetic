@@ -18,17 +18,17 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
   // Compared with true: a menu built while a key is being recorded binds none, so the key reaches the recorder.
   const isRecording = profiles.isRecordingShortcut() === true;
   const key = (id: string) => (isRecording ? undefined : acceleratorFor(id, overrides));
-  // Hidden, so the menu shows one key while the others work too; none while a key is being recorded.
-  const aliases = (id: string, label: string, click: () => void): MenuItemConstructorOptions[] =>
-    isRecording
-      ? []
-      : aliasesFor(id, overrides).map((accelerator) => ({
-          label,
-          accelerator,
-          visible: false,
-          acceleratorWorksWhenHidden: true,
-          click,
-        }));
+  // The item on its key, then hidden copies on each of its other keys, so the menu shows one while all of them work.
+  const withAliases = (id: string, label: string, click: () => void): MenuItemConstructorOptions[] => [
+    { label, accelerator: key(id), click },
+    ...(isRecording ? [] : aliasesFor(id, overrides)).map((accelerator) => ({
+      label,
+      accelerator,
+      visible: false,
+      acceleratorWorksWhenHidden: true,
+      click,
+    })),
+  ];
   const template: MenuItemConstructorOptions[] = [];
 
   if (isMac) {
@@ -185,20 +185,10 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.commands.withActiveTab((id) => browser.tabs.stop(id))),
       },
       { type: 'separator' },
-      {
-        label: t('main.menu.view.zoomIn'),
-        accelerator: key('zoom-in'),
-        click: () => inWindow((browser) => browser.commands.adjustZoom('in')),
-      },
-      {
-        label: t('main.menu.view.zoomOut'),
-        accelerator: key('zoom-out'),
-        click: () => inWindow((browser) => browser.commands.adjustZoom('out')),
-      },
-      ...aliases('zoom-in', t('main.menu.view.zoomIn'), () =>
+      ...withAliases('zoom-in', t('main.menu.view.zoomIn'), () =>
         inWindow((browser) => browser.commands.adjustZoom('in')),
       ),
-      ...aliases('zoom-out', t('main.menu.view.zoomOut'), () =>
+      ...withAliases('zoom-out', t('main.menu.view.zoomOut'), () =>
         inWindow((browser) => browser.commands.adjustZoom('out')),
       ),
       {
@@ -258,7 +248,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       },
       {
         label: t('main.menu.history.clearBrowsingData'),
-        click: () => inWindow((browser) => browser.openSettingsPane('data')),
+        click: () => inWindow((browser) => browser.showPage('settings', 'data')),
       },
     ],
   });

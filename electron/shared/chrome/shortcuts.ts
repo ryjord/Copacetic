@@ -7,6 +7,8 @@ export interface Shortcut {
   id: string;
   accelerator: string;
   description: string;
+  /** Other keys that do the same job while the shortcut is on its default, as Chrome's do. */
+  aliases?: readonly string[];
 }
 
 export interface ShortcutGroup {
@@ -75,8 +77,19 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
         description: t('main.shortcuts.descriptions.findPrevious'),
         id: 'find-previous',
       },
-      { accelerator: 'CmdOrCtrl+Plus', description: t('main.shortcuts.descriptions.zoomIn'), id: 'zoom-in' },
-      { accelerator: 'CmdOrCtrl+-', description: t('main.shortcuts.descriptions.zoomOut'), id: 'zoom-out' },
+      // "+" is Shift and = on most keyboards, so Cmd+= has to zoom in as well, and the number pad's + and - must too.
+      {
+        accelerator: 'CmdOrCtrl+Plus',
+        description: t('main.shortcuts.descriptions.zoomIn'),
+        id: 'zoom-in',
+        aliases: ['CmdOrCtrl+=', 'CmdOrCtrl+numadd'],
+      },
+      {
+        accelerator: 'CmdOrCtrl+-',
+        description: t('main.shortcuts.descriptions.zoomOut'),
+        id: 'zoom-out',
+        aliases: ['CmdOrCtrl+numsub'],
+      },
       { accelerator: 'CmdOrCtrl+0', description: t('main.shortcuts.descriptions.zoomReset'), id: 'zoom-reset' },
       { accelerator: 'CmdOrCtrl+P', description: t('main.shortcuts.descriptions.print'), id: 'print' },
       { accelerator: 'CmdOrCtrl+S', description: t('main.shortcuts.descriptions.savePage'), id: 'save-page' },
@@ -132,19 +145,9 @@ export function acceleratorFor(id: string, overrides: ShortcutOverrides): string
   return chosen || undefined;
 }
 
-/**
- * Keys that also do a shortcut's job while it is on its default, as Chrome's do.
- * "+" is Shift and = on most keyboards, so Cmd+= has to zoom in as well, and the
- * number pad's + and - must too.
- */
-const ALIASES: Readonly<Record<string, readonly string[]>> = {
-  'zoom-in': ['CmdOrCtrl+=', 'CmdOrCtrl+numadd'],
-  'zoom-out': ['CmdOrCtrl+numsub'],
-};
-
 /** The other keys bound to a shortcut, none once someone has chosen their own key for it. */
 export function aliasesFor(id: string, overrides: ShortcutOverrides): readonly string[] {
-  return Object.hasOwn(overrides, id) ? [] : (ALIASES[id] ?? []);
+  return Object.hasOwn(overrides, id) ? [] : (REBINDABLE.find((shortcut) => shortcut.id === id)?.aliases ?? []);
 }
 
 const MODIFIERS = ['CmdOrCtrl', 'Ctrl', 'Alt', 'Shift'];
@@ -195,12 +198,12 @@ export function readShortcutOverrides(value: unknown): ShortcutOverrides {
 // Tab positions are bound by the menu but listed as one range.
 const POSITION_KEYS = Array.from({ length: 8 }, (_unused, index) => `CmdOrCtrl+${index + 1}`);
 
-/** The other changeable shortcut on a key, which a swap can trade places with; null when none, or when it is fixed. */
 /** Whether a shortcut answers to a key: its own, or one of the aliases it keeps while on its default. */
 function answersTo(id: string, accelerator: string, overrides: ShortcutOverrides): boolean {
   return acceleratorFor(id, overrides) === accelerator || aliasesFor(id, overrides).includes(accelerator);
 }
 
+/** The other changeable shortcut on a key, which a swap can trade places with; null when none, or when it is fixed. */
 export function rebindableHolderOf(id: string, accelerator: string, overrides: ShortcutOverrides): Shortcut | null {
   return REBINDABLE.find((shortcut) => shortcut.id !== id && answersTo(shortcut.id, accelerator, overrides)) ?? null;
 }
