@@ -9,7 +9,7 @@ const rule = (id: number, condition: Rule['condition'], type: Rule['action']['ty
   condition,
 });
 
-const request = (over: Partial<NetRequest> = {}): NetRequest => ({
+const request = (overrides: Partial<NetRequest> = {}): NetRequest => ({
   url: 'https://ads.tracker.example/pixel.gif',
   host: 'ads.tracker.example',
   method: 'get',
@@ -17,11 +17,11 @@ const request = (over: Partial<NetRequest> = {}): NetRequest => ({
   initiatorHost: 'news.example.org',
   tabId: 7,
   isThirdParty: true,
-  ...over,
+  ...overrides,
 });
 
-const matchedIds = (rules: Rule[], over: Partial<NetRequest> = {}) =>
-  new RuleIndex(rules).matching(request(over)).map((matched) => matched.id);
+const matchedIds = (rules: Rule[], overrides: Partial<NetRequest> = {}) =>
+  new RuleIndex(rules).matching(request(overrides)).map((matched) => matched.id);
 
 describe('which rules match a request', () => {
   it('finds rules filed by host, by token and everywhere', () => {

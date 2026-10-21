@@ -281,9 +281,11 @@ export class ExtensionHost {
     const previous = this.store.find(staged.id);
     if (previous) {
       this.unloadEverywhere(staged.id);
+    }
+    const folder = this.keepOrRestore(staged, previous);
+    if (previous) {
       this.netRules.resetForNewVersion(staged.id);
     }
-    const folder = keepStaged(staged);
     await this.add({
       id: staged.id,
       source: 'store',
@@ -295,6 +297,19 @@ export class ExtensionHost {
     this.waitingUpdates.delete(staged.id);
     if (previous?.source === 'store' && previous.folder !== folder) {
       void rm(previous.folder, { recursive: true, force: true });
+    }
+  }
+
+  // A version that could not be put in place leaves the one in use running, rather than nothing.
+  private keepOrRestore(staged: StagedExtension, previous: InstalledExtension | null): string {
+    try {
+      return keepStaged(staged);
+    } catch (error) {
+      discardStaged(staged);
+      if (previous) {
+        void this.add(previous);
+      }
+      throw error;
     }
   }
 

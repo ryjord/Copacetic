@@ -1,5 +1,11 @@
 /** Chrome's urlFilter patterns as regular expressions, with the keys a rule is filed under so most are never tried. */
 
+// Libs
+import { setFlagsFromString } from 'node:v8';
+
+// Before any rule is compiled: without it the l flag below is refused, and every rule with it.
+setFlagsFromString('--enable-experimental-regexp-engine');
+
 // Anything that is not a letter, a digit or one of _ - . %, or the end of the address.
 const SEPARATOR = '(?:[^a-zA-Z0-9_.%-]|$)';
 // The start of the host, or of any name within it, for a pattern that begins with ||.
@@ -27,45 +33,65 @@ export function compileUrlFilter(filter: string, isCaseSensitive = false): RegEx
     .split('*')
     .map((part) => part.split('^').map(escapeLiteral).join(SEPARATOR))
     .join('.*');
-  return new RegExp(`${start}${source}${end}`, isCaseSensitive ? '' : 'i');
+  return linear(`${start}${source}${end}`, isCaseSensitive);
 }
 
 // Chrome's limit is 2 KB once compiled; the source is the nearest thing to that here.
 const MOST_REGEX_LENGTH = 2048;
-const REPEATS = /[*+]|\{\d*,\d*\}|\{\d{2,}\}|\{[2-9]\}/;
-// What a group can still end on after its last literal, which is what lets the next repetition start inside it.
-const ENDS_OPEN = /(?:[*+?]|\})$/;
-const INNERMOST_GROUP = /\((?:\?(?::|<[^>]+>))?([^()]*)\)([*+?]|\{\d*(?:,\d*)?\})?/;
+const ESCAPE = /^\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|c[a-zA-Z]|[pPk](?:\{[^}]*\}|<[^>]*>)|.)/;
+const GROUP_NAME = /^\(\?<(?![=!])[^>]*>/;
+const LETTER_RANGE = /^([a-z]-[a-z]|[A-Z]-[A-Z])/;
+const isLetter = (character: string) => /^[a-zA-Z]$/.test(character);
 
 /**
- * Whether JavaScript could backtrack without end where Chrome's RE2 cannot: a repeated group that repeats inside and
- * is not closed off by a literal or holds a wildcard, or a back-reference or lookaround, which RE2 refuses anyway.
+ * The source with every letter it names matching either case. The linear
+ * engine cannot take the i flag, and Chrome's rules ignore case unless told.
  */
-export function canBacktrackForever(source: string): boolean {
-  if (/\\[1-9]|\\k<|\(\?<?[=!]/.test(source)) {
-    return true;
-  }
-  let flattened = source.replace(/\\./g, 'x').replace(/\[[^\]]*\]/g, 'x');
-  for (let found = INNERMOST_GROUP.exec(flattened); found; found = INNERMOST_GROUP.exec(flattened)) {
-    const [whole, inside = '', after = ''] = found;
-    const holdsRepetition = REPEATS.test(inside);
-    const isRepeated = REPEATS.test(after);
-    if (isRepeated && holdsRepetition && (ENDS_OPEN.test(inside) || /\.[*+]/.test(inside))) {
-      return true;
+export function withEitherCase(source: string): string {
+  let folded = '';
+  let isInClass = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const rest = source.slice(index);
+    const character = source.charAt(index);
+    // Copied whole: \W and \w mean different things, and a group's name is not matched against anything.
+    const kept = character === '\\' ? ESCAPE.exec(rest)?.[0] : isInClass ? undefined : GROUP_NAME.exec(rest)?.[0];
+    const range = isInClass ? LETTER_RANGE.exec(rest)?.[0] : undefined;
+    if (kept) {
+      folded += kept;
+      index += kept.length - 1;
+    } else if (range) {
+      const other = range === range.toLowerCase() ? range.toUpperCase() : range.toLowerCase();
+      folded += `${range}${other}`;
+      index += range.length - 1;
+    } else if (isLetter(character)) {
+      const bothCases = `${character.toLowerCase()}${character.toUpperCase()}`;
+      folded += isInClass ? bothCases : `[${bothCases}]`;
+    } else {
+      if (character === '[' || character === ']') {
+        isInClass = character === '[';
+      }
+      folded += character;
     }
-    flattened = flattened.replace(whole, holdsRepetition || isRepeated ? 'x+' : 'x');
   }
-  return false;
+  return folded;
 }
 
-/** A regexFilter as JavaScript reads it, or null when Chrome would not take it or it could hang the browser. */
+/**
+ * V8's linear-time engine, which matches in time proportional to the address
+ * as Chrome's RE2 does, so no rule can hang the browser, and which refuses
+ * what RE2 refuses, such as back-references and lookaround.
+ */
+function linear(source: string, isCaseSensitive: boolean): RegExp {
+  return new RegExp(isCaseSensitive ? source : withEitherCase(source), 'l');
+}
+
+/** A regexFilter as Chrome would match it, or null when Chrome would not take it. */
 export function compileRegexFilter(filter: string, isCaseSensitive = false): RegExp | null {
   if (filter.length > MOST_REGEX_LENGTH) {
     return null;
   }
   try {
-    const pattern = new RegExp(filter, isCaseSensitive ? '' : 'i');
-    return canBacktrackForever(filter) ? null : pattern;
+    return linear(filter, isCaseSensitive);
   } catch {
     return null;
   }

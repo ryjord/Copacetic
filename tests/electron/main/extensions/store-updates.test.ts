@@ -6,7 +6,7 @@ import {
   updateCheckUrl,
 } from '../../../../electron/main/extensions/store-updates';
 
-const UBOL = 'ddkjiahejlhfcafbddmgiahcphecmpfh';
+const UBLOCK_ORIGIN_LITE = 'ddkjiahejlhfcafbddmgiahcphecmpfh';
 const DARK_READER = 'eimadpbcbfnmbkopoojfekhnkhdbieeh';
 const UNKNOWN = 'a'.repeat(32);
 
@@ -14,7 +14,7 @@ const UNKNOWN = 'a'.repeat(32);
 const ANSWER =
   '<?xml version="1.0" encoding="UTF-8"?><gupdate xmlns="http://www.google.com/update2/response" protocol="2.0" server="prod">' +
   '<daystart elapsed_days="7233" elapsed_seconds="44717"/>' +
-  `<app appid="${UBOL}" cohort="1::" cohortname="" status="ok"><updatecheck _esbAllowlist="true" codebase="https://clients2.googleusercontent.com/crx/blobs/x.crx" protected="0" size="9172092" status="ok" version="2026.1021.1354"/></app>` +
+  `<app appid="${UBLOCK_ORIGIN_LITE}" cohort="1::" cohortname="" status="ok"><updatecheck _esbAllowlist="true" codebase="https://clients2.googleusercontent.com/crx/blobs/x.crx" protected="0" size="9172092" status="ok" version="2026.1021.1354"/></app>` +
   `<app appid="${DARK_READER}" cohort="1::" cohortname="" status="ok"><updatecheck _esbAllowlist="true" status="noupdate"/></app>` +
   `<app appid="${UNKNOWN}" status="error-unknownApplication"/></gupdate>`;
 
@@ -23,7 +23,7 @@ describe('asking the store for newer versions', () => {
     const url = new URL(
       updateCheckUrl(
         [
-          { id: UBOL, version: '1.0' },
+          { id: UBLOCK_ORIGIN_LITE, version: '1.0' },
           { id: DARK_READER, version: '4.9.1' },
         ],
         '146.0.0.0',
@@ -31,27 +31,32 @@ describe('asking the store for newer versions', () => {
     );
     expect(url.origin).toBe('https://clients2.google.com');
     expect(url.searchParams.get('response')).toBe('updatecheck');
-    expect(url.searchParams.getAll('x')).toEqual([`id=${UBOL}&v=1.0&uc`, `id=${DARK_READER}&v=4.9.1&uc`]);
+    expect(url.searchParams.getAll('x')).toEqual([
+      `id=${UBLOCK_ORIGIN_LITE}&v=1.0&uc`,
+      `id=${DARK_READER}&v=4.9.1&uc`,
+    ]);
   });
 
   it('reads only the newer versions from its answer', () => {
     const installed = [
-      { id: UBOL, version: '2026.1014.1' },
+      { id: UBLOCK_ORIGIN_LITE, version: '2026.1014.1' },
       { id: DARK_READER, version: '4.9.1' },
       { id: UNKNOWN, version: '1.0' },
     ];
-    expect(idsWithNewerVersions(ANSWER, installed)).toEqual([UBOL]);
+    expect(idsWithNewerVersions(ANSWER, installed)).toEqual([UBLOCK_ORIGIN_LITE]);
   });
 
   // The store is asked with our version, but its answer is checked rather than trusted.
   it('ignores an offer of the version in use, or an older one, or one we never asked about', () => {
-    expect(idsWithNewerVersions(ANSWER, [{ id: UBOL, version: '2026.1021.1354' }])).toEqual([]);
-    expect(idsWithNewerVersions(ANSWER, [{ id: UBOL, version: '2027.1.1' }])).toEqual([]);
+    expect(idsWithNewerVersions(ANSWER, [{ id: UBLOCK_ORIGIN_LITE, version: '2026.1021.1354' }])).toEqual([]);
+    expect(idsWithNewerVersions(ANSWER, [{ id: UBLOCK_ORIGIN_LITE, version: '2027.1.1' }])).toEqual([]);
     expect(idsWithNewerVersions(ANSWER, [{ id: DARK_READER, version: '1.0' }])).toEqual([]);
   });
 
   it('reads nothing from an answer that is not one', () => {
-    expect(idsWithNewerVersions('<html>Service unavailable</html>', [{ id: UBOL, version: '1.0' }])).toEqual([]);
+    expect(
+      idsWithNewerVersions('<html>Service unavailable</html>', [{ id: UBLOCK_ORIGIN_LITE, version: '1.0' }]),
+    ).toEqual([]);
   });
 });
 

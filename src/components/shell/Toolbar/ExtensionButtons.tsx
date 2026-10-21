@@ -1,7 +1,5 @@
 'use client';
 
-// Libs
-
 // Components
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 

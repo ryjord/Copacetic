@@ -16,7 +16,7 @@ const OTHER = 'b'.repeat(32);
 /** An extension folder holding the rulesets it declares. */
 function extensionWith(
   rulesets: Record<string, { enabled: boolean; rules: unknown[] }>,
-  over: Partial<NetRulesExtension> = {},
+  overrides: Partial<NetRulesExtension> = {},
 ): NetRulesExtension {
   const folder = mkdtempSync(path.join(tmpdir(), 'net-rules-'));
   const ruleResources = Object.entries(rulesets).map(([id, ruleset]) => {
@@ -29,7 +29,7 @@ function extensionWith(
     manifest: { declarative_net_request: { rule_resources: ruleResources } },
     permissions: ['declarativeNetRequest'],
     hostPermissions: ['<all_urls>'],
-    ...over,
+    ...overrides,
   };
 }
 
@@ -43,7 +43,11 @@ function fakeStore() {
   };
 }
 
-const context = (url: string, over: Partial<RequestContext['request']> = {}, webContentsId = 4): RequestContext => ({
+const context = (
+  url: string,
+  overrides: Partial<RequestContext['request']> = {},
+  webContentsId = 4,
+): RequestContext => ({
   request: {
     url,
     host: new URL(url).hostname,
@@ -52,7 +56,7 @@ const context = (url: string, over: Partial<RequestContext['request']> = {}, web
     initiatorHost: 'news.example.org',
     tabId: webContentsId,
     isThirdParty: true,
-    ...over,
+    ...overrides,
   },
   webContentsId,
   isFromExtension: false,
@@ -277,7 +281,7 @@ describe('an extension’s rules', () => {
     expect(rules.call(ID, 'getDynamicRules', [])).toBeNull();
   });
 
-  it('read a request as Electron hands it over, and its headers only when a rule changes them', () => {
+  it('read a request as Electron hands it overrides, and its headers only when a rule changes them', () => {
     const { rules } = setup();
     const details = { url: 'https://ads.example/a.js', method: 'GET', resourceType: 'script', webContentsId: 4 };
     expect(rules.judge(details)).toEqual({ kind: 'block' });

@@ -36,7 +36,7 @@ beforeAll(async () => {
   // The refusal is the worker's last call, so by then its own rule is in.
   const isReady = await copacetic.until(
     async () =>
-      (await copacetic.read(() => (Reflect.get(globalThis, 'workerSaid') as string[]).join('\n'))).includes(
+      (await copacetic.read(() => [Reflect.get(globalThis, 'workerSaid')].flat().join('\n'))).includes(
         'rules: a bad rule was refused',
       ),
     20_000,
@@ -58,11 +58,22 @@ const fetchAll = (paths: string[]) =>
 describe("an extension's declarativeNetRequest rules", () => {
   it('stop what its shipped and its own rules name, and nothing else', async () => {
     arrived.length = 0;
-    await fetchAll(['/shipped-block/a', '/shipped-redirect/b', '/dynamic-block/c', '/spare-block/d', '/fine/e']);
+    await fetchAll([
+      '/shipped-block/a',
+      '/shipped-redirect/b',
+      '/dynamic-block/c',
+      '/spare-block/d',
+      '/fine/e',
+      '/regex-block/42',
+      '/regex-block/x',
+    ]);
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(arrived).not.toContain('/shipped-block/a');
     expect(arrived).not.toContain('/shipped-redirect/b');
     expect(arrived).not.toContain('/dynamic-block/c');
+    // A regexFilter, matched by V8's linear engine and ignoring case as Chrome's does by default.
+    expect(arrived).not.toContain('/regex-block/42');
+    expect(arrived).toContain('/regex-block/x');
     // The ruleset the manifest leaves off, and an ordinary request, both reach the site.
     expect(arrived).toContain('/spare-block/d');
     expect(arrived).toContain('/fine/e');
@@ -70,7 +81,7 @@ describe("an extension's declarativeNetRequest rules", () => {
 
   // Chrome rejects a rule it cannot use, and an extension that checks the rejection must see it.
   it('refuse a bad rule, as Chrome does', async () => {
-    const said = await copacetic.read(() => (Reflect.get(globalThis, 'workerSaid') as string[]).join('\n'));
+    const said = await copacetic.read(() => [Reflect.get(globalThis, 'workerSaid')].flat().join('\n'));
     expect(said).toContain('rules: a bad rule was refused');
   });
 

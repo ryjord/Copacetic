@@ -18,7 +18,7 @@ const action = {
   hasPopup: true,
   isEnabled: true,
 };
-const summary = (id: string, over: Record<string, unknown> = {}) => ({
+const summary = (id: string, overrides: Record<string, unknown> = {}) => ({
   id,
   name: id,
   isEnabled: true,
@@ -26,7 +26,7 @@ const summary = (id: string, over: Record<string, unknown> = {}) => ({
   hasOptionsPage: false,
   iconDataUrl: null,
   action,
-  ...over,
+  ...overrides,
 });
 
 function menuFor(summaries: ReturnType<typeof summary>[]) {

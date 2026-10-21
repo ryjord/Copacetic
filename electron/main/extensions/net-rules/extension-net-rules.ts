@@ -288,8 +288,7 @@ export class ExtensionNetRules {
       : [...matched, { id: 0, priority: allowedAt, action: { type: 'allowAllRequests' }, condition: {} }];
   }
 
-  // As in Chrome: declarativeNetRequest may block and allow anywhere, and anything else needs the site's host
-  // permission, which `tabs` is not.
+  // As in Chrome: anything but blocking and allowing needs the site's host permission, which `tabs` is not.
   private mayChange(extension: NetRulesExtension, rule: Rule, url: string): boolean {
     if (BLOCK_OR_ALLOW.has(rule.action.type) && extension.permissions.includes('declarativeNetRequest')) {
       return true;
@@ -429,7 +428,9 @@ export class ExtensionNetRules {
     }
     // Those already kept were checked when they were added.
     const unreadable = added.find(
-      (rule) => rule.condition.regexFilter !== undefined && !compileRegexFilter(rule.condition.regexFilter),
+      (rule) =>
+        rule.condition.regexFilter !== undefined &&
+        !compileRegexFilter(rule.condition.regexFilter, rule.condition.isUrlFilterCaseSensitive),
     );
     if (unreadable) {
       throw new RefusedCall(`Rule with id ${unreadable.id} specified a malformed regular expression.`);
@@ -446,9 +447,9 @@ export class ExtensionNetRules {
     const named = (value: unknown) =>
       Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
     const toEnable = named(options.enableRulesetIds);
-    const unknown = [...toEnable, ...named(options.disableRulesetIds)].find((id) => !rules.rulesets.has(id));
-    if (unknown) {
-      throw new RefusedCall(`Invalid ruleset id: ${unknown}.`);
+    const unnamedRulesetId = [...toEnable, ...named(options.disableRulesetIds)].find((id) => !rules.rulesets.has(id));
+    if (unnamedRulesetId) {
+      throw new RefusedCall(`Invalid ruleset id: ${unnamedRulesetId}.`);
     }
     const next = new Set(rules.enabled);
     named(options.disableRulesetIds).forEach((id) => next.delete(id));

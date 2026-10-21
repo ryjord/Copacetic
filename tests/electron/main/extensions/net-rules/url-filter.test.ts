@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   anchoredHostOf,
-  canBacktrackForever,
   compileRegexFilter,
   compileUrlFilter,
   tokenOf,
   tokensIn,
+  withEitherCase,
 } from '../../../../../electron/main/extensions/net-rules/url-filter';
 
 // Chrome's own examples, from the declarativeNetRequest reference, so the pattern means what an extension meant.
@@ -50,24 +50,39 @@ describe('a regexFilter', () => {
     expect(compileRegexFilter('(unclosed')).toBeNull();
   });
 
-  // Matched in the main process as each request goes, so one that backtracks without end would hang the browser.
-  it.each(['(a+)+$', '(\\w+\\s?)*$', '^(.*a)+x', '((ab)+c?)+', '(a)\\1', '^(?=x)'])('refuses %s', (source) => {
-    expect(canBacktrackForever(source)).toBe(true);
+  // Matched in the main process as each request goes, so it must take time in proportion to the address, as RE2 does.
+  it.each(['(a+)+$', '(a|aa)+$', '(\\w|\\d)+$'])(
+    'matches %s in a straight line, however long the address',
+    (source) => {
+      const pattern = compileRegexFilter(source);
+      const started = performance.now();
+      expect(pattern?.test(`https://x.example/${'a'.repeat(20_000)}!`)).toBe(false);
+      expect(performance.now() - started).toBeLessThan(500);
+    },
+  );
+
+  it.each(['(a)\\1', '^(?=x)', '(?<!x)y'])('refuses %s, as RE2 does', (source) => {
     expect(compileRegexFilter(source)).toBeNull();
   });
 
-  // The shapes ad lists use, which RE2 and JavaScript both run in a straight line.
-  it.each([
-    '^https?://(?:[a-z0-9-]+\\.)*example\\.com/',
-    '^https://([a-z]+)\\.example\\.com/',
-    '/ads?/[0-9]+\\.js$',
-    '(?:banner|popup)[-_]?ad',
-  ])('takes %s', (source) => {
-    expect(canBacktrackForever(source)).toBe(false);
+  it('ignores case unless told not to, and keeps the case of what it captured', () => {
+    expect(compileRegexFilter('^https://CDN\\.example\\.com/[A-Z]+')?.test('https://cdn.example.com/abc')).toBe(true);
+    expect(
+      compileRegexFilter('^https://cdn\\.example\\.com/[a-z]+$', true)?.test('https://cdn.example.com/ABC'),
+    ).toBe(false);
+    const pattern = compileRegexFilter('^https://cdn\\.example\\.com/(.*)');
+    expect(pattern && 'https://cdn.example.com/Path/File.JS'.replace(pattern, '$1')).toBe('Path/File.JS');
   });
 
   it('refuses one longer than Chrome would compile', () => {
     expect(compileRegexFilter(`^${'a'.repeat(2048)}`)).toBeNull();
+  });
+});
+
+describe('a pattern made to ignore case', () => {
+  // \\W and \\w mean different things, so an escape is never folded; nor is a group's name.
+  it('names both cases of each letter, and leaves escapes and group names alone', () => {
+    expect(withEitherCase('a[b-dX]\\W(?<name>x)\\x41')).toBe('[aA][b-dB-DxX]\\W(?<name>[xX])\\x41');
   });
 });
 

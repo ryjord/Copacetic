@@ -8,5 +8,10 @@
     "id": 2,
     "action": { "type": "redirect", "redirect": { "extensionPath": "/stand-in.json" } },
     "condition": { "urlFilter": "/shipped-redirect/", "resourceTypes": ["xmlhttprequest"] }
+  },
+  {
+    "id": 3,
+    "action": { "type": "block" },
+    "condition": { "regexFilter": "/REGEX-block/[0-9]+$", "resourceTypes": ["xmlhttprequest"] }
   }
 ]

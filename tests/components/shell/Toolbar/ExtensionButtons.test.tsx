@@ -28,14 +28,14 @@ const action = {
   hasPopup: true,
   isEnabled: true,
 };
-const extension = (name: string, over: Record<string, unknown> = {}) => ({
+const extension = (name: string, overrides: Record<string, unknown> = {}) => ({
   id: name,
   name,
   isEnabled: true,
   isPinned: true,
   iconDataUrl: null,
   action: { ...action, title: name },
-  ...over,
+  ...overrides,
 });
 
 describe('the extensions on the toolbar', () => {

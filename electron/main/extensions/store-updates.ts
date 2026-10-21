@@ -39,7 +39,7 @@ export function idsWithNewerVersions(answer: string, installed: readonly Install
   });
 }
 
-/** Chrome's extension versions are up to four dotted numbers, unlike Copacetic's own (shared/version.ts), compared number by number, a missing one counting as 0. */
+// Up to four dotted numbers, unlike Copacetic's own in shared/version.ts; a missing one counts as 0.
 export function isNewerExtensionVersion(offered: string, current: string): boolean {
   const parts = (version: string) => version.split('.').map((part) => Number.parseInt(part, 10));
   const offeredParts = parts(offered);
