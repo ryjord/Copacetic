@@ -257,11 +257,11 @@ export class PasswordSave {
   }
 
   // Where the page went: one that still asks for a password on the same site was a refusal, not a sign-in.
-  private async judge(tabId: TabId, settleMs: number): Promise<void> {
+  private async judge(tabId: TabId, settleMilliseconds: number): Promise<void> {
     if (!this.submitted.get(tabId)?.hasMovedOn) {
       return;
     }
-    await later(settleMs);
+    await later(settleMilliseconds);
     const submitted = this.submitted.get(tabId);
     const contents = this.deps.tabs.contentsForTab(tabId);
     if (!submitted?.hasMovedOn || !contents || contents.isDestroyed()) {

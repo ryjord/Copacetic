@@ -1,4 +1,7 @@
+// Libs
 import { describe, expect, it, vi } from 'vitest';
+
+// Utils
 import { PasswordSave } from '../../../../electron/main/workflows/password-save';
 import { STILL_ASKS_FOR_PASSWORD } from '../../../../electron/main/system/sign-in-watch-script';
 import { DEFAULT_SETTINGS } from '../../../../electron/main/data/settings-store';

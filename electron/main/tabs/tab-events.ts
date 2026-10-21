@@ -15,14 +15,14 @@ import type { HttpsFirst } from '../security/https-first';
 import type { BrowserStore } from '../data/store';
 import type { TabRecord } from './tab-record';
 
+/** How a tab's page changed: a new document, a move within the same one, or a document finished loading. */
+export type PageChange = 'committed' | 'in-page' | 'loaded';
+
 /**
  * What the page can tell us about itself. Everything here is reported by the
  * tab's own web contents, so it arrives whenever the page decides - long after
  * the navigation that caused it, and sometimes for a tab already closed.
  */
-/** How a tab's page changed: a new document, a move within the same one, or a document finished loading. */
-export type PageChange = 'committed' | 'in-page' | 'loaded';
-
 export interface TabEventDeps {
   store: BrowserStore;
   blocker: ContentBlocker;
