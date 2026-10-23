@@ -603,6 +603,10 @@ export const settings = {
       placeholder: 'https://chromewebstore.google.com/detail/…',
       action: 'Add',
       adding: 'Adding',
+      store: 'Find one in the Chrome Web Store',
+      storeHelp:
+        'Open an extension’s page there and choose Add to Copacetic in the address bar, or paste its address below.',
+      openStore: 'Open the store',
       fromFolder: 'Load from a folder',
       fromFolderHelp:
         'For an extension you are building: it is read where it is, and reloads when you load it again.',
