@@ -861,6 +861,8 @@ export class TabManager {
         safeDialogs: true,
         // Only Chromium's own PDF viewer is a plugin here; without it a PDF downloads instead of opening.
         plugins: true,
+        // Sound waits for someone to use the page, as in Chrome; Electron's own default lets any page play at once.
+        autoplayPolicy: 'document-user-activation-required',
       },
     });
     // Matches the chrome's surface so a slow first paint does not flash white.
