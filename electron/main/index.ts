@@ -16,6 +16,7 @@ import { clearCopiedSecretBeforeQuit } from './vault/vault-clipboard';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/browsing/url';
+import { stripElectronFromUserAgent } from '../shared/browsing/browser-identity';
 import { t } from '../shared/i18n/translate';
 
 // Both must run before `app.ready`: Chromium reads its command line once, and
@@ -23,6 +24,8 @@ import { t } from '../shared/i18n/translate';
 applyStartupSwitches(app.commandLine);
 applyLaunchSwitches(app.commandLine);
 registerAppProtocolScheme();
+// What a renderer outside a tab's description says, such as a service worker; the tabs say the same.
+app.userAgentFallback = stripElectronFromUserAgent(app.userAgentFallback);
 
 // A browser with two copies of itself running would fight over the session
 // directory and the saved tab list. Hand the argument to the running instance.

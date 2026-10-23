@@ -89,14 +89,48 @@ async function describeAsChrome(contents: WebContents, userAgent: string, hints:
     return;
   }
 
-  await contents.debugger.sendCommand('Emulation.setUserAgentOverride', {
-    userAgent,
-    platform: hints.platform,
-    userAgentMetadata: hints,
+  const debuggerSession = contents.debugger;
+  const override = { userAgent, platform: hints.platform, userAgentMetadata: hints };
+  const send = (method: string, parameters: object, sessionId?: string) =>
+    debuggerSession.sendCommand(method, parameters, sessionId);
+
+  // A cross-site frame is a target of its own, held at its start until it is told what the tab was told.
+  debuggerSession.on('message', (_event, method, parameters) => {
+    if (method !== 'Target.attachedToTarget') {
+      return;
+    }
+    const { sessionId, targetInfo } = parameters as AttachedTarget;
+    void describeTarget(send, sessionId, targetInfo.type, override)
+      .catch((error: unknown) => log.warn('could not describe a frame as Chrome', describeError(error)))
+      // Always let go: a frame still held never loads.
+      .finally(() => send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => {}));
   });
 
-  // Electron leaves window.chrome empty where a real Chrome has three objects
-  // on it, so they are added to every document this tab loads.
-  await contents.debugger.sendCommand('Page.enable');
-  await contents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: CHROME_OBJECT_SCRIPT });
+  await describeTarget(send, undefined, 'page', override);
+}
+
+interface AttachedTarget {
+  sessionId: string;
+  targetInfo: { type: string };
+}
+
+type SendCommand = (method: string, parameters: object, sessionId?: string) => Promise<unknown>;
+
+/** What a page, a frame inside it, or a worker it starts is told to say, so all of them say the same thing. */
+async function describeTarget(
+  send: SendCommand,
+  sessionId: string | undefined,
+  type: string,
+  override: { userAgent: string; platform: string; userAgentMetadata: ClientHints },
+): Promise<void> {
+  if (type !== 'page' && type !== 'iframe') {
+    // A worker has no Emulation domain; its navigator answers from the network override.
+    await send('Network.setUserAgentOverride', override, sessionId);
+    return;
+  }
+  await send('Emulation.setUserAgentOverride', override, sessionId);
+  // Electron leaves window.chrome empty where a real Chrome has three objects on it.
+  await send('Page.enable', {}, sessionId);
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: CHROME_OBJECT_SCRIPT }, sessionId);
+  await send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, sessionId);
 }
