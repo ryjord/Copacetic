@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
 
@@ -58,4 +59,49 @@ describe('a sleeping tab', () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     expect(await isPageOpen()).toBe(true);
   }, 30_000);
+});
+
+// An extension is told about every tab whenever anything changes, and telling it once woke every tab asleep.
+describe('a sleeping tab, with an extension watching', () => {
+  it('stays asleep while the window around it changes', async () => {
+    const watcher = await SmokeApp.launch();
+    try {
+      await watcher.waitForReady();
+      await watcher.main(({ dialog }, folder) => {
+        dialog.showOpenDialog = (async () => ({
+          canceled: false,
+          filePaths: [folder],
+        })) as typeof dialog.showOpenDialog;
+        dialog.showMessageBox = (async () => ({
+          response: 0,
+          checkboxChecked: false,
+        })) as typeof dialog.showMessageBox;
+      }, path.resolve('smoke/fixtures/extensions/probe'));
+      expect(await watcher.chrome.evaluate(() => window.copacetic.extensions.addFromFolder())).toBe('');
+      const page = 'https://example.com/watched-sleeper';
+      const id = await watcher.chrome.evaluate((url) => window.copacetic.tabs.create(url, false), page);
+      const isOpen = () =>
+        watcher.read(
+          ({ webContents }, url) => webContents.getAllWebContents().some((contents) => contents.getURL() === url),
+          page,
+        );
+      expect(await until(isOpen)).toBe(true);
+      // Past the moment the page is looked at again for a sign-in form drawn late.
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      await watcher.chrome.evaluate((tabId) => window.copacetic.tabs.sleep(tabId), id);
+      expect(await until(async () => !(await isOpen()))).toBe(true);
+      // Each of these changes the window, which is told to the extension.
+      await watcher.chrome.evaluate(() => window.copacetic.tabs.create('https://example.org/'));
+      await watcher.chrome.evaluate(() => window.copacetic.settings.update({ density: 'compact' }));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      expect(await isOpen()).toBe(false);
+      const state = await watcher.chrome.evaluate(
+        async (tabId) => (await window.copacetic.chrome.getState()).tabs.find((tab) => tab.id === tabId),
+        id,
+      );
+      expect(state?.isAsleep).toBe(true);
+    } finally {
+      await watcher.close();
+    }
+  }, 90_000);
 });

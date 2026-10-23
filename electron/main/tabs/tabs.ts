@@ -421,8 +421,9 @@ export class TabManager {
     return tab ? tab.title || fallbackTitleFor(tab.url) : '';
   }
 
+  /** The id of a tab's page while it has one; a sleeping tab has none, and asking does not wake it. */
   webContentsIdFor(id: TabId): number | undefined {
-    return this.contentsFor(id)?.id;
+    return this.livePageFor(id)?.id;
   }
 
   canGoBack(id: TabId): boolean {
@@ -1566,12 +1567,17 @@ export class TabManager {
     this.onChanged();
   }
 
-  /** The live page for a tab, or null for a start page that has no view. */
-  contentsForTab(id: TabId): WebContents | null {
-    return this.contentsFor(id);
+  /**
+   * A tab's page if it has one, for anything looking from the background: a
+   * sleeping tab stays asleep, since waking reloads its page, and a video in it
+   * starts playing in a tab nobody chose.
+   */
+  livePageFor(id: TabId): WebContents | null {
+    const tab = this.tabs.get(id);
+    return tab ? pageOf(tab) : null;
   }
 
-  // Anything that needs the page wakes the tab first: reloading or navigating one asleep is asking for it back.
+  // For an action on the tab itself: reloading or going back in one asleep is asking for it back.
   private contentsFor(id: TabId): WebContents | null {
     const tab = this.tabs.get(id);
     if (tab?.isAsleep) {
