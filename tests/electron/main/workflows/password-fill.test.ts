@@ -14,7 +14,7 @@ function fillWith({
   const deps = {
     tabs: {
       urlFor: () => url,
-      contentsForTab: () => ({ executeJavaScript: async () => pageAnswer }),
+      livePageFor: () => ({ executeJavaScript: async () => pageAnswer }),
     },
     vaultSession: {
       vault: {

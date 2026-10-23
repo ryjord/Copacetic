@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   offerToSavePasswords: true,
   neverSavePasswordsOn: [],
   showBookmarksBar: false,
+  hiddenFromBookmarksBar: [],
   ambientHue: 0,
   checkForUpdates: true,
   updateExtensions: true,
@@ -246,6 +247,9 @@ function reviveSettings(raw: unknown): Settings | null {
       ? raw.neverSavePasswordsOn.filter((site): site is string => typeof site === 'string' && site.length > 0)
       : [],
     showBookmarksBar: raw.showBookmarksBar === true,
+    hiddenFromBookmarksBar: Array.isArray(raw.hiddenFromBookmarksBar)
+      ? raw.hiddenFromBookmarksBar.filter((id): id is string => typeof id === 'string')
+      : [],
     ambientHue: clampHue(raw.ambientHue),
     checkForUpdates: asBoolean(raw.checkForUpdates, DEFAULT_SETTINGS.checkForUpdates),
     updateExtensions: asBoolean(raw.updateExtensions, DEFAULT_SETTINGS.updateExtensions),

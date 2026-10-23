@@ -9,6 +9,9 @@ import { Favicon } from '@/components/ui/Favicon/Favicon';
 // Icons
 import { ChevronDown, ChevronsRight, Library } from 'lucide-react';
 
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
+
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
@@ -38,6 +41,7 @@ const ICON_BUTTON_CLASSES =
  * behind », rather than past the edge where nothing can reach it.
  */
 export function BookmarksBar() {
+  const hidden = useBrowserStore((state) => state.settings.hiddenFromBookmarksBar);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<BookmarkFolder[]>([]);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -55,8 +59,8 @@ export function BookmarksBar() {
     return api?.on.bookmarksChanged(reload);
   }, [reload]);
 
-  const topFolders = folders.filter((folder) => folder.parentId === null);
-  const loose = bookmarks.filter((bookmark) => bookmark.folderId === null);
+  const topFolders = folders.filter((folder) => folder.parentId === null && !hidden.includes(folder.id));
+  const loose = bookmarks.filter((bookmark) => bookmark.folderId === null && !hidden.includes(bookmark.id));
   const icons = useFavicons(loose.map((bookmark) => bookmark.url));
   const itemCount = topFolders.length + loose.length;
   // Which items, in which order: the same count can still be a different row.

@@ -316,14 +316,15 @@ export const settings = {
       },
       bookmarksBar: {
         label: 'Show the bookmarks bar',
-        help: 'Top-level bookmarks and folders, under the address bar.',
+        help: 'Top-level bookmarks and folders, under the address bar. Right-click one there to leave it off.',
+        hidden: '{name} is left off the bar',
+        showAgain: 'Show on the bar',
       },
       toolbar: {
         label: 'In the toolbar',
         help: 'Back, forward, reload and the menu are always there.',
         home: 'Home',
         bookmarks: 'Bookmarks',
-        reader: 'Reader view',
         split: 'Split view',
         profile: 'Profile picture',
         downloads: 'Downloads',
@@ -604,6 +605,10 @@ export const settings = {
       placeholder: 'https://chromewebstore.google.com/detail/…',
       action: 'Add',
       adding: 'Adding',
+      store: 'Find one in the Chrome Web Store',
+      storeHelp:
+        'Open an extension’s page there and choose Add to Copacetic in the address bar, or paste its address below.',
+      openStore: 'Open the store',
       fromFolder: 'Load from a folder',
       fromFolderHelp:
         'For an extension you are building: it is read where it is, and reloads when you load it again.',
@@ -618,6 +623,8 @@ export const settings = {
       options: 'Options',
       remove: 'Remove…',
       update: 'Update to {version}…',
+      showOnToolbar: 'Show on the toolbar',
+      hideFromToolbar: 'Hide from the toolbar',
       updateWaiting:
         'Version {version} is waiting: it asks for more than this one, so it is put in only when you agree.',
       canDo: 'What it can do',

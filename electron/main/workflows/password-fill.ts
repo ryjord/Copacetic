@@ -59,7 +59,7 @@ export class PasswordFill {
       return t('main.passwords.fill.locked');
     }
 
-    const contents = this.deps.tabs.contentsForTab(tabId);
+    const contents = this.deps.tabs.livePageFor(tabId);
     if (!contents) {
       return t('main.passwords.fill.noPage');
     }

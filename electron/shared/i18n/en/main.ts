@@ -117,6 +117,7 @@ export const main = {
       moveToFolder: 'Move to folder',
       unfiled: 'Unfiled',
       removeBookmark: 'Remove bookmark',
+      hideFromBookmarksBar: 'Hide from the bookmarks bar',
       openAllAsTabGroup: 'Open all as a tab group',
       empty: 'Empty',
       savedPassword: 'Saved password',

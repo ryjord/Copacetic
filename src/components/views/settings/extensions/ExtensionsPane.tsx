@@ -29,6 +29,8 @@ import { t } from '@shared/i18n/translate';
 // Types
 import type { ExtensionSummary } from '@shared/extensions/extensions';
 
+const CHROME_WEB_STORE_URL = 'https://chromewebstore.google.com/category/extensions';
+
 export function ExtensionsPane() {
   const isKeptUpdated = useBrowserStore((state) => state.settings.updateExtensions);
   const extensions = useExtensions();
@@ -76,6 +78,15 @@ export function ExtensionsPane() {
       </SettingGroup>
 
       <SettingGroup title={t('settings.extensions.add.title')}>
+        <SettingRow
+          label={t('settings.extensions.add.store')}
+          help={t('settings.extensions.add.storeHelp')}
+          control={
+            <Button size="sm" onClick={() => send((api) => api.tabs.create(CHROME_WEB_STORE_URL))}>
+              {t('settings.extensions.add.openStore')}
+            </Button>
+          }
+        />
         <form
           data-setting-row
           className="flex flex-wrap items-center gap-2 px-3.5 py-2.5"
@@ -215,6 +226,16 @@ function ExtensionRow({ extension, onUpdate, onRemove }: ExtensionRowProps) {
                     {
                       label: t('settings.extensions.installed.update', { version: waitingUpdate }),
                       onSelect: onUpdate,
+                    },
+                  ]
+                : []),
+              ...(extension.action
+                ? [
+                    {
+                      label: extension.isPinned
+                        ? t('settings.extensions.installed.hideFromToolbar')
+                        : t('settings.extensions.installed.showOnToolbar'),
+                      onSelect: () => send((api) => api.extensions.setPinned(extension.id, !extension.isPinned)),
                     },
                   ]
                 : []),

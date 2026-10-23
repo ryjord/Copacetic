@@ -28,9 +28,10 @@ vi.mock('@/lib/bridge/bridge', () => ({
   getBridge: () => null,
   isRunningInShell: () => false,
 }));
-const toggleSurface = vi.fn();
+const hidden: string[] = [];
 vi.mock('@/store/useBrowserStore', () => ({
-  useBrowserStore: (select: (state: { toggleSurface: typeof toggleSurface }) => unknown) => select({ toggleSurface }),
+  useBrowserStore: (select: (state: { settings: { hiddenFromBookmarksBar: string[] } }) => unknown) =>
+    select({ settings: { hiddenFromBookmarksBar: hidden } }),
 }));
 
 // jsdom lays nothing out, so each item is 60 wide, side by side, in a row with room for two.
@@ -91,6 +92,18 @@ describe('the bookmarks bar', () => {
     const items = [...document.querySelectorAll('[data-bar-item]')];
     expect(items).toHaveLength(4);
     expect(items.every((item) => observed.has(item))).toBe(true);
+  });
+
+  it('leaves off one chosen to be hidden, which stays a bookmark', async () => {
+    hidden.push('two');
+    try {
+      render(<BookmarksBar />);
+      await screen.findByRole('button', { name: /one/ });
+      expect(screen.queryByRole('button', { name: /^two/ })).toBeNull();
+      expect(document.querySelectorAll('[data-bar-item]')).toHaveLength(3);
+    } finally {
+      hidden.length = 0;
+    }
   });
 
   it('opens every bookmark from its start', async () => {

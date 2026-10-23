@@ -1,12 +1,28 @@
+import { type Server, createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
 
 let copacetic: SmokeApp;
+let server: Server;
+
+// localhost and 127.0.0.1 are two sites, so the frame gets a process of its own, and both are secure contexts.
+const FRAMED_PAGE = (port: number) => `<body><iframe src="http://127.0.0.1:${port}/frame"></iframe></body>`;
 
 beforeAll(async () => {
+  server = createServer((request, response) => {
+    response.setHeader('content-type', 'text/html');
+    response.end(
+      request.url === '/frame' ? '<body>frame</body>' : FRAMED_PAGE((server.address() as AddressInfo).port),
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   copacetic = await SmokeApp.launch();
 });
-afterAll(async () => copacetic?.close());
+afterAll(async () => {
+  await copacetic?.close();
+  server?.close();
+});
 
 /**
  * Client hints exist only in a secure context, so this has to be a real https
@@ -63,5 +79,44 @@ describe('a tab describes itself consistently', () => {
     expect(seen.leakedRequire).toBe('undefined');
     expect(seen.leakedProcess).toBe('undefined');
     expect(seen.leakedBridge).toBe('undefined');
+  });
+});
+
+/**
+ * Site isolation gives a frame from another site a process and a DevTools
+ * target of its own, which the tab's description never reached. Cloudflare's
+ * challenge is such a frame: it said Electron while its requests said Chrome,
+ * and no click on it ever passed.
+ */
+describe('a frame from another site', () => {
+  it('describes itself exactly as the tab around it does', async () => {
+    const port = (server.address() as AddressInfo).port;
+    const page = `http://localhost:${port}/`;
+    const tab = await copacetic.inPage<Record<string, unknown>>(page, REPORT);
+    const frame = await copacetic.read(
+      async ({ webContents }, options) => {
+        const contents = webContents
+          .getAllWebContents()
+          .filter((candidate) => candidate.getURL().startsWith(options.page))
+          .at(-1);
+        const frameOf = () => contents?.mainFrame.frames.find((candidate) => candidate.url.includes('/frame'));
+        for (let waited = 0; !frameOf() && waited < 10_000; waited += 100) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        const framed = frameOf();
+        return {
+          isOwnProcess: framed !== undefined && framed.processId !== contents?.mainFrame.processId,
+          seen: (await framed?.executeJavaScript(
+            `${options.report}.then((out) => ({ ...out, chrome: Object.keys(window.chrome ?? {}).join(',') }))`,
+          )) as Record<string, unknown>,
+        };
+      },
+      { page, report: REPORT },
+    );
+    expect(frame.isOwnProcess).toBe(true);
+    expect(frame.seen.userAgent).toBe(tab.userAgent);
+    expect(frame.seen.brands).toBe(tab.brands);
+    expect(frame.seen.platform).toBe(tab.platform);
+    expect(frame.seen.chrome).toBe('csi,loadTimes,app');
   });
 });
