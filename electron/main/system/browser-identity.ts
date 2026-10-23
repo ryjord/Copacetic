@@ -100,6 +100,13 @@ async function describeAsChrome(contents: WebContents, userAgent: string, hints:
       return;
     }
     const { sessionId, targetInfo } = parameters as AttachedTarget;
+    // A service worker is shared by every page of its site, and one held for a tab is closed under it.
+    if (!DESCRIBED_TARGETS.has(targetInfo.type)) {
+      void send('Runtime.runIfWaitingForDebugger', {}, sessionId)
+        .then(() => send('Target.detachFromTarget', { sessionId }))
+        .catch(() => {});
+      return;
+    }
     void describeTarget(send, sessionId, targetInfo.type, override)
       .catch((error: unknown) => log.warn('could not describe a frame as Chrome', describeError(error)))
       // Always let go: a frame still held never loads.
@@ -108,6 +115,9 @@ async function describeAsChrome(contents: WebContents, userAgent: string, hints:
 
   await describeTarget(send, undefined, 'page', override);
 }
+
+/** The targets that belong to one tab: its frames from other sites, and the workers its pages start. */
+const DESCRIBED_TARGETS: ReadonlySet<string> = new Set(['iframe', 'worker']);
 
 interface AttachedTarget {
   sessionId: string;
@@ -123,7 +133,7 @@ async function describeTarget(
   type: string,
   override: { userAgent: string; platform: string; userAgentMetadata: ClientHints },
 ): Promise<void> {
-  if (type !== 'page' && type !== 'iframe') {
+  if (type === 'worker') {
     // A worker has no Emulation domain; its navigator answers from the network override.
     await send('Network.setUserAgentOverride', override, sessionId);
     return;

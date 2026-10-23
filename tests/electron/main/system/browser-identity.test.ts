@@ -78,6 +78,18 @@ describe('the frames inside a tab', () => {
     ]);
   });
 
+  // Every page of its site shares a service worker, and one held for a tab was closed under it.
+  it('lets a service worker go at once, and leaves it alone', async () => {
+    const { contents, attach, sentTo } = fakeTab();
+    await describeTab(contents, 'darwin');
+    await attach('service-1', 'service_worker');
+    expect(sentTo('service-1').map((command) => command.method)).toEqual(['Runtime.runIfWaitingForDebugger']);
+    expect(sentTo(undefined).at(-1)).toMatchObject({
+      method: 'Target.detachFromTarget',
+      parameters: { sessionId: 'service-1' },
+    });
+  });
+
   // A frame held at its start and never let go is a blank square in the page.
   it('lets a frame go even when describing it fails', async () => {
     const { contents, attach, sentTo } = fakeTab(
