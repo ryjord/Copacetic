@@ -104,4 +104,28 @@ describe('more than one window', () => {
     const state = await survivor!.evaluate(async () => (await window.copacetic.chrome.getState()).tabs.length);
     expect(state).toBeGreaterThan(0);
   }, 60_000);
+
+  // As in Chrome: the last tab going takes its window with it, rather than leaving an empty start page behind.
+  it('closes a window when its last tab closes, and leaves the others', async () => {
+    const before = await windowCount();
+    const opener = copacetic.chromePages().find((page) => !page.isClosed())!;
+    await opener.evaluate(() => window.copacetic.window.openNew());
+    expect(await until(async () => (await windowCount()) === before + 1)).toBe(true);
+    const opened = () =>
+      copacetic
+        .chromePages()
+        .filter((page) => !page.isClosed())
+        .find((page) => page !== opener);
+    expect(await until(async () => opened() !== undefined)).toBe(true);
+    await opened()!.evaluate(async () => {
+      const state = await window.copacetic.chrome.getState();
+      if (state.activeTabId) {
+        await window.copacetic.tabs.close(state.activeTabId);
+      }
+    });
+    expect(await until(async () => (await windowCount()) === before)).toBe(true);
+    expect((await opener.evaluate(async () => (await window.copacetic.chrome.getState()).tabs.length)) > 0).toBe(
+      true,
+    );
+  }, 60_000);
 });

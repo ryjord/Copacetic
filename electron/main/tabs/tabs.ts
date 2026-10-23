@@ -113,6 +113,7 @@ export class TabManager {
   private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
   private pageChangeHandler: ((tabId: TabId, change: PageChange) => void) | null = null;
+  private lastTabClosedHandler: (() => void) | null = null;
   private pageFocusHandler: (() => void) | null = null;
   private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
   private windowIsEnteringFullscreen = false;
@@ -1073,9 +1074,13 @@ export class TabManager {
       }
     }
 
-    // A browser with no tabs has no way back. Always leave one.
+    // Closing the last tab closes its window, as in Chrome; with nothing to close it, one is left to go back from.
     if (this.order.length === 0) {
-      this.create(START_PAGE_URL);
+      if (this.lastTabClosedHandler) {
+        this.lastTabClosedHandler();
+      } else {
+        this.create(START_PAGE_URL);
+      }
       return;
     }
 
@@ -1652,6 +1657,11 @@ export class TabManager {
 
   onPageContextMenu(handler: (tabId: TabId, params: ContextMenuParams) => void): void {
     this.contextMenuHandler = handler;
+  }
+
+  /** The window's last tab closed, which closes the window. */
+  onLastTabClosed(handler: () => void): void {
+    this.lastTabClosedHandler = handler;
   }
 
   /** A tab's page moved on or finished loading, for what watches sign-ins. */
