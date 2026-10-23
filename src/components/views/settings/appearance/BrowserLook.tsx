@@ -56,7 +56,6 @@ const HEADER_LABELS: Record<HeaderLayoutId, string> = {
 const TOOLBAR_LABELS: Record<ToolbarItemId, string> = {
   home: t('settings.appearance.browser.toolbar.home'),
   bookmarks: t('settings.appearance.browser.toolbar.bookmarks'),
-  reader: t('settings.appearance.browser.toolbar.reader'),
   split: t('settings.appearance.browser.toolbar.split'),
   profile: t('settings.appearance.browser.toolbar.profile'),
   downloads: t('settings.appearance.browser.toolbar.downloads'),

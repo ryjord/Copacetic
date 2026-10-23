@@ -384,7 +384,8 @@ export function isInterfaceTextSize(value: unknown): value is InterfaceTextSize 
 }
 
 /** Buttons the toolbar can show beside the address bar. Back, forward, reload and the menu are always there. */
-export const TOOLBAR_ITEMS = ['home', 'bookmarks', 'reader', 'split', 'profile', 'downloads'] as const;
+// No reader: the address bar already has it, and one saved before it went is dropped when read.
+export const TOOLBAR_ITEMS = ['home', 'bookmarks', 'split', 'profile', 'downloads'] as const;
 
 export type ToolbarItemId = (typeof TOOLBAR_ITEMS)[number];
 

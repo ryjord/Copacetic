@@ -7,18 +7,7 @@ import { Omnibox } from '@/components/shell/Omnibox/Omnibox';
 import { ProfileAvatar } from '@/components/shell/ProfileAvatar/ProfileAvatar';
 
 // Icons
-import {
-  ArrowLeft,
-  ArrowRight,
-  BookOpen,
-  Bookmark,
-  Columns2,
-  Download,
-  House,
-  Menu,
-  RotateCw,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bookmark, Columns2, Download, House, Menu, RotateCw, X } from 'lucide-react';
 
 // Store
 import { selectActiveDownloadCount, selectDownloadProgress, useBrowserStore } from '@/store/useBrowserStore';
@@ -138,16 +127,9 @@ function NavigationButtons({ tab }: { tab: TabState | null }) {
 function ToolButtons({ tab }: { tab: TabState | null }) {
   const toolbarItems = useBrowserStore((state) => state.settings.toolbarItems);
   const isSplit = useBrowserStore((state) => shownSplit(state.split, state.activeTabId) !== null);
-  const setSurface = useBrowserStore((state) => state.setSurface);
-  const isPage = tab !== null && tab.internalPage === null;
   return (
     <>
       <div className={CAPSULE}>
-        {toolbarItems.includes('reader') && (
-          <IconButton label={t('shell.toolbar.reader')} disabled={!isPage} onClick={() => setSurface('reader')}>
-            <BookOpen {...ICON} />
-          </IconButton>
-        )}
         {toolbarItems.includes('split') && (
           <IconButton
             label={isSplit ? t('shell.toolbar.leaveSplit') : t('shell.toolbar.split')}

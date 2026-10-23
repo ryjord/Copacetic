@@ -32,7 +32,7 @@ describe('every setting can actually be changed', () => {
     headerLayout: 'one-line',
     accentColour: 'teal',
     interfaceTextSize: 'large',
-    toolbarItems: ['home', 'reader'],
+    toolbarItems: ['home', 'split'],
     wallpaperDim: 40,
     wallpaperBlur: true,
     httpsFirst: false,

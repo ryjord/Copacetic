@@ -323,7 +323,6 @@ export const settings = {
         help: 'Back, forward, reload and the menu are always there.',
         home: 'Home',
         bookmarks: 'Bookmarks',
-        reader: 'Reader view',
         split: 'Split view',
         profile: 'Profile picture',
         downloads: 'Downloads',
