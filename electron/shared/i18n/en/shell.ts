@@ -63,7 +63,6 @@ export const shell = {
     downloadsActive: 'Downloads, {count} in progress',
     home: 'Start page',
     bookmarks: 'Bookmarks',
-    reader: 'Reader view',
     split: 'Split view',
     leaveSplit: 'Leave split view',
     extensions: 'Extensions',

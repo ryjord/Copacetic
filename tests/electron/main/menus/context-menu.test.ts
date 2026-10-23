@@ -206,6 +206,8 @@ describe("a group's menu", () => {
  */
 describe("a bookmark folder's menu", () => {
   const folder = { id: 'f1', name: 'Work', colour: 'violet', parentId: null, collapsed: false };
+  const hiddenFromBar: string[] = [];
+  const updateSettings = vi.fn();
 
   function folderMenu({ here = 2, inside = 0, children = 0 } = {}) {
     captured = [];
@@ -236,12 +238,28 @@ describe("a bookmark folder's menu", () => {
           listBookmarks: () => bookmarks,
           folderFor: (id: string) => folders.find((entry) => entry.id === id) ?? null,
         },
+        profile: { settings: () => ({ hiddenFromBookmarksBar: hiddenFromBar }) },
+        updateSettings,
         window: {},
       } as never,
       'f1',
     );
     return captured;
   }
+
+  // On the bar it is one click to leave off, and Appearance lists it to put back.
+  it('offers to leave a top-level folder off the bookmarks bar, and does', () => {
+    const hide = folderMenu().find((item) => item.label === 'Hide from the bookmarks bar');
+    (hide?.click as () => void)();
+    expect(updateSettings).toHaveBeenCalledWith({ hiddenFromBookmarksBar: ['f1'] });
+  });
+
+  it('does not offer it again for one already left off', () => {
+    hiddenFromBar.push('f1');
+    const labels = labelsOf(folderMenu()).map(String);
+    hiddenFromBar.length = 0;
+    expect(labels).not.toContain('Hide from the bookmarks bar');
+  });
 
   // A tree makes every count ambiguous, so neither number is left to be guessed.
   it.each([

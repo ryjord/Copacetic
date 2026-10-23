@@ -198,6 +198,7 @@ export class Browser {
       changed,
     });
     this.tabs.onPageChange((tabId, change) => this.passwordSave.pageChanged(tabId, change));
+    this.tabs.onLastTabClosed(() => this.window.close());
     this.commands = new TabCommands({ store: this.store, tabs: this.tabs, notices: this.notices, changed, push });
 
     this.window.on('closed', () => this.dispose());

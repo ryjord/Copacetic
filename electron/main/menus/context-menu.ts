@@ -574,6 +574,7 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
       enabled: counted.withDescendants > 0,
       click: () => browser.groups.openFolder(folderId),
     },
+    ...hideFromBarItems(browser, folderId, folder.parentId === null),
     { type: 'separator' },
     {
       label: t('main.menu.context.deleteFolder'),
@@ -589,6 +590,21 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
   ];
 
   Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/** Leaving a top-level bookmark or folder off the bar; Appearance has the way back. */
+function hideFromBarItems(browser: Browser, id: string, isTopLevel: boolean): MenuItemConstructorOptions[] {
+  const hidden = browser.profile.settings().hiddenFromBookmarksBar;
+  if (!isTopLevel || hidden.includes(id)) {
+    return [];
+  }
+  return [
+    { type: 'separator' },
+    {
+      label: t('main.menu.context.hideFromBookmarksBar'),
+      click: () => browser.updateSettings({ hiddenFromBookmarksBar: [...hidden, id] }),
+    },
+  ];
 }
 
 /**
@@ -644,6 +660,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
         })),
       ],
     },
+    ...hideFromBarItems(browser, bookmarkId, bookmark.folderId === null),
     { type: 'separator' },
     { label: t('main.menu.context.removeBookmark'), click: () => browser.removeBookmarks([bookmarkId]) },
   ];

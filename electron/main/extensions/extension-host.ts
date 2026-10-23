@@ -291,7 +291,8 @@ export class ExtensionHost {
       source: 'store',
       folder,
       isEnabled,
-      isPinned: previous?.isPinned ?? true,
+      // New ones wait in the extensions menu, as in Chrome: their colour on the toolbar would read as meaning.
+      isPinned: previous?.isPinned ?? false,
       installedAt: previous?.installedAt ?? Date.now(),
     });
     this.waitingUpdates.delete(staged.id);
@@ -410,7 +411,7 @@ export class ExtensionHost {
         source: 'folder',
         folder,
         isEnabled: true,
-        isPinned: this.store.find(extension.id)?.isPinned ?? true,
+        isPinned: this.store.find(extension.id)?.isPinned ?? false,
         installedAt: Date.now(),
       });
       return '';

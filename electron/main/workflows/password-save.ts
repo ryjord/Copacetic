@@ -195,7 +195,7 @@ export class PasswordSave {
   }
 
   private watchable(tabId: TabId): WebContents | null {
-    const contents = this.deps.tabs.contentsForTab(tabId);
+    const contents = this.deps.tabs.livePageFor(tabId);
     const isWatchable = contents && !this.deps.tabs.isHush(tabId) && this.isWatched(contents.getURL());
     return isWatchable ? contents : null;
   }
@@ -247,7 +247,7 @@ export class PasswordSave {
   }
 
   private movedOn(tabId: TabId): void {
-    const url = this.deps.tabs.contentsForTab(tabId)?.getURL() ?? '';
+    const url = this.deps.tabs.livePageFor(tabId)?.getURL() ?? '';
     const held = this.offers.get(tabId);
     if (held && siteOfUrl(url) !== held.shownOn) {
       this.offers.delete(tabId);
@@ -268,7 +268,7 @@ export class PasswordSave {
     }
     await later(settleMilliseconds);
     const submitted = this.submitted.get(tabId);
-    const contents = this.deps.tabs.contentsForTab(tabId);
+    const contents = this.deps.tabs.livePageFor(tabId);
     if (!submitted?.hasMovedOn || !contents || contents.isDestroyed()) {
       return;
     }

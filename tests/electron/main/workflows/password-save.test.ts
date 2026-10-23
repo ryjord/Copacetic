@@ -59,7 +59,7 @@ function setup(options: Options = {}) {
   const neverOn = vi.fn();
   let now = 1_000;
   const save = new PasswordSave({
-    tabs: { contentsForTab: () => contents, isHush: () => options.isHush === true } as never,
+    tabs: { livePageFor: () => contents, isHush: () => options.isHush === true } as never,
     vaultSession: { vault, isOpen: () => options.isOpen ?? true, hasKeychain: () => true } as never,
     notices: { notify: vi.fn() } as never,
     settings: () => settings,

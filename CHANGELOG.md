@@ -2,15 +2,47 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 2.1.0 - 21 October 2026
+## 2.1.0 - 23 October 2026
 
 Copacetic 2.1: signing in works where it did not, extension ad blockers block,
 Copacetic offers to save a password you sign in with, the header is its own,
 and Settings, History, Bookmarks and Downloads open in tabs of their own. This
-is 2.1.0-beta.1 unchanged; its section below lists everything.
+is 2.1.0-beta.2 unchanged; its section and beta.1's below list everything.
 
 **Before you install it:** Copacetic now needs macOS 13 (Ventura) or later, as
 Electron 44 does.
+
+## 2.1.0-beta.2 - 23 October 2026
+
+The second beta of 2.1: Cloudflare's "Verify you are human" passes, a tab left
+asleep stays asleep, and extensions and bookmarks can be kept off their bars.
+
+### New
+
+- **New extensions start in the extensions menu** rather than on the toolbar,
+  so a colourful icon does not crowd the colours Copacetic uses to mean
+  something. Each extension's menu in Settings shows or hides it on the
+  toolbar; extensions already on the toolbar stay there.
+- **Open the Chrome Web Store** from Settings, under Extensions.
+- **Choose what the bookmarks bar shows.** Right-click a top-level bookmark or
+  folder on the bar to leave it off; it stays in Bookmarks, and Appearance
+  lists what is left off, each with a way back on.
+- **Closing the last tab closes its window**, as in Chrome. On macOS Copacetic
+  stays in the Dock.
+
+### Fixed
+
+- **Cloudflare's check never passed.** A frame from another site, such as
+  Cloudflare's, described itself as Electron while its requests said Chrome,
+  so ticking "Verify you are human" got nowhere. Every frame and worker in a
+  tab now describes itself as the tab does. Claude's artifacts render in such
+  a frame too.
+- **A video in a sleeping tab started playing.** With any extension installed,
+  each change to the window woke every sleeping tab, and a page woken that way
+  could play sound. A tab now stays asleep until it is chosen, and a page plays
+  sound only once someone has used it, as in Chrome.
+- Reader view was a toolbar button as well as in the address bar; it is in the
+  address bar only.
 
 ## 2.1.0-beta.1 - 21 October 2026
 

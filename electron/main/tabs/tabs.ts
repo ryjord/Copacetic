@@ -113,6 +113,7 @@ export class TabManager {
   private readonly countedBlocked = new Map<number, number>();
   private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
   private pageChangeHandler: ((tabId: TabId, change: PageChange) => void) | null = null;
+  private lastTabClosedHandler: (() => void) | null = null;
   private pageFocusHandler: (() => void) | null = null;
   private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
   private windowIsEnteringFullscreen = false;
@@ -421,8 +422,9 @@ export class TabManager {
     return tab ? tab.title || fallbackTitleFor(tab.url) : '';
   }
 
+  /** The id of a tab's page while it has one; a sleeping tab has none, and asking does not wake it. */
   webContentsIdFor(id: TabId): number | undefined {
-    return this.contentsFor(id)?.id;
+    return this.livePageFor(id)?.id;
   }
 
   canGoBack(id: TabId): boolean {
@@ -860,6 +862,8 @@ export class TabManager {
         safeDialogs: true,
         // Only Chromium's own PDF viewer is a plugin here; without it a PDF downloads instead of opening.
         plugins: true,
+        // Sound waits for someone to use the page, as in Chrome; Electron's own default lets any page play at once.
+        autoplayPolicy: 'document-user-activation-required',
       },
     });
     // Matches the chrome's surface so a slow first paint does not flash white.
@@ -1070,9 +1074,13 @@ export class TabManager {
       }
     }
 
-    // A browser with no tabs has no way back. Always leave one.
+    // Closing the last tab closes its window, as in Chrome; with nothing to close it, one is left to go back from.
     if (this.order.length === 0) {
-      this.create(START_PAGE_URL);
+      if (this.lastTabClosedHandler) {
+        this.lastTabClosedHandler();
+      } else {
+        this.create(START_PAGE_URL);
+      }
       return;
     }
 
@@ -1566,12 +1574,17 @@ export class TabManager {
     this.onChanged();
   }
 
-  /** The live page for a tab, or null for a start page that has no view. */
-  contentsForTab(id: TabId): WebContents | null {
-    return this.contentsFor(id);
+  /**
+   * A tab's page if it has one, for anything looking from the background: a
+   * sleeping tab stays asleep, since waking reloads its page, and a video in it
+   * starts playing in a tab nobody chose.
+   */
+  livePageFor(id: TabId): WebContents | null {
+    const tab = this.tabs.get(id);
+    return tab ? pageOf(tab) : null;
   }
 
-  // Anything that needs the page wakes the tab first: reloading or navigating one asleep is asking for it back.
+  // For an action on the tab itself: reloading or going back in one asleep is asking for it back.
   private contentsFor(id: TabId): WebContents | null {
     const tab = this.tabs.get(id);
     if (tab?.isAsleep) {
@@ -1644,6 +1657,11 @@ export class TabManager {
 
   onPageContextMenu(handler: (tabId: TabId, params: ContextMenuParams) => void): void {
     this.contextMenuHandler = handler;
+  }
+
+  /** The window's last tab closed, which closes the window. */
+  onLastTabClosed(handler: () => void): void {
+    this.lastTabClosedHandler = handler;
   }
 
   /** A tab's page moved on or finished loading, for what watches sign-ins. */

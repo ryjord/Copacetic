@@ -5,6 +5,7 @@ import { ChoiceCards } from '@/components/ui/ChoiceCards/ChoiceCards';
 import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { Switch } from '@/components/ui/Switch/Switch';
+import { HiddenFromBar } from '@/components/views/settings/appearance/HiddenFromBar';
 
 // Icons
 import { Check } from 'lucide-react';
@@ -56,7 +57,6 @@ const HEADER_LABELS: Record<HeaderLayoutId, string> = {
 const TOOLBAR_LABELS: Record<ToolbarItemId, string> = {
   home: t('settings.appearance.browser.toolbar.home'),
   bookmarks: t('settings.appearance.browser.toolbar.bookmarks'),
-  reader: t('settings.appearance.browser.toolbar.reader'),
   split: t('settings.appearance.browser.toolbar.split'),
   profile: t('settings.appearance.browser.toolbar.profile'),
   downloads: t('settings.appearance.browser.toolbar.downloads'),
@@ -143,6 +143,7 @@ export function BrowserLook({ settings }: { settings: Settings }) {
           />
         }
       />
+      <HiddenFromBar />
       <SettingRow
         label={t('settings.appearance.browser.toolbar.label')}
         help={t('settings.appearance.browser.toolbar.help')}
