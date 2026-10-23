@@ -934,6 +934,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.showBookmarksBar === 'boolean') {
     patch.showBookmarksBar = value.showBookmarksBar;
   }
+  if (Array.isArray(value.hiddenFromBookmarksBar)) {
+    patch.hiddenFromBookmarksBar = asIdList(value.hiddenFromBookmarksBar);
+  }
   if (typeof value.ambientHue === 'number' && Number.isFinite(value.ambientHue)) {
     // Degrees round the colour wheel, so any turn is kept as the same point on the circle.
     patch.ambientHue = ((Math.round(value.ambientHue) % 360) + 360) % 360;

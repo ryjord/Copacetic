@@ -30,6 +30,7 @@ describe('every setting can actually be changed', () => {
     theme: 'moss',
     density: 'compact',
     headerLayout: 'one-line',
+    hiddenFromBookmarksBar: ['bookmark-1'],
     accentColour: 'teal',
     interfaceTextSize: 'large',
     toolbarItems: ['home', 'split'],

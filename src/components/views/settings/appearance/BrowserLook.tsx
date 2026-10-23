@@ -5,6 +5,7 @@ import { ChoiceCards } from '@/components/ui/ChoiceCards/ChoiceCards';
 import { SegmentedControl } from '@/components/ui/SegmentedControl/SegmentedControl';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { Switch } from '@/components/ui/Switch/Switch';
+import { HiddenFromBar } from '@/components/views/settings/appearance/HiddenFromBar';
 
 // Icons
 import { Check } from 'lucide-react';
@@ -142,6 +143,7 @@ export function BrowserLook({ settings }: { settings: Settings }) {
           />
         }
       />
+      <HiddenFromBar />
       <SettingRow
         label={t('settings.appearance.browser.toolbar.label')}
         help={t('settings.appearance.browser.toolbar.help')}

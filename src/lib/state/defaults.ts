@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   offerToSavePasswords: true,
   neverSavePasswordsOn: [],
   showBookmarksBar: false,
+  hiddenFromBookmarksBar: [],
   ambientHue: 0,
   checkForUpdates: true,
   updateExtensions: true,

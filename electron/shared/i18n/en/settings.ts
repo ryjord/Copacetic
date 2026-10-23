@@ -316,7 +316,9 @@ export const settings = {
       },
       bookmarksBar: {
         label: 'Show the bookmarks bar',
-        help: 'Top-level bookmarks and folders, under the address bar.',
+        help: 'Top-level bookmarks and folders, under the address bar. Right-click one there to leave it off.',
+        hidden: '{name} is left off the bar',
+        showAgain: 'Show on the bar',
       },
       toolbar: {
         label: 'In the toolbar',
