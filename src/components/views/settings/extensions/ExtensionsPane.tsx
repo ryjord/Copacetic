@@ -229,6 +229,16 @@ function ExtensionRow({ extension, onUpdate, onRemove }: ExtensionRowProps) {
                     },
                   ]
                 : []),
+              ...(extension.action
+                ? [
+                    {
+                      label: extension.isPinned
+                        ? t('settings.extensions.installed.hideFromToolbar')
+                        : t('settings.extensions.installed.showOnToolbar'),
+                      onSelect: () => send((api) => api.extensions.setPinned(extension.id, !extension.isPinned)),
+                    },
+                  ]
+                : []),
               {
                 label: t('settings.extensions.installed.options'),
                 onSelect: () => send((api) => api.extensions.openOptions(extension.id)),

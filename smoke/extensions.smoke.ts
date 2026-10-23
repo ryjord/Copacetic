@@ -99,8 +99,8 @@ describe('an extension', () => {
     expect(await popupTitle()).toBe('active: https://example.com/two');
   }, 60_000);
 
-  // Unpinned, it leaves the toolbar for the extensions menu.
-  it('comes off the toolbar when unpinned, and back when pinned', async () => {
+  // A new one waits in the extensions menu; pinned, it is on the toolbar, and unpinned it goes back.
+  it('starts off the toolbar, goes on when pinned, and comes off when unpinned', async () => {
     const id = (await probe())?.id ?? '';
     const name = (await probe())?.action?.title ?? '';
     const isOnToolbar = () =>
@@ -108,15 +108,15 @@ describe('an extension', () => {
         (title) => [...document.querySelectorAll('button')].some((button) => button.title === title),
         name,
       );
-    expect(await copacetic.until(isOnToolbar, 5_000)).toBe(true);
+    expect((await probe())?.isPinned).toBe(false);
+    expect(await isOnToolbar()).toBe(false);
     expect(
       await copacetic.chrome.evaluate(() => Boolean(document.querySelector('button[aria-label="Extensions"]'))),
     ).toBe(true);
-    await copacetic.chrome.evaluate((extensionId) => window.copacetic.extensions.setPinned(extensionId, false), id);
-    expect(await copacetic.until(async () => !(await isOnToolbar()), 5_000)).toBe(true);
-    expect((await probe())?.isPinned).toBe(false);
     await copacetic.chrome.evaluate((extensionId) => window.copacetic.extensions.setPinned(extensionId, true), id);
     expect(await copacetic.until(isOnToolbar, 5_000)).toBe(true);
+    await copacetic.chrome.evaluate((extensionId) => window.copacetic.extensions.setPinned(extensionId, false), id);
+    expect(await copacetic.until(async () => !(await isOnToolbar()), 5_000)).toBe(true);
   }, 30_000);
 
   it('goes away when removed', async () => {

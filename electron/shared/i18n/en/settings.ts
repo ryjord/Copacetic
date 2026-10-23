@@ -621,6 +621,8 @@ export const settings = {
       options: 'Options',
       remove: 'Remove…',
       update: 'Update to {version}…',
+      showOnToolbar: 'Show on the toolbar',
+      hideFromToolbar: 'Hide from the toolbar',
       updateWaiting:
         'Version {version} is waiting: it asks for more than this one, so it is put in only when you agree.',
       canDo: 'What it can do',
