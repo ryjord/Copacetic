@@ -2,6 +2,20 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.1.1-beta.1 - 27 October 2026
+
+The first beta of 2.1.1: Electron's security update, and nothing else.
+
+### Fixed
+
+- **Certificates from a compromised authority are refused.** A set of eMudhra
+  intermediate certificates were compromised, and browsers now block them.
+  Copacetic was on Electron 44.9.0, which still trusted them, so someone able
+  to intercept your connection and holding such a certificate could pass as
+  any site. Electron 44.10.0 blocks them, as Chrome and Firefox do
+  ([GHSA-jr5w-w6x2-84p9](https://github.com/advisories/GHSA-jr5w-w6x2-84p9)).
+- The update check reads its feed with a patched YAML parser.
+
 ## 2.1.0 - 23 October 2026
 
 Copacetic 2.1: signing in works where it did not, extension ad blockers block,
