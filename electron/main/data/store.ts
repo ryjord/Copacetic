@@ -537,6 +537,10 @@ export class BrowserStore {
     this.bookmarks.moveTo(id, target);
   }
 
+  reorderBookmark(id: string, beforeId: string | null): boolean {
+    return this.bookmarks.reorder(id, beforeId);
+  }
+
   // -------------------------------------------------------- bookmark folders
 
   listBookmarkFolders(): BookmarkFolder[] {
@@ -557,6 +561,10 @@ export class BrowserStore {
 
   moveBookmarkFolder(id: string, parentId: string | null): boolean {
     return this.bookmarkFolders.move(id, parentId);
+  }
+
+  reorderBookmarkFolder(id: string, beforeId: string | null): boolean {
+    return this.bookmarkFolders.reorder(id, beforeId);
   }
 
   /**

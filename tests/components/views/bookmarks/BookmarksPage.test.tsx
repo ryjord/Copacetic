@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Bookmark } from '@shared/types';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -17,6 +17,7 @@ const BOOKMARKS = [
 ];
 
 const removedMany: string[][] = [];
+const reordered: [string, string | null][] = [];
 const added: unknown[] = [];
 const api = {
   bookmarks: {
@@ -27,6 +28,7 @@ const api = {
       return '';
     },
     openContextMenu: vi.fn(),
+    reorder: (id: string, beforeId: string | null) => reordered.push([id, beforeId]),
   },
   bookmarkFolders: { list: async () => [] },
   tabs: { create: async () => 'tab' },
@@ -52,14 +54,32 @@ const titles = () =>
 
 beforeEach(() => {
   removedMany.length = 0;
+  reordered.length = 0;
   added.length = 0;
 });
 afterEach(cleanup);
 
 describe('the bookmarks list', () => {
-  it('sorts by name, and by newest', async () => {
+  // The order the start page shows, and the only one dragging can change.
+  it('shows your own order first, and sorts by name on request', async () => {
+    // Radix's select asks for pointer capture and scrolls its options, neither of which jsdom has.
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => {};
+    Element.prototype.scrollIntoView ??= () => {};
     render(<BookmarksPage tabId="tab" />);
     await screen.findByText('Zebra facts');
+    expect(titles().filter((title) => !title?.startsWith('Select'))).toEqual([
+      'Zebra facts',
+      'Apple pie',
+      'Apple pie again',
+    ]);
+
+    fireEvent.pointerDown(screen.getByRole('combobox', { name: 'Sort bookmarks' }), {
+      button: 0,
+      ctrlKey: false,
+      pointerType: 'mouse',
+    });
+    fireEvent.click(await screen.findByRole('option', { name: 'Name, A to Z' }));
     expect(titles()[0]).toContain('Apple pie');
     expect(titles().at(-1)).toContain('Zebra facts');
   });
@@ -86,7 +106,7 @@ describe('the bookmarks list', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Zebra facts' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Apple pie' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    expect(removedMany).toEqual([['b', 'a']]);
+    expect(removedMany).toEqual([['a', 'b']]);
   });
 
   it('adds a bookmark typed by hand', async () => {
@@ -96,5 +116,57 @@ describe('the bookmarks list', () => {
     fireEvent.change(screen.getByLabelText('Address'), { target: { value: 'docs.example' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(added).toEqual([['Docs', 'docs.example', null]]));
+  });
+});
+
+/** The row a title sits in, which is what is dragged and dropped on. */
+const rowOf = (title: string) => screen.getByText(title).closest('li') as HTMLElement;
+
+/** Starting a drag files the bookmark's id on the drag, which jsdom has nowhere to keep. */
+const startDragging = (row: HTMLElement) => fireEvent.dragStart(row, { dataTransfer: { setData: () => {} } });
+
+/** A drag event over a row 40px tall, in its upper or lower half; jsdom lays nothing out and drops clientY. */
+function dragOnto(row: HTMLElement, type: 'dragOver' | 'drop', half: 'upper' | 'lower') {
+  vi.spyOn(row, 'getBoundingClientRect').mockReturnValue({ top: 0, height: 40 } as DOMRect);
+  const event = createEvent[type](row);
+  Object.defineProperty(event, 'clientY', { value: half === 'upper' ? 10 : 30 });
+  fireEvent(row, event);
+}
+
+describe('putting bookmarks in your own order', () => {
+  it('puts a bookmark dropped on the upper half of a row before it', async () => {
+    render(<BookmarksPage tabId="tab" />);
+    await screen.findByText('Zebra facts');
+    startDragging(rowOf('Apple pie again'));
+    dragOnto(rowOf('Zebra facts'), 'dragOver', 'upper');
+    dragOnto(rowOf('Zebra facts'), 'drop', 'upper');
+    expect(reordered).toEqual([['c', 'a']]);
+  });
+
+  it('puts one dropped on the lower half after that row, before the next', async () => {
+    render(<BookmarksPage tabId="tab" />);
+    await screen.findByText('Zebra facts');
+    startDragging(rowOf('Apple pie again'));
+    dragOnto(rowOf('Zebra facts'), 'drop', 'lower');
+    expect(reordered).toEqual([['c', 'b']]);
+  });
+
+  // Otherwise nothing could ever be moved to the bottom.
+  it('moves one to the end when dropped on the lower half of the last row', async () => {
+    render(<BookmarksPage tabId="tab" />);
+    await screen.findByText('Zebra facts');
+    startDragging(rowOf('Zebra facts'));
+    dragOnto(rowOf('Apple pie again'), 'drop', 'lower');
+    expect(reordered).toEqual([['a', null]]);
+  });
+
+  // A filtered list hides rows between the ones shown, so a place in it is not a place in your order.
+  it('does not reorder a filtered list', async () => {
+    render(<BookmarksPage tabId="tab" />);
+    await screen.findByText('Zebra facts');
+    fireEvent.click(screen.getByRole('radio', { name: 'Duplicates' }));
+    startDragging(rowOf('Apple pie again'));
+    dragOnto(rowOf('Apple pie'), 'drop', 'upper');
+    expect(reordered).toEqual([]);
   });
 });

@@ -28,6 +28,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
+import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 import { useSelection } from '@/lib/state/useSelection';
 
@@ -40,10 +41,11 @@ import type { Bookmark } from '@shared/types';
 const PAGE = 200;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-type BookmarkSort = 'name' | 'added' | 'site';
+type BookmarkSort = 'manual' | 'name' | 'added' | 'site';
 type BookmarkFilter = 'all' | 'week' | 'duplicates';
 
 const SORT_OPTIONS: readonly { id: BookmarkSort; label: string }[] = [
+  { id: 'manual', label: t('views.bookmarks.sort.manual') },
   { id: 'name', label: t('views.bookmarks.sort.name') },
   { id: 'added', label: t('views.bookmarks.sort.added') },
   { id: 'site', label: t('views.bookmarks.sort.site') },
@@ -55,6 +57,8 @@ const FILTER_OPTIONS: readonly { id: BookmarkFilter; label: string }[] = [
 ];
 
 const SORTERS: Record<BookmarkSort, (aBookmark: Bookmark, bBookmark: Bookmark) => number> = {
+  // The list arrives in your order and the sort is stable, so leaving every pair alone keeps it.
+  manual: () => 0,
   name: (aBookmark, bBookmark) =>
     (aBookmark.title || aBookmark.url).localeCompare(bBookmark.title || bBookmark.url, undefined, {
       sensitivity: 'base',
@@ -62,6 +66,16 @@ const SORTERS: Record<BookmarkSort, (aBookmark: Bookmark, bBookmark: Bookmark) =
   added: (aBookmark, bBookmark) => bBookmark.createdAt - aBookmark.createdAt,
   site: (aBookmark, bBookmark) => hostFor(aBookmark.url).localeCompare(hostFor(bBookmark.url)),
 };
+
+const DROP_LINE_CLASSES = {
+  before: 'before:absolute before:inset-x-3 before:-top-px before:h-0.5 before:rounded-full before:bg-active',
+  after: 'after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-active',
+};
+
+function isLowerHalf(event: React.DragEvent<HTMLElement>): boolean {
+  const box = event.currentTarget.getBoundingClientRect();
+  return event.clientY > box.top + box.height / 2;
+}
 
 /** The same page saved more than once, ignoring the trailing slash and the fragment that only scroll it. */
 function pageKey(url: string): string {
@@ -77,7 +91,10 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(PAGE);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [sort, setSort] = useState<BookmarkSort>('name');
+  const [sort, setSort] = useState<BookmarkSort>('manual');
+  // Where a dragged row would land: before this row, or after it when the pointer is in its lower half.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<{ rowId: string; isAfter: boolean } | null>(null);
   const [filter, setFilter] = useState<BookmarkFilter>('all');
   const [isAdding, setIsAdding] = useState(false);
   const [transferMessage, setTransferMessage] = useState('');
@@ -149,6 +166,28 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
   const visible = matching.slice(0, shown);
   const icons = useFavicons(visible.map((bookmark) => bookmark.url));
   const ticked = useSelection(visible.map((bookmark) => bookmark.id));
+
+  // Only in your order, unfiltered and unsearched, where the rows on screen are the order being changed.
+  const canReorder = sort === 'manual' && filter === 'all' && !searching;
+  const draggedFolderId = bookmarks.find((bookmark) => bookmark.id === draggingId)?.folderId;
+  const canDropOn = (bookmark: Bookmark) =>
+    canReorder && draggingId !== null && draggingId !== bookmark.id && bookmark.folderId === draggedFolderId;
+
+  const endReorder = () => {
+    setDraggingId(null);
+    setDropAt(null);
+  };
+
+  const dropReorder = (bookmark: Bookmark, isAfter: boolean) => {
+    // The next of its own folder in the whole list, not just the rows drawn, so the end of a page is not the end.
+    const after = matching.slice(matching.indexOf(bookmark) + 1).find((next) => next.folderId === bookmark.folderId);
+    const beforeId = isAfter ? (after?.id ?? null) : bookmark.id;
+    const movingId = draggingId;
+    if (movingId) {
+      send((api) => api.bookmarks.reorder(movingId, beforeId));
+    }
+    endReorder();
+  };
 
   const removeSelected = () => {
     const ids = ticked.selectedIds;
@@ -332,13 +371,35 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
                       <li
                         key={bookmark.id}
                         draggable
-                        onDragStart={(event) => event.dataTransfer.setData(DRAG_BOOKMARK, bookmark.id)}
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData(DRAG_BOOKMARK, bookmark.id);
+                          setDraggingId(bookmark.id);
+                        }}
+                        onDragEnd={endReorder}
+                        onDragOver={(event) => {
+                          if (!canDropOn(bookmark)) {
+                            return;
+                          }
+                          event.preventDefault();
+                          setDropAt({ rowId: bookmark.id, isAfter: isLowerHalf(event) });
+                        }}
+                        onDrop={(event) => {
+                          if (!canDropOn(bookmark)) {
+                            return;
+                          }
+                          event.preventDefault();
+                          dropReorder(bookmark, isLowerHalf(event));
+                        }}
                         // The menu lists every folder, so filing works without dragging too.
                         onContextMenu={(event) => {
                           event.preventDefault();
                           send((api) => api.bookmarks.openContextMenu(bookmark.id));
                         }}
-                        className="group flex h-list-row items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover"
+                        className={cn(
+                          'group relative flex h-list-row items-center gap-3 rounded-field pl-3 pr-2 hover:bg-hover',
+                          dropAt?.rowId === bookmark.id &&
+                            (dropAt.isAfter ? DROP_LINE_CLASSES.after : DROP_LINE_CLASSES.before),
+                        )}
                       >
                         <Checkbox
                           checked={ticked.isSelected(bookmark.id)}

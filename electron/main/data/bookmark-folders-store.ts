@@ -1,5 +1,6 @@
 // Utils
 import { type BookmarkFolder, wouldCycle } from '../../shared/data/bookmark-folders';
+import { reorderedIds } from '../../shared/data/bookmark-order';
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
@@ -84,6 +85,17 @@ export class BookmarkFoldersStore {
       return false;
     }
     this.database.prepare('UPDATE bookmark_folders SET parent_id = ? WHERE id = ?').run(parentId, id);
+    return true;
+  }
+
+  /** Moves a folder just before another beside it, or to the end of its parent, and reports whether it moved. */
+  reorder(id: string, beforeId: string | null): boolean {
+    const order = reorderedIds(this.list(), id, beforeId);
+    if (!order) {
+      return false;
+    }
+    const place = this.database.prepare('UPDATE bookmark_folders SET position = ? WHERE id = ?');
+    inTransaction(this.database, () => order.forEach((folderId, position) => place.run(position, folderId)));
     return true;
   }
 

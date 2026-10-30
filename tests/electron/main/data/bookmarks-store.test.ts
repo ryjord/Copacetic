@@ -172,3 +172,48 @@ describe('editing a bookmark', () => {
     expect(bookmarks().update('nobody', { title: 'Anything' })).toBe('missing');
   });
 });
+
+describe('putting bookmarks and folders in your own order', () => {
+  it('moves a bookmark before another, keeps the order across a restart, and loses nothing', () => {
+    const store = bookmarks();
+    ['c', 'b', 'a'].forEach((name) => store.toggle(`https://${name}.example/`, name));
+    const [a, , c] = store.list();
+
+    expect(store.reorder(c!.id, a!.id)).toBe(true);
+    expect(
+      bookmarks()
+        .list()
+        .map((bookmark) => bookmark.title),
+    ).toEqual(['c', 'a', 'b']);
+  });
+
+  // Ordering is not filing; a drop between two of another folder's bookmarks must not move it there.
+  it('refuses a place in another folder, and leaves the order as it was', () => {
+    const store = bookmarks();
+    const folder = folders().create('Work', 'ash', null);
+    store.toggle('https://loose.example/', 'loose');
+    store.toggle('https://filed.example/', 'filed');
+    const filed = store.list().find((bookmark) => bookmark.title === 'filed')!;
+    const loose = store.list().find((bookmark) => bookmark.title === 'loose')!;
+    store.moveTo(filed.id, folder.id);
+    const before = store.list().map((bookmark) => bookmark.id);
+
+    expect(store.reorder(loose.id, filed.id)).toBe(false);
+    expect(store.list().map((bookmark) => bookmark.id)).toEqual(before);
+    expect(store.list().find((bookmark) => bookmark.id === loose.id)?.folderId).toBeNull();
+  });
+
+  it('moves a folder before another beside it, across a restart', () => {
+    const store = folders();
+    const first = store.create('First', 'ash', null);
+    store.create('Second', 'ash', null);
+    const third = store.create('Third', 'ash', null);
+
+    expect(store.reorder(third.id, first.id)).toBe(true);
+    expect(
+      folders()
+        .list()
+        .map((folder) => folder.name),
+    ).toEqual(['Third', 'First', 'Second']);
+  });
+});

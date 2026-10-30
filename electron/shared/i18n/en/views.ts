@@ -67,6 +67,7 @@ export const views = {
     select: 'Select {name}',
     sort: {
       label: 'Sort bookmarks',
+      manual: 'Your order',
       name: 'Name, A to Z',
       added: 'Newest first',
       site: 'By site',

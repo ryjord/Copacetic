@@ -1,5 +1,6 @@
 // Utils
 import { isPageNavigableUrl } from '../../shared/browsing/url';
+import { reorderedIds } from '../../shared/data/bookmark-order';
 import { inTransaction } from './database';
 import { importLegacyFile } from './legacy-import';
 import { asNumber, asString, isRecord, newId } from './persistence';
@@ -86,6 +87,24 @@ export class BookmarksStore {
   /** Files one bookmark, or unfiles it. Whether the folder exists is decided by the caller. */
   moveTo(id: string, folderId: string | null): void {
     this.database.prepare('UPDATE bookmarks SET folder_id = ? WHERE id = ?').run(folderId, id);
+  }
+
+  /**
+   * Moves a bookmark just before another in its folder, or to the end of its
+   * folder, and reports whether it moved. Only positions change, so nothing can be lost.
+   */
+  reorder(id: string, beforeId: string | null): boolean {
+    const order = reorderedIds(
+      this.list().map((bookmark) => ({ id: bookmark.id, parentId: bookmark.folderId })),
+      id,
+      beforeId,
+    );
+    if (!order) {
+      return false;
+    }
+    const place = this.database.prepare('UPDATE bookmarks SET position = ? WHERE id = ?');
+    inTransaction(this.database, () => order.forEach((bookmarkId, position) => place.run(position, bookmarkId)));
+    return true;
   }
 
   /** Replaces every bookmark, which is how deleting a folder promotes what was in it. */
