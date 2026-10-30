@@ -7,7 +7,7 @@ import type { VaultHost } from '../../../../electron/main/vault/vault-session';
 let dataDir = '';
 vi.mock('electron', () => ({ app: { getPath: () => dataDir } }));
 
-const { VaultSession } = await import('../../../../electron/main/vault/vault-session');
+const { VaultSession, lockWhenAway } = await import('../../../../electron/main/vault/vault-session');
 
 const A_DAY = 24 * 60 * 60 * 1000;
 
@@ -128,6 +128,39 @@ describe('an unlocked vault stays open until it is locked or Copacetic quits', (
 
     const next = setup();
     expect(next.session.isOpen()).toBe(false);
+  });
+});
+
+describe('stepping away from the computer', () => {
+  function fakeMonitor() {
+    const listeners = new Map<string, () => void>();
+    return {
+      on: (event: string, listener: () => void) => listeners.set(event, listener),
+      raise: (event: string) => listeners.get(event)?.(),
+    };
+  }
+
+  it.each(['lock-screen', 'suspend'])('locks every open vault on %s', async (event) => {
+    const monitor = fakeMonitor();
+    const first = setup();
+    const second = setup();
+    await first.session.unlock();
+    await second.session.unlock();
+    lockWhenAway(monitor, () => [first.session, second.session]);
+
+    monitor.raise(event);
+    expect(first.session.isOpen()).toBe(false);
+    expect(second.session.isOpen()).toBe(false);
+  });
+
+  // A vault that was already closed has nothing to announce.
+  it('leaves a closed vault alone', () => {
+    const monitor = fakeMonitor();
+    const { session, onChanged } = setup();
+    lockWhenAway(monitor, () => [session]);
+
+    monitor.raise('lock-screen');
+    expect(onChanged).not.toHaveBeenCalled();
   });
 });
 

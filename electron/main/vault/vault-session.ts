@@ -125,3 +125,21 @@ export class VaultSession {
     this.file.flush();
   }
 }
+
+/** The machine events that say whoever unlocked the vault may no longer be the one in front of it. */
+export const AWAY_EVENTS = ['lock-screen', 'suspend'] as const;
+
+/**
+ * Closes every open vault when the computer locks or sleeps. Passed the
+ * monitor rather than importing it so a test can raise the events.
+ */
+export function lockWhenAway(
+  monitor: { on(event: (typeof AWAY_EVENTS)[number], listener: () => void): unknown },
+  sessions: () => VaultSession[],
+): void {
+  const lockOpen = () =>
+    sessions()
+      .filter((session) => session.isOpen())
+      .forEach((session) => session.lock());
+  AWAY_EVENTS.forEach((event) => monitor.on(event, lockOpen));
+}
