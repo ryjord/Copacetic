@@ -220,12 +220,12 @@ published as prereleases on the [releases page](https://github.com/ryjord/Copace
 A beta is offered newer betas as well as releases; a finished build is offered
 releases only, unless Settings is set to offer betas too.
 
-| Platform        | File                                      | Updates                                       |
-| --------------- | ----------------------------------------- | --------------------------------------------- |
-| macOS           | `Copacetic-<version>-arm64.dmg` or `.dmg` | Downloads the installer, checks it, opens it  |
-| Windows         | `Copacetic-Setup-<version>.exe`           | Downloads in the background, installs on quit |
-| Linux, AppImage | `Copacetic-<version>.AppImage`            | Downloads in the background, installs on quit |
-| Debian, Ubuntu  | `copacetic_<version>_amd64.deb` or apt    | Through `apt upgrade`                         |
+| Platform        | File                                                        | Updates                                       |
+| --------------- | ----------------------------------------------------------- | --------------------------------------------- |
+| macOS           | `Copacetic-<version>-arm64.dmg` or `.dmg`                   | Downloads the installer, checks it, opens it  |
+| Windows         | `Copacetic-Setup-<version>.exe`                             | Downloads in the background, installs on quit |
+| Linux, AppImage | `Copacetic-<version>.AppImage`, or `-arm64.AppImage` on Arm | Downloads in the background, installs on quit |
+| Debian, Ubuntu  | `copacetic_<version>_amd64.deb` or `_arm64.deb`, or apt     | Through `apt upgrade`                         |
 
 Supported versions are 1.4 and later. Older releases have been withdrawn.
 
