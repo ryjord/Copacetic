@@ -511,7 +511,8 @@ Copacetic is MIT licensed; see [LICENSE](LICENSE).
 
 It also redistributes material that is not its to license. The EasyList,
 EasyPrivacy and EasyList Cookie List filter lists ship whole under their own
-terms, GPLv3 or CC BY-SA 3.0 at the recipient's election, and every package the
-app ships is listed with its licence in About. [NOTICE](NOTICE) records what
-they are, where they came from and under what terms, which matters if you fork
-Copacetic and matters more if you sell it.
+terms: EasyList and EasyPrivacy are taken under CC BY-SA 3.0 (they also offer
+the GPLv3), and the Cookie List is CC BY 3.0. Every package the app ships is
+listed with its licence in About. [NOTICE](NOTICE) records what they are, where
+they came from and under what terms, which matters if you fork Copacetic and
+matters more if you sell it.

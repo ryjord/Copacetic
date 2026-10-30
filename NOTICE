@@ -6,10 +6,12 @@ below, which is not, and which keeps its own terms.
 
 If you fork, repackage or sell this software, these terms travel with the files
 and are yours to honour. This file records what is here and under what licence;
-it is not legal advice, and it does not elect between the two licences the lists
-offer - that choice has not been made, and it should be made deliberately, with
-advice, before this is sold. CC BY-SA 3.0 asks for attribution and share-alike
-on the list itself; GPLv3 is the alternative and reaches further.
+it is not legal advice.
+
+EasyList and EasyPrivacy are offered under either of two licences. Copacetic
+takes them under Creative Commons Attribution-ShareAlike 3.0 Unported, not the
+GPLv3: the lists are credited here, shipped whole and unmodified as separate
+files, and remain under CC BY-SA 3.0, which travels with them.
 
 
 EasyList
@@ -19,10 +21,12 @@ EasyList
               and the compiled engine built from it at package time
     Source:   https://easylist.to/easylist/easylist.txt
     Home:     https://easylist.to
-    Licence:  Dual-licensed. Either the GNU General Public License v3.0
-              or Creative Commons Attribution-ShareAlike 3.0 Unported,
-              at the recipient's election.
+    Licence:  Taken under Creative Commons Attribution-ShareAlike 3.0
+              Unported. The list is offered under that or the GNU General
+              Public License v3.0, at the recipient's election.
+              https://creativecommons.org/licenses/by-sa/3.0/
               https://easylist.to/pages/licence.html
+    Credit:   The EasyList authors (https://easylist.to/).
 
 The list of advertising filters most blockers are built on. Shipped in full and
 loaded at runtime, rather than fetched on a schedule, so that this browser makes
@@ -36,10 +40,12 @@ EasyPrivacy
               and the compiled engine built from it at package time
     Source:   https://easylist.to/easylist/easyprivacy.txt
     Home:     https://easylist.to
-    Licence:  Dual-licensed. Either the GNU General Public License v3.0
-              or Creative Commons Attribution-ShareAlike 3.0 Unported,
-              at the recipient's election.
+    Licence:  Taken under Creative Commons Attribution-ShareAlike 3.0
+              Unported. The list is offered under that or the GNU General
+              Public License v3.0, at the recipient's election.
+              https://creativecommons.org/licenses/by-sa/3.0/
               https://easylist.to/pages/licence.html
+    Credit:   The EasyList authors (https://easylist.to/).
 
 Tracking and analytics filters, maintained separately from advertising.
 

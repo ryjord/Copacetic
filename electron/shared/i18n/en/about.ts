@@ -26,7 +26,7 @@ export const about = {
     heading: 'Open-source packages ({count})',
     ownSubtitle: 'MIT',
     filterLists: 'EasyList and EasyPrivacy',
-    filterListsSubtitle: 'GPLv3 or CC BY-SA 3.0',
+    filterListsSubtitle: 'CC BY-SA 3.0',
     noFile: 'This package ships no licence file; it declares itself {licence}.',
   },
   chromiumLicences: {
