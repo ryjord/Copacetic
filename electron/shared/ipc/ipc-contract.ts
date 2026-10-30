@@ -47,6 +47,7 @@ export const CHANNELS = {
   'tabs.setPinned': 'tab:set-pinned',
   'tabs.splitWith': 'tab:split-with',
   'tabs.leaveSplit': 'tab:leave-split',
+  'tabs.replaceSplitPane': 'tab:replace-split-pane',
   'tabs.setSplitRatio': 'tab:set-split-ratio',
   'tabs.sleep': 'tab:sleep',
   'tabs.continueOverHttp': 'tab:continue-over-http',

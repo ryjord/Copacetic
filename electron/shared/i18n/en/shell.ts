@@ -111,6 +111,7 @@ export const shell = {
   },
   splitView: {
     divider: 'Resize the split',
+    pickTab: 'Show an open tab here',
   },
   chrome: {
     outsideShell: {

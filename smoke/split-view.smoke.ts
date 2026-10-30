@@ -70,6 +70,52 @@ describe('split view', () => {
   }, 90_000);
 });
 
+describe('choosing what a split shows', () => {
+  const state = () => copacetic.chrome.evaluate(() => window.copacetic.chrome.getState());
+
+  // The empty half used to need an address pasted into it; an open tab can now go straight in.
+  it('fills the new tab half with a tab already open, beside the other, and closes the empty one', async () => {
+    const otherUrl = 'https://example.com/already-open';
+    const keptUrl = 'https://example.com/kept-beside';
+    const otherId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), otherUrl);
+    const keptId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), keptUrl);
+    await copacetic.until(async () => (await pageAt(otherUrl)) !== undefined, 20_000);
+
+    await copacetic.chrome.evaluate((id) => window.copacetic.tabs.activate(id), keptId);
+    await copacetic.chrome.evaluate(() => window.copacetic.tabs.splitWith(null));
+    const emptyId = (await state()).split?.rightId ?? '';
+    expect(emptyId).not.toBe('');
+
+    await copacetic.chrome.evaluate(([pane, chosen]) => window.copacetic.tabs.replaceSplitPane(pane, chosen), [
+      emptyId,
+      otherId,
+    ] as const);
+    await copacetic.until(async () => (await pageAt(otherUrl))?.isVisible === true, 5_000);
+
+    const after = await state();
+    expect(after.split).toMatchObject({ leftId: keptId, rightId: otherId });
+    expect(after.tabs.some((tab) => tab.id === emptyId)).toBe(false);
+    const order = after.tabs.map((tab) => tab.id);
+    expect(order.indexOf(otherId)).toBe(order.indexOf(keptId) + 1);
+    const kept = await pageAt(keptUrl);
+    const other = await pageAt(otherUrl);
+    expect((kept?.x ?? 0) + (kept?.width ?? 0)).toBeLessThan(other?.x ?? 0);
+  }, 90_000);
+
+  it('ends the split when one of its tabs is dragged away from the other', async () => {
+    const firstId = await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com/pair-a'));
+    const secondId = await copacetic.chrome.evaluate(() =>
+      window.copacetic.tabs.create('https://example.com/pair-b'),
+    );
+    await copacetic.chrome.evaluate((id) => window.copacetic.tabs.activate(id), firstId);
+    await copacetic.chrome.evaluate((id) => window.copacetic.tabs.splitWith(id), secondId);
+    expect((await state()).split).toMatchObject({ leftId: firstId, rightId: secondId });
+
+    await copacetic.chrome.evaluate((id) => window.copacetic.tabs.move(id, 0), secondId);
+    expect(await copacetic.until(async () => (await state()).split === null, 5_000)).toBe(true);
+  }, 60_000);
+});
+
 describe('split view across a restart', () => {
   it('comes back as the pair it was, at the width it was', async () => {
     const first = await copacetic.chrome.evaluate(() =>

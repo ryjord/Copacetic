@@ -72,6 +72,9 @@ interface TabStripProps {
 export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStripProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  // Dropped onto a split tab's middle rather than between tabs: it takes that half of the split.
+  const [isDropOnto, setIsDropOnto] = useState(false);
+  const split = useBrowserStore((state) => state.split);
   const stripRef = useRef<HTMLDivElement>(null);
   const toggleSurface = useBrowserStore((state) => state.toggleSurface);
   // Crowded once a tab is too narrow for its title: past that, finding one by its icon alone is guesswork.
@@ -103,25 +106,36 @@ export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStr
     latestTabs.current = tabs;
   });
 
-  const handleDrop = (index: number) => {
+  const endDrag = () => {
+    setDragId(null);
+    setDropIndex(null);
+    setIsDropOnto(false);
+  };
+
+  // Only a tab from outside the split can take one of its halves; one already in it just moves.
+  const canDropOnto = (isOntoSplitTab: boolean) => isOntoSplitTab && dragId !== null && !isInSplit(split, dragId);
+
+  const handleDragOver = (index: number, isOntoSplitTab: boolean) => {
+    setDropIndex(index);
+    setIsDropOnto(canDropOnto(isOntoSplitTab));
+  };
+
+  const handleDrop = (index: number, isOntoSplitTab: boolean) => {
     const current = latestTabs.current;
     const from = dragId ? current.findIndex((tab) => tab.id === dragId) : -1;
-    // A tab dropped where it already was has not been moved, so nothing about
-    // it should be re-decided: a tab parked between two of a group's tabs would
-    // otherwise be swallowed by the group on the smallest twitch of the mouse.
-    if (dragId && from !== -1 && from !== index) {
+    const target = current[index];
+    if (dragId && target && canDropOnto(isOntoSplitTab)) {
+      send((api) => api.tabs.replaceSplitPane(target.id, dragId));
+    } else if (dragId && from !== -1 && from !== index) {
+      // A tab dropped where it already was has not been moved, so nothing about
+      // it should be re-decided: a tab parked between two of a group's tabs would
+      // otherwise be swallowed by the group on the smallest twitch of the mouse.
       // Where it lands decides which group it is in, not just where it sits.
       const groupId = groupForDrop(current, from, index);
       send((api) => api.tabs.move(dragId, index));
       send((api) => api.groups.setForTab(dragId, groupId));
     }
-    setDragId(null);
-    setDropIndex(null);
-  };
-
-  const endDrag = () => {
-    setDragId(null);
-    setDropIndex(null);
+    endDrag();
   };
 
   // segmentByGroup has already visited every tab in order, so where each run
@@ -197,10 +211,11 @@ export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStr
                 isActive={tab.id === activeTabId}
                 isNarrow={isNarrow}
                 isDragging={dragId === tab.id}
-                showDropBefore={dropIndex === index && dragId !== tab.id}
+                showDropBefore={dropIndex === index && !isDropOnto && dragId !== tab.id}
+                showDropOnto={dropIndex === index && isDropOnto && dragId !== tab.id}
                 onDragStart={setDragId}
                 onDragEnd={endDrag}
-                onDragOver={setDropIndex}
+                onDragOver={handleDragOver}
                 onDrop={handleDrop}
               />
             );
@@ -251,10 +266,21 @@ interface TabProps {
   isNarrow: boolean;
   isDragging: boolean;
   showDropBefore: boolean;
+  /** A tab dragged onto this one would take its half of the split. */
+  showDropOnto: boolean;
   onDragStart: (tabId: string) => void;
   onDragEnd: () => void;
-  onDragOver: (index: number) => void;
-  onDrop: (index: number) => void;
+  onDragOver: (index: number, isOntoSplitTab: boolean) => void;
+  onDrop: (index: number, isOntoSplitTab: boolean) => void;
+}
+
+// The middle half of a split tab takes a dropped tab into the split; the quarter at each edge still reorders.
+const ONTO_EDGE = 0.25;
+
+function isOntoMiddle(event: React.DragEvent<HTMLElement>): boolean {
+  const box = event.currentTarget.getBoundingClientRect();
+  const along = (event.clientX - box.left) / Math.max(1, box.width);
+  return along > ONTO_EDGE && along < 1 - ONTO_EDGE;
 }
 
 // One pass: rebuilding the list with a spread at every run made this grow with the square of the tabs.
@@ -275,6 +301,7 @@ const Tab = memo(function Tab({
   isNarrow,
   isDragging,
   showDropBefore,
+  showDropOnto,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -333,17 +360,18 @@ const Tab = memo(function Tab({
         isDragging && 'opacity-40',
         showDropBefore &&
           'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-active',
+        showDropOnto && 'outline-2 -outline-offset-2 outline-active',
       )}
       draggable
       onDragStart={() => onDragStart(tab.id)}
       onDragEnd={onDragEnd}
       onDragOver={(event) => {
         event.preventDefault();
-        onDragOver(index);
+        onDragOver(index, isSplit && isOntoMiddle(event));
       }}
       onDrop={(event) => {
         event.preventDefault();
-        onDrop(index);
+        onDrop(index, isSplit && isOntoMiddle(event));
       }}
       onClick={() => send((api) => api.tabs.activate(tab.id))}
       onAuxClick={(event) => {

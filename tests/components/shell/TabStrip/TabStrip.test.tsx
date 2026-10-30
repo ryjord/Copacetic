@@ -1,9 +1,12 @@
 // Libs
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react';
 
 // Components
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
+
+// Store
+import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Types
 import type { TabState } from '@shared/types';
@@ -13,12 +16,16 @@ const close = vi.fn();
 const move = vi.fn();
 const setForTab = vi.fn();
 const openNewTabMenu = vi.fn();
+const replaceSplitPane = vi.fn();
 
 // The bridge is absent outside Electron, so stub it to record what the strip
 // asks the main process to do.
 vi.mock('@/lib/bridge/bridge', () => ({
   send: (action: (api: unknown) => void) =>
-    action({ tabs: { activate, close, create: vi.fn(), move, openNewTabMenu }, groups: { setForTab } }),
+    action({
+      tabs: { activate, close, create: vi.fn(), move, openNewTabMenu, replaceSplitPane },
+      groups: { setForTab },
+    }),
   ask: async () => [],
   getBridge: () => null,
   isRunningInShell: () => false,
@@ -71,6 +78,62 @@ afterEach(() => {
   move.mockClear();
   setForTab.mockClear();
   openNewTabMenu.mockClear();
+  replaceSplitPane.mockClear();
+  useBrowserStore.setState({ split: null });
+});
+
+/** A drag event over a tab 100px wide, at a fraction of the way across it; jsdom lays nothing out and drops clientX. */
+function dragAcross(element: HTMLElement, type: 'dragOver' | 'drop', fraction: number) {
+  vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 100 } as DOMRect);
+  const event = createEvent[type](element);
+  Object.defineProperty(event, 'clientX', { value: fraction * 100 });
+  fireEvent(element, event);
+}
+
+describe('dragging a tab into a split', () => {
+  const showSplit = () => useBrowserStore.setState({ split: { leftId: 'one', rightId: 'two', ratio: 0.5 } });
+
+  it('shows a tab dropped onto the middle of a split tab in that half', () => {
+    showSplit();
+    render(<TabStrip tabs={TABS} activeTabId="one" groups={[]} />);
+    const pane = screen.getByRole('tab', { name: /Two/ });
+    fireEvent.dragStart(screen.getByRole('tab', { name: /Three/ }));
+    dragAcross(pane, 'dragOver', 0.5);
+    dragAcross(pane, 'drop', 0.5);
+
+    expect(replaceSplitPane).toHaveBeenCalledWith('two', 'three');
+    expect(move).not.toHaveBeenCalled();
+  });
+
+  it('still just moves a tab dropped on the edge of a split tab', () => {
+    showSplit();
+    render(<TabStrip tabs={TABS} activeTabId="one" groups={[]} />);
+    const pane = screen.getByRole('tab', { name: /Two/ });
+    fireEvent.dragStart(screen.getByRole('tab', { name: /Three/ }));
+    dragAcross(pane, 'drop', 0.1);
+
+    expect(replaceSplitPane).not.toHaveBeenCalled();
+    expect(move).toHaveBeenCalledWith('three', 1);
+  });
+
+  // One half dropped on the other has nowhere new to go; swapping them by accident would be a surprise.
+  it('does not let a split tab take its partner’s half', () => {
+    showSplit();
+    render(<TabStrip tabs={TABS} activeTabId="one" groups={[]} />);
+    fireEvent.dragStart(screen.getByRole('tab', { name: /One/ }));
+    dragAcross(screen.getByRole('tab', { name: /Two/ }), 'drop', 0.5);
+
+    expect(replaceSplitPane).not.toHaveBeenCalled();
+  });
+
+  it('does nothing special on the middle of a tab outside any split', () => {
+    render(<TabStrip tabs={TABS} activeTabId="one" groups={[]} />);
+    fireEvent.dragStart(screen.getByRole('tab', { name: /Three/ }));
+    dragAcross(screen.getByRole('tab', { name: /Two/ }), 'drop', 0.5);
+
+    expect(replaceSplitPane).not.toHaveBeenCalled();
+    expect(move).toHaveBeenCalledWith('three', 1);
+  });
 });
 
 /**

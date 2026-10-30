@@ -6,6 +6,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 // Components
 import { ErrorPage } from '@/components/views/error/ErrorPage';
 import { InternalPage } from '@/components/shell/InternalPage/InternalPage';
+import { SplitPanePicker } from '@/components/shell/SplitView/SplitPanePicker';
 
 // Utils
 import { send } from '@/lib/bridge/bridge';
@@ -20,6 +21,7 @@ import {
   type PaneBounds,
   type SplitView as SplitViewState,
   clampSplitRatio,
+  isInSplit,
   splitPanes,
 } from '@shared/tabs/split-view';
 
@@ -57,6 +59,8 @@ export function SplitView({ split, tabs, activeTabId }: Props) {
   const panes = splitPanes({ x: 0, y: 0, ...size }, split.ratio);
   const leftTab = tabs.find((tab) => tab.id === split.leftId);
   const rightTab = tabs.find((tab) => tab.id === split.rightId);
+  // Another empty new tab is no better than the one already showing.
+  const candidates = tabs.filter((tab) => !isInSplit(split, tab.id) && tab.internalPage !== 'start');
 
   const setRatio = (ratio: number) => send((api) => api.tabs.setSplitRatio(clampSplitRatio(ratio)));
 
@@ -71,8 +75,8 @@ export function SplitView({ split, tabs, activeTabId }: Props) {
 
   return (
     <div ref={ref} className="absolute inset-0">
-      <Pane tab={leftTab} bounds={panes.left} isFocused={activeTabId === split.leftId} />
-      <Pane tab={rightTab} bounds={panes.right} isFocused={activeTabId === split.rightId} />
+      <Pane tab={leftTab} bounds={panes.left} isFocused={activeTabId === split.leftId} candidates={candidates} />
+      <Pane tab={rightTab} bounds={panes.right} isFocused={activeTabId === split.rightId} candidates={candidates} />
       <div
         role="separator"
         aria-orientation="vertical"
@@ -101,7 +105,15 @@ export function SplitView({ split, tabs, activeTabId }: Props) {
   );
 }
 
-function Pane({ tab, bounds, isFocused }: { tab: TabState | undefined; bounds: PaneBounds; isFocused: boolean }) {
+interface PaneProps {
+  tab: TabState | undefined;
+  bounds: PaneBounds;
+  isFocused: boolean;
+  /** Open tabs this half could show instead, offered while it holds only a new tab. */
+  candidates: TabState[];
+}
+
+function Pane({ tab, bounds, isFocused, candidates }: PaneProps) {
   return (
     <div
       className="absolute flex flex-col"
@@ -117,6 +129,9 @@ function Pane({ tab, bounds, isFocused }: { tab: TabState | undefined; bounds: P
         style={{ height: SPLIT_FOCUS_STRIP_HEIGHT }}
         aria-hidden
       />
+      {tab?.internalPage === 'start' && candidates.length > 0 && (
+        <SplitPanePicker paneId={tab.id} candidates={candidates} />
+      )}
       <div className="relative min-h-0 flex-1">
         {tab?.internalPage && <InternalPage tab={tab} />}
         {tab?.error && <ErrorPage tabId={tab.id} error={tab.error} />}
