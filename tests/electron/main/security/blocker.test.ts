@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ContentBlocker, cookieTokensOf } from '../../../../electron/main/security/blocker';
@@ -456,5 +456,30 @@ describe("an extension's rules in the blocker", () => {
 
   it('leave Copacetic to judge what they have nothing to say about', () => {
     expect(judged(true, { kind: 'none' })).toBe(false);
+  });
+});
+
+describe('filter lists that cannot be read', () => {
+  // Lists fetched on 2.1 stopped loading under a newer engine, and nothing anywhere said so.
+  it('says why when lists are there but will not load, and blocks without them', async () => {
+    const diagnostics = await import('../../../../electron/main/system/diagnostics');
+    const warn = vi.spyOn(diagnostics.log, 'warn');
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-unreadable-'));
+    writeFileSync(path.join(directory, 'engine.bin'), 'not an engine');
+    writeFileSync(path.join(directory, 'manifest.json'), '{"lists":[]}');
+
+    expect(new ContentBlocker().loadShippedLists(directory)).toBeNull();
+    expect(warn).toHaveBeenCalledWith('filter lists on disk could not be read and are not in use', expect.anything());
+    warn.mockRestore();
+  });
+
+  it('says nothing when no lists were ever fetched, which is the usual case', async () => {
+    const diagnostics = await import('../../../../electron/main/system/diagnostics');
+    const warn = vi.spyOn(diagnostics.log, 'warn');
+    const directory = mkdtempSync(path.join(tmpdir(), 'copacetic-never-fetched-'));
+
+    expect(new ContentBlocker().loadShippedLists(path.join(directory, 'filters'))).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
