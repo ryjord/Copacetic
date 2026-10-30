@@ -58,6 +58,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
       click: () => browser.commands.adjustZoom('reset'),
     },
     { label: t('main.menu.view.readerView'), ...shortcut('reader-view'), click: () => browser.openSurface('reader') },
+    { label: t('main.menu.view.pictureInPicture'), click: () => browser.commands.pictureInPictureOfActiveTab() },
     { label: t('main.menu.tabs.splitView'), ...shortcut('split-view'), click: () => browser.tabs.toggleSplit() },
     { type: 'separator' },
     { label: t('main.menu.edit.findOnPage'), ...shortcut('find'), click: () => browser.openFind() },

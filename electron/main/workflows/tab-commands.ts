@@ -4,6 +4,7 @@ import { START_PAGE_URL, isNavigableUrl, viewSourceUrlFor } from '../../shared/b
 import { buildSearchUrl } from '../../shared/browsing/search-engines';
 import { nextZoomStep } from '../../shared/tabs/zoom';
 import { t } from '../../shared/i18n/translate';
+import { togglePictureInPicture } from '../tabs/picture-in-picture';
 
 // Types
 import type { TabId } from '../../shared/types';
@@ -103,6 +104,26 @@ export class TabCommands {
 
   saveActiveTab(): void {
     this.withActiveTab((tabId) => this.savePage(tabId));
+  }
+
+  pictureInPictureOfActiveTab(): void {
+    this.withActiveTab((tabId) => this.pictureInPicture(tabId, null));
+  }
+
+  /** The video at a point, or the largest on the page; said out loud only when nothing could happen. */
+  pictureInPicture(tabId: TabId, point: { x: number; y: number } | null): void {
+    void togglePictureInPicture(this.deps.tabs.livePageFor(tabId), point).then((outcome) => {
+      if (outcome === 'none' || outcome === 'refused') {
+        this.deps.notices.notify({
+          id: `picture-in-picture-${tabId}`,
+          tone: 'info',
+          key: 'picture-in-picture',
+          message: t(
+            outcome === 'none' ? 'main.notices.pictureInPictureNone' : 'main.notices.pictureInPictureRefused',
+          ),
+        });
+      }
+    });
   }
 
   saveScreenshotOfActiveTab(): void {

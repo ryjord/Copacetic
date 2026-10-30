@@ -318,13 +318,14 @@ that. To report something that gets past them, see [SECURITY.md](SECURITY.md).
 | Malicious download filenames          | Path components, control characters and bidirectional overrides are stripped before a file is written                                                                                                           |
 | Tampering with the packaged app       | Electron's fuses are set: no `RunAsNode`, no `NODE_OPTIONS`, no inspector flags, ASAR integrity validated, and the app loads only from its archive                                                              |
 
-Four small scripts are the only ones Copacetic puts in a page, and the
+Five small scripts are the only ones Copacetic puts in a page, and the
 transparency page names each of them. One fills in the `window.chrome` object
 that real Chrome has and Electron leaves empty, with three placeholder members
 and nothing of the browser's, because some sign-in pages refuse a browser
-without it. Fill password runs once, when you choose it. A page left in full
-screen when you switch to another tab is asked to leave it, with one call that
-reads nothing. And on each secure page, in a world of its own the page cannot
+without it. Fill password runs once, when you choose it, and so does Picture in
+picture, which reads only which video is where. A page left in full screen when
+you switch to another tab is asked to leave it, with one call that reads
+nothing. And on each secure page, in a world of its own the page cannot
 see or reach, one looks for a sign-in form: it stops at once where there is
 none, and otherwise reads the username and password once you send them, so
 Copacetic can offer to save them. Not in Hush, and it can be turned off.
