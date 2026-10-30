@@ -2,8 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 // Utils
-import { PasswordSave } from '../../../../electron/main/workflows/password-save';
-import { STILL_ASKS_FOR_PASSWORD } from '../../../../electron/main/system/sign-in-watch-script';
+import { LOOKS_AGAIN_AT_MS, PasswordSave } from '../../../../electron/main/workflows/password-save';
+import { SIGN_IN_WATCH_SCRIPT, STILL_ASKS_FOR_PASSWORD } from '../../../../electron/main/system/sign-in-watch-script';
 import { DEFAULT_SETTINGS } from '../../../../electron/main/data/settings-store';
 
 const TAB = 'tab-1';
@@ -236,5 +236,71 @@ describe('offering to save a password', () => {
     await signIn({ username: 'riley', password: 'secret' });
     save.forget(TAB);
     expect(save.offerFor('another-tab')).toMatchObject({ username: 'riley' });
+  });
+});
+
+/**
+ * A sign-in form drawn after the page loads, or in a dialog opened later, was
+ * looked for at load and once more three seconds on, and then never again, so
+ * signing in through it was never offered. Each look still stops at once where
+ * there is no form; there are just a few more of them.
+ */
+describe('a sign-in form that appears after the page has loaded', () => {
+  function pageWithNoForm() {
+    const contents = {
+      getURL: () => SIGN_IN,
+      isDestroyed: () => false,
+      // What the watch answers on a page with no form: nothing, at once.
+      executeJavaScriptInIsolatedWorld: vi.fn(async () => null),
+    };
+    const save = new PasswordSave({
+      tabs: { livePageFor: () => contents, isHush: () => false } as never,
+      vaultSession: {
+        vault: { state: () => ({ entries: [] }) },
+        isOpen: () => true,
+        hasKeychain: () => true,
+      } as never,
+      notices: { notify: vi.fn() } as never,
+      settings: () => DEFAULT_SETTINGS,
+      neverOn: vi.fn(),
+      changed: vi.fn(),
+      now: () => 1_000,
+    });
+    const looks = () =>
+      contents.executeJavaScriptInIsolatedWorld.mock.calls.filter(
+        (call) => (call as unknown as [number, { code: string }[]])[1]?.[0]?.code === SIGN_IN_WATCH_SCRIPT,
+      ).length;
+    return { save, looks };
+  }
+
+  it('is looked for again at each of the later times, and then no more', async () => {
+    vi.useFakeTimers();
+    const { save, looks } = pageWithNoForm();
+    save.pageChanged(TAB, 'committed');
+    save.pageChanged(TAB, 'loaded');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(looks()).toBe(1);
+
+    const elapsed = LOOKS_AGAIN_AT_MS.reduce(async (previous, lookAt, index) => {
+      const since = await previous;
+      await vi.advanceTimersByTimeAsync(lookAt - since);
+      expect(looks()).toBe(index + 2);
+      return lookAt;
+    }, Promise.resolve(0));
+    await elapsed;
+
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(looks()).toBe(4);
+    vi.useRealTimers();
+  });
+
+  // A single-page site moves its address all the time; each move is looked at once, not on a schedule.
+  it('is looked for once after a move within the page', async () => {
+    vi.useFakeTimers();
+    const { save, looks } = pageWithNoForm();
+    save.pageChanged(TAB, 'in-page');
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(looks()).toBe(1);
+    vi.useRealTimers();
   });
 });

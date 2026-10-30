@@ -22,8 +22,8 @@ const WATCH_WORLD = 1031;
 const MOVED_ON_WITHIN_MS = 10_000;
 // A single-page sign-in draws what it shows next after moving its address; this long is enough.
 const SETTLED_AFTER_MS = 1000;
-// A page that draws its form after loading is looked at again once, this long after.
-const LOOKED_AGAIN_AFTER_MS = 3000;
+// A form drawn after loading, or in a dialog opened later, is looked for again this long after the page loaded.
+export const LOOKS_AGAIN_AT_MS = [3000, 10_000, 30_000] as const;
 // An offer nobody answers goes, and the password it holds with it.
 const OFFER_KEPT_MS = 5 * 60_000;
 // The username of a sign-in that asks for it on one page and the password on the next.
@@ -119,7 +119,7 @@ export class PasswordSave {
     if (change !== 'committed') {
       void this.judge(tabId, change === 'in-page' ? SETTLED_AFTER_MS : 0);
       // A new document is looked at again later for a form drawn after loading; a move within one is not.
-      void this.watch(tabId, change === 'in-page');
+      void this.watch(tabId, change === 'in-page' ? LOOKS_AGAIN_AT_MS.length : 0);
     }
   }
 
@@ -201,7 +201,7 @@ export class PasswordSave {
   }
 
   // One watch per document: the one already there sees a form drawn after the address moved, too.
-  private async watch(tabId: TabId, isLookingAgain = false): Promise<void> {
+  private async watch(tabId: TabId, looksDone = 0): Promise<void> {
     const contents = this.watching.has(tabId) ? null : this.watchable(tabId);
     if (!contents) {
       return;
@@ -224,11 +224,15 @@ export class PasswordSave {
       this.remember(tabId, url, submitted);
       // The same page can be sent again, after a mistyped password.
       void this.watch(tabId);
-    } else if (!isLookingAgain) {
-      await later(LOOKED_AGAIN_AFTER_MS);
-      if (this.documentOf(tabId) === page) {
-        void this.watch(tabId, true);
-      }
+      return;
+    }
+    const nextLookAt = LOOKS_AGAIN_AT_MS[looksDone];
+    if (nextLookAt === undefined) {
+      return;
+    }
+    await later(nextLookAt - (LOOKS_AGAIN_AT_MS[looksDone - 1] ?? 0));
+    if (this.documentOf(tabId) === page) {
+      void this.watch(tabId, looksDone + 1);
     }
   }
 
