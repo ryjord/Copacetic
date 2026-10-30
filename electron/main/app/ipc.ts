@@ -128,6 +128,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
   );
   handle('tabs.splitWith', (browser, _event, id) => browser.tabs.splitWith(id === null ? null : asString(id)));
   handle('tabs.leaveSplit', (browser) => browser.tabs.leaveSplit());
+  handle('tabs.replaceSplitPane', (browser, _event, paneId, replacementId) =>
+    browser.tabs.replaceSplitPane(asString(paneId), asString(replacementId)),
+  );
   handle('tabs.setSplitRatio', (browser, _event, ratio) =>
     browser.tabs.setSplitRatio(typeof ratio === 'number' ? ratio : Number.NaN),
   );

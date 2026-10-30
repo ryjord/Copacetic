@@ -77,6 +77,8 @@ export interface CopaceticApi {
     /** Shows the tab in front beside this one, or beside a new tab when null. */
     splitWith(id: TabId | null): Promise<void>;
     leaveSplit(): Promise<void>;
+    /** Puts another open tab in the half of the split that holds this one. */
+    replaceSplitPane(paneId: TabId, replacementId: TabId): Promise<void>;
     setSplitRatio(ratio: number): Promise<void>;
     /** Closes a background tab's page to save memory; it comes back when the tab is chosen. */
     sleep(id: TabId): Promise<void>;

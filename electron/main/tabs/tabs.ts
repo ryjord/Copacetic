@@ -1292,6 +1292,14 @@ export class TabManager {
     }
     this.order.splice(from, 1);
     this.order.splice(clamped, 0, id);
+    // A split's two tabs sit side by side in the strip; moving one away from the other is taking it out.
+    if (this.split && isInSplit(this.split, id)) {
+      const distance = this.order.indexOf(this.split.leftId) - this.order.indexOf(this.split.rightId);
+      if (Math.abs(distance) !== 1) {
+        this.leaveSplit();
+        return;
+      }
+    }
     this.onChanged();
   }
 
@@ -1341,6 +1349,39 @@ export class TabManager {
     this.move(rightId, rightIndex > leftIndex ? leftIndex + 1 : leftIndex);
     this.split = { leftId, rightId, ratio: this.split?.ratio ?? EVEN_SPLIT_RATIO };
     this.activate(rightId);
+    this.applyBounds();
+    this.applyVisibility();
+    this.onChanged();
+  }
+
+  /**
+   * Puts another open tab in one half of the split, beside the other half in
+   * the strip. The tab it replaces stays open, unless it is the new tab the
+   * split opened with and still shows nothing, which would only be clutter.
+   */
+  replaceSplitPane(paneId: TabId, replacementId: TabId): void {
+    const split = this.split;
+    if (!split || !isInSplit(split, paneId) || !this.tabs.has(replacementId) || isInSplit(split, replacementId)) {
+      return;
+    }
+    const isLeft = split.leftId === paneId;
+    const partnerId = partnerIn(split, paneId);
+    this.split = isLeft ? { ...split, leftId: replacementId } : { ...split, rightId: replacementId };
+
+    const partnerIndex = this.order.indexOf(partnerId);
+    // Taken out before it goes back in, so a tab from before the partner lands one place earlier.
+    const partnerIndexWithout = this.order.indexOf(replacementId) < partnerIndex ? partnerIndex - 1 : partnerIndex;
+    this.move(replacementId, isLeft ? partnerIndexWithout : partnerIndexWithout + 1);
+
+    const displaced = this.tabs.get(paneId);
+    if (displaced && internalPageOf(displaced.url) === 'start') {
+      this.close(paneId, { isReplaced: true });
+    }
+    if (!this.split) {
+      // The move could not seat it beside its partner, such as a pinned tab, so there is no split to show.
+      return;
+    }
+    this.activate(replacementId);
     this.applyBounds();
     this.applyVisibility();
     this.onChanged();
