@@ -220,12 +220,12 @@ published as prereleases on the [releases page](https://github.com/ryjord/Copace
 A beta is offered newer betas as well as releases; a finished build is offered
 releases only, unless Settings is set to offer betas too.
 
-| Platform        | File                                      | Updates                                       |
-| --------------- | ----------------------------------------- | --------------------------------------------- |
-| macOS           | `Copacetic-<version>-arm64.dmg` or `.dmg` | Downloads the installer, checks it, opens it  |
-| Windows         | `Copacetic-Setup-<version>.exe`           | Downloads in the background, installs on quit |
-| Linux, AppImage | `Copacetic-<version>.AppImage`            | Downloads in the background, installs on quit |
-| Debian, Ubuntu  | `copacetic_<version>_amd64.deb` or apt    | Through `apt upgrade`                         |
+| Platform        | File                                                        | Updates                                       |
+| --------------- | ----------------------------------------------------------- | --------------------------------------------- |
+| macOS           | `Copacetic-<version>-arm64.dmg` or `.dmg`                   | Downloads the installer, checks it, opens it  |
+| Windows         | `Copacetic-Setup-<version>.exe`                             | Downloads in the background, installs on quit |
+| Linux, AppImage | `Copacetic-<version>.AppImage`, or `-arm64.AppImage` on Arm | Downloads in the background, installs on quit |
+| Debian, Ubuntu  | `copacetic_<version>_amd64.deb` or `_arm64.deb`, or apt     | Through `apt upgrade`                         |
 
 Supported versions are 1.4 and later. Older releases have been withdrawn.
 
@@ -328,7 +328,9 @@ you switch to another tab is asked to leave it, with one call that reads
 nothing. And on each secure page, in a world of its own the page cannot
 see or reach, one looks for a sign-in form: it stops at once where there is
 none, and otherwise reads the username and password once you send them, so
-Copacetic can offer to save them. Not in Hush, and it can be turned off.
+Copacetic can offer to save them. It looks again 3, 10 and 30 seconds after the
+page loads, for a form drawn later or in a dialog, and each look stops at once
+in the same way. Not in Hush, and it can be turned off.
 
 An extension you add runs its own code, in the pages it asks for, as it would in
 Chrome. Once one is added, Copacetic gives every service worker in that profile

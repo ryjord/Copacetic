@@ -1,7 +1,7 @@
 {
   "name": "copacetic",
   "productName": "Copacetic",
-  "version": "2.1.1-beta.1",
+  "version": "2.2.0-beta.1",
   "description": "A calm, honest browser that shows you the true state of every page.",
   "author": {
     "name": "Riley Jordan",
@@ -175,8 +175,20 @@
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "category": "Network",
       "mimeTypes": [

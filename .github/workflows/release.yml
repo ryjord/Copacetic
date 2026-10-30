@@ -155,6 +155,7 @@ jobs:
               release/*.AppImage
               release/*.deb
               release/latest-linux.yml
+              release/latest-linux-arm64.yml
           - os: windows-latest
             artifacts: |
               release/*.exe
@@ -248,8 +249,9 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           expected="Copacetic-$version.dmg Copacetic-$version-arm64.dmg Copacetic-Setup-$version.exe \
-                    Copacetic-$version.AppImage copacetic_${version}_amd64.deb \
-                    latest.yml latest-mac.yml latest-linux.yml"
+                    Copacetic-$version.AppImage Copacetic-$version-arm64.AppImage \
+                    copacetic_${version}_amd64.deb copacetic_${version}_arm64.deb \
+                    latest.yml latest-mac.yml latest-linux.yml latest-linux-arm64.yml"
 
           # One tag, one release. GitHub permits two, and when the platforms
           # published in parallel it got two - with the assets split between
@@ -384,9 +386,10 @@ jobs:
           fi
 
           # copacetic_1.4.13_amd64.deb -> the line 1.4. The newest package of
-          # each line is kept and the rest go. Written in plain sh rather than
-          # with an associative array so it does not depend on the runner's
-          # bash version.
+          # each line is kept for each architecture, and the rest go: kept per
+          # line alone, an arm64 package would evict the amd64 one beside it.
+          # Written in plain sh rather than with an associative array so it
+          # does not depend on the runner's bash version.
           lines=$(ls -1 ./*.deb | sed 's/.*_\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/' | sort -u)
           keep=""
           for line in $lines; do
@@ -395,8 +398,10 @@ jobs:
                [ "$(printf '%s\n%s\n' "$line" "$OLDEST_SUPPORTED_LINE" | sort -V | head -1)" = "$line" ]; then
               continue
             fi
-            newest=$(ls -1 ./*.deb | grep "_${line}\." | sort -V | tail -1)
-            keep="$keep $newest"
+            for arch in amd64 arm64; do
+              newest=$(ls -1 ./*.deb | grep "_${line}\." | grep "_${arch}\.deb$" | sort -V | tail -1 || true)
+              keep="$keep $newest"
+            done
           done
 
           for package in ./*.deb; do

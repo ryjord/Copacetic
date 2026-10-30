@@ -13,6 +13,7 @@ import { ChevronRight, Folder } from 'lucide-react';
 import { useBookmarkTree } from '@/lib/bookmarks/useBookmarkTree';
 import { send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
+import { cn } from '@/lib/utils';
 import { childrenOf, pathOf } from '@shared/data/bookmark-folders';
 import { t } from '@shared/i18n/translate';
 
@@ -22,6 +23,12 @@ const SHOWN_AT_ONCE = 16;
 const CHIP_CLASSES =
   'flex max-w-44 items-center gap-2 rounded-full bg-raised/70 px-3 py-1.5 text-body-sm text-ink-dim transition-colors hover:bg-raised hover:text-ink';
 const CRUMB_CLASSES = 'rounded-sm px-1 text-body-sm text-ink-dim transition-colors hover:text-ink';
+const DROP_LINE_CLASSES = {
+  before: 'before:absolute before:-left-1 before:inset-y-1 before:w-0.5 before:rounded-full before:bg-active',
+  after: 'after:absolute after:-right-1 after:inset-y-1 after:w-0.5 after:rounded-full after:bg-active',
+};
+
+type ChipKind = 'folder' | 'bookmark';
 
 /**
  * Your bookmarks filed as you filed them: a folder opens in place, with the way
@@ -31,6 +38,8 @@ export function StartBookmarks({ tabId }: { tabId: string }) {
   const { bookmarks, folders } = useBookmarkTree();
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [isShowingAll, setIsShowingAll] = useState(false);
+  const [dragging, setDragging] = useState<{ kind: ChipKind; id: string } | null>(null);
+  const [dropAt, setDropAt] = useState<{ id: string; isAfter: boolean } | null>(null);
 
   // A folder deleted while it was open falls back to the top rather than to an empty nowhere.
   const currentId = folders.some((folder) => folder.id === openFolderId) ? openFolderId : null;
@@ -46,6 +55,52 @@ export function StartBookmarks({ tabId }: { tabId: string }) {
   const open = (folderId: string | null) => {
     setOpenFolderId(folderId);
     setIsShowingAll(false);
+  };
+
+  const endDrag = () => {
+    setDragging(null);
+    setDropAt(null);
+  };
+
+  // A chip moves among its own kind in this folder: before the one it is dropped on, or after it on its right half.
+  const reorderable = (kind: ChipKind, id: string) => {
+    const siblings = kind === 'folder' ? childFolders : childBookmarks;
+    const canDrop = dragging !== null && dragging.kind === kind && dragging.id !== id;
+    const isRightHalf = (event: React.DragEvent<HTMLElement>) => {
+      const box = event.currentTarget.getBoundingClientRect();
+      return event.clientX > box.left + box.width / 2;
+    };
+    return {
+      draggable: true,
+      onDragStart: () => setDragging({ kind, id }),
+      onDragEnd: endDrag,
+      onDragOver: (event: React.DragEvent<HTMLElement>) => {
+        if (!canDrop) {
+          return;
+        }
+        event.preventDefault();
+        setDropAt({ id, isAfter: isRightHalf(event) });
+      },
+      onDrop: (event: React.DragEvent<HTMLElement>) => {
+        if (!canDrop || !dragging) {
+          return;
+        }
+        event.preventDefault();
+        const index = siblings.findIndex((sibling) => sibling.id === id);
+        const beforeId = isRightHalf(event) ? (siblings[index + 1]?.id ?? null) : id;
+        const movingId = dragging.id;
+        send((api) =>
+          kind === 'folder'
+            ? api.bookmarkFolders.reorder(movingId, beforeId)
+            : api.bookmarks.reorder(movingId, beforeId),
+        );
+        endDrag();
+      },
+      className: cn(
+        'relative',
+        dropAt?.id === id && (dropAt.isAfter ? DROP_LINE_CLASSES.after : DROP_LINE_CLASSES.before),
+      ),
+    };
   };
 
   if (bookmarks.length === 0 && folders.length === 0) {
@@ -80,7 +135,7 @@ export function StartBookmarks({ tabId }: { tabId: string }) {
       ) : (
         <ul className="flex flex-wrap gap-1.5">
           {shownFolders.map((folder) => (
-            <li key={folder.id}>
+            <li key={folder.id} {...reorderable('folder', folder.id)}>
               <button type="button" onClick={() => open(folder.id)} className={CHIP_CLASSES}>
                 <Folder size={14} className="shrink-0" aria-hidden />
                 <span className="truncate">{folder.name}</span>
@@ -88,7 +143,7 @@ export function StartBookmarks({ tabId }: { tabId: string }) {
             </li>
           ))}
           {shownBookmarks.map((bookmark) => (
-            <li key={bookmark.id}>
+            <li key={bookmark.id} {...reorderable('bookmark', bookmark.id)}>
               <button
                 type="button"
                 onClick={() => send((api) => api.tabs.navigate(tabId, bookmark.url))}

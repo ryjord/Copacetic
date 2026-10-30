@@ -58,7 +58,8 @@ function packagedBinary() {
     return path.join(RELEASE, tree, exe);
   }
 
-  const tree = trees.find((name) => name.startsWith('linux'));
+  // Both architectures may be unpacked; only this machine's own can be started.
+  const tree = trees.find((name) => name === (process.arch === 'arm64' ? 'linux-arm64-unpacked' : 'linux-unpacked'));
   if (!tree) {
     throw new Error(`No linux tree in release/: ${trees.join(', ')}`);
   }
