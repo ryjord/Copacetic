@@ -79,7 +79,7 @@ const mustBeGone = async (file, why) => {
 };
 
 async function checkDeb() {
-  const deb = only(/^copacetic_.*_amd64\.deb$/);
+  const deb = only(process.arch === 'arm64' ? /^copacetic_.*_arm64\.deb$/ : /^copacetic_.*_amd64\.deb$/);
   run('sudo', ['apt-get', 'install', '-y', deb]);
   mustExist('/opt/Copacetic/copacetic', 'the package installs the app to /opt');
   mustExist('/usr/bin/copacetic', 'electron-builder links the binary into /usr/bin');
@@ -96,7 +96,10 @@ async function checkDeb() {
 }
 
 async function checkAppImage() {
-  const appImage = only(/^Copacetic-.*\.AppImage$/);
+  // Both architectures are built; this machine can run only its own.
+  const appImage = only(
+    process.arch === 'arm64' ? /^Copacetic-.*-arm64\.AppImage$/ : /^Copacetic-(?!.*-arm64\.).*\.AppImage$/,
+  );
   // Ubuntu 24.04 ships without the FUSE 2 library an AppImage mounts itself with; the README says so.
   run('sudo', ['apt-get', 'install', '-y', 'libfuse2t64']);
   run('chmod', ['+x', appImage]);
