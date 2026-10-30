@@ -775,7 +775,7 @@ export const settings = {
     offers: {
       title: 'Saving as you sign in',
       label: 'Offer to save passwords',
-      help: 'When you sign in to a site, Copacetic offers to save the password, or to update the one it has. A short script, in a world of its own the page cannot see, looks for a sign-in form on each secure page and stops at once where there is none; the password goes nowhere but the vault. Never in Hush.',
+      help: 'When you sign in to a site, Copacetic offers to save the password, or to update the one it has. A short script, in a world of its own the page cannot see, looks for a sign-in form on each secure page, and again a few times in its first half-minute, and stops at once where there is none; the password goes nowhere but the vault. Never in Hush.',
       never: 'Never offered on {site}',
       offerAgain: 'Offer again',
     },
@@ -977,7 +977,7 @@ export const settings = {
         question: 'Does Copacetic run code in the pages I visit?',
         before: 'Four small things. Every page gets a placeholder for the',
         after:
-          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
+          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and it looks again 3, 10 and 30 seconds after the page loads for a form drawn later or in a dialog; where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
       },
       extensions: {
         question: 'What about extensions?',

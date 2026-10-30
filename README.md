@@ -327,7 +327,9 @@ screen when you switch to another tab is asked to leave it, with one call that
 reads nothing. And on each secure page, in a world of its own the page cannot
 see or reach, one looks for a sign-in form: it stops at once where there is
 none, and otherwise reads the username and password once you send them, so
-Copacetic can offer to save them. Not in Hush, and it can be turned off.
+Copacetic can offer to save them. It looks again 3, 10 and 30 seconds after the
+page loads, for a form drawn later or in a dialog, and each look stops at once
+in the same way. Not in Hush, and it can be turned off.
 
 An extension you add runs its own code, in the pages it asks for, as it would in
 Chrome. Once one is added, Copacetic gives every service worker in that profile
