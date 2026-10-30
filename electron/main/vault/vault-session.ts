@@ -3,16 +3,7 @@ import path from 'node:path';
 
 // Utils
 import { type KeychainDescription, describeKeychain } from '../../shared/passwords/vault-keychain';
-import {
-  LOCKED,
-  type LockState,
-  describeLock,
-  isUnlocked,
-  lock,
-  touch,
-  unlock,
-  unlockMethodFor,
-} from '../../shared/passwords/vault-lock';
+import { describeLock, unlockMethodFor } from '../../shared/passwords/vault-lock';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
 import { t } from '../../shared/i18n/translate';
@@ -45,7 +36,8 @@ export interface VaultHost {
 export class VaultSession {
   readonly vault: Vault;
   private readonly file: PersistedFile<VaultFile>;
-  private lockState: LockState = LOCKED;
+  // No idle timeout: once unlocked it stays open until it is locked or Copacetic quits.
+  private isUnlocked = false;
 
   constructor(
     private readonly host: VaultHost,
@@ -67,19 +59,12 @@ export class VaultSession {
         set: (next) => this.file.set(next),
       },
       this.now,
-      () => {
-        const open = isUnlocked(this.lockState, this.now());
-        if (open) {
-          // Using it holds it open; reading one password should not start a countdown.
-          this.lockState = touch(this.lockState, this.now());
-        }
-        return open;
-      },
+      () => this.isUnlocked,
     );
   }
 
   isOpen(): boolean {
-    return isUnlocked(this.lockState, this.now());
+    return this.isUnlocked;
   }
 
   private method() {
@@ -126,17 +111,35 @@ export class VaultSession {
         return t('main.vault.notUnlocked');
       }
     }
-    this.lockState = unlock(this.lockState, this.now());
+    this.isUnlocked = true;
     this.onChanged();
     return '';
   }
 
   lock(): void {
-    this.lockState = lock(this.lockState);
+    this.isUnlocked = false;
     this.onChanged();
   }
 
   flush(): void {
     this.file.flush();
   }
+}
+
+/** The machine events that say whoever unlocked the vault may no longer be the one in front of it. */
+export const AWAY_EVENTS = ['lock-screen', 'suspend'] as const;
+
+/**
+ * Closes every open vault when the computer locks or sleeps. Passed the
+ * monitor rather than importing it so a test can raise the events.
+ */
+export function lockWhenAway(
+  monitor: { on(event: (typeof AWAY_EVENTS)[number], listener: () => void): unknown },
+  sessions: () => VaultSession[],
+): void {
+  const lockOpen = () =>
+    sessions()
+      .filter((session) => session.isOpen())
+      .forEach((session) => session.lock());
+  AWAY_EVENTS.forEach((event) => monitor.on(event, lockOpen));
 }

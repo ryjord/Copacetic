@@ -7,8 +7,9 @@ import type { VaultHost } from '../../../../electron/main/vault/vault-session';
 let dataDir = '';
 vi.mock('electron', () => ({ app: { getPath: () => dataDir } }));
 
-const { VaultSession } = await import('../../../../electron/main/vault/vault-session');
-const { DEFAULT_TIMEOUT_MS } = await import('../../../../electron/shared/passwords/vault-lock');
+const { VaultSession, lockWhenAway } = await import('../../../../electron/main/vault/vault-session');
+
+const A_DAY = 24 * 60 * 60 * 1000;
 
 /** Reversible rather than encrypted: these tests are about the lock, not the cipher. */
 function fakeHost(overrides: Partial<VaultHost> = {}): VaultHost {
@@ -95,18 +96,9 @@ describe('unlocking asks whoever the machine can ask', () => {
   });
 });
 
-describe('an unlocked vault closes itself after a while', () => {
-  it('locks once the timeout has passed', async () => {
-    const { session } = setup();
-    await session.unlock();
-
-    clock = DEFAULT_TIMEOUT_MS + 1;
-    expect(session.isOpen()).toBe(false);
-  });
-
-  // Reading a password is being present, so it should not be the thing that
-  // runs the clock down while you are still working.
-  it('is held open by using it', async () => {
+// Asking again an hour into a session, for a vault you already opened, is friction that protects nothing.
+describe('an unlocked vault stays open until it is locked or Copacetic quits', () => {
+  it('is still open, and still reveals, a day later', async () => {
     const { session } = setup();
     const { id } = session.vault.add({
       origin: 'https://example.com',
@@ -115,26 +107,60 @@ describe('an unlocked vault closes itself after a while', () => {
     }) as { id: string };
     await session.unlock();
 
-    clock = DEFAULT_TIMEOUT_MS - 1000;
-    expect(session.vault.reveal(id)).toBe('hunter2');
-
-    // Past the original deadline, but not past a new one starting from that read.
-    clock = DEFAULT_TIMEOUT_MS + 1000;
+    clock = A_DAY;
     expect(session.isOpen()).toBe(true);
+    expect(session.vault.reveal(id)).toBe('hunter2');
   });
 
-  it('is not held open by a read that happened after it had already closed', async () => {
+  it('closes when locked, and stays closed however long passes', async () => {
     const { session } = setup();
-    const { id } = session.vault.add({
-      origin: 'https://example.com',
-      username: 'ada',
-      password: 'hunter2',
-    }) as { id: string };
     await session.unlock();
+    session.lock();
 
-    clock = DEFAULT_TIMEOUT_MS + 1;
-    expect(session.vault.reveal(id)).toBeNull();
+    clock = A_DAY;
     expect(session.isOpen()).toBe(false);
+  });
+
+  // Quitting ends the process, and a new one starts from here.
+  it('starts locked again in a new session', async () => {
+    const first = setup();
+    await first.session.unlock();
+
+    const next = setup();
+    expect(next.session.isOpen()).toBe(false);
+  });
+});
+
+describe('stepping away from the computer', () => {
+  function fakeMonitor() {
+    const listeners = new Map<string, () => void>();
+    return {
+      on: (event: string, listener: () => void) => listeners.set(event, listener),
+      raise: (event: string) => listeners.get(event)?.(),
+    };
+  }
+
+  it.each(['lock-screen', 'suspend'])('locks every open vault on %s', async (event) => {
+    const monitor = fakeMonitor();
+    const first = setup();
+    const second = setup();
+    await first.session.unlock();
+    await second.session.unlock();
+    lockWhenAway(monitor, () => [first.session, second.session]);
+
+    monitor.raise(event);
+    expect(first.session.isOpen()).toBe(false);
+    expect(second.session.isOpen()).toBe(false);
+  });
+
+  // A vault that was already closed has nothing to announce.
+  it('leaves a closed vault alone', () => {
+    const monitor = fakeMonitor();
+    const { session, onChanged } = setup();
+    lockWhenAway(monitor, () => [session]);
+
+    monitor.raise('lock-screen');
+    expect(onChanged).not.toHaveBeenCalled();
   });
 });
 

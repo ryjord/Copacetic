@@ -46,12 +46,31 @@ export class PasswordFill {
     return problem;
   }
 
-  private async attemptFill(tabId: TabId, entryId: string): Promise<string> {
+  private entryFor(tabId: TabId, entryId: string): { entry?: { username: string }; refusal: string } {
     const url = this.deps.tabs.urlFor(tabId) ?? '';
     const offer = offerFor(url, this.deps.vaultSession.vault.state().entries);
     const entry = offer.entries.find((candidate) => candidate.id === entryId);
+    return entry ? { entry, refusal: '' } : { refusal: offer.refusal || t('main.passwords.fill.wrongPage') };
+  }
+
+  private async attemptFill(tabId: TabId, entryId: string): Promise<string> {
+    const beforeUnlock = this.entryFor(tabId, entryId);
+    if (beforeUnlock.refusal) {
+      return beforeUnlock.refusal;
+    }
+
+    // Asking to fill is asking to unlock: the prompt comes here, not a trip to Settings.
+    if (!this.deps.vaultSession.isOpen()) {
+      const problem = await this.deps.vaultSession.unlock();
+      if (problem) {
+        return problem;
+      }
+    }
+
+    // Checked again: the page may have navigated while the prompt was up.
+    const { entry, refusal } = this.entryFor(tabId, entryId);
     if (!entry) {
-      return offer.refusal || t('main.passwords.fill.wrongPage');
+      return refusal;
     }
 
     const password = this.deps.vaultSession.vault.reveal(entryId);

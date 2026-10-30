@@ -1,5 +1,5 @@
 // Libs
-import { BrowserWindow, type WebContents, app, session as electronSession } from 'electron';
+import { BrowserWindow, type WebContents, app, session as electronSession, powerMonitor } from 'electron';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
 
@@ -23,6 +23,7 @@ import { applyAppearance, onAppearanceChange } from '../window/appearance';
 import { filtersRoot, translationEngineRoot } from './env';
 import { TranslationService, translationModelsDirectory } from '../translation/translation-service';
 import { Profile, type ProfileHost } from './profile';
+import { lockWhenAway } from '../vault/vault-session';
 import { readChosenImage } from '../system/file-dialogs';
 import { t } from '../../shared/i18n/translate';
 import { MAX_PROFILE_PICTURE_BYTES } from '../../shared/data/profiles';
@@ -97,6 +98,7 @@ export class Profiles {
     // Before any window exists, so each is created in the colour it will be painted.
     applyAppearance(this.first.store.getSettings().appearance);
     this.stopWatchingAppearance = onAppearanceChange(() => this.allWindows().forEach((window) => window.repaint()));
+    lockWhenAway(powerMonitor, () => [...this.open.values()].map((profile) => profile.vaultSession));
   }
 
   /** The profile everything from before profiles is in, and the one that can never be removed. */
