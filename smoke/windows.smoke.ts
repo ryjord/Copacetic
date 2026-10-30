@@ -109,13 +109,11 @@ describe('more than one window', () => {
   it('closes a window when its last tab closes, and leaves the others', async () => {
     const before = await windowCount();
     const opener = copacetic.chromePages().find((page) => !page.isClosed())!;
+    // The window the last test closed can linger in the list for a moment; closing its tab would close nothing new.
+    const alreadyThere = new Set(copacetic.chromePages());
     await opener.evaluate(() => window.copacetic.window.openNew());
     expect(await until(async () => (await windowCount()) === before + 1)).toBe(true);
-    const opened = () =>
-      copacetic
-        .chromePages()
-        .filter((page) => !page.isClosed())
-        .find((page) => page !== opener);
+    const opened = () => copacetic.chromePages().find((page) => !alreadyThere.has(page) && !page.isClosed());
     expect(await until(async () => opened() !== undefined)).toBe(true);
     await opened()!.evaluate(async () => {
       const state = await window.copacetic.chrome.getState();
