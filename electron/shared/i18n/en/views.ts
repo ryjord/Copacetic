@@ -223,7 +223,14 @@ export const views = {
       save: 'Save',
       failed: 'The shortcut was not saved.',
     },
-    bookmarksEmpty: 'Your latest bookmarks appear here.',
+    bookmarks: {
+      empty: 'Bookmarks you save appear here.',
+      emptyFolder: 'Nothing in this folder yet.',
+      top: 'Bookmarks',
+      path: 'Bookmark folder',
+      showAll: 'Show all {count}',
+      showFewer: 'Show fewer',
+    },
     hush: {
       title: 'This is a Hush tab',
       keeps: 'Nothing here reaches the disk: no history, cookies, cache, icons or list of tabs to reopen.',
