@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 // Components
 import { Favicon } from '@/components/ui/Favicon/Favicon';
@@ -13,15 +13,14 @@ import { ChevronDown, ChevronsRight, Library } from 'lucide-react';
 import { useBrowserStore } from '@/store/useBrowserStore';
 
 // Utils
-import { ask, getBridge, send } from '@/lib/bridge/bridge';
+import { useBookmarkTree } from '@/lib/bookmarks/useBookmarkTree';
+import { send } from '@/lib/bridge/bridge';
 import { iconFor, useFavicons } from '@/lib/favicons';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
 // Types
-import type { BookmarkFolder } from '@shared/data/bookmark-folders';
 import { colourOf } from '@shared/tabs/tab-groups';
-import type { Bookmark } from '@shared/types';
 
 const ITEM_CLASSES =
   'flex h-6 shrink-0 items-center gap-1.5 rounded-sm px-2 text-body-sm text-ink-dim transition-colors hover:bg-hover hover:text-ink';
@@ -42,22 +41,10 @@ const ICON_BUTTON_CLASSES =
  */
 export function BookmarksBar() {
   const hidden = useBrowserStore((state) => state.settings.hiddenFromBookmarksBar);
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [folders, setFolders] = useState<BookmarkFolder[]>([]);
+  const { bookmarks, folders } = useBookmarkTree();
   const rowRef = useRef<HTMLDivElement>(null);
   // Every item is drawn, the hidden ones too, so each is measured where it would sit whatever fits.
   const [firstHidden, setFirstHidden] = useState<number | null>(null);
-
-  const reload = useCallback(() => {
-    void ask((api) => api.bookmarks.list(), []).then(setBookmarks);
-    void ask((api) => api.bookmarkFolders.list(), []).then(setFolders);
-  }, []);
-
-  useEffect(() => {
-    reload();
-    const api = getBridge();
-    return api?.on.bookmarksChanged(reload);
-  }, [reload]);
 
   const topFolders = folders.filter((folder) => folder.parentId === null && !hidden.includes(folder.id));
   const loose = bookmarks.filter((bookmark) => bookmark.folderId === null && !hidden.includes(bookmark.id));

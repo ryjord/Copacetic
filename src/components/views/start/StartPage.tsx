@@ -9,6 +9,7 @@ import { Favicon } from '@/components/ui/Favicon/Favicon';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { Menu } from '@/components/ui/Menu/Menu';
 import { ShortcutDialog } from '@/components/views/start/ShortcutDialog';
+import { StartBookmarks } from '@/components/views/start/StartBookmarks';
 import { StartBackdrop } from '@/components/views/start/StartBackdrop';
 
 // Icons
@@ -20,13 +21,12 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
-import { iconFor, useFavicons } from '@/lib/favicons';
 import { formatClockTime, formatLongDate, timeOfDay } from '@/lib/text/format';
 import { t } from '@shared/i18n/translate';
 import { MAX_SHORTCUTS } from '@shared/data/start-tiles';
 
 // Types
-import type { Bookmark, TopSite } from '@shared/types';
+import type { TopSite } from '@shared/types';
 
 /** What a new tab actually offers is a way to get somewhere. */
 export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: boolean }) {
@@ -126,7 +126,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
             {widget === 'topSites' && (
               <TopSites sites={topSites} tabId={tabId} onChanged={() => setTilesVersion((version) => version + 1)} />
             )}
-            {widget === 'bookmarks' && <BookmarkStrip tabId={tabId} />}
+            {widget === 'bookmarks' && <StartBookmarks tabId={tabId} />}
           </div>
         ))}
       </div>
@@ -230,46 +230,6 @@ function TopSites({ sites, tabId, onChanged }: { sites: TopSite[]; tabId: string
         <ShortcutDialog tile={editing} onClose={() => setEditing(undefined)} onSaved={onChanged} />
       )}
     </>
-  );
-}
-
-/** The most recent things you saved, as somewhere to start from. */
-function BookmarkStrip({ tabId }: { tabId: string }) {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const icons = useFavicons(bookmarks.map((bookmark) => bookmark.url));
-
-  useEffect(() => {
-    let isCurrent = true;
-    void ask((api) => api.bookmarks.list(), []).then((all) => {
-      if (isCurrent) {
-        setBookmarks(all.slice(0, 8));
-      }
-    });
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  if (bookmarks.length === 0) {
-    return <p className="text-body text-ink-dim">{t('views.start.bookmarksEmpty')}</p>;
-  }
-
-  return (
-    <ul className="flex flex-wrap gap-1.5">
-      {bookmarks.map((bookmark) => (
-        <li key={bookmark.id}>
-          <button
-            type="button"
-            onClick={() => send((api) => api.tabs.navigate(tabId, bookmark.url))}
-            title={bookmark.url}
-            className="flex max-w-44 items-center gap-2 rounded-full bg-raised/70 px-3 py-1.5 text-body-sm text-ink-dim transition-colors hover:bg-raised hover:text-ink"
-          >
-            <Favicon dataUrl={iconFor(icons, bookmark.url)} seed={bookmark.url} size={14} />
-            <span className="truncate">{bookmark.title || bookmark.url}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }
 
