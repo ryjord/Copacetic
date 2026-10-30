@@ -320,8 +320,8 @@ export const main = {
     },
     lock: {
       touchId:
-        'Locking hides your passwords until macOS confirms it is you: Touch ID where it can, your login password otherwise. Which one you get is macOS’s decision, not Copacetic’s, and it never sees what you type. It does not protect the file itself either: anything running as you can still ask the keychain for it.',
-      none: 'This machine has no way for Copacetic to check who you are, so unlocking here is a single click. It stops someone reading over your shoulder and nothing more.',
+        'Locking hides your passwords until macOS confirms it is you: Touch ID where it can, your login password otherwise. Which one you get is macOS’s decision, not Copacetic’s, and it never sees what you type. It does not protect the file itself either: anything running as you can still ask the keychain for it. Once unlocked, it stays open until you lock it or quit Copacetic.',
+      none: 'This machine has no way for Copacetic to check who you are, so unlocking here is a single click. It stops someone reading over your shoulder and nothing more. Once unlocked, it stays open until you lock it or quit Copacetic.',
     },
     touchIdReason: 'unlock your saved passwords',
     notUnlocked: 'Not unlocked.',

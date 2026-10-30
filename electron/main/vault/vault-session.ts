@@ -3,16 +3,7 @@ import path from 'node:path';
 
 // Utils
 import { type KeychainDescription, describeKeychain } from '../../shared/passwords/vault-keychain';
-import {
-  LOCKED,
-  type LockState,
-  describeLock,
-  isUnlocked,
-  lock,
-  touch,
-  unlock,
-  unlockMethodFor,
-} from '../../shared/passwords/vault-lock';
+import { describeLock, unlockMethodFor } from '../../shared/passwords/vault-lock';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
 import { t } from '../../shared/i18n/translate';
@@ -45,7 +36,8 @@ export interface VaultHost {
 export class VaultSession {
   readonly vault: Vault;
   private readonly file: PersistedFile<VaultFile>;
-  private lockState: LockState = LOCKED;
+  // No idle timeout: once unlocked it stays open until it is locked or Copacetic quits.
+  private isUnlocked = false;
 
   constructor(
     private readonly host: VaultHost,
@@ -67,19 +59,12 @@ export class VaultSession {
         set: (next) => this.file.set(next),
       },
       this.now,
-      () => {
-        const open = isUnlocked(this.lockState, this.now());
-        if (open) {
-          // Using it holds it open; reading one password should not start a countdown.
-          this.lockState = touch(this.lockState, this.now());
-        }
-        return open;
-      },
+      () => this.isUnlocked,
     );
   }
 
   isOpen(): boolean {
-    return isUnlocked(this.lockState, this.now());
+    return this.isUnlocked;
   }
 
   private method() {
@@ -126,13 +111,13 @@ export class VaultSession {
         return t('main.vault.notUnlocked');
       }
     }
-    this.lockState = unlock(this.lockState, this.now());
+    this.isUnlocked = true;
     this.onChanged();
     return '';
   }
 
   lock(): void {
-    this.lockState = lock(this.lockState);
+    this.isUnlocked = false;
     this.onChanged();
   }
 
