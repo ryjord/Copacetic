@@ -7,6 +7,8 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    # This file is read from main, but work lands on development, so its pull requests open there.
+    target-branch: development
     schedule:
       interval: weekly
       day: monday
@@ -62,6 +64,7 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: development
     schedule:
       interval: monthly
     labels: [dependencies]
