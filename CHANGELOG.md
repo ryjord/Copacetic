@@ -2,7 +2,51 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
-## 2.1.1-beta.1 - 27 October 2026
+## 2.2.0-beta.1 - 30 October 2026
+
+The first beta of 2.2, built from a week of using Copacetic every day: the
+password key works in one click, split view fills from the tabs you already
+have, and bookmarks are all within reach, in the order you choose.
+
+### New
+
+- **Fill a split from the tabs you have open.** The empty half of a split now
+  lists your open tabs; choose one and it moves beside the other half, and the
+  blank tab it replaces closes. In the tab strip, drop a tab onto the middle of
+  a split tab to show it in that half, and drag either tab away from the other
+  to end the split.
+- **Bookmarks in your own order.** The Bookmarks page has a Your order sort,
+  now the one it opens with, since it is the order the start page and the bar
+  show. Drag a bookmark onto the top half of another to put it before, or the
+  bottom half to put it after. Bookmarks move among others in the same folder;
+  filing into a folder still works by dropping onto the folder.
+- **Folders on the start page.** The start page's bookmarks show your folders
+  first, and a folder opens in place with the way back above it, as deep as
+  your folders go.
+
+### Fixed
+
+- **The key fills in one click.** With the vault locked, the key in the address
+  bar only said so, and unlocking meant a trip to Settings and back. It now asks
+  for Touch ID or your login password there and then, and fills. If the page
+  moves to another site while the prompt is up, nothing is filled.
+- **The vault stays unlocked while you work.** It locked itself after five idle
+  minutes. Once unlocked it now stays open until you lock it, your computer
+  locks or sleeps, or you quit Copacetic.
+- **The start page showed only eight bookmarks.** It took the eight newest, with
+  no way to the rest, and never showed one saved while it was open. Every
+  bookmark is now reachable, sixteen at a time with the rest behind Show all,
+  and the list follows changes as they happen.
+- **A page could sit a pixel off the space drawn for it** when anything above it
+  landed on a fraction of a pixel. It is now placed on exactly the edges drawn.
+- Filter lists that can no longer be read after an update are noted in
+  diagnostics rather than dropped without a word.
+
+### Changed
+
+- **Electron 45** (Chromium 156).
+
+## 2.1.1-beta.1 - 30 October 2026
 
 The first beta of 2.1.1: Electron's security update, and nothing else.
 
