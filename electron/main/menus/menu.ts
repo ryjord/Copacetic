@@ -4,6 +4,7 @@ import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
 // Utils
 import { acceleratorFor, aliasesFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
+import { feedbackFacts, feedbackMailto } from '../system/feedback';
 
 // Types
 import type { Browser } from '../app/browser';
@@ -321,6 +322,10 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.help.github'),
         click: () => void shell.openExternal('https://github.com/ryjord/Copacetic'),
+      },
+      {
+        label: t('main.menu.help.sendFeedback'),
+        click: () => void shell.openExternal(feedbackMailto(feedbackFacts())),
       },
       {
         label: t('main.menu.help.openDownloadsFolder'),
