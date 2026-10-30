@@ -49,6 +49,18 @@ export class BookmarkCommands {
     this.changed();
   }
 
+  reorder(id: string, beforeId: string | null): boolean {
+    const moved = this.deps.store.reorderBookmark(id, beforeId);
+    this.changed();
+    return moved;
+  }
+
+  reorderFolder(id: string, beforeId: string | null): boolean {
+    const moved = this.deps.store.reorderBookmarkFolder(id, beforeId);
+    this.changed();
+    return moved;
+  }
+
   file(id: string, folderId: string | null): void {
     this.deps.store.fileBookmark(id, folderId);
     this.changed();

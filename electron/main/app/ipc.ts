@@ -361,6 +361,10 @@ export function registerIpcHandlers(profiles: Profiles): void {
     browser.scheduleStatePush();
   });
 
+  handle('bookmarks.reorder', (browser, _event, id, beforeId) =>
+    browser.bookmarks.reorder(asString(id), asOptionalId(beforeId)),
+  );
+
   handle('bookmarkFolders.list', (browser) => browser.store.listBookmarkFolders());
   handle('bookmarkFolders.create', (browser, _event, name, colour, parentId) =>
     browser.bookmarks.createFolder(asString(name), asGroupColour(colour), asOptionalId(parentId)),
@@ -370,6 +374,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
   );
   handle('bookmarkFolders.move', (browser, _event, id, parentId) =>
     browser.bookmarks.moveFolder(asString(id), asOptionalId(parentId)),
+  );
+  handle('bookmarkFolders.reorder', (browser, _event, id, beforeId) =>
+    browser.bookmarks.reorderFolder(asString(id), asOptionalId(beforeId)),
   );
   handle('bookmarkFolders.remove', (browser, _event, id) => browser.bookmarks.deleteFolder(asString(id)));
   handle('bookmarkFolders.openAsGroup', (browser, _event, id) => browser.groups.openFolder(asString(id)));

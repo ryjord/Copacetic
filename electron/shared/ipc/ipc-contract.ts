@@ -119,6 +119,7 @@ export const CHANNELS = {
   'bookmarks.openInActiveTab': 'bookmarks:open',
   'bookmarks.openContextMenu': 'bookmarks:open-context-menu',
   'bookmarks.file': 'bookmarks:file',
+  'bookmarks.reorder': 'bookmarks:reorder',
   'bookmarks.openMenu': 'bookmarks:open-menu',
   'bookmarks.openOverflowMenu': 'bookmarks:open-overflow-menu',
 
@@ -126,6 +127,7 @@ export const CHANNELS = {
   'bookmarkFolders.create': 'bookmark-folders:create',
   'bookmarkFolders.update': 'bookmark-folders:update',
   'bookmarkFolders.move': 'bookmark-folders:move',
+  'bookmarkFolders.reorder': 'bookmark-folders:reorder',
   'bookmarkFolders.remove': 'bookmark-folders:delete',
   'bookmarkFolders.openAsGroup': 'bookmark-folders:open-as-group',
   'bookmarkFolders.openContextMenu': 'bookmark-folders:open-context-menu',

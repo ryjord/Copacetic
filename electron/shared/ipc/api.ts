@@ -203,6 +203,8 @@ export interface CopaceticApi {
     openContextMenu(id: string): Promise<void>;
     /** Files a bookmark in a folder, or unfiles it with null. */
     file(id: string, folderId: string | null): Promise<void>;
+    /** Moves a bookmark just before another in its folder, or to its folder's end with null; false when refused. */
+    reorder(id: string, beforeId: string | null): Promise<boolean>;
     /** Every folder and bookmark as a menu, opened from the toolbar at this point. */
     openMenu(x: number, y: number): Promise<void>;
     /** The bookmarks bar's folders and bookmarks that did not fit, as a menu at this point. */
@@ -215,6 +217,8 @@ export interface CopaceticApi {
     update(id: string, changes: { name?: string; colour?: GroupColourId; collapsed?: boolean }): Promise<void>;
     /** Resolves false when the move was refused, which a folder moved into itself always is. */
     move(id: string, parentId: string | null): Promise<boolean>;
+    /** Moves a folder just before another beside it, or to its parent's end with null; false when refused. */
+    reorder(id: string, beforeId: string | null): Promise<boolean>;
     /** Deletes the folder and keeps what was in it, reporting what moved up. */
     remove(id: string): Promise<{ folders: number; bookmarks: number }>;
     /** `asked` when it was large enough to need a decision first, in which case nothing has opened yet. */
