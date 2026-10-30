@@ -1007,7 +1007,7 @@ export const settings = {
       lists: {
         question: 'Whose are the lists?',
         answer:
-          "The EasyList project's, shipped whole and unmodified under the GPLv3 or CC BY-SA 3.0. The NOTICE file says so in the terms those licences ask for.",
+          "The EasyList project's, shipped whole and unmodified and taken under CC BY-SA 3.0, one of the two licences they offer. The NOTICE file credits them in the terms that licence asks for.",
       },
     },
     limits: {
