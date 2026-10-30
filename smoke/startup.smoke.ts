@@ -177,23 +177,31 @@ describe('where the page goes', () => {
   it('is the same rectangle in the chrome and in the main process', async () => {
     await copacetic.waitForVisible();
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com'));
-    await new Promise((resolve) => setTimeout(resolve, 4000));
 
-    const asDrawn = await copacetic.chrome.evaluate(() => {
-      const rect = document.querySelector('main')!.getBoundingClientRect();
-      return { top: Math.round(rect.top), left: Math.round(rect.left), width: Math.round(rect.width) };
-    });
+    // Every edge, rounded once, as the chrome reports them.
+    const asDrawn = () =>
+      copacetic.chrome.evaluate(() => {
+        const rect = document.querySelector('main')!.getBoundingClientRect();
+        const [x, y] = [Math.round(rect.left), Math.round(rect.top)];
+        return { x, y, width: Math.round(rect.right) - x, height: Math.round(rect.bottom) - y };
+      });
+    // The page's own view, found by its address: the last visible view can be the overlay, which sits elsewhere.
+    const asPlaced = () =>
+      copacetic.main(({ BrowserWindow, WebContentsView }) => {
+        const window = BrowserWindow.getAllWindows()[0];
+        const page = window?.contentView.children.find(
+          (view) =>
+            view instanceof WebContentsView &&
+            view.getVisible() &&
+            view.webContents.getURL().startsWith('https://example.com'),
+        );
+        return page?.getBounds() ?? null;
+      });
 
-    const asPlaced = await copacetic.main(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0];
-      const visible = window?.contentView.children.filter((view) => view.getVisible?.() !== false) ?? [];
-      return visible.at(-1)?.getBounds() ?? null;
-    });
-
-    expect(asPlaced).not.toBeNull();
-    expect(asPlaced?.y).toBe(asDrawn.top);
-    expect(asPlaced?.x).toBe(asDrawn.left);
-    expect(asPlaced?.width).toBe(asDrawn.width);
+    // Waited for until they agree, rather than for a fixed time a slow runner can outlast.
+    const agree = async () => JSON.stringify(await asPlaced()) === JSON.stringify(await asDrawn());
+    await copacetic.until(agree, 15_000);
+    expect(await asPlaced()).toEqual(await asDrawn());
   }, 90_000);
 });
 
