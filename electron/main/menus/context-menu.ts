@@ -114,6 +114,14 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     separate();
   }
 
+  if (params.mediaType === 'video') {
+    push({
+      label: t('main.menu.context.pictureInPicture'),
+      click: () => browser.commands.pictureInPicture(tabId, { x: params.x, y: params.y }),
+    });
+    separate();
+  }
+
   if (imageUrl) {
     push({
       label: t('main.menu.context.openImageInNewTab'),

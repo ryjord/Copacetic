@@ -50,6 +50,7 @@ export const main = {
       zoomOut: 'Zoom out',
       actualSize: 'Actual size',
       readerView: 'Reader view',
+      pictureInPicture: 'Picture in picture',
       commandPalette: 'Command palette',
       viewPageSource: 'View page source',
       developerTools: 'Developer tools',
@@ -85,6 +86,7 @@ export const main = {
       sendFeedback: 'Send feedback…',
     },
     context: {
+      pictureInPicture: 'Picture in picture',
       openLinkInNewTab: 'Open link in new tab',
       openLinkInBackgroundTab: 'Open link in background tab',
       openLinkInHushTab: 'Open link in Hush tab',
@@ -267,6 +269,8 @@ export const main = {
     forgotSite: 'Forgot {site}: {traces}',
     openTabs: 'Open {count} tabs',
     screenshotFailed: 'No picture of the page was saved: {problem}',
+    pictureInPictureNone: 'There is no video on this page that can go into picture in picture.',
+    pictureInPictureRefused: 'This page did not let its video go into picture in picture.',
     saveFailed: 'The page was not saved: {problem}',
     printFailed: 'The page did not print: {reason}',
     keepDownload:

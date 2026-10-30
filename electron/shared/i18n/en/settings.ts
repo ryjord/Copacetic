@@ -889,7 +889,7 @@ export const settings = {
       },
       runs: {
         title: 'What runs in pages',
-        line: 'A placeholder some sign-in pages need, Fill password when you choose it and a call to leave full screen, and nothing that watches what you type.',
+        line: 'A placeholder some sign-in pages need, Fill password and Picture in picture when you choose them, a call to leave full screen, and nothing that watches what you type.',
       },
       more: 'Read more',
     },
@@ -977,7 +977,7 @@ export const settings = {
         question: 'Does Copacetic run code in the pages I visit?',
         before: 'Four small things. Every page gets a placeholder for the',
         after:
-          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and it looks again 3, 10 and 30 seconds after the page loads for a form drawn later or in a dialog; where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
+          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it, and so does Picture in picture, in a world of its own, reading only which video is where. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and it looks again 3, 10 and 30 seconds after the page loads for a form drawn later or in a dialog; where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
       },
       extensions: {
         question: 'What about extensions?',

@@ -203,6 +203,10 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         accelerator: key('reader-view'),
         click: () => inWindow((browser) => browser.openSurface('reader')),
       },
+      {
+        label: t('main.menu.view.pictureInPicture'),
+        click: () => inWindow((browser) => browser.commands.pictureInPictureOfActiveTab()),
+      },
       { role: 'togglefullscreen' },
       { type: 'separator' },
       {
