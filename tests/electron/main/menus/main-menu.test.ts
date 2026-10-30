@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const openedExternally = vi.hoisted(() => [] as string[]);
 vi.mock('electron', () => ({
+  app: { getVersion: () => '2.2.0' },
   Menu: { buildFromTemplate: () => ({ popup: () => {} }) },
-  shell: { openExternal: async () => {} },
+  shell: { openExternal: async (url: string) => openedExternally.push(url) },
   clipboard: { writeText: async () => {} },
   dialog: { showMessageBox: async () => ({ response: 1 }) },
 }));
@@ -108,7 +110,19 @@ describe('the main menu', () => {
       (items.find((item) => item.label === label)?.submenu ?? []) as { label?: string; click?: () => void }[];
     submenu('More tools').forEach((item) => item.click?.());
     expect(opened).toEqual(['devtools', 'view source', 'downloads folder']);
-    expect(submenu('Help').map((item) => item.label)).toEqual(['Copacetic on GitHub', 'Report a problem']);
+    expect(submenu('Help').map((item) => item.label)).toEqual(['Copacetic on GitHub', 'Send feedback…']);
+  });
+
+  // Nothing is sent from here: the mail app opens with the email written, and the person sends it or not.
+  it('opens an email to the feedback address from Send feedback', () => {
+    openedExternally.length = 0;
+    const help = (mainMenuItems(fakeBrowser()).find((item) => item.label === 'Help')?.submenu ?? []) as {
+      label?: string;
+      click?: () => void;
+    }[];
+    help.find((item) => item.label === 'Send feedback…')?.click?.();
+    expect(openedExternally).toHaveLength(1);
+    expect(openedExternally[0]).toMatch(/^mailto:contact@mrenigma\.uk\?subject=Copacetic%20feedback&body=/);
   });
 
   it('lists what was closed, a group as one item, and reopens the one chosen', () => {

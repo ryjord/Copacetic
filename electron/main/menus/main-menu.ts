@@ -6,6 +6,7 @@ import { profileMenuItems } from './profile-menu';
 import { namedSessionsSubmenu, recentlyClosedSubmenu } from './context-menu';
 import { acceleratorFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
+import { feedbackFacts, feedbackMailto } from '../system/feedback';
 
 // Types
 import type { Browser } from '../app/browser';
@@ -102,8 +103,8 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
       submenu: [
         { label: t('main.menu.help.github'), click: () => void shell.openExternal(PROJECT_URL) },
         {
-          label: t('main.menu.help.reportProblem'),
-          click: () => void shell.openExternal(`${PROJECT_URL}/issues/new`),
+          label: t('main.menu.help.sendFeedback'),
+          click: () => void shell.openExternal(feedbackMailto(feedbackFacts())),
         },
       ],
     },

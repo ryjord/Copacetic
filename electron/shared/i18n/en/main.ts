@@ -1,5 +1,9 @@
 /** Words from the main process: menus, dialogs, notices and what the app says back to the renderer. */
 export const main = {
+  feedback: {
+    subject: 'Copacetic feedback',
+    prompt: 'What happened, or what would you like changed?',
+  },
   menu: {
     recentlyClosed: {
       title: 'Recently closed',
@@ -78,7 +82,7 @@ export const main = {
       github: 'Copacetic on GitHub',
       openDownloadsFolder: 'Open downloads folder',
       title: 'Help',
-      reportProblem: 'Report a problem',
+      sendFeedback: 'Send feedback…',
     },
     context: {
       openLinkInNewTab: 'Open link in new tab',
