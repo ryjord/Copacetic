@@ -23,6 +23,7 @@ import { isMacPlatform } from '@/lib/platform';
 import { useInterfaceTokens } from '@/lib/state/useInterfaceTokens';
 import { ambientLightStopsFor, ambientStopsFor } from '@shared/chrome/ambient';
 import { t } from '@shared/i18n/translate';
+import { insetsOfDrawnRect } from '@shared/tabs/content-insets';
 import { reachedForAnotherTab } from '@shared/tabs/surfaces';
 import { shownSplit } from '@shared/tabs/split-view';
 
@@ -86,13 +87,10 @@ export function Chrome() {
     let last = '';
 
     const report = () => {
-      const rect = element.getBoundingClientRect();
-      const insets = {
-        top: Math.round(rect.top),
-        left: Math.round(rect.left),
-        right: Math.round(window.innerWidth - rect.right),
-        bottom: Math.round(window.innerHeight - rect.bottom),
-      };
+      const insets = insetsOfDrawnRect(element.getBoundingClientRect(), {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
       const signature = `${insets.top}|${insets.left}|${insets.right}|${insets.bottom}`;
       if (signature === last) {
         return;

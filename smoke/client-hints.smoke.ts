@@ -9,12 +9,34 @@ let server: Server;
 // localhost and 127.0.0.1 are two sites, so the frame gets a process of its own, and both are secure contexts.
 const FRAMED_PAGE = (port: number) => `<body><iframe src="http://127.0.0.1:${port}/frame"></iframe></body>`;
 
+// What a worker says about itself, and a request it makes, which a server sees with the worker's own user agent.
+const WORKER_SCRIPT = `(async () => {
+  const out = { userAgent: navigator.userAgent, present: typeof navigator.userAgentData };
+  if (navigator.userAgentData) {
+    out.brands = navigator.userAgentData.brands.map((b) => b.brand).join('|');
+    out.platform = navigator.userAgentData.platform;
+  }
+  await fetch('/from-worker');
+  postMessage(out);
+})();`;
+const WORKER_PAGE =
+  "<body><script>window.workerReport = new Promise((resolve) => { new Worker('/worker.js').onmessage = (event) => resolve(event.data); });</script></body>";
+
+/** The headers each request arrived with, by path, as a server sees them before any script runs. */
+const receivedHeaders = new Map<string, Record<string, string | string[] | undefined>>();
+
 beforeAll(async () => {
   server = createServer((request, response) => {
+    receivedHeaders.set(request.url ?? '', request.headers);
+    if (request.url === '/worker.js') {
+      response.setHeader('content-type', 'text/javascript');
+      response.end(WORKER_SCRIPT);
+      return;
+    }
     response.setHeader('content-type', 'text/html');
-    response.end(
-      request.url === '/frame' ? '<body>frame</body>' : FRAMED_PAGE((server.address() as AddressInfo).port),
-    );
+    const port = (server.address() as AddressInfo).port;
+    const pages: Record<string, string> = { '/frame': '<body>frame</body>', '/worker-page': WORKER_PAGE };
+    response.end(pages[request.url ?? ''] ?? FRAMED_PAGE(port));
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   copacetic = await SmokeApp.launch();
@@ -118,5 +140,30 @@ describe('a frame from another site', () => {
     expect(frame.seen.brands).toBe(tab.brands);
     expect(frame.seen.platform).toBe(tab.platform);
     expect(frame.seen.chrome).toBe('csi,loadTimes,app');
+  });
+});
+
+/**
+ * Every Chromium upgrade can quietly change which targets the description
+ * reaches, as the Cloudflare frame showed. So each part of a tab is asked what
+ * it is, and the server is asked what it was told, and all of it must agree.
+ */
+describe('a worker the tab starts, and what the server is told', () => {
+  it('describes itself exactly as the tab does, in its navigator and on the wire', async () => {
+    const port = (server.address() as AddressInfo).port;
+    const page = `http://localhost:${port}/worker-page`;
+    const tab = await copacetic.inPage<Record<string, unknown>>(page, REPORT);
+    const worker = await copacetic.inOpenPage<Record<string, unknown>>(page, 'window.workerReport');
+
+    expect(worker.present).toBe('object');
+    expect(worker.userAgent).toBe(tab.userAgent);
+    expect(worker.brands).toBe(tab.brands);
+    expect(worker.platform).toBe(tab.platform);
+
+    // The server saw the same user agent the page and the worker report, before any script of theirs ran.
+    expect(receivedHeaders.get('/worker-page')?.['user-agent']).toBe(tab.userAgent);
+    expect(receivedHeaders.get('/worker.js')?.['user-agent']).toBe(tab.userAgent);
+    expect(receivedHeaders.get('/from-worker')?.['user-agent']).toBe(tab.userAgent);
+    expect(String(receivedHeaders.get('/from-worker')?.['user-agent'])).not.toMatch(/electron|copacetic/i);
   });
 });
