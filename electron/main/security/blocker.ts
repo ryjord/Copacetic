@@ -239,8 +239,14 @@ export class ContentBlocker {
    * hostnames, and blocking less is better than not starting.
    */
   loadShippedLists(directory: string): { rules: number; lists: FilterListInfo[] } | null {
+    const enginePath = path.join(directory, 'engine.bin');
+    // Never having fetched any is the usual case, not a fault; a file that is there and will not load is one.
+    if (!existsSync(enginePath)) {
+      this.engine = null;
+      return null;
+    }
     try {
-      const blob = readFileSync(path.join(directory, 'engine.bin'));
+      const blob = readFileSync(enginePath);
       const manifest = JSON.parse(readFileSync(path.join(directory, 'manifest.json'), 'utf8')) as {
         lists?: FilterListInfo[];
       };
@@ -252,7 +258,9 @@ export class ContentBlocker {
       this.lists = manifest.lists ?? [];
       this.listedRules = this.lists.reduce((total, list) => total + (list.rules ?? 0), 0);
       return { rules: this.listedRules, lists: this.lists };
-    } catch {
+    } catch (error) {
+      // Most often a newer engine that reads its format differently: lists fetched before an update are no longer readable.
+      log.warn('filter lists on disk could not be read and are not in use', describeError(error));
       this.engine = null;
       return null;
     }
