@@ -1,7 +1,7 @@
 {
   "name": "copacetic",
   "productName": "Copacetic",
-  "version": "2.1.0",
+  "version": "2.1.1-beta.1",
   "description": "A calm, honest browser that shows you the true state of every page.",
   "author": {
     "name": "Riley Jordan",
@@ -62,7 +62,7 @@
     "clsx": "^2.1.1",
     "concurrently": "^10.0.6",
     "cross-env": "^10.1.0",
-    "electron": "^44.9.0",
+    "electron": "^44.10.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "eslint": "^9",
