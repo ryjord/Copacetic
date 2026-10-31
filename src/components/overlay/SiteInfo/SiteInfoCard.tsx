@@ -222,9 +222,7 @@ function SitePermissions({ url, onChanged }: { url: string; onChanged: () => voi
             <span className="min-w-0 flex-1 truncate text-body-sm text-ink">
               {PERMISSION_LABELS[entry.kind] ?? entry.kind}
             </span>
-            <span
-              className={cn('shrink-0 text-body-sm', entry.decision === 'allow' ? 'text-clear' : 'text-ink-faint')}
-            >
+            <span className={cn('shrink-0 text-body-sm', entry.decision === 'allow' ? 'text-ink' : 'text-ink-faint')}>
               {entry.decision === 'allow' ? t('shell.overlay.siteInfo.allowed') : t('shell.overlay.siteInfo.blocked')}
             </span>
             <Button
@@ -284,7 +282,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
         <p className="text-caption text-ink-faint">
           {t('shell.overlay.siteInfo.hostCount', { count: entries.length })}
           {blockedHosts > 0 && (
-            <span className="text-caution"> {t('shell.overlay.siteInfo.blockedHosts', { count: blockedHosts })}</span>
+            <span className="text-ink-dim"> {t('shell.overlay.siteInfo.blockedHosts', { count: blockedHosts })}</span>
           )}
         </p>
       </div>
@@ -296,7 +294,7 @@ function ConnectionLog({ tabId }: { tabId: string }) {
                 {entry.host}
               </span>
               {entry.blocked > 0 ? (
-                <span className="shrink-0 text-caption text-caution">
+                <span className="shrink-0 text-caption text-ink-dim">
                   {t('shell.overlay.siteInfo.blockedRequests', { count: entry.blocked })}
                 </span>
               ) : (
@@ -343,8 +341,8 @@ function ConnectionLog({ tabId }: { tabId: string }) {
 /** Copacetic remembers every certificate it saw, which is what lets it say a site is presenting a different one. */
 function CertificateChangeNotice({ detail }: { detail: string }) {
   return (
-    <div className="mx-4 mb-3 rounded-md border border-caution/40 px-3 py-2" role="status">
-      <h3 className="mb-1 text-body-sm font-medium text-caution">{t('shell.overlay.siteInfo.certificateChanged')}</h3>
+    <div className="mx-4 mb-3 rounded-md border border-alert/40 px-3 py-2" role="status">
+      <h3 className="mb-1 text-body-sm font-medium text-alert">{t('shell.overlay.siteInfo.certificateChanged')}</h3>
       <p className="text-body-sm text-ink-dim">{detail}</p>
     </div>
   );
@@ -363,7 +361,7 @@ function CertificateRows({ certificate, now }: { certificate: CertificateSummary
         isWarning={!certificate.isIssuedByKnownRoot}
       />
       {!certificate.isIssuedByKnownRoot && (
-        <p className="text-body-sm text-caution">{t('shell.overlay.siteInfo.unknownRoot')}</p>
+        <p className="text-body-sm text-alert">{t('shell.overlay.siteInfo.unknownRoot')}</p>
       )}
       {certificate.subject && <Row label={t('shell.overlay.siteInfo.issuedTo')} value={certificate.subject} isMono />}
       <Row
@@ -416,7 +414,7 @@ function Row({ label, value, icon, isMono, isEmphasised, isWarning }: RowProps) 
         className={cn(
           'min-w-0 truncate text-body-sm select-text',
           isMono && 'font-mono',
-          isWarning ? 'text-caution' : isEmphasised ? 'text-clear' : 'text-ink-dim',
+          isWarning ? 'text-caution' : isEmphasised ? 'text-ink' : 'text-ink-dim',
         )}
       >
         {value}

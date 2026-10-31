@@ -83,7 +83,7 @@ export function TranslateControls({
   return (
     <div className="flex items-center gap-2">
       {progress.state === 'failed' && (
-        <span className="max-w-64 truncate text-body-sm text-caution" title={progress.message}>
+        <span className="max-w-64 truncate text-body-sm text-alert" title={progress.message}>
           {progress.message}
         </span>
       )}

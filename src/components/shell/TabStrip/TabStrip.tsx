@@ -359,8 +359,8 @@ const Tab = memo(function Tab({
         tab.isAsleep && !isActive && 'opacity-60',
         isDragging && 'opacity-40',
         showDropBefore &&
-          'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-active',
-        showDropOnto && 'outline-2 -outline-offset-2 outline-active',
+          'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-accent',
+        showDropOnto && 'outline-2 -outline-offset-2 outline-accent',
       )}
       draggable
       onDragStart={() => onDragStart(tab.id)}
@@ -416,7 +416,7 @@ const Tab = memo(function Tab({
         {tab.isLoading ? (
           <span
             aria-label={t('shell.tabStrip.loading')}
-            className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-active"
+            className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-ink-dim"
           />
         ) : PageIcon ? (
           <PageIcon size={15} strokeWidth={1.75} className="shrink-0 text-ink-dim" aria-hidden />

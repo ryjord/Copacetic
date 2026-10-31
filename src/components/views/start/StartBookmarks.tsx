@@ -24,8 +24,8 @@ const CHIP_CLASSES =
   'flex max-w-44 items-center gap-2 rounded-full bg-raised/70 px-3 py-1.5 text-body-sm text-ink-dim transition-colors hover:bg-raised hover:text-ink';
 const CRUMB_CLASSES = 'rounded-sm px-1 text-body-sm text-ink-dim transition-colors hover:text-ink';
 const DROP_LINE_CLASSES = {
-  before: 'before:absolute before:-left-1 before:inset-y-1 before:w-0.5 before:rounded-full before:bg-active',
-  after: 'after:absolute after:-right-1 after:inset-y-1 after:w-0.5 after:rounded-full after:bg-active',
+  before: 'before:absolute before:-left-1 before:inset-y-1 before:w-0.5 before:rounded-full before:bg-accent',
+  after: 'after:absolute after:-right-1 after:inset-y-1 after:w-0.5 after:rounded-full after:bg-accent',
 };
 
 type ChipKind = 'folder' | 'bookmark';

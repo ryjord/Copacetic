@@ -68,8 +68,8 @@ const SORTERS: Record<BookmarkSort, (aBookmark: Bookmark, bBookmark: Bookmark) =
 };
 
 const DROP_LINE_CLASSES = {
-  before: 'before:absolute before:inset-x-3 before:-top-px before:h-0.5 before:rounded-full before:bg-active',
-  after: 'after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-active',
+  before: 'before:absolute before:inset-x-3 before:-top-px before:h-0.5 before:rounded-full before:bg-accent',
+  after: 'after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent',
 };
 
 function isLowerHalf(event: React.DragEvent<HTMLElement>): boolean {

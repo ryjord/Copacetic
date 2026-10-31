@@ -24,7 +24,7 @@
   --line-strong: rgb(255 255 255 / 14%);
   --ink: #edf0f3;
   --ink-dim: #a3acb6;
-  --ink-faint: #7d8792;
+  --ink-faint: #8a94a0;
   --state-secure: #6fd3a5;
   --state-warning: #f0b45c;
   --state-danger: #f27a6c;
@@ -48,13 +48,13 @@
     --surface-raised: #ffffff;
     --surface-inset: #f4f5f7;
     --surface-hover: #eceef1;
-    --surface-sunken: #ffffff;
+    --surface-sunken: #f9fafb;
     --scrim: rgb(18 21 25 / 28%);
     --line: rgb(0 0 0 / 8%);
     --line-strong: rgb(0 0 0 / 14%);
     --ink: #121519;
     --ink-dim: #4f5863;
-    --ink-faint: #68717c;
+    --ink-faint: #5d6671;
     --state-secure: #16774a;
     --state-warning: #975a00;
     --state-danger: #c0352c;
@@ -81,13 +81,13 @@
 }
 
 [data-accent='teal'] {
-  --accent: #3cbfc6;
-  --accent-soft: rgb(60 191 198 / 16%);
+  --accent: #38b4e6;
+  --accent-soft: rgb(56 180 230 / 16%);
 }
 
 [data-accent='rose'] {
-  --accent: #ff7aa2;
-  --accent-soft: rgb(255 122 162 / 16%);
+  --accent: #f07ad8;
+  --accent-soft: rgb(240 122 216 / 16%);
 }
 
 [data-accent='graphite'] {
@@ -107,13 +107,13 @@
   }
 
   [data-accent='teal'] {
-    --accent: #0f7c84;
-    --accent-soft: rgb(15 124 132 / 12%);
+    --accent: #0b6f93;
+    --accent-soft: rgb(11 111 147 / 12%);
   }
 
   [data-accent='rose'] {
-    --accent: #c4346a;
-    --accent-soft: rgb(196 52 106 / 12%);
+    --accent: #a8309a;
+    --accent-soft: rgb(168 48 154 / 12%);
   }
 
   [data-accent='graphite'] {
@@ -150,7 +150,6 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
-  --color-active: var(--accent);
 
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, Ubuntu,

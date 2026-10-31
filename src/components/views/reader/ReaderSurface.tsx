@@ -333,7 +333,7 @@ function renderNode(node: ReaderNode, key: number, images: ImageData): ReactNode
         <a
           key={key}
           href={href}
-          className="text-active underline underline-offset-2"
+          className="text-ink underline underline-offset-2"
           onClick={(event) => {
             // Opened as a page in a tab of its own; the chrome never navigates.
             event.preventDefault();

@@ -69,7 +69,7 @@ export function FindBar({ find }: { find: FindState }) {
         title={find.isWholeWordUnavailable ? t('shell.overlay.findBar.wholeWordUnavailable') : undefined}
         className={cn(
           'shrink-0 px-1.5 text-body-sm tabular-nums',
-          hasQuery && !hasMatches ? 'text-alert' : 'text-ink-faint',
+          hasQuery && !hasMatches ? 'text-ink-dim' : 'text-ink-faint',
         )}
       >
         {hasQuery
