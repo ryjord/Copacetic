@@ -46,6 +46,13 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
         id: 'split-view',
       },
       { accelerator: 'CmdOrCtrl+D', description: t('main.shortcuts.descriptions.bookmark'), id: 'bookmark' },
+      { accelerator: 'CmdOrCtrl+Alt+P', description: t('main.shortcuts.descriptions.pinTab'), id: 'pin-tab' },
+      { accelerator: 'CmdOrCtrl+Shift+M', description: t('main.shortcuts.descriptions.muteTab'), id: 'mute-tab' },
+      {
+        accelerator: 'CmdOrCtrl+Alt+S',
+        description: t('main.shortcuts.descriptions.sleepOtherTabs'),
+        id: 'sleep-other-tabs',
+      },
     ],
   },
   {

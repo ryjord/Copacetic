@@ -15,6 +15,7 @@ import {
   isHistoryRetentionDays,
   isInterfaceTextSize,
   isSleepAfterMinutes,
+  isStartPageWidgetId,
   isThemeId,
   isPermissionDecisionKey,
   isWebRtcPolicy,
@@ -55,6 +56,7 @@ import {
   showBookmarkFolderMenu,
   showGroupContextMenu,
   showNewTabMenu,
+  showToolbarMenu,
   showTabContextMenu,
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
@@ -203,6 +205,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('tabs.setZoom', (browser, _event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
   handle('tabs.openContextMenu', (browser, _event, id) => showTabContextMenu(browser, asString(id)));
   handle('tabs.openNewTabMenu', (browser) => showNewTabMenu(browser));
+  handle('chrome.openToolbarMenu', (browser) => showToolbarMenu(browser));
 
   // ----------------------------------------------------------------- chrome
 
@@ -426,6 +429,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('find.previous', (browser) => browser.tabs.findNext(false));
   handle('find.stop', (browser) => browser.stopFind());
   handle('find.setMatchCase', (browser, _event, matchCase) => browser.tabs.setFindMatchCase(matchCase === true));
+  handle('find.setWholeWord', (browser, _event, wholeWord) => browser.tabs.setFindWholeWord(wholeWord === true));
 
   // --------------------------------------------------------------- settings
 
@@ -481,23 +485,23 @@ export function registerIpcHandlers(profiles: Profiles): void {
       password: asString(isRecord(input) ? input.password : ''),
     }),
   );
-  handle('vault.update', (browser, _event, id, changes) => {
+  handle('vault.update', async (browser, _event, id, changes) => {
     const patch = isRecord(changes) ? changes : {};
-    const result = browser.vault.update(asString(id), pickStrings(patch, ['origin', 'username', 'password']));
+    const result = await browser.vault.update(asString(id), pickStrings(patch, ['origin', 'username', 'password']));
     return result?.error ?? '';
   });
   handle('vault.remove', (browser, _event, id) => browser.vault.remove(asString(id)));
   handle('vault.reveal', (browser, _event, id) => browser.vault.reveal(asString(id)));
   handle('vault.copy', async (browser, _event, id, field) => {
     if (field === 'password') {
-      const secret = browser.vault.reveal(asString(id));
+      const secret = await browser.vault.reveal(asString(id));
       if (secret === null) {
         return false;
       }
       await copySecret(secret);
       return true;
     }
-    const entry = browser.vault.state().entries.find((candidate) => candidate.id === asString(id));
+    const entry = (await browser.vault.state()).entries.find((candidate) => candidate.id === asString(id));
     if (!entry?.isReadable) {
       return false;
     }
@@ -512,7 +516,43 @@ export function registerIpcHandlers(profiles: Profiles): void {
     await clearCopiedSecret();
   });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
-  handle('vault.countForTab', (browser, _event, id) => browser.passwords.offerFor(asString(id)).entries.length);
+
+  // The article is rebuilt node by node in the store; a shape it does not draw is refused whole.
+  const readingChanged = (browser: Browser) => browser.profile.broadcast(PUSH.dataChanged, 'readingList');
+  handle('readingList.list', (browser) => browser.profile.readingList.list());
+  handle('readingList.add', (browser, _event, url, article) => {
+    const id = browser.profile.readingList.add(asString(url), article);
+    readingChanged(browser);
+    return id;
+  });
+  handle('readingList.isSaved', (browser, _event, url) => browser.profile.readingList.isSaved(asString(url)));
+  handle('readingList.article', (browser, _event, id) => browser.profile.readingList.article(asString(id)));
+  handle('readingList.setRead', (browser, _event, id, isRead) => {
+    if (browser.profile.readingList.setRead(asString(id), isRead === true)) {
+      readingChanged(browser);
+    }
+  });
+  handle('readingList.remove', (browser, _event, id) => {
+    browser.profile.readingList.remove(asString(id));
+    readingChanged(browser);
+  });
+
+  // An address is read back off the payload field by field, as a password is.
+  handle('addresses.list', (browser) => browser.vaultSession.addresses.list());
+  handle('addresses.add', (browser, _event, fields) => browser.vaultSession.addresses.add(fields));
+  handle('addresses.fields', (browser, _event, id) => browser.vaultSession.addresses.fieldsOf(asString(id)));
+  handle('addresses.update', async (browser, _event, id, fields) => {
+    const result = await browser.vaultSession.addresses.update(asString(id), fields);
+    return result?.error ?? '';
+  });
+  handle(
+    'addresses.remove',
+    (browser, _event, id) => browser.vaultSession.addresses.remove(asString(id))?.error ?? '',
+  );
+  handle(
+    'vault.countForTab',
+    async (browser, _event, id) => (await browser.passwords.offerFor(asString(id))).entries.length,
+  );
   handle('vault.fillForTab', (browser, _event, id, x, y) =>
     showFillMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );
@@ -941,6 +981,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.hushNoticeDismissed === 'boolean') {
     patch.hushNoticeDismissed = value.hushNoticeDismissed;
   }
+  if (typeof value.welcomeDismissed === 'boolean') {
+    patch.welcomeDismissed = value.welcomeDismissed;
+  }
   if (typeof value.showBookmarksBar === 'boolean') {
     patch.showBookmarksBar = value.showBookmarksBar;
   }
@@ -952,14 +995,7 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     patch.ambientHue = ((Math.round(value.ambientHue) % 360) + 360) % 360;
   }
   if (Array.isArray(value.startPageWidgets)) {
-    const allowed = ['clock', 'search', 'topSites', 'bookmarks'];
-    const seen = new Set<string>();
-    for (const id of value.startPageWidgets) {
-      if (typeof id === 'string' && allowed.includes(id)) {
-        seen.add(id);
-      }
-    }
-    patch.startPageWidgets = [...seen] as Settings['startPageWidgets'];
+    patch.startPageWidgets = [...new Set(value.startPageWidgets.filter(isStartPageWidgetId))];
   }
   // Checked and clamped like the per-site levels below it, which it was not:
   // the two sat beside each other doing different things, and this one let a

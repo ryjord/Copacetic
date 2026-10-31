@@ -13,13 +13,24 @@ import { forgetCertificates } from '../security/certificates';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { Session } from 'electron';
+import type { ClearDataOptions, Session } from 'electron';
 import type { ClearRange } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { DownloadManager } from '../data/downloads';
 import type { BrowserStore } from '../data/store';
 import type { BlockingPolicy } from '../security/blocking-policy';
 import type { SessionRegistry } from '../sessions/session-registry';
+
+// Everything clearData reaches but the cache, which is its own choice, and downloads, which are not site data.
+const SITE_STORAGE: NonNullable<ClearDataOptions['dataTypes']> = [
+  'backgroundFetch',
+  'cookies',
+  'fileSystems',
+  'indexedDB',
+  'localStorage',
+  'serviceWorkers',
+  'webSQL',
+];
 
 interface SiteDataDeps {
   store: BrowserStore;
@@ -58,7 +69,8 @@ export class SiteData {
     const known = this.deps.store.originsForSite(address);
     this.deps.notices.withdrawUndos();
     const removed = this.deps.store.forgetSite(address);
-    const cookies = await this.forgetInSessions(address, known);
+    const site = siteOf(address);
+    const cookies = site ? await this.forgetInSessions([site], known) : 0;
     // The allowlist may have lost an entry, and the blocking policy holds its own copy.
     this.deps.blocking.setAllowlist(this.deps.store.getSettings().blockerAllowlist);
 
@@ -78,28 +90,35 @@ export class SiteData {
   }
 
   /**
-   * Removes the site's cookies and storage from every prepared session, and
+   * Removes these sites' cookies and storage from every prepared session, and
    * reports how many cookies went.
    *
    * Cookies are matched by the site they belong to rather than by origin: a
    * cookie set on `.example.com` is example.com's, and clearing by exact origin
    * would leave it. Storage is cleared by origin because that is what the API
-   * takes, using the origins the cookies themselves name.
+   * takes, using the origins the cookies themselves name. `dataTypes` narrows
+   * the storage cleared; left out, the cache goes too.
    */
-  private async forgetInSessions(address: string, known: string[] = []): Promise<number> {
-    const site = siteOf(address);
-    if (!site) {
+  private async forgetInSessions(
+    sites: string[],
+    known: string[] = [],
+    dataTypes?: ClearDataOptions['dataTypes'],
+  ): Promise<number> {
+    if (sites.length === 0) {
       return 0;
     }
 
     let removed = 0;
-    for (const { session, cookies } of await this.cookiesForSite(site)) {
+    for (const { session, cookies } of await this.cookiesForSites(sites)) {
       // `clearData` matches an origin exactly, so every origin the site is known
       // to have has to be named: the ones a cookie points at, the ones this
       // browser saw an icon or a certificate for, and the two obvious spellings.
       // A subdomain that kept storage without a cookie, an icon or a certificate
       // is not reachable from here and is not cleared.
-      const origins = new Set<string>([`https://${site}`, `https://www.${site}`, ...known]);
+      const origins = new Set<string>([
+        ...sites.flatMap((site) => [`https://${site}`, `https://www.${site}`]),
+        ...known,
+      ]);
       for (const cookie of cookies) {
         const host = (cookie.domain ?? '').replace(/^\./, '');
         const scheme = cookie.secure ? 'https' : 'http';
@@ -114,7 +133,7 @@ export class SiteData {
       }
 
       try {
-        await session.clearData({ origins: [...origins] });
+        await session.clearData({ origins: [...origins], ...(dataTypes ? { dataTypes } : {}) });
       } catch {
         // An in-memory session can refuse this. The cookies are already gone,
         // which is the part someone would notice.
@@ -130,12 +149,15 @@ export class SiteData {
    * on `.example.com` is example.com's, and matching exact origins would leave
    * it behind. Used both to count before anything is removed and to remove.
    */
-  private async cookiesForSite(site: string): Promise<{ session: Session; cookies: Electron.Cookie[] }[]> {
+  private async cookiesForSites(sites: string[]): Promise<{ session: Session; cookies: Electron.Cookie[] }[]> {
     const found: { session: Session; cookies: Electron.Cookie[] }[] = [];
     for (const session of this.deps.sessions.siteDataSessions()) {
       try {
         const all = await session.cookies.get({});
-        found.push({ session, cookies: all.filter((cookie) => sameSite(cookie.domain ?? '', site)) });
+        found.push({
+          session,
+          cookies: all.filter((cookie) => sites.some((site) => sameSite(cookie.domain ?? '', site))),
+        });
       } catch {
         found.push({ session, cookies: [] });
       }
@@ -157,7 +179,7 @@ export class SiteData {
     if (!site) {
       return found;
     }
-    const perSession = await this.cookiesForSite(site);
+    const perSession = await this.cookiesForSites([site]);
     return {
       ...found,
       cookies: perSession.reduce((total, entry) => total + entry.cookies.length, 0),
@@ -196,6 +218,8 @@ export class SiteData {
 
   async clearBrowsing(range: ClearRange, choice: ClearChoice = defaultClearChoice(range)): Promise<void> {
     this.deps.notices.withdrawUndos();
+    // Read before history goes, since afterwards nothing says which sites the range covered.
+    const visited = range === 'all' ? [] : this.deps.store.originsVisitedIn(range);
     if (choice.history) {
       this.deps.store.clearHistory(range);
     }
@@ -205,12 +229,35 @@ export class SiteData {
       forgetCertificates();
       forgetCertificateExceptions();
     }
-    if (choice.siteData || choice.cache) {
+    if (range === 'all' && (choice.siteData || choice.cache)) {
       const parts = { siteData: choice.siteData, cache: choice.cache };
       await Promise.all(
         this.deps.sessions.siteDataSessions().map((session) => this.deps.sessions.clear(session, parts)),
       );
     }
+    if (range !== 'all') {
+      await this.clearVisited(visited, choice);
+    }
     this.deps.changed();
+  }
+
+  /**
+   * Chromium keeps no time for cookies, storage or the cache, so a range reaches
+   * them through the sites visited in it: all of theirs goes, however old.
+   */
+  private async clearVisited(origins: string[], choice: ClearChoice): Promise<void> {
+    const sites = [...new Set(origins.map(siteOf).filter(Boolean))];
+    if (choice.siteData) {
+      await this.forgetInSessions(sites, origins, SITE_STORAGE);
+    }
+    if (choice.cache && origins.length > 0) {
+      await Promise.all(
+        this.deps.sessions.siteDataSessions().map((session) =>
+          session.clearData({ origins, dataTypes: ['cache'] }).catch(() => {
+            // An in-memory session can refuse this; the rest still clear.
+          }),
+        ),
+      );
+    }
   }
 }

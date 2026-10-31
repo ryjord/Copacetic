@@ -176,6 +176,19 @@ export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStr
             }
           };
 
+          // Moving the tab itself, the keyboard's way to do what a drag does; plain arrows still move between tabs.
+          const isMoving = event.shiftKey && (event.metaKey || event.ctrlKey);
+          const moving = tabs[current];
+          if (isMoving && moving && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+            event.preventDefault();
+            const to = Math.min(Math.max(current + (event.key === 'ArrowRight' ? 1 : -1), 0), tabs.length - 1);
+            // Where it comes to rest decides its group, as a drag does, so a group's run is never split.
+            const groupId = groupForDrop(tabs, current, to);
+            send((api) => api.tabs.move(moving.id, to));
+            send((api) => api.groups.setForTab(moving.id, groupId));
+            return;
+          }
+
           if (event.key === 'ArrowRight') {
             go(current + 1);
           } else if (event.key === 'ArrowLeft') {
@@ -187,6 +200,13 @@ export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStr
           } else if (event.key === 'Delete' || event.key === 'Backspace') {
             event.preventDefault();
             send((api) => api.tabs.close(tabs[current]!.id));
+          }
+        }}
+        // The empty end of the strip is a large target; a right-click there offers what the new-tab caret does.
+        onContextMenu={(event) => {
+          if (event.target === event.currentTarget) {
+            event.preventDefault();
+            send((api) => api.tabs.openNewTabMenu());
           }
         }}
         // A wheel moves up and down; a strip that only scrolls sideways should take that too.
@@ -359,8 +379,8 @@ const Tab = memo(function Tab({
         tab.isAsleep && !isActive && 'opacity-60',
         isDragging && 'opacity-40',
         showDropBefore &&
-          'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-active',
-        showDropOnto && 'outline-2 -outline-offset-2 outline-active',
+          'before:absolute before:-left-[3px] before:top-1 before:bottom-1 before:w-0.5 before:rounded-full before:bg-accent',
+        showDropOnto && 'outline-2 -outline-offset-2 outline-accent',
       )}
       draggable
       onDragStart={() => onDragStart(tab.id)}
@@ -415,8 +435,9 @@ const Tab = memo(function Tab({
       <div className="flex h-full items-center gap-2 px-2.5 @max-[72px]:justify-center @max-[72px]:px-0">
         {tab.isLoading ? (
           <span
+            role="img"
             aria-label={t('shell.tabStrip.loading')}
-            className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-active"
+            className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-ink-dim"
           />
         ) : PageIcon ? (
           <PageIcon size={15} strokeWidth={1.75} className="shrink-0 text-ink-dim" aria-hidden />
@@ -440,6 +461,8 @@ const Tab = memo(function Tab({
           <button
             type="button"
             aria-label={tab.isMuted ? t('shell.tabStrip.unmute') : t('shell.tabStrip.mute')}
+            // Out of the Tab order, which moves between tabs: Delete closes one, and muting is on its right-click.
+            tabIndex={-1}
             className="shrink-0 text-ink-dim hover:text-ink @max-[72px]:hidden"
             onClick={(event) => {
               event.stopPropagation();
@@ -453,6 +476,7 @@ const Tab = memo(function Tab({
         <button
           type="button"
           aria-label={t('shell.tabStrip.close', { title })}
+          tabIndex={-1}
           className={cn(
             'grid size-4 shrink-0 place-items-center rounded transition-opacity hover:bg-line-strong @max-[72px]:hidden',
             isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',

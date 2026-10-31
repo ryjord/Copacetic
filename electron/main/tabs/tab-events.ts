@@ -32,7 +32,7 @@ export interface TabEventDeps {
   onChanged: () => void;
   applyVisibility: () => void;
   cacheFavicon: (tab: TabRecord, faviconUrl: string) => void;
-  onFoundInPage: (activeMatch: number, matches: number) => void;
+  onFoundInPage: (activeMatch: number, matches: number, isFinal: boolean) => void;
   onContextMenu: (tabId: TabId, params: ContextMenuParams) => void;
   onPageChanged: (tabId: TabId, change: PageChange) => void;
 }
@@ -205,7 +205,7 @@ export function attachTabEvents(tab: TabRecord, deps: TabEventDeps): void {
   });
 
   contents.on('found-in-page', (_event, result) => {
-    deps.onFoundInPage(result.activeMatchOrdinal ?? 0, result.matches ?? 0);
+    deps.onFoundInPage(result.activeMatchOrdinal ?? 0, result.matches ?? 0, result.finalUpdate === true);
     changed();
   });
 

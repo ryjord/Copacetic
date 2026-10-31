@@ -9,6 +9,9 @@ import type { SuggestionView } from '../browsing/suggestion-view';
 import type { GroupColourId } from '../tabs/tab-groups';
 import type { ProfileSummary } from '../data/profiles';
 import type { SpellcheckChoices } from '../chrome/spellcheck';
+import type { AddressEntry, AddressFields } from '../passwords/addresses';
+import type { ReadingItem } from '../data/reading-list';
+import type { Article } from '../reader/article';
 import type { ClearChoice } from '../data/clearing';
 import type { PasswordRecipe } from '../passwords/password-generator';
 import type {
@@ -142,6 +145,8 @@ export interface CopaceticApi {
     closeBookmarkSheet(): Promise<void>;
     /** One of our pages in a tab of its own: focused if open, opened beside the tab in front if not. */
     showPage(page: InternalPage, section?: string | null): Promise<void>;
+    /** Which optional buttons the toolbar shows, as a menu at the pointer. */
+    openToolbarMenu(): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;
@@ -257,6 +262,7 @@ export interface CopaceticApi {
     previous(): Promise<void>;
     stop(): Promise<void>;
     setMatchCase(matchCase: boolean): Promise<void>;
+    setWholeWord(wholeWord: boolean): Promise<void>;
   };
   settings: {
     get(): Promise<Settings>;
@@ -317,6 +323,28 @@ export interface CopaceticApi {
     fillForTab(id: TabId, x: number, y: number): Promise<void>;
     /** Save, never for this site, or not now, for the password a sign-in just offered. */
     answerSaveOffer(id: string, answer: PasswordOfferAnswer): Promise<void>;
+  };
+
+  /** Pages saved from reader view to read later, kept whole so they read with no connection. */
+  readingList: {
+    list(): Promise<ReadingItem[]>;
+    /** Saves the article reader view drew for this address; resolves with its id, or null if it was refused. */
+    add(url: string, article: Article): Promise<string | null>;
+    isSaved(url: string): Promise<boolean>;
+    article(id: string): Promise<{ url: string; article: Article } | null>;
+    setRead(id: string, isRead: boolean): Promise<void>;
+    remove(id: string): Promise<void>;
+  };
+
+  /** Addresses kept in the vault, filled into a form from the right-click menu. */
+  addresses: {
+    list(): Promise<AddressEntry[]>;
+    add(fields: AddressFields): Promise<{ id: string } | { error: string }>;
+    /** The whole address, to edit; null while the vault is locked. */
+    fields(id: string): Promise<AddressFields | null>;
+    /** Resolves empty, or with why nothing changed. */
+    update(id: string, fields: AddressFields): Promise<string>;
+    remove(id: string): Promise<string>;
   };
 
   profiles: {

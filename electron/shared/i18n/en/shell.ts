@@ -39,6 +39,7 @@ export const shell = {
   },
   liveAnnouncer: {
     permissionRequested: 'A site is asking for permission.',
+    passwordOffered: 'Save the password for {site}? The offer is at the top of the page.',
     downloadFinished: 'Download finished.',
     loaded: 'Loaded: {title}',
     loading: 'Loading',
@@ -170,6 +171,8 @@ export const shell = {
       matchCount: '{current} of {total}',
       noMatches: 'No matches',
       matchCase: 'Match case',
+      wholeWord: 'Whole words',
+      wholeWordUnavailable: 'Whole words cannot be told apart on this page, so every match is shown',
       previous: 'Previous match',
       next: 'Next match',
       close: 'Close find',

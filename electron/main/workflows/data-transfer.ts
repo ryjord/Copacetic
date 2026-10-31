@@ -39,7 +39,7 @@ export class DataTransfer {
       return t('main.import.passwords.exportLocked');
     }
 
-    const { credentials, unreadable } = this.deps.vaultSession.vault.exportAll();
+    const { credentials, unreadable } = await this.deps.vaultSession.vault.exportAll();
     if (credentials.length === 0) {
       return unreadable > 0
         ? t('main.import.passwords.noneReadable', { count: unreadable })
@@ -210,7 +210,7 @@ export class DataTransfer {
       return t('main.import.passwords.none');
     }
 
-    const { added, updated, skipped } = this.deps.vaultSession.vault.importMany(credentials);
+    const { added, updated, skipped } = await this.deps.vaultSession.vault.importMany(credentials);
     const parts = [];
     if (added > 0) {
       parts.push(t('main.import.passwords.added', { count: added }));

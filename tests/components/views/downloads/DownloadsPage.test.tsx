@@ -84,7 +84,7 @@ describe('what a download tells you about itself', () => {
       expect(document.body.textContent).not.toContain(hidden);
     }
     if (needsDetails) {
-      fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     }
     if (shown !== null) {
       expect(document.body.textContent).toContain(shown);
@@ -94,14 +94,14 @@ describe('what a download tells you about itself', () => {
   it('shows the hash of what actually arrived', () => {
     downloads = [download({ sha256: 'abc123def456' })];
     render(<DownloadsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     expect(document.body.textContent).toContain('abc123def456');
   });
 
   it('offers no details before a hash has been computed', () => {
     downloads = [download({ sha256: null })];
     render(<DownloadsPage />);
-    expect(screen.queryByRole('button', { name: 'Show details' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Details' })).toBeNull();
   });
 
   // A finished download is the ordinary case and says nothing; one whose file has gone says so.

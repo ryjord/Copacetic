@@ -111,6 +111,18 @@ found.set('electron-runtime', {
   text: readFileSync(path.join(root, 'node_modules', 'electron', 'LICENSE'), 'utf8').trim(),
 });
 
+// A devDependency, so no walk finds it, but its worker ships: copied into the build, and changed there.
+const bergamotManifest = readJson(
+  path.join(root, 'node_modules', '@browsermt', 'bergamot-translator', 'package.json'),
+);
+found.set('bergamot-translator', {
+  name: bergamotManifest.name,
+  version: bergamotManifest.version,
+  licence: licenceName(bergamotManifest),
+  // The package carries no licence file of its own; MPL-2.0 is the text its manifest names.
+  text: readFileSync(path.join(root, 'licences', 'MPL-2.0.txt'), 'utf8').trim(),
+});
+
 const packages = [...found.values()]
   .filter(
     (entry, index, all) =>

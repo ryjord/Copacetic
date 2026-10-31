@@ -207,6 +207,10 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         label: t('main.menu.view.pictureInPicture'),
         click: () => inWindow((browser) => browser.commands.pictureInPictureOfActiveTab()),
       },
+      {
+        label: t('main.menu.view.translatePage'),
+        click: () => inWindow((browser) => browser.translateActivePage()),
+      },
       { role: 'togglefullscreen' },
       { type: 'separator' },
       {
@@ -296,6 +300,21 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         label: t('main.menu.tabs.splitView'),
         accelerator: key('split-view'),
         click: () => inWindow((browser) => browser.tabs.toggleSplit()),
+      },
+      {
+        label: t('main.menu.tabs.pin'),
+        accelerator: key('pin-tab'),
+        click: () => inWindow((browser) => browser.tabs.togglePinnedActive()),
+      },
+      {
+        label: t('main.menu.tabs.mute'),
+        accelerator: key('mute-tab'),
+        click: () => inWindow((browser) => browser.tabs.toggleMutedActive()),
+      },
+      {
+        label: t('main.menu.tabs.sleepOthers'),
+        accelerator: key('sleep-other-tabs'),
+        click: () => inWindow((browser) => browser.tabs.sleepAllButActive()),
       },
       {
         label: t('main.menu.tabs.saveSession'),

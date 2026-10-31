@@ -222,6 +222,9 @@ export interface FindState {
   activeMatch: number;
   totalMatches: number;
   matchCase: boolean;
+  wholeWord: boolean;
+  /** The page's text could not be lined up with what find counted, so every match is shown. */
+  isWholeWordUnavailable: boolean;
 }
 
 export type PermissionKind =
@@ -505,7 +508,7 @@ export type DensityId = 'comfortable' | 'compact';
 export type HeaderLayoutId = 'standard' | 'one-line';
 
 /** The pieces the start page can be built from, in the order they appear. */
-export type StartPageWidgetId = 'clock' | 'search' | 'topSites' | 'bookmarks';
+export type StartPageWidgetId = 'clock' | 'search' | 'topSites' | 'bookmarks' | 'readingList';
 
 export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string; description: string }[] = [
   {
@@ -528,7 +531,16 @@ export const START_PAGE_WIDGETS: readonly { id: StartPageWidgetId; label: string
     label: t('main.startPage.widgets.bookmarks.label'),
     description: t('main.startPage.widgets.bookmarks.description'),
   },
+  {
+    id: 'readingList',
+    label: t('main.startPage.widgets.readingList.label'),
+    description: t('main.startPage.widgets.readingList.description'),
+  },
 ];
+
+export function isStartPageWidgetId(value: unknown): value is StartPageWidgetId {
+  return START_PAGE_WIDGETS.some((widget) => widget.id === value);
+}
 
 export type VaultAvailability = 'ready' | 'unavailable' | 'unreadable';
 
@@ -648,6 +660,8 @@ export interface Settings {
   neverSavePasswordsOn: string[];
   /** Set once someone has read what Hush does and does not do. */
   hushNoticeDismissed: boolean;
+  /** Set once the start page's first-run card has been put away; a profile from before it counts as having seen it. */
+  welcomeDismissed: boolean;
   /** Degrees the start page's atmosphere is turned from the theme's own hue. Nothing else in the interface moves. */
   ambientHue: number;
   // Ask GitHub whether a newer release exists, on launch and on a long timer.

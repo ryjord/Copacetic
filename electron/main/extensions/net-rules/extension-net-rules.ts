@@ -10,6 +10,7 @@ import { type RequestContext, type RequestDetails, requestContextFrom } from './
 import { combineVerdicts, headerRules, redirectTarget, winningRule, type NetVerdict } from './outcome';
 import { readRule, type HeaderChange, type Rule } from './rule';
 import { compileRegexFilter } from './url-filter';
+import { MatchedRules } from './matched-rules';
 
 /** Chrome's limits, so an extension that checks them sees the numbers it would there. */
 export const NET_RULE_LIMITS = {
@@ -135,6 +136,9 @@ export class ExtensionNetRules {
   /** Pages an extension allowed everything on, and at what priority, until the page navigates. */
   private readonly allowedPages = new Map<string, Map<number, number>>();
   private readonly counts = new Map<string, Map<number, number>>();
+  private readonly matches: MatchedRules;
+  /** Which ruleset each rule came from, filled as the rules are indexed, for the matched-rules report. */
+  private readonly rulesetOf = new WeakMap<Rule, string>();
 
   constructor(
     private readonly store: NetRulesStore,
@@ -142,7 +146,10 @@ export class ExtensionNetRules {
     private readonly onCount: (extensionId: string, webContentsId: number, count: number) => void,
     /** Why a static ruleset could not be read, written down rather than thrown at the extension. */
     private readonly onProblem: (extensionId: string, problem: string) => void,
-  ) {}
+    now: () => number = Date.now,
+  ) {
+    this.matches = new MatchedRules(now);
+  }
 
   load(extension: NetRulesExtension): void {
     this.unload(extension.id);
@@ -167,7 +174,7 @@ export class ExtensionNetRules {
       enabled,
       disabledStatic,
       dynamic,
-      dynamicIndex: new RuleIndex(dynamic),
+      dynamicIndex: this.indexed(dynamic, NET_RULE_LIMITS.DYNAMIC_RULESET_ID),
       session: [],
       sessionIndex: new RuleIndex([]),
       displaysActionCount: kept?.displaysActionCount ?? false,
@@ -181,6 +188,7 @@ export class ExtensionNetRules {
     this.extensions.delete(extensionId);
     this.allowedPages.delete(extensionId);
     this.counts.delete(extensionId);
+    this.matches.forget(extensionId);
   }
 
   /** A new version was put in: as in Chrome, its manifest decides the rulesets again, and only its dynamic rules stay. */
@@ -248,7 +256,12 @@ export class ExtensionNetRules {
         return [];
       }
       const matched = this.matching(rules, context, keys);
-      return headerRules(matched, winningRule(matched, context.request.url)).flatMap(
+      const applied = headerRules(matched, winningRule(matched, context.request.url));
+      // Recorded once a request, at its first stage, though a rule may change the response too.
+      if (stage === 'request') {
+        applied.forEach((rule) => this.recordMatch(rules, rule, context));
+      }
+      return applied.flatMap(
         (rule) => (stage === 'request' ? rule.action.requestHeaders : rule.action.responseHeaders) ?? [],
       );
     });
@@ -312,10 +325,12 @@ export class ExtensionNetRules {
       return { kind: 'none' };
     }
     if (winner.action.type === 'allow' || winner.action.type === 'allowAllRequests') {
+      this.recordMatch(rules, winner, context);
       return { kind: 'allow' };
     }
     if (winner.action.type === 'block') {
       this.count(rules.extension.id, webContentsId);
+      this.recordMatch(rules, winner, context);
       return { kind: 'block' };
     }
     const pattern = this.patternFor(rules, winner);
@@ -324,7 +339,19 @@ export class ExtensionNetRules {
       return { kind: 'none' };
     }
     this.count(rules.extension.id, webContentsId);
+    this.recordMatch(rules, winner, context);
     return { kind: 'redirect', url };
+  }
+
+  /**
+   * Written down for getMatchedRules, and only for an extension that may read
+   * it; the stand-in for a page an extension allowed everything on names no rule.
+   */
+  private recordMatch(rules: ExtensionRules, rule: Rule, context: RequestContext): void {
+    const rulesetId = this.rulesetOf.get(rule);
+    if (rulesetId !== undefined && rules.extension.permissions.includes('declarativeNetRequestFeedback')) {
+      this.matches.record(rules.extension.id, { ruleId: rule.id, rulesetId }, context.request.tabId);
+    }
   }
 
   private patternFor(rules: ExtensionRules, rule: Rule): RegExp | null {
@@ -360,14 +387,14 @@ export class ExtensionNetRules {
     switch (method) {
       case 'updateDynamicRules':
         rules.dynamic = this.updated(rules.dynamic, options, NET_RULE_LIMITS.MAX_NUMBER_OF_DYNAMIC_RULES);
-        rules.dynamicIndex = new RuleIndex(rules.dynamic);
+        rules.dynamicIndex = this.indexed(rules.dynamic, NET_RULE_LIMITS.DYNAMIC_RULESET_ID);
         this.keep(rules);
         return null;
       case 'getDynamicRules':
         return this.filtered(rules.dynamic, options);
       case 'updateSessionRules':
         rules.session = this.updated(rules.session, options, NET_RULE_LIMITS.MAX_NUMBER_OF_SESSION_RULES);
-        rules.sessionIndex = new RuleIndex(rules.session);
+        rules.sessionIndex = this.indexed(rules.session, NET_RULE_LIMITS.SESSION_RULESET_ID);
         return null;
       case 'getSessionRules':
         return this.filtered(rules.session, options);
@@ -395,9 +422,20 @@ export class ExtensionNetRules {
           this.keep(rules);
         }
         return null;
-      case 'getMatchedRules':
-        // Matches are not recorded: the extension is told of none rather than of the wrong ones.
-        return { rulesMatchedInfo: [] };
+      case 'getMatchedRules': {
+        // Chrome's rule: the report is for an extension that asked for it. activeTab alone is not tracked here.
+        if (!rules.extension.permissions.includes('declarativeNetRequestFeedback')) {
+          throw new RefusedCall(
+            'The extension must have the declarativeNetRequestFeedback permission or have activeTab granted for the specified tab ID in order to call this function.',
+          );
+        }
+        return {
+          rulesMatchedInfo: this.matches.list(extensionId, {
+            ...(typeof options.tabId === 'number' ? { tabId: options.tabId } : {}),
+            ...(typeof options.minTimeStamp === 'number' ? { minTimeStamp: options.minTimeStamp } : {}),
+          }),
+        };
+      }
       case 'testMatchOutcome':
         return { matchedRules: [] };
       default:
@@ -493,6 +531,11 @@ export class ExtensionNetRules {
     }, 0);
   }
 
+  private indexed(list: readonly Rule[], rulesetId: string): RuleIndex {
+    list.forEach((rule) => this.rulesetOf.set(rule, rulesetId));
+    return new RuleIndex(list);
+  }
+
   private indexRuleset(rules: ExtensionRules, id: string): void {
     const ruleset = rules.rulesets.get(id);
     if (!ruleset || ruleset.index) {
@@ -507,7 +550,7 @@ export class ExtensionNetRules {
     try {
       const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
       // A static ruleset keeps the rules it can use, as Chrome skips a bad one at install with a warning.
-      ruleset.index = new RuleIndex(usableRules(Array.isArray(parsed) ? parsed : []));
+      ruleset.index = this.indexed(usableRules(Array.isArray(parsed) ? parsed : []), id);
     } catch (error) {
       this.onProblem(
         rules.extension.id,

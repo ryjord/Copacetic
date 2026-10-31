@@ -6,6 +6,7 @@ import { cleanUrl } from '../../shared/browsing/link-cleaning';
 import { t } from '../../shared/i18n/translate';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome/chrome-text';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
+import { isFillablePage } from '../../shared/passwords/credential-matching';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tabs/tab-groups';
 import { isInSplit } from '../../shared/tabs/split-view';
 import { groupIdOf, groupTarget, openRuleFor } from '../../shared/tabs/open-rules';
@@ -14,7 +15,7 @@ import { countTraces, describeTraces, siteOf } from '../../shared/data/forgettin
 import { copyText } from '../system/clipboard';
 
 // Types
-import type { TabId } from '../../shared/types';
+import { TOOLBAR_ITEMS, type TabId } from '../../shared/types';
 import type { OpenTarget } from '../../shared/tabs/open-rules';
 import type { Browser } from '../app/browser';
 
@@ -61,7 +62,17 @@ function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
 }
 
 /** The menu shown when someone right-clicks inside a page. */
-export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
+export async function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): Promise<void> {
+  // Addresses, like passwords, only on an encrypted page and only ones this machine can open.
+  // Waited on only in a form field, so every other right-click opens at once.
+  const [passwordOffer, savedAddresses] = params.isEditable
+    ? await Promise.all([
+        browser.passwords.offerFor(tabId),
+        isFillablePage(browser.tabs.urlFor(tabId) ?? '') ? browser.vaultSession.addresses.list() : [],
+      ])
+    : [null, []];
+  const passwords = passwordOffer?.entries ?? [];
+  const addresses = savedAddresses.filter((address) => address.isReadable);
   const items: MenuItemConstructorOptions[] = [];
   const push = (item: MenuItemConstructorOptions) => items.push(item);
   const separate = () => {
@@ -141,20 +152,30 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
   }
 
   // Offered where a password box actually is, and only for this page's own site.
-  if (params.isEditable) {
-    const offer = browser.passwords.offerFor(tabId);
-    if (offer.entries.length > 0) {
-      push({
-        label: t('main.menu.context.fillPassword'),
-        submenu: offer.entries.map((entry) => ({
-          label: entry.username || t('main.menu.context.savedPassword'),
-          click: () => {
-            void browser.passwords.fill(tabId, entry.id);
-          },
-        })),
-      });
-      separate();
-    }
+  if (passwords.length > 0) {
+    push({
+      label: t('main.menu.context.fillPassword'),
+      submenu: passwords.map((entry) => ({
+        label: entry.username || t('main.menu.context.savedPassword'),
+        click: () => {
+          void browser.passwords.fill(tabId, entry.id);
+        },
+      })),
+    });
+  }
+  if (addresses.length > 0) {
+    push({
+      label: t('main.menu.context.fillAddress'),
+      submenu: addresses.map((address) => ({
+        label: address.label || t('main.menu.context.savedAddress'),
+        click: () => {
+          void browser.addressFill.fill(tabId, address.id, { x: params.x, y: params.y });
+        },
+      })),
+    });
+  }
+  if (passwords.length > 0 || addresses.length > 0) {
+    separate();
   }
 
   if (params.isEditable) {
@@ -219,6 +240,12 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
     push({ label: t('main.menu.file.savePageAs'), click: () => browser.commands.savePage(tabId) });
     push({ label: t('main.menu.file.screenshot'), click: () => browser.commands.saveScreenshot(tabId) });
     push({ label: t('main.menu.file.print'), click: () => browser.commands.print(tabId) });
+    push({
+      label: browser.pageTranslation.isTranslated(tabId)
+        ? t('main.menu.context.showOriginal')
+        : t('main.menu.context.translatePage'),
+      click: () => void browser.pageTranslation.toggle(tabId),
+    });
     push({ label: t('main.menu.view.viewPageSource'), click: () => browser.commands.viewSource(tabId) });
     separate();
   }
@@ -282,9 +309,18 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
       click: () => browser.tabs.setPinned(tabId, !browser.tabs.isPinned(tabId)),
     },
     {
+      label: browser.tabs.isMuted(tabId) ? t('main.menu.context.unmuteTab') : t('main.menu.context.muteTab'),
+      click: () => browser.tabs.setMuted(tabId, !browser.tabs.isMuted(tabId)),
+    },
+    {
       label: t('main.menu.context.putTabToSleep'),
       enabled: browser.tabs.canSleep(tabId),
       click: () => browser.tabs.sleep(tabId),
+    },
+    {
+      label: t('main.menu.context.putOtherTabsToSleep'),
+      enabled: browser.tabs.sleepableOthers(tabId).length > 0,
+      click: () => browser.tabs.sleepOthers(tabId),
     },
     { label: t('main.menu.view.reload'), click: () => browser.tabs.reload(tabId) },
     splitItem(browser, tabId),
@@ -302,6 +338,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
         }
       },
     },
+    { label: t('main.menu.context.bookmarkAllTabs'), click: () => browser.groups.saveWindowAsFolder() },
     {
       label: t('main.menu.context.copyAddress'),
       enabled: url !== null,
@@ -322,6 +359,26 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     { label: t('main.menu.context.closeTabsToTheRight'), click: () => browser.tabs.closeToTheRight(tabId) },
   ];
 
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
+/** The toolbar's own buttons, chosen where they are rather than only in Settings. */
+export function showToolbarMenu(browser: Browser): void {
+  const shown = browser.profile.settings().toolbarItems;
+  const items: MenuItemConstructorOptions[] = [
+    ...TOOLBAR_ITEMS.map((item) => ({
+      label: t(`settings.appearance.browser.toolbar.${item}`),
+      type: 'checkbox' as const,
+      checked: shown.includes(item),
+      click: () =>
+        browser.updateSettings({
+          // Kept in the catalogue's order, which is the order they are drawn in.
+          toolbarItems: TOOLBAR_ITEMS.filter((candidate) => (candidate === item) !== shown.includes(candidate)),
+        }),
+    })),
+    { type: 'separator' },
+    { label: t('main.menu.context.customiseToolbar'), click: () => browser.showPage('settings', 'appearance') },
+  ];
   Menu.buildFromTemplate(items).popup({ window: browser.window });
 }
 
@@ -463,7 +520,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
     {
       label: t('main.menu.context.colour'),
       submenu: GROUP_COLOURS.map((colour) => ({
-        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        label: t(`main.groupColours.${colour.id}`),
         type: 'radio' as const,
         checked: colour.id === group.colour,
         click: () => browser.groups.update(groupId, { colour: colour.id }),
@@ -499,7 +556,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
  * put into it, and nothing here watches what is typed.
  */
 export async function showFillMenu(browser: Browser, tabId: TabId, x: number, y: number): Promise<void> {
-  const offer = browser.passwords.offerFor(tabId);
+  const offer = await browser.passwords.offerFor(tabId);
   const only = offer.entries.length === 1 ? offer.entries[0] : undefined;
   if (only) {
     await browser.passwords.fill(tabId, only.id);
@@ -568,7 +625,7 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
     {
       label: t('main.menu.context.colour'),
       submenu: GROUP_COLOURS.map((colour) => ({
-        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        label: t(`main.groupColours.${colour.id}`),
         type: 'radio' as const,
         checked: colour.id === folder.colour,
         click: () => browser.bookmarks.updateFolder(folderId, { colour: colour.id }),
@@ -629,6 +686,10 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
     return;
   }
 
+  // In your order, within its own folder: the keyboard's way to do what dragging a row does.
+  const siblings = browser.store.listBookmarks().filter((candidate) => candidate.folderId === bookmark.folderId);
+  const place = siblings.findIndex((candidate) => candidate.id === bookmarkId);
+
   const folders = browser.store.listBookmarkFolders();
   const withPath = folders.map((folder) => ({
     folder,
@@ -667,6 +728,16 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
           click: () => browser.bookmarks.file(bookmarkId, folder.id),
         })),
       ],
+    },
+    {
+      label: t('main.menu.context.moveUp'),
+      enabled: place > 0,
+      click: () => browser.bookmarks.reorder(bookmarkId, siblings[place - 1]?.id ?? null),
+    },
+    {
+      label: t('main.menu.context.moveDown'),
+      enabled: place < siblings.length - 1,
+      click: () => browser.bookmarks.reorder(bookmarkId, siblings[place + 2]?.id ?? null),
     },
     ...hideFromBarItems(browser, bookmarkId, bookmark.folderId === null),
     { type: 'separator' },

@@ -39,3 +39,13 @@ describe('normaliseSettings', () => {
     expect(normaliseSettings({ ...BASE, ...patch })).toMatchObject(expected);
   });
 });
+
+// The first-run card is for a profile in its first run, not for everyone the update reaches.
+describe('the welcome card on a profile from before it existed', () => {
+  it('counts as seen when the settings file never mentioned it, and not seen for a new profile', async () => {
+    const { reviveSettings } = await import('../../../../electron/main/data/settings-store');
+    expect(reviveSettings({ searchEngine: 'brave' })?.welcomeDismissed).toBe(true);
+    expect(reviveSettings({ searchEngine: 'brave', welcomeDismissed: false })?.welcomeDismissed).toBe(false);
+    expect(DEFAULT_SETTINGS.welcomeDismissed).toBe(false);
+  });
+});

@@ -375,6 +375,10 @@ export class BrowserStore {
     this.history.addBlocked(url, delta);
   }
 
+  originsVisitedIn(range: Exclude<ClearRange, 'all'>): string[] {
+    return this.history.originsVisitedIn(range);
+  }
+
   clearHistory(range: ClearRange): void {
     this.history.clearHistory(range);
     if (range === 'all') {

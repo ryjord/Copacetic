@@ -227,7 +227,7 @@ export const settings = {
       title: 'Memory',
       sleep: {
         label: 'Put tabs to sleep',
-        help: 'A tab left alone this long, unless it is playing sound, gives back its memory and comes back where it was.',
+        help: 'A tab left alone this long, unless it is playing sound, gives back its memory and comes back where it was. When the computer runs low on memory, one left alone five minutes can sleep sooner.',
         never: 'Never',
         after15: 'After 15 minutes',
         after30: 'After 30 minutes',
@@ -772,6 +772,29 @@ export const settings = {
     },
   },
   passwords: {
+    addresses: {
+      title: 'Addresses',
+      description:
+        'Kept in the vault with your passwords. Right-click a form field on an encrypted page and choose Fill address.',
+      empty: 'No addresses saved.',
+      unreadable: 'An address this machine cannot open',
+      edit: 'Edit',
+      remove: 'Remove',
+      add: 'Add an address',
+      addAction: 'Add',
+      unlockToEdit: 'Unlock the vault to see or change an address.',
+      fields: {
+        name: 'Full name',
+        organisation: 'Organisation',
+        street: 'Street address',
+        city: 'Town or city',
+        region: 'County, state or region',
+        postcode: 'Postcode',
+        country: 'Country',
+        phone: 'Phone',
+        email: 'Email',
+      },
+    },
     offers: {
       title: 'Saving as you sign in',
       label: 'Offer to save passwords',
@@ -889,7 +912,7 @@ export const settings = {
       },
       runs: {
         title: 'What runs in pages',
-        line: 'A placeholder some sign-in pages need, Fill password and Picture in picture when you choose them, a call to leave full screen, and nothing that watches what you type.',
+        line: 'A placeholder some sign-in pages need, Fill password, Fill address, Picture in picture and Translate this page when you choose them, a call to leave full screen, a look at how far down the page you are, and nothing that watches what you type.',
       },
       more: 'Read more',
     },
@@ -941,7 +964,7 @@ export const settings = {
         question: 'Where are they?',
         before: 'Encrypted one at a time in',
         fallbackPath: 'your profile',
-        after: '. The sites and usernames in it are readable; the passwords are not.',
+        after: '. The site, the username and the password are each sealed, so the file names no account.',
       },
       protect: {
         question: 'What protects them?',
@@ -975,14 +998,14 @@ export const settings = {
       title: 'Scripts in pages',
       run: {
         question: 'Does Copacetic run code in the pages I visit?',
-        before: 'Four small things. Every page gets a placeholder for the',
+        before: 'A few small things. Every page gets a placeholder for the',
         after:
-          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password runs once when you choose it, and so does Picture in picture, in a world of its own, reading only which video is where. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and it looks again 3, 10 and 30 seconds after the page loads for a form drawn later or in a dialog; where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
+          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password and Fill address run once when you choose them, filling only empty fields, and so does Picture in picture, in a world of its own, reading only which video is where. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. When you leave a tab, and once a minute for the one in front, a line in a world of its own reads how far across and down the page is, and nothing else, so a restored or woken tab is put back where you were; typed form input is still not brought back. Not in Hush. Translate this page, when you choose it, reads the page’s visible text in a world of its own, leaving out scripts, code and anything typed into a form, translates it on this machine and puts the translation in its place; Show original puts the page back. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and it looks again 3, 10 and 30 seconds after the page loads for a form drawn later or in a dialog; where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
       },
       extensions: {
         question: 'What about extensions?',
         answer:
-          'An extension you add runs its own code, in the pages it asks for, as it would in Chrome; Settings says what each may do before it is added. Once one is added, Copacetic also gives every worker in that profile a script of its own, which supplies the parts of the extension API Electron lacks to an extension and does nothing at all in a website’s worker. None of this reaches a Hush tab.',
+          'An extension you add runs its own code, in the pages it asks for, as it would in Chrome; Settings says what each may do before it is added. Once one is added, Copacetic also gives every worker in that profile a script of its own, which supplies the parts of the extension API Electron lacks to an extension and does nothing at all in a website’s worker. The extension’s own pages, in its popup or in a tab, get the same; a tab that leaves them for a website is given a fresh page with none of it. None of this reaches a Hush tab.',
       },
     },
     blocking: {
@@ -1025,7 +1048,7 @@ export const settings = {
       engine: {
         question: 'What can Electron not do?',
         answer:
-          'Clear cookies, site data or the cache from just the last hour, day or week: those are cleared for all time, and the clearing dialog says so. Find whole words only: find in page matches case or not, and nothing more. Choose the spelling language on macOS, which uses the languages set in System Settings.',
+          'Clear cookies, site data or the cache by when they were made. For the last hour, day or week, Copacetic clears them for the sites you visited in that time instead, however old, which signs you out of those sites, and the clearing dialog says so. Find whole words by itself: Copacetic reads the page’s text through DevTools, as reader view does, to know which matches are whole words, and says so on a page whose text it cannot line up. Choose the spelling language on macOS, which uses the languages set in System Settings.',
       },
       language: {
         question: 'Is it in my language?',
@@ -1035,7 +1058,7 @@ export const settings = {
       onPurpose: {
         question: 'What does it leave out on purpose?',
         answer:
-          'A restored tab keeps where Back goes but not how far down the page you were, because the page state that holds that also holds what was typed into its forms. HTTPS-first upgrades the page you go to, not the frames inside it, as Chrome does. A site’s permissions are the same in every group of a profile, as they are across Firefox containers. The tab strip’s arrow keys, Home, End and Delete follow the standard pattern for tabs and cannot be moved. A bookmark for a site you have never visited shows its first letter, since fetching its icon would contact the site unasked.',
+          'A restored tab keeps where Back goes and how far down the page you were, but not what was typed into its forms, which the page state that would bring it back also holds. HTTPS-first upgrades the page you go to, not the frames inside it, as Chrome does. A site’s permissions are the same in every group of a profile, as they are across Firefox containers. The tab strip’s arrow keys, Home, End and Delete follow the standard pattern for tabs and cannot be moved. A bookmark for a site you have never visited shows its first letter, since fetching its icon would contact the site unasked.',
       },
       unsupported: {
         question: 'What does it not support?',
@@ -1044,7 +1067,8 @@ export const settings = {
       },
       report: {
         question: 'Where do I report a problem?',
-        answer: "On the project's issue tracker. Copacetic comes with no warranty.",
+        answer:
+          'Help > Send feedback writes an email to contact@mrenigma.uk with the version and system filled in, and sends nothing until you press send. Copacetic comes with no warranty.',
       },
     },
   },

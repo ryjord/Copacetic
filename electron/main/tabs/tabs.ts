@@ -30,9 +30,19 @@ import {
   internalPageTitle,
   internalPageUrl,
 } from '../../shared/tabs/internal-pages';
-import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
+import {
+  CLOSED_FIND,
+  closedFind,
+  findForQuery,
+  findWithMatchCase,
+  findWithMatches,
+  findWithWholeWord,
+  findWithWholeWordMatches,
+  openedFind,
+} from './find-state';
+import { renderedTextOf, wholeWordFlags, wholeWordPosition } from './whole-word';
 import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
-import { isLoadedExtensionPage } from '../extensions/extension-pages';
+import { extensionPageOf, isLoadedExtensionPage, isOwnPage } from '../extensions/extension-pages';
 import {
   DEFAULT_INSETS,
   type ContentBounds,
@@ -50,6 +60,7 @@ import {
   tabAfterClosing,
   clampToRun,
   pinnedFirst,
+  tabToSleepForMemory,
   tabsToSleep,
 } from './tab-choices';
 import { clampZoom } from '../../shared/types';
@@ -72,6 +83,8 @@ import {
 } from '../security/certificate-exceptions';
 import { describeTab } from '../system/browser-identity';
 import { log } from '../system/diagnostics';
+import { isThisMachineLowOnMemory } from '../system/memory';
+import { readScroll, restoreScroll } from './scroll-memory';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents, markLoadRequested, settleUnstartedLoad } from './tab-events';
 import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
@@ -89,6 +102,7 @@ import type { InternalPage } from '../../shared/tabs/internal-pages';
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { SessionHistory, SessionSnapshot } from '../data/session-store';
+import type { ScrollPosition } from '../../shared/tabs/scroll-position';
 import type { NamedSessionTab } from '../../shared/data/named-sessions';
 import { type TabMemory, memoryByTab } from '../../shared/tabs/tab-memory';
 import type { ProfilePartitions } from '../../shared/data/partitions';
@@ -108,6 +122,12 @@ export class TabManager {
   private readonly sleepTimer: NodeJS.Timeout;
   private readonly stopCounting: () => void;
   private find: FindState = CLOSED_FIND;
+  /** The page's text for a whole-words search, read once while the bar is open rather than at every keystroke. */
+  private pageText: { contents: WebContents; url: string; text: Promise<string> } | null = null;
+  /** Which of the occurrences of a whole-words search are whole words, read once per search. */
+  private wholeWordPlan: { query: string; matchCase: boolean; flags: boolean[] } | null = null;
+  // The way the last step went, so a skip past a part of a word keeps going that way.
+  private findForward = true;
   private isDisposed = false;
   /** What has already been added to history per tab, so only the difference is. */
   private readonly countedBlocked = new Map<number, number>();
@@ -218,6 +238,7 @@ export class TabManager {
           isPinned: tab.isPinned,
           // A page Copacetic draws has only the blank page behind it to go back to.
           history: internalPage === null ? this.historyOf(tab) : null,
+          scroll: tab.scroll?.url === tab.url ? tab.scroll.position : null,
         });
       }
     }
@@ -377,10 +398,47 @@ export class TabManager {
     return true;
   }
 
+  isMuted(id: TabId): boolean {
+    return this.tabs.get(id)?.isMuted ?? false;
+  }
+
+  // For a shortcut, which has no tab to name: the one in front, if there is one.
+  private withActive(act: (id: TabId) => void): void {
+    if (this.activeId) {
+      act(this.activeId);
+    }
+  }
+
+  togglePinnedActive(): void {
+    this.withActive((id) => this.setPinned(id, !this.isPinned(id)));
+  }
+
+  toggleMutedActive(): void {
+    this.withActive((id) => this.setMuted(id, !this.isMuted(id)));
+  }
+
+  sleepAllButActive(): void {
+    this.withActive((id) => this.sleepOthers(id));
+  }
+
+  /** Every other tab that can give its memory back does, as when they have all been left alone: one playing sound plays on. */
+  sleepOthers(id: TabId): void {
+    this.sleepableOthers(id).forEach((tab) => this.sleep(tab.id));
+  }
+
+  sleepableOthers(id: TabId): TabRecord[] {
+    return this.tabsInOrder().filter(
+      (tab) => tab.id !== id && this.canSleep(tab.id) && !(pageOf(tab)?.isCurrentlyAudible() ?? false),
+    );
+  }
+
+  /** Every tab in the window, in strip order. */
+  tabsInOrder(): TabRecord[] {
+    return this.order.map((tabId) => this.tabs.get(tabId)).filter((tab): tab is TabRecord => tab !== undefined);
+  }
+
   tabsInGroup(groupId: string): TabRecord[] {
-    return this.order
-      .map((tabId) => this.tabs.get(tabId))
-      .filter((tab): tab is TabRecord => tab !== undefined && tab.groupId === groupId);
+    return this.tabsInOrder().filter((tab) => tab.groupId === groupId);
   }
 
   /** Whether a group is holding anything that keeps nothing, which is what stops it claiming to be separate. */
@@ -739,6 +797,8 @@ export class TabManager {
       pinned?: boolean;
       /** Where it can go back and forward to, from a restored session. */
       history?: SessionHistory;
+      /** How far down its page it was, from a restored session. */
+      scroll?: ScrollPosition;
       /**
        * A page a tab opened with `window.open`, already made by Chromium and
        * linked to its opener. It becomes this tab as it is, never loaded again,
@@ -785,9 +845,11 @@ export class TabManager {
     // Before the view exists, not after. A group's own session had nothing
     // installed on it at all, so its tabs ran with permissions approved by
     // default, no tracker blocking and no download handling.
-    this.prepareSession(partition);
+    const tabSession = this.prepareSession(partition);
 
-    const view = this.makeView(partition, options.adopting);
+    // No extension runs in Hush, so a Hush tab has nothing to give the page.
+    const extensionPage = options.adopting || inherited.hush ? null : extensionPageOf(rawUrl, tabSession);
+    const view = this.makeView(partition, options.adopting, extensionPage?.host.preload);
 
     const internal = options.adopting ? null : internalAddressOf(rawUrl);
     // Reached with one of our addresses only for an adopted page, which is a site whatever it was opened at.
@@ -813,6 +875,9 @@ export class TabManager {
       isAsleep: false,
       lastActiveAt: Date.now(),
       sleptHistory: null,
+      extensionPage: extensionPage?.id ?? null,
+      scroll: null,
+      pendingScroll: options.scroll && !internal ? { url: rawUrl, position: options.scroll } : null,
     };
 
     this.tabs.set(id, tab);
@@ -822,6 +887,7 @@ export class TabManager {
 
     const history = internal ? null : (options.history ?? null);
     const described = this.wireView(tab, options.adopting !== undefined, history);
+    extensionPage?.host.wire(view.webContents);
 
     if (!internal && !options.adopting) {
       void described.then(() => {
@@ -845,12 +911,15 @@ export class TabManager {
     return id;
   }
 
-  /** A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows. */
-  private makeView(partition: string, adopting?: Electron.WebContents): WebContentsView {
+  /**
+   * A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows.
+   * `extensionPreload` is given only for an extension's own page; a website never loads in a view that has one.
+   */
+  private makeView(partition: string, adopting?: Electron.WebContents, extensionPreload?: string): WebContentsView {
     const view = new WebContentsView({
       ...(adopting ? { webContents: adopting } : {}),
       webPreferences: {
-        preload: undefined,
+        preload: extensionPreload,
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
@@ -892,12 +961,12 @@ export class TabManager {
       onChanged: () => this.onChanged(),
       applyVisibility: () => this.applyVisibility(),
       cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),
-      onFoundInPage: (activeMatch, matches) => {
+      onFoundInPage: (activeMatch, matches, isFinal) => {
         // A background tab finishing a search must not overwrite the count for the one on screen.
         if (this.activeId !== id) {
           return;
         }
-        this.find = findWithMatches(this.find, activeMatch, matches);
+        this.foundInPage(activeMatch, matches, isFinal);
       },
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
       onPageChanged: (tabId, change) => this.pageChangeHandler?.(tabId, change),
@@ -919,6 +988,10 @@ export class TabManager {
     };
     view.webContents.on('will-navigate', followRule);
     view.webContents.on('will-redirect', followRule);
+    if (tab.extensionPage !== null) {
+      this.guardExtensionView(tab, tab.extensionPage);
+    }
+    view.webContents.on('did-finish-load', () => this.putBackScroll(tab, view.webContents));
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
     // An adopted page already has a document and is on its way somewhere; loading the empty one would stop it.
@@ -981,6 +1054,7 @@ export class TabManager {
     if (!tab.isAsleep) {
       return;
     }
+    tab.pendingScroll = tab.scroll;
     const history = tab.sleptHistory;
     void this.givePageBack(tab, history).then(() => {
       const page = pageOf(tab);
@@ -992,10 +1066,66 @@ export class TabManager {
 
   /** A new page for a sleeping tab, there at once; resolves when it can be navigated. */
   private givePageBack(tab: TabRecord, history: SessionHistory | null = null): Promise<unknown> {
-    tab.view = this.makeView(tab.partition);
+    const extensionPage = tab.isHush ? null : extensionPageOf(tab.url, this.prepareSession(tab.partition));
+    tab.view = this.makeView(tab.partition, undefined, extensionPage?.host.preload);
+    tab.extensionPage = extensionPage?.id ?? null;
     tab.isAsleep = false;
     tab.sleptHistory = null;
-    return this.wireView(tab, false, history);
+    const described = this.wireView(tab, false, history);
+    extensionPage?.host.wire(tab.view.webContents);
+    return described;
+  }
+
+  /**
+   * Keeps a view carrying an extension's preload to that extension's pages. A
+   * link or script leaving for a website is cancelled before its request; any
+   * other way out (Back, say) is noticed as it starts. Either way the tab then
+   * gets a plain view, with its history, and goes there.
+   */
+  private guardExtensionView(tab: TabRecord, extensionId: string): void {
+    const contents = tab.view.webContents;
+    // After the event that asked: stopping or closing a page inside its own navigation event crashes Chromium.
+    const leave = (url: string) =>
+      setImmediate(() => {
+        if (pageOf(tab) === contents && tab.extensionPage === extensionId) {
+          this.leaveExtensionView(tab, url);
+        }
+      });
+    const stopAtTheDoor = (event: Electron.Event<{ url: string; isMainFrame: boolean }>) => {
+      if (event.isMainFrame && !isOwnPage(extensionId, event.url)) {
+        event.preventDefault();
+        leave(event.url);
+      }
+    };
+    contents.on('will-navigate', stopAtTheDoor);
+    contents.on('will-redirect', stopAtTheDoor);
+    contents.on('did-start-navigation', (event) => {
+      if (event.isMainFrame && !event.isSameDocument && !isOwnPage(extensionId, event.url)) {
+        leave(event.url);
+      }
+    });
+  }
+
+  private leaveExtensionView(tab: TabRecord, url: string): void {
+    const contents = pageOf(tab);
+    if (!contents) {
+      return;
+    }
+    const history: SessionHistory = {
+      entries: contents.navigationHistory.getAllEntries(),
+      index: contents.navigationHistory.getActiveIndex(),
+    };
+    this.destroyTab(tab);
+    tab.extensionPage = null;
+    tab.view = this.makeView(tab.partition);
+    void this.wireView(tab, false, history).then(() => {
+      if (this.tabs.get(tab.id) === tab && pageOf(tab)) {
+        void this.loadUrl(tab, url);
+      }
+    });
+    this.applyVisibility();
+    this.applyBounds();
+    this.onChanged();
   }
 
   /** Takes a primed page where it was going: to its place in the history restored, or to its address. */
@@ -1009,9 +1139,43 @@ export class TabManager {
     void this.loadUrl(tab, url);
   }
 
+  /** Reads how far down its page a tab is, for a restore or a wake to put back; never for Hush or a page of ours. */
+  private async rememberScroll(tab: TabRecord): Promise<void> {
+    const contents = pageOf(tab);
+    if (!contents || tab.isHush || internalPageOf(tab.url) !== null) {
+      return;
+    }
+    const url = contents.getURL();
+    const position = await readScroll(contents);
+    if (pageOf(tab) === contents && contents.getURL() === url) {
+      tab.scroll = position ? { url, position } : null;
+    }
+  }
+
+  private putBackScroll(tab: TabRecord, contents: WebContents): void {
+    const pending = tab.pendingScroll;
+    // The primed empty page loads first, and is no reason to give up waiting.
+    if (!pending || pageOf(tab) !== contents || contents.getURL() === 'about:blank') {
+      return;
+    }
+    tab.pendingScroll = null;
+    if (contents.getURL() === pending.url) {
+      void restoreScroll(contents, pending.position);
+    }
+  }
+
   private sleepIdleTabs(): void {
     const afterMinutes = this.store.getSettings().sleepTabsAfterMinutes;
     const visible = this.visibleSplit();
+    // The tabs on screen are read once a minute too, since a quit gives no moment to ask them.
+    const front = this.activeTab();
+    const beside = visible && this.activeId ? this.tabs.get(partnerIn(visible, this.activeId)) : undefined;
+    if (front) {
+      void this.rememberScroll(front);
+    }
+    if (beside) {
+      void this.rememberScroll(beside);
+    }
     const candidates = [...this.tabs.values()].map((tab) => ({
       id: tab.id,
       isActive: tab.id === this.activeId || isInSplit(visible, tab.id),
@@ -1020,7 +1184,19 @@ export class TabManager {
       isAudible: pageOf(tab)?.isCurrentlyAudible() ?? false,
       lastActiveAt: tab.lastActiveAt,
     }));
-    tabsToSleep(candidates, Date.now(), afterMinutes).forEach((id) => this.sleep(id));
+    const now = Date.now();
+    const idle = tabsToSleep(candidates, now, afterMinutes);
+    idle.forEach((id) => this.sleep(id));
+    const slept = new Set(idle);
+    // Asked of the machine only when there is a tab it could put to sleep.
+    const forMemory = tabToSleepForMemory(
+      candidates.filter((tab) => !slept.has(tab.id)),
+      now,
+      afterMinutes,
+    );
+    if (forMemory && isThisMachineLowOnMemory()) {
+      this.sleep(forMemory);
+    }
   }
 
   /** New tabs opened by a page land immediately after the tab that opened them. */
@@ -1247,6 +1423,7 @@ export class TabManager {
     const leaving = this.activeTab();
     if (leaving) {
       leaving.lastActiveAt = now;
+      void this.rememberScroll(leaving);
     }
     this.activeId = id;
     const arriving = this.tabs.get(id);
@@ -1519,6 +1696,10 @@ export class TabManager {
     if (!contents) {
       return;
     }
+    if (tab.extensionPage !== null && !isOwnPage(tab.extensionPage, url)) {
+      this.leaveExtensionView(tab, url);
+      return;
+    }
 
     tab.error = null;
     tab.url = url;
@@ -1638,7 +1819,10 @@ export class TabManager {
 
   /** Begin a new search. Every keystroke in the find bar lands here. */
   startFind(query: string): void {
-    this.find = findForQuery(this.find, query);
+    this.find = findForQuery({ ...this.find, isWholeWordUnavailable: false }, query);
+    this.wholeWordPlan = null;
+    // A new search goes forward from where it starts, whichever way the last one was stepped.
+    this.findForward = true;
 
     const contents = this.activeId ? this.contentsFor(this.activeId) : null;
     if (!contents || !query) {
@@ -1647,8 +1831,75 @@ export class TabManager {
       return;
     }
 
-    this.runFind(contents, query, { forward: true, isNewSession: true });
+    if (this.find.wholeWord) {
+      void this.findWholeWords(contents, query);
+    } else {
+      this.runFind(contents, query, { forward: true, isNewSession: true });
+    }
     this.onChanged();
+  }
+
+  /**
+   * Chromium's find has no whole-words option, so the page's rendered text is
+   * read through DevTools, as reader view reads it, to know which of the
+   * occurrences find will step through are whole words; no script runs in it.
+   */
+  private pageTextFor(contents: WebContents): Promise<string> {
+    const url = contents.getURL();
+    if (this.pageText?.contents !== contents || this.pageText.url !== url) {
+      const text = withPageDebugger(contents, (send) =>
+        send('DOMSnapshot.captureSnapshot', { computedStyles: [] }),
+      ).then((snapshot) => ('value' in snapshot ? renderedTextOf(snapshot.value) : ''));
+      this.pageText = { contents, url, text };
+    }
+    return this.pageText.text;
+  }
+
+  private async findWholeWords(contents: WebContents, query: string): Promise<void> {
+    const { matchCase } = this.find;
+    const text = await this.pageTextFor(contents);
+    const isStillAsked =
+      this.find.query === query &&
+      this.find.wholeWord &&
+      this.find.matchCase === matchCase &&
+      this.activeTab()?.view.webContents === contents;
+    if (!isStillAsked) {
+      return;
+    }
+    const flags = wholeWordFlags(text, query, matchCase);
+    this.wholeWordPlan = { query, matchCase, flags };
+    // Not one whole word: find would only light up the parts of other words.
+    if (flags.length > 0 && !flags.includes(true)) {
+      contents.stopFindInPage('clearSelection');
+      this.find = findWithMatches(this.find, 0, 0);
+      this.onChanged();
+      return;
+    }
+    this.runFind(contents, query, { forward: true, isNewSession: true });
+  }
+
+  private foundInPage(activeMatch: number, matches: number, isFinal: boolean): void {
+    const plan = this.find.wholeWord ? this.wholeWordPlan : null;
+    if (!plan || plan.query !== this.find.query) {
+      this.find = findWithMatches(this.find, activeMatch, matches);
+      return;
+    }
+    if (!isFinal) {
+      return;
+    }
+    const position = wholeWordPosition(plan.flags, activeMatch, matches);
+    if (!position) {
+      // Counted differently from find, say for text that spans elements: every match is shown, and the bar says why.
+      this.find = findWithWholeWordMatches(this.find, activeMatch, matches, true);
+      return;
+    }
+    const active = this.activeTab();
+    const contents = active ? pageOf(active) : null;
+    if (!position.isWhole && contents) {
+      this.runFind(contents, plan.query, { forward: this.findForward, isNewSession: false });
+      return;
+    }
+    this.find = findWithWholeWordMatches(this.find, position.activeMatch, position.totalMatches, false);
   }
 
   /** Step through the matches of the search already running. */
@@ -1657,6 +1908,7 @@ export class TabManager {
     if (!contents || !this.find.query) {
       return;
     }
+    this.findForward = forward;
     this.runFind(contents, this.find.query, { forward, isNewSession: false });
   }
 
@@ -1678,7 +1930,17 @@ export class TabManager {
     }
   }
 
+  setFindWholeWord(wholeWord: boolean): void {
+    this.find = findWithWholeWord(this.find, wholeWord);
+    if (this.find.query) {
+      this.startFind(this.find.query);
+    } else {
+      this.onChanged();
+    }
+  }
+
   stopFind(): void {
+    this.pageText = null;
     if (!this.find.isOpen && !this.find.query) {
       return;
     }

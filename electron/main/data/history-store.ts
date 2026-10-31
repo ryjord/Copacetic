@@ -193,6 +193,14 @@ export class HistoryStore {
     );
   }
 
+  /** Every origin with a page last visited in the range; read before a ranged clear removes the pages that say so. */
+  originsVisitedIn(range: Exclude<ClearRange, 'all'>): string[] {
+    const rows = this.database
+      .prepare('SELECT DISTINCT url FROM history WHERE last_visited_at >= ?')
+      .all(Date.now() - CLEAR_WINDOWS_MS[range]);
+    return [...new Set(rows.map((row) => originOf(asString(row.url))).filter(Boolean))];
+  }
+
   clearHistory(range: ClearRange): void {
     if (range === 'all') {
       this.database.exec('DELETE FROM history');

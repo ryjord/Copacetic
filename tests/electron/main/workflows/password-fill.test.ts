@@ -8,6 +8,7 @@ type PasswordFillDeps = ConstructorParameters<typeof PasswordFill>[0];
 function fillWith({
   url = 'https://example.com/login',
   urlAfterUnlock = undefined as string | undefined,
+  urlAfterReveal = undefined as string | undefined,
   password = 'secret' as string | null,
   pageAnswer = { filled: true },
   isOpen = true,
@@ -19,7 +20,10 @@ function fillWith({
     currentUrl = urlAfterUnlock ?? url;
     return unlockAnswer;
   });
-  const reveal = vi.fn(() => password);
+  const reveal = vi.fn(async () => {
+    currentUrl = urlAfterReveal ?? currentUrl;
+    return password;
+  });
   const executeJavaScript = vi.fn(async () => pageAnswer);
   const deps = {
     tabs: {
@@ -30,7 +34,7 @@ function fillWith({
       isOpen: () => isOpen,
       unlock,
       vault: {
-        state: () => ({ entries: [{ id: 'entry-1', origin: 'https://example.com', username: 'riley' }] }),
+        state: async () => ({ entries: [{ id: 'entry-1', origin: 'https://example.com', username: 'riley' }] }),
         reveal,
       },
     },
@@ -92,6 +96,13 @@ describe('filling while the vault is locked', () => {
     });
     expect(await passwordFill.fill('tab-1', 'entry-1')).toBe('Nothing saved for this site.');
     expect(reveal).not.toHaveBeenCalled();
+    expect(executeJavaScript).not.toHaveBeenCalled();
+  });
+
+  // Decrypting waits on the keychain, and the page can go somewhere else meanwhile.
+  it('fills nothing when the page moved to another site while the password was decrypted', async () => {
+    const { passwordFill, executeJavaScript } = fillWith({ urlAfterReveal: 'https://elsewhere.example.org/' });
+    expect(await passwordFill.fill('tab-1', 'entry-1')).toBe('Nothing saved for this site.');
     expect(executeJavaScript).not.toHaveBeenCalled();
   });
 

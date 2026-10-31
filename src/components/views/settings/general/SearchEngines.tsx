@@ -120,7 +120,9 @@ export function SearchEngines({
           label={t('settings.general.search.custom.add')}
           help={
             problem ? (
-              <span className="text-alert">{PROBLEMS[problem]}</span>
+              <span role="alert" className="text-alert">
+                {PROBLEMS[problem]}
+              </span>
             ) : (
               t('settings.general.search.custom.addHelp')
             )

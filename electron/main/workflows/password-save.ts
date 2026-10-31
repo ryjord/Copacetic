@@ -126,15 +126,21 @@ export class PasswordSave {
   forget(tabId: TabId): void {
     const held = this.offers.get(tabId);
     const submitted = this.submitted.get(tabId);
-    // A pop-up that signed in and closed itself: closing is how it says it worked.
-    const orphan = held ?? (submitted?.hasMovedOn ? this.offerOf(tabId, submitted, null) : null);
     this.submitted.delete(tabId);
     this.usernames.delete(tabId);
     this.documents.delete(tabId);
     this.watching.delete(tabId);
     this.offers.delete(tabId);
-    if (orphan) {
-      this.orphan = orphan;
+    if (held) {
+      this.orphan = held;
+    } else if (submitted?.hasMovedOn) {
+      // A pop-up that signed in and closed itself: closing is how it says it worked.
+      void this.offerOf(tabId, submitted, null).then((orphan) => {
+        if (orphan) {
+          this.orphan = orphan;
+          this.deps.changed();
+        }
+      });
     }
     this.deps.changed();
   }
@@ -152,16 +158,16 @@ export class PasswordSave {
     if (answer === 'never') {
       this.deps.neverOn(held.site);
     } else if (answer === 'save') {
-      this.keep(held);
+      void this.keep(held);
     }
   }
 
-  private keep(held: HeldOffer): void {
+  private async keep(held: HeldOffer): Promise<void> {
     const { vault } = this.deps.vaultSession;
     const result =
       held.entryId === null
-        ? vault.add({ origin: held.origin, username: held.username, password: held.password })
-        : vault.update(held.entryId, { password: held.password });
+        ? await vault.add({ origin: held.origin, username: held.username, password: held.password })
+        : await vault.update(held.entryId, { password: held.password });
     const problem = result && 'error' in result ? result.error : '';
     this.deps.notices.notify({
       id: `save-password-${held.tabId}`,
@@ -182,28 +188,31 @@ export class PasswordSave {
     }
   }
 
-  private isWatched(url: string): boolean {
+  private async isWatched(url: string): Promise<boolean> {
     const settings = this.deps.settings();
     const site = siteOfUrl(url);
-    return (
+    const isWanted =
       settings.offerToSavePasswords &&
       site !== null &&
       isFillablePage(url) &&
-      !settings.neverSavePasswordsOn.includes(site) &&
-      this.deps.vaultSession.hasKeychain()
-    );
+      !settings.neverSavePasswordsOn.includes(site);
+    return isWanted && (await this.deps.vaultSession.hasKeychain());
   }
 
-  private watchable(tabId: TabId): WebContents | null {
+  private async watchable(tabId: TabId): Promise<WebContents | null> {
     const contents = this.deps.tabs.livePageFor(tabId);
-    const isWatchable = contents && !this.deps.tabs.isHush(tabId) && this.isWatched(contents.getURL());
-    return isWatchable ? contents : null;
+    const isWatchable = contents && !this.deps.tabs.isHush(tabId) && (await this.isWatched(contents.getURL()));
+    return isWatchable && !contents.isDestroyed() ? contents : null;
   }
 
   // One watch per document: the one already there sees a form drawn after the address moved, too.
   private async watch(tabId: TabId, looksDone = 0): Promise<void> {
-    const contents = this.watching.has(tabId) ? null : this.watchable(tabId);
-    if (!contents) {
+    if (this.watching.has(tabId)) {
+      return;
+    }
+    const contents = await this.watchable(tabId);
+    // Asked again: another watch can have started while the keychain answered.
+    if (!contents || this.watching.has(tabId)) {
       return;
     }
     const url = contents.getURL();
@@ -281,7 +290,7 @@ export class PasswordSave {
     if (siteOfUrl(url) === siteOfUrl(submitted.origin) && (await this.stillAsksForPassword(contents))) {
       return;
     }
-    const offer = this.offerOf(tabId, submitted, siteOfUrl(url));
+    const offer = await this.offerOf(tabId, submitted, siteOfUrl(url));
     if (offer) {
       this.offers.set(tabId, offer);
       this.deps.changed();
@@ -299,20 +308,20 @@ export class PasswordSave {
     }
   }
 
-  private offerOf(tabId: TabId, submitted: Submitted, shownOn: string | null): HeldOffer | null {
+  private async offerOf(tabId: TabId, submitted: Submitted, shownOn: string | null): Promise<HeldOffer | null> {
     const site = siteOfUrl(submitted.origin);
     // Asked again here: the switch, the keychain or the Never list can have changed since the page was watched.
-    if (!site || !this.isWatched(submitted.origin)) {
+    if (!site || !(await this.isWatched(submitted.origin))) {
       return null;
     }
-    const saved = entriesForPage(submitted.origin, this.deps.vaultSession.vault.state().entries).find(
+    const saved = entriesForPage(submitted.origin, (await this.deps.vaultSession.vault.state()).entries).find(
       (entry) => entry.username === submitted.username,
     );
     // Comparing needs the saved password; with the vault locked, saying nothing beats asking to unlock it.
     if (saved && !this.deps.vaultSession.isOpen()) {
       return null;
     }
-    if (saved && this.deps.vaultSession.vault.reveal(saved.id) === submitted.password) {
+    if (saved && (await this.deps.vaultSession.vault.reveal(saved.id)) === submitted.password) {
       return null;
     }
     return {

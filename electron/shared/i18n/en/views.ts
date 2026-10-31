@@ -4,7 +4,10 @@ export const views = {
     confirm: 'Clear',
     history: 'History from {range}',
     siteData: 'Cookies and site data, from all time. You will be signed out of sites.',
+    siteDataOfVisited:
+      'Cookies and site data of the sites visited in the {range}, however old. You will be signed out of them.',
     cache: 'Cached images and files, from all time',
+    cacheOfVisited: 'Cached images and files of the sites visited in the {range}',
     groupsNote: 'Groups that keep their own browsing are cleared too. Open tabs stay open.',
   },
   lists: {
@@ -162,8 +165,7 @@ export const views = {
     discard: 'Delete it',
     keep: 'Keep',
     showInFolder: 'Show in folder',
-    showDetails: 'Show details',
-    hideDetails: 'Hide details',
+    details: 'Details',
     remove: 'Remove from list',
     from: 'From',
     progress: '{received} of {total}',
@@ -232,6 +234,23 @@ export const views = {
       showAll: 'Show all {count}',
       showFewer: 'Show fewer',
     },
+    readingList: {
+      title: 'Reading list',
+      empty: 'Save an article from reader view and it is kept here, to read even with no connection.',
+      remove: 'Remove {title} from the reading list',
+      minutes: '{site} · {count} min',
+      minutesNoSite: '{count} min',
+    },
+    welcome: {
+      title: 'Welcome to Copacetic',
+      import: 'Bring your bookmarks, history and passwords from Chrome, Firefox or a file.',
+      importAction: 'Import',
+      defaultBrowser: 'Open links from other apps in Copacetic.',
+      defaultBrowserAction: 'Make default',
+      hush: 'A Hush tab keeps nothing on this computer, not even that it was open.',
+      hushAction: 'Open a Hush tab',
+      done: 'Done',
+    },
     hush: {
       title: 'This is a Hush tab',
       keeps: 'Nothing here reaches the disk: no history, cookies, cache, icons or list of tabs to reopen.',
@@ -248,6 +267,8 @@ export const views = {
     },
     minutes: { one: '{count} minute read', other: '{count} minute read' },
     openOriginal: 'Open original',
+    saveForLater: 'Save for later',
+    saved: 'Saved',
     print: 'Print the page',
     style: {
       // Drawn in the reading typeface, as a sample of what it changes.

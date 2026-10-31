@@ -6,6 +6,8 @@ export const CLOSED_FIND: FindState = {
   activeMatch: 0,
   totalMatches: 0,
   matchCase: false,
+  wholeWord: false,
+  isWholeWordUnavailable: false,
 };
 
 export function openedFind(state: FindState): FindState {
@@ -25,11 +27,25 @@ export function findWithMatchCase(state: FindState, matchCase: boolean): FindSta
   return { ...state, matchCase };
 }
 
+export function findWithWholeWord(state: FindState, wholeWord: boolean): FindState {
+  return { ...state, wholeWord };
+}
+
+/** Counts for the bar, saying whether whole words could be told apart on this page. */
+export function findWithWholeWordMatches(
+  state: FindState,
+  activeMatch: number,
+  totalMatches: number,
+  isWholeWordUnavailable: boolean,
+): FindState {
+  return { ...state, activeMatch, totalMatches, isWholeWordUnavailable };
+}
+
 export function findWithMatches(state: FindState, activeMatch: number, totalMatches: number): FindState {
   return { ...state, activeMatch, totalMatches };
 }
 
-/** Match case survives closing the bar: it is a preference, not part of one search. */
+/** Match case and whole words survive closing the bar: they are preferences, not part of one search. */
 export function closedFind(state: FindState): FindState {
-  return { ...CLOSED_FIND, matchCase: state.matchCase };
+  return { ...CLOSED_FIND, matchCase: state.matchCase, wholeWord: state.wholeWord };
 }

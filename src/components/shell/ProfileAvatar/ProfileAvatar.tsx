@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 // Utils
 import { ask } from '@/lib/bridge/bridge';
+import { readableInkOn } from '@/lib/colour/readable-ink';
 import { cn } from '@/lib/utils';
 import { initialsOf } from '@shared/data/profiles';
 import { colourOf } from '@shared/tabs/tab-groups';
@@ -23,11 +24,8 @@ export function ProfileAvatar({ profile, size = 'small' }: { profile: ProfileSum
   return (
     <span
       aria-hidden
-      className={cn(
-        'grid shrink-0 place-items-center overflow-hidden rounded-full font-semibold text-white',
-        SIZES[size],
-      )}
-      style={{ background: colourOf(profile.colour) }}
+      className={cn('grid shrink-0 place-items-center overflow-hidden rounded-full font-semibold', SIZES[size])}
+      style={{ background: colourOf(profile.colour), color: readableInkOn(colourOf(profile.colour)) }}
     >
       {picture ? (
         // A data URL from the profile's own folder; next/image has nothing to offer a static export.

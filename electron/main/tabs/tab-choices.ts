@@ -8,6 +8,7 @@ import {
 import { isPageNavigableUrl } from '../../shared/browsing/url';
 
 // Types
+import type { ScrollPosition } from '../../shared/tabs/scroll-position';
 import type { TabId } from '../../shared/types';
 import type { SplitView } from '../../shared/tabs/split-view';
 
@@ -46,6 +47,8 @@ export interface SessionCandidate {
   isPinned: boolean;
   /** Its back and forward list as the page has it, page state and all; only addresses and titles are kept. */
   history: { entries: readonly { url: string; title: string }[]; index: number } | null;
+  /** How far down its page it was, when that was read of the page it shows now. */
+  scroll: ScrollPosition | null;
 }
 
 /**
@@ -103,6 +106,7 @@ export function sessionFrom(
       groupId: tab.groupId,
       ...(tab.isPinned ? { isPinned: true } : {}),
       ...(history ? { history } : {}),
+      ...(tab.scroll ? { scroll: tab.scroll } : {}),
     });
   }
 
@@ -162,9 +166,33 @@ export function tabsToSleep(tabs: readonly SleepCandidate[], now: number, afterM
     return [];
   }
   const cutoff = now - afterMinutes * 60_000;
-  return tabs
-    .filter(
-      (tab) => !tab.isActive && !tab.isInternalPage && !tab.isAsleep && !tab.isAudible && tab.lastActiveAt <= cutoff,
-    )
-    .map((tab) => tab.id);
+  return tabs.filter((tab) => canSleepNow(tab) && tab.lastActiveAt <= cutoff).map((tab) => tab.id);
+}
+
+function canSleepNow(tab: SleepCandidate): boolean {
+  return !tab.isActive && !tab.isInternalPage && !tab.isAsleep && !tab.isAudible;
+}
+
+// Left alone at least this long before memory running low can put a tab to sleep early.
+export const MEMORY_SLEEP_IDLE_MINUTES = 5;
+
+/**
+ * The one tab to give back its memory early, when the machine runs low: the
+ * one left alone longest, so a page just glanced away from is not reloaded.
+ * One at a time, so each look at memory sees what the last sleep gave back.
+ * Turning sleeping off turns this off too.
+ */
+export function tabToSleepForMemory(
+  tabs: readonly SleepCandidate[],
+  now: number,
+  afterMinutes: number,
+): TabId | null {
+  if (afterMinutes <= 0) {
+    return null;
+  }
+  const cutoff = now - MEMORY_SLEEP_IDLE_MINUTES * 60_000;
+  const [longestIdle] = tabs
+    .filter((tab) => canSleepNow(tab) && tab.lastActiveAt <= cutoff)
+    .toSorted((aTab, bTab) => aTab.lastActiveAt - bTab.lastActiveAt);
+  return longestIdle?.id ?? null;
 }

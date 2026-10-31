@@ -50,17 +50,17 @@ function setup(options: Options = {}) {
   };
   const saved = options.saved ?? [];
   const vault = {
-    state: () => ({ entries: saved.map(({ id, origin, username }) => ({ id, origin, username })) }),
-    reveal: (id: string) => saved.find((entry) => entry.id === id)?.password ?? null,
-    add: vi.fn(() => ({ id: 'new' })),
-    update: vi.fn(() => null),
+    state: async () => ({ entries: saved.map(({ id, origin, username }) => ({ id, origin, username })) }),
+    reveal: async (id: string) => saved.find((entry) => entry.id === id)?.password ?? null,
+    add: vi.fn(async () => ({ id: 'new' })),
+    update: vi.fn(async () => null),
   };
   const settings = { ...DEFAULT_SETTINGS, ...options.settings };
   const neverOn = vi.fn();
   let now = 1_000;
   const save = new PasswordSave({
     tabs: { livePageFor: () => contents, isHush: () => options.isHush === true } as never,
-    vaultSession: { vault, isOpen: () => options.isOpen ?? true, hasKeychain: () => true } as never,
+    vaultSession: { vault, isOpen: () => options.isOpen ?? true, hasKeychain: async () => true } as never,
     notices: { notify: vi.fn() } as never,
     settings: () => settings,
     neverOn,
@@ -256,9 +256,9 @@ describe('a sign-in form that appears after the page has loaded', () => {
     const save = new PasswordSave({
       tabs: { livePageFor: () => contents, isHush: () => false } as never,
       vaultSession: {
-        vault: { state: () => ({ entries: [] }) },
+        vault: { state: async () => ({ entries: [] }) },
         isOpen: () => true,
-        hasKeychain: () => true,
+        hasKeychain: async () => true,
       } as never,
       notices: { notify: vi.fn() } as never,
       settings: () => DEFAULT_SETTINGS,

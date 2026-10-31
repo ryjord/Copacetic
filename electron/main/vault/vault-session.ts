@@ -6,10 +6,13 @@ import { type KeychainDescription, describeKeychain } from '../../shared/passwor
 import { describeLock, unlockMethodFor } from '../../shared/passwords/vault-lock';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
+import { AddressBook, type AddressFile, EMPTY_ADDRESS_FILE, reviveAddressFile } from './address-book';
 import { t } from '../../shared/i18n/translate';
 
 // Types
 import type { VaultFacts, VaultLock } from '../../shared/types';
+
+const KEYCHAIN_ANSWER_KEPT_MS = 1_000;
 
 /**
  * The parts of the machine the vault has to ask about: the keychain that holds
@@ -17,11 +20,11 @@ import type { VaultFacts, VaultLock } from '../../shared/types';
  * Passed in rather than imported so the answers can be arranged in a test.
  */
 export interface VaultHost {
-  isEncryptionAvailable(): boolean;
+  isAsyncEncryptionAvailable(): Promise<boolean>;
   /** Which secret store Chromium chose; only Linux has a choice, so elsewhere null. */
   storageBackend(): string | null;
-  encryptString(plainText: string): Buffer;
-  decryptString(cipherText: Buffer): string;
+  encryptStringAsync(plainText: string): Promise<Buffer>;
+  decryptStringAsync(cipherText: Buffer): Promise<{ result: string; shouldReEncrypt: boolean }>;
   platform: string;
   canPromptTouchID(): boolean;
   promptTouchID(reason: string): Promise<void>;
@@ -35,9 +38,12 @@ export interface VaultHost {
  */
 export class VaultSession {
   readonly vault: Vault;
+  readonly addresses: AddressBook;
   private readonly file: PersistedFile<VaultFile>;
+  private readonly addressFile: PersistedFile<AddressFile>;
   // No idle timeout: once unlocked it stays open until it is locked or Copacetic quits.
   private isUnlocked = false;
+  private keychainAnswer: { at: number; answer: Promise<KeychainDescription> } | null = null;
 
   constructor(
     private readonly host: VaultHost,
@@ -47,13 +53,23 @@ export class VaultSession {
     this.file = new PersistedFile<VaultFile>('vault.json', () => EMPTY_VAULT_FILE, reviveVaultFile, {
       directory: this.host.profileDirectory(),
     });
+    const secrets = {
+      isAvailable: async () => (await this.keychain()).problem === '',
+      whyUnavailable: async () => (await this.keychain()).problem,
+      encrypt: (plainText: string) => this.host.encryptStringAsync(plainText),
+      decrypt: (cipherText: Buffer) => this.host.decryptStringAsync(cipherText),
+    };
+    this.addressFile = new PersistedFile<AddressFile>('addresses.json', () => EMPTY_ADDRESS_FILE, reviveAddressFile, {
+      directory: this.host.profileDirectory(),
+    });
+    this.addresses = new AddressBook(
+      secrets,
+      { get: () => this.addressFile.get(), set: (next) => this.addressFile.set(next) },
+      () => this.isUnlocked,
+      this.now,
+    );
     this.vault = new Vault(
-      {
-        isAvailable: () => this.keychain().problem === '',
-        whyUnavailable: () => this.keychain().problem,
-        encrypt: (plainText) => this.host.encryptString(plainText),
-        decrypt: (cipherText) => this.host.decryptString(cipherText),
-      },
+      secrets,
       {
         get: () => this.file.get(),
         set: (next) => this.file.set(next),
@@ -72,12 +88,12 @@ export class VaultSession {
   }
 
   /** Whether there is a keychain to seal a password with, asked once rather than for all the facts. */
-  hasKeychain(): boolean {
-    return this.keychain().problem === '';
+  async hasKeychain(): Promise<boolean> {
+    return (await this.keychain()).problem === '';
   }
 
-  facts(): VaultFacts {
-    const keychain = this.keychain();
+  async facts(): Promise<VaultFacts> {
+    const keychain = await this.keychain();
     return {
       filePath: path.join(this.host.profileDirectory(), 'vault.json'),
       hasKeychain: keychain.problem === '',
@@ -90,9 +106,16 @@ export class VaultSession {
     };
   }
 
-  // Asked each time: a keyring can start or stop while Copacetic runs.
-  private keychain(): KeychainDescription {
-    return describeKeychain(this.host.platform, this.host.storageBackend(), this.host.isEncryptionAvailable());
+  // Kept a second, not for good: a keyring can stop meanwhile, but a list's entries ask once, not once each.
+  private keychain(): Promise<KeychainDescription> {
+    const now = Date.now();
+    if (!this.keychainAnswer || now - this.keychainAnswer.at > KEYCHAIN_ANSWER_KEPT_MS) {
+      const answer = this.host
+        .isAsyncEncryptionAvailable()
+        .then((isAvailable) => describeKeychain(this.host.platform, this.host.storageBackend(), isAvailable));
+      this.keychainAnswer = { at: now, answer };
+    }
+    return this.keychainAnswer.answer;
   }
 
   lockInfo(): VaultLock {
@@ -123,6 +146,7 @@ export class VaultSession {
 
   flush(): void {
     this.file.flush();
+    this.addressFile.flush();
   }
 }
 

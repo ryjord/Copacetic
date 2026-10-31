@@ -23,6 +23,7 @@ describe('the bridge between the chrome and the main process', () => {
     const sections = await copacetic.chrome.evaluate(() => Object.keys(window.copacetic).sort());
     expect(sections).toEqual(
       [
+        'addresses',
         'app',
         'auth',
         'bookmarkFolders',
@@ -42,6 +43,7 @@ describe('the bridge between the chrome and the main process', () => {
         'on',
         'permissions',
         'profiles',
+        'readingList',
         'sessions',
         'settings',
         'shortcuts',

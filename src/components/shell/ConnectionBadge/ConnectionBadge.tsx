@@ -55,7 +55,8 @@ export function ConnectionBadge({ tab }: { tab: TabState | null }) {
     >
       <Icon size={12} />
       {tab.security.level === 'insecure' && <span>{style.word}</span>}
-      {blocked > 0 && <span>{t('shell.connectionBadge.blocked', { count: blocked })}</span>}
+      {/* Its own colour, so the badge's green or amber speaks only about the connection. */}
+      {blocked > 0 && <span className="text-ink-dim">{t('shell.connectionBadge.blocked', { count: blocked })}</span>}
     </button>
   );
 }

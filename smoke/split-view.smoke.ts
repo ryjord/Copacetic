@@ -1,15 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
+import { type LocalSite, startLocalSite } from './support/local-site';
 
 let copacetic: SmokeApp;
-const LEFT = 'https://example.com/left';
-const RIGHT = 'https://example.com/right';
+let site: LocalSite;
+const at = (path: string) => `${site.origin}${path}`;
 
 beforeAll(async () => {
+  site = await startLocalSite();
   copacetic = await SmokeApp.launch();
   await copacetic.waitForReady();
 });
-afterAll(async () => copacetic?.close());
+afterAll(async () => {
+  await copacetic?.close();
+  await site?.close();
+});
 
 interface PlacedPage {
   url: string;
@@ -36,32 +41,32 @@ const pageAt = async (url: string) => (await placedPages()).find((page) => page.
 
 describe('split view', () => {
   it('shows two pages side by side, and one again when either closes', async () => {
-    const leftId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), LEFT);
-    const rightId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), RIGHT);
+    const leftId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), at('/left'));
+    const rightId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), at('/right'));
     await copacetic.until(
-      async () => (await pageAt(LEFT)) !== undefined && (await pageAt(RIGHT)) !== undefined,
+      async () => (await pageAt(at('/left'))) !== undefined && (await pageAt(at('/right'))) !== undefined,
       20_000,
     );
 
     await copacetic.chrome.evaluate((id) => window.copacetic.tabs.activate(id), leftId);
     await copacetic.chrome.evaluate((id) => window.copacetic.tabs.splitWith(id), rightId);
-    await copacetic.until(async () => (await pageAt(RIGHT))?.isVisible === true, 5_000);
+    await copacetic.until(async () => (await pageAt(at('/right')))?.isVisible === true, 5_000);
 
-    const left = await pageAt(LEFT);
-    const right = await pageAt(RIGHT);
+    const left = await pageAt(at('/left'));
+    const right = await pageAt(at('/right'));
     expect(left?.isVisible).toBe(true);
     expect(right?.isVisible).toBe(true);
     expect((left?.x ?? 0) + (left?.width ?? 0)).toBeLessThan(right?.x ?? 0);
 
     // Dragged further than the divider goes; it stops where neither side is squeezed out.
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.setSplitRatio(0.05));
-    const narrowed = await pageAt(LEFT);
+    const narrowed = await pageAt(at('/left'));
     expect(narrowed?.width).toBeLessThan(left?.width ?? 0);
     expect(narrowed?.width).toBeGreaterThan(0);
 
     await copacetic.chrome.evaluate((id) => window.copacetic.tabs.close(id), rightId);
-    await copacetic.until(async () => (await pageAt(RIGHT)) === undefined, 5_000);
-    const alone = await pageAt(LEFT);
+    await copacetic.until(async () => (await pageAt(at('/right'))) === undefined, 5_000);
+    const alone = await pageAt(at('/left'));
     const state = await copacetic.chrome.evaluate(() => window.copacetic.chrome.getState());
     expect(state.split).toBeNull();
     expect(state.activeTabId).toBe(leftId);
@@ -75,8 +80,8 @@ describe('choosing what a split shows', () => {
 
   // The empty half used to need an address pasted into it; an open tab can now go straight in.
   it('fills the new tab half with a tab already open, beside the other, and closes the empty one', async () => {
-    const otherUrl = 'https://example.com/already-open';
-    const keptUrl = 'https://example.com/kept-beside';
+    const otherUrl = at('/already-open');
+    const keptUrl = at('/kept-beside');
     const otherId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), otherUrl);
     const keptId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), keptUrl);
     await copacetic.until(async () => (await pageAt(otherUrl)) !== undefined, 20_000);
@@ -103,10 +108,8 @@ describe('choosing what a split shows', () => {
   }, 90_000);
 
   it('ends the split when one of its tabs is dragged away from the other', async () => {
-    const firstId = await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com/pair-a'));
-    const secondId = await copacetic.chrome.evaluate(() =>
-      window.copacetic.tabs.create('https://example.com/pair-b'),
-    );
+    const firstId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), at('/pair-a'));
+    const secondId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), at('/pair-b'));
     await copacetic.chrome.evaluate((id) => window.copacetic.tabs.activate(id), firstId);
     await copacetic.chrome.evaluate((id) => window.copacetic.tabs.splitWith(id), secondId);
     expect((await state()).split).toMatchObject({ leftId: firstId, rightId: secondId });
@@ -118,15 +121,17 @@ describe('choosing what a split shows', () => {
 
 describe('split view across a restart', () => {
   it('comes back as the pair it was, at the width it was', async () => {
-    const first = await copacetic.chrome.evaluate(() =>
-      window.copacetic.tabs.create('https://example.com/kept-left'),
-    );
-    const second = await copacetic.chrome.evaluate(() =>
-      window.copacetic.tabs.create('https://example.com/kept-right'),
-    );
+    const first = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), at('/kept-left'));
+    const second = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), at('/kept-right'));
     await copacetic.chrome.evaluate((id) => window.copacetic.tabs.activate(id), first);
     await copacetic.chrome.evaluate((id) => window.copacetic.tabs.splitWith(id), second);
     await copacetic.chrome.evaluate(() => window.copacetic.tabs.setSplitRatio(0.35));
+    // The session is written on a debounce; closing before it lands tested the debounce, not the restore.
+    const saved = await copacetic.waitForProfileJson<{ windows: Array<{ split?: { ratio: number } }> }>(
+      'session.json',
+      (session) => session.windows.some((snapshot) => snapshot.split?.ratio === 0.35),
+    );
+    expect(saved?.windows.some((snapshot) => snapshot.split?.ratio === 0.35)).toBe(true);
 
     const profile = copacetic.profile;
     await copacetic.close({ keepProfile: true });
@@ -142,8 +147,8 @@ describe('split view across a restart', () => {
     };
     expect(await copacetic.until(async () => (await restored()) !== null, 20_000)).toBe(true);
     expect(await restored()).toEqual({
-      left: 'https://example.com/kept-left',
-      right: 'https://example.com/kept-right',
+      left: at('/kept-left'),
+      right: at('/kept-right'),
       ratio: 0.35,
     });
   }, 120_000);

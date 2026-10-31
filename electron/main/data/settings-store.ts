@@ -20,6 +20,7 @@ import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/browsing/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
 
 // Types
+import { isStartPageWidgetId } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import type { SiteSettingsStore } from './site-settings-store';
 
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
+  welcomeDismissed: false,
   offerToSavePasswords: true,
   neverSavePasswordsOn: [],
   showBookmarksBar: false,
@@ -191,9 +193,7 @@ export class SettingsStore {
   }
 }
 
-const WIDGET_IDS: readonly StartPageWidgetId[] = ['clock', 'search', 'topSites', 'bookmarks'];
-
-function reviveSettings(raw: unknown): Settings | null {
+export function reviveSettings(raw: unknown): Settings | null {
   if (!isRecord(raw)) {
     return null;
   }
@@ -242,6 +242,8 @@ function reviveSettings(raw: unknown): Settings | null {
       : DEFAULT_SETTINGS.historyRetentionDays,
     startPageWidgets: reviveStartPageWidgets(raw),
     hushNoticeDismissed: raw.hushNoticeDismissed === true,
+    // Missing only from a file written before the card existed, by someone well past their first run.
+    welcomeDismissed: raw.welcomeDismissed !== false,
     offerToSavePasswords: asBoolean(raw.offerToSavePasswords, DEFAULT_SETTINGS.offerToSavePasswords),
     neverSavePasswordsOn: Array.isArray(raw.neverSavePasswordsOn)
       ? raw.neverSavePasswordsOn.filter((site): site is string => typeof site === 'string' && site.length > 0)
@@ -316,13 +318,7 @@ function clampHue(raw: unknown): number {
 
 function reviveStartPageWidgets(raw: Record<string, unknown>): StartPageWidgetId[] {
   if (Array.isArray(raw.startPageWidgets)) {
-    const seen = new Set<StartPageWidgetId>();
-    for (const id of raw.startPageWidgets) {
-      if (typeof id === 'string' && WIDGET_IDS.includes(id as StartPageWidgetId)) {
-        seen.add(id as StartPageWidgetId);
-      }
-    }
-    return [...seen];
+    return [...new Set(raw.startPageWidgets.filter(isStartPageWidgetId))];
   }
 
   const migrated: StartPageWidgetId[] = [];

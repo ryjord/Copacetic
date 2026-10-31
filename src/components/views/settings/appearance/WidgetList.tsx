@@ -102,7 +102,7 @@ export function WidgetList({ widgets }: { widgets: StartPageWidgetId[] }) {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-auto px-1 py-0 text-accent"
+                      className="h-auto px-1 py-0"
                       onClick={() => send((api) => api.startPage.showHiddenSites())}
                     >
                       {t('settings.appearance.startPage.widgets.showHidden')}

@@ -297,7 +297,8 @@ function DownloadRow({
           )}
           {hasDetails && (
             <IconButton
-              label={isShowingDetails ? t('views.downloads.hideDetails') : t('views.downloads.showDetails')}
+              // One name, with aria-expanded saying which way: "Hide details, collapsed" said two things at once.
+              label={t('views.downloads.details')}
               aria-expanded={isShowingDetails}
               onClick={() => setIsShowingDetails((shown) => !shown)}
             >
@@ -307,7 +308,7 @@ function DownloadRow({
           {!isActive && (
             <IconButton
               label={t('views.downloads.remove')}
-              className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+              className="opacity-70 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
               onClick={() => send((api) => api.downloads.remove(download.id))}
             >
               <X size={16} />
@@ -320,11 +321,11 @@ function DownloadRow({
         <div className="ml-8 mt-2 h-1 overflow-hidden rounded-full bg-line" aria-hidden>
           {hasKnownSize ? (
             <div
-              className="h-full rounded-full bg-accent transition-[width] duration-200"
+              className="h-full rounded-full bg-ink-dim transition-[width] duration-200"
               style={{ width: `${percent}%` }}
             />
           ) : (
-            <div className="animate-indeterminate h-full w-full rounded-full bg-accent" />
+            <div className="animate-indeterminate h-full w-full rounded-full bg-ink-dim" />
           )}
         </div>
       )}

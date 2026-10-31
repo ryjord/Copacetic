@@ -85,7 +85,7 @@ export function SplitView({ split, tabs, activeTabId }: Props) {
         aria-valuemax={MAX_SPLIT_RATIO * 100}
         aria-valuenow={Math.round(split.ratio * 100)}
         tabIndex={0}
-        className="absolute top-0 cursor-col-resize bg-ground transition-colors hover:bg-line-strong focus-visible:bg-active focus-visible:outline-none"
+        className="absolute top-0 cursor-col-resize bg-ground transition-colors hover:bg-line-strong focus-visible:bg-accent"
         style={{ left: panes.left.width, width: SPLIT_DIVIDER_WIDTH, height: size.height }}
         onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
         onPointerMove={(event) => {
@@ -125,7 +125,7 @@ function Pane({ tab, bounds, isFocused, candidates }: PaneProps) {
       }}
     >
       <div
-        className={cn('flex-none transition-colors', isFocused ? 'bg-active' : 'bg-line')}
+        className={cn('flex-none transition-colors', isFocused ? 'bg-accent' : 'bg-line')}
         style={{ height: SPLIT_FOCUS_STRIP_HEIGHT }}
         aria-hidden
       />

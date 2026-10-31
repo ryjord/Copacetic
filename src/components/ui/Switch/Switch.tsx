@@ -20,7 +20,7 @@ export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
       disabled={disabled}
       className={cn(
         'no-drag relative h-5 w-9 shrink-0 rounded-full transition-colors duration-100',
-        'bg-line-strong data-[state=checked]:bg-accent disabled:opacity-40',
+        'bg-line-control data-[state=checked]:bg-accent disabled:opacity-40',
       )}
     >
       <SwitchPrimitive.Thumb
