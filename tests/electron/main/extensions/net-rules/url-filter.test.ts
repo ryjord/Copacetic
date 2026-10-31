@@ -148,6 +148,12 @@ describe('the text a regexFilter cannot match without', () => {
     expect(requiredLiteralOf(source)).toBeNull();
   });
 
+  // Its argument is not text either: \\x2f is a slash, and "2fbanner" is in no address.
+  it('reads nothing into the argument of an escape such as \\x2f', () => {
+    expect(requiredLiteralOf('ad\\x2fbanner')).toBeNull();
+    expect(compileRegexFilter('ad\\x2fbanner')?.test('https://x.com/ad/banner')).toBe(true);
+  });
+
   // The last character before ? * or {0, can be absent, so it is not counted.
   it('leaves out a character a quantifier can drop', () => {
     expect(requiredLiteralOf('trackers?/px')).toBe('tracker');
