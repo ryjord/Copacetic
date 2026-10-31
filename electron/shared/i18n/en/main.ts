@@ -472,6 +472,10 @@ export const main = {
         label: 'Most visited',
         description: 'The sites you visit most.',
       },
+      readingList: {
+        label: 'Reading list',
+        description: 'Articles saved from reader view, readable offline.',
+      },
       bookmarks: {
         label: 'Bookmarks',
         description: 'Your latest bookmarks.',

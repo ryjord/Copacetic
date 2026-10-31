@@ -20,6 +20,7 @@ import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/browsing/dns';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
 
 // Types
+import { isStartPageWidgetId } from '../../shared/types';
 import type { PermissionDecision, Settings, StartPageWidgetId } from '../../shared/types';
 import type { SiteSettingsStore } from './site-settings-store';
 
@@ -192,8 +193,6 @@ export class SettingsStore {
   }
 }
 
-const WIDGET_IDS: readonly StartPageWidgetId[] = ['clock', 'search', 'topSites', 'bookmarks'];
-
 export function reviveSettings(raw: unknown): Settings | null {
   if (!isRecord(raw)) {
     return null;
@@ -319,13 +318,7 @@ function clampHue(raw: unknown): number {
 
 function reviveStartPageWidgets(raw: Record<string, unknown>): StartPageWidgetId[] {
   if (Array.isArray(raw.startPageWidgets)) {
-    const seen = new Set<StartPageWidgetId>();
-    for (const id of raw.startPageWidgets) {
-      if (typeof id === 'string' && WIDGET_IDS.includes(id as StartPageWidgetId)) {
-        seen.add(id as StartPageWidgetId);
-      }
-    }
-    return [...seen];
+    return [...new Set(raw.startPageWidgets.filter(isStartPageWidgetId))];
   }
 
   const migrated: StartPageWidgetId[] = [];

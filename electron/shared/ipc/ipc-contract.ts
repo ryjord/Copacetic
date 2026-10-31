@@ -190,6 +190,13 @@ export const CHANNELS = {
   'vault.fillForTab': 'vault:fill-for-tab',
   'vault.answerSaveOffer': 'vault:answer-save-offer',
 
+  'readingList.list': 'reading:list',
+  'readingList.add': 'reading:add',
+  'readingList.isSaved': 'reading:is-saved',
+  'readingList.article': 'reading:article',
+  'readingList.setRead': 'reading:set-read',
+  'readingList.remove': 'reading:remove',
+
   'addresses.list': 'address:list',
   'addresses.add': 'address:add',
   'addresses.fields': 'address:fields',

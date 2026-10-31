@@ -59,6 +59,7 @@ type ImageData = Record<string, string>;
 /** The page in front, without the page around its text. */
 export function ReaderSurface() {
   const activeTabId = useBrowserStore((state) => state.activeTabId);
+  const readingItemId = useBrowserStore((state) => state.readingItemId);
   const setSurface = useBrowserStore((state) => state.setSurface);
   const readerStyle = useBrowserStore((state) => state.settings.readerStyle);
   const [reading, setReading] = useState<Reading>({ state: 'loading' });
@@ -67,16 +68,34 @@ export function ReaderSurface() {
   const [isStyling, setIsStyling] = useState(false);
   const [translated, setTranslated] = useState<ReaderNode[] | null>(null);
   const [isShowingOriginal, setIsShowingOriginal] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
     void (async () => {
+      // A saved article is read as it was kept, with no page and no connection behind it.
+      if (readingItemId) {
+        const saved = await ask((api) => api.readingList.article(readingItemId), null);
+        if (isCurrent) {
+          setReading(saved ? { state: 'ready', article: saved.article, url: saved.url } : { state: 'none' });
+          setIsSaved(saved !== null);
+          setImages({});
+          setTranslated(null);
+          setIsShowingOriginal(false);
+        }
+        if (saved) {
+          send((api) => api.readingList.setRead(readingItemId, true));
+        }
+        return;
+      }
       const document = activeTabId ? await ask((api) => api.tabs.readerDocument(activeTabId), null) : null;
       const article = document ? articleFrom(document.html, document.url) : null;
+      const isAlreadySaved = document ? await ask((api) => api.readingList.isSaved(document.url), false) : false;
       if (!isCurrent) {
         return;
       }
       setReading(article && document ? { state: 'ready', article, url: document.url } : { state: 'none' });
+      setIsSaved(isAlreadySaved);
       // Reset with the article, since a fetch for the previous one may have been abandoned midway.
       setImages({});
       setIsFetchingImages(false);
@@ -96,7 +115,11 @@ export function ReaderSurface() {
     return () => {
       isCurrent = false;
     };
-  }, [activeTabId]);
+  }, [activeTabId, readingItemId]);
+
+  const save = (article: Article, url: string) => {
+    void ask((api) => api.readingList.add(url, article), null).then((id) => setIsSaved(id !== null));
+  };
 
   const title = reading.state === 'ready' ? reading.article.title : t('views.reader.title');
 
@@ -125,12 +148,24 @@ export function ReaderSurface() {
             >
               {t('views.reader.style.button')}
             </Button>
-            {activeTabId && (
+            <Button size="sm" variant="ghost" disabled={isSaved} onClick={() => save(reading.article, reading.url)}>
+              {isSaved ? t('views.reader.saved') : t('views.reader.saveForLater')}
+            </Button>
+            {activeTabId && !readingItemId && (
               <Button size="sm" variant="ghost" onClick={() => send((api) => api.tabs.print(activeTabId))}>
                 {t('views.reader.print')}
               </Button>
             )}
-            <Button size="sm" onClick={() => setSurface('none')}>
+            <Button
+              size="sm"
+              onClick={() => {
+                // A saved article's page is opened where the reader was, since there is no page behind it yet.
+                if (readingItemId && activeTabId) {
+                  send((api) => api.tabs.navigate(activeTabId, reading.url));
+                }
+                setSurface('none');
+              }}
+            >
               {t('views.reader.openOriginal')}
             </Button>
           </>

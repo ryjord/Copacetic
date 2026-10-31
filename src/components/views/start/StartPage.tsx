@@ -10,6 +10,7 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { Menu } from '@/components/ui/Menu/Menu';
 import { ShortcutDialog } from '@/components/views/start/ShortcutDialog';
 import { StartBookmarks } from '@/components/views/start/StartBookmarks';
+import { StartReadingList } from '@/components/views/start/StartReadingList';
 import { StartBackdrop } from '@/components/views/start/StartBackdrop';
 import { WelcomeCard } from '@/components/views/start/WelcomeCard';
 
@@ -129,6 +130,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
               <TopSites sites={topSites} tabId={tabId} onChanged={() => setTilesVersion((version) => version + 1)} />
             )}
             {widget === 'bookmarks' && <StartBookmarks tabId={tabId} />}
+            {widget === 'readingList' && <StartReadingList />}
           </div>
         ))}
       </div>

@@ -21,12 +21,16 @@ interface BrowserStoreState extends BrowserState {
 
   /** The overlay currently covering the page area, if any. */
   surface: ChromeSurface;
+  /** A saved article reader view is showing instead of the page in front, read with no connection. */
+  readingItemId: string | null;
   /** Incremented to ask the omnibox to take focus and select its contents. */
   omniboxFocusToken: number;
 
   /** The whole state on first load, then only the parts that changed. */
   applyState(next: BrowserStatePatch): void;
   setSurface(surface: ChromeSurface): void;
+  /** Opens a saved article in reader view. */
+  openReading(id: string): void;
   toggleSurface(surface: Exclude<ChromeSurface, 'none'>): void;
   requestOmniboxFocus(): void;
 }
@@ -76,6 +80,7 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
   orderedTabs: [],
   activeTab: null,
   surface: 'none',
+  readingItemId: null,
   omniboxFocusToken: 0,
 
   applyState: (incoming) => {
@@ -103,9 +108,15 @@ export const useBrowserStore = create<BrowserStoreState>((set, get) => ({
     });
   },
 
-  setSurface: (surface) => set({ surface }),
+  // Closing reader view, or opening anything else, ends reading a saved article.
+  setSurface: (surface) => set({ surface, readingItemId: surface === 'reader' ? get().readingItemId : null }),
 
-  toggleSurface: (surface) => set({ surface: get().surface === surface ? 'none' : surface }),
+  openReading: (id) => set({ surface: 'reader', readingItemId: id }),
+
+  toggleSurface: (surface) => {
+    const next = get().surface === surface ? 'none' : surface;
+    set({ surface: next, readingItemId: next === 'reader' ? get().readingItemId : null });
+  },
 
   requestOmniboxFocus: () => set({ omniboxFocusToken: get().omniboxFocusToken + 1 }),
 }));

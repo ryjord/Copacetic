@@ -4,38 +4,11 @@ import { Readability } from '@mozilla/readability';
 // Utils
 import { languageOf } from '@shared/translation/languages';
 
-/** The tags reader view draws. Anything else is unwrapped, keeping its text. */
-export type ReaderTag =
-  | 'p'
-  | 'h2'
-  | 'h3'
-  | 'h4'
-  | 'ul'
-  | 'ol'
-  | 'li'
-  | 'blockquote'
-  | 'pre'
-  | 'code'
-  | 'em'
-  | 'strong'
-  | 'a'
-  | 'br'
-  | 'figcaption';
+// Types
+import type { Article, ReaderNode, ReaderTag } from '@shared/reader/article';
 
-export type ReaderNode =
-  | { kind: 'text'; text: string }
-  | { kind: 'image'; src: string; alt: string }
-  | { kind: 'element'; tag: ReaderTag; href: string | null; children: ReaderNode[] };
-
-export interface Article {
-  title: string;
-  /** The language the page says it is in, as the translation list names it, when it says. */
-  language: string | null;
-  byline: string | null;
-  siteName: string | null;
-  minutes: number;
-  body: ReaderNode[];
-}
+// The shape is shared with the main process, which keeps saved articles and checks what it is handed.
+export type { Article, ReaderNode, ReaderTag } from '@shared/reader/article';
 
 const KEPT_TAGS: Record<string, ReaderTag> = {
   p: 'p',

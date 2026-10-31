@@ -15,6 +15,7 @@ import {
   isHistoryRetentionDays,
   isInterfaceTextSize,
   isSleepAfterMinutes,
+  isStartPageWidgetId,
   isThemeId,
   isPermissionDecisionKey,
   isWebRtcPolicy,
@@ -514,6 +515,25 @@ export function registerIpcHandlers(profiles: Profiles): void {
   });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
 
+  // The article is rebuilt node by node in the store; a shape it does not draw is refused whole.
+  const readingChanged = (browser: Browser) => browser.profile.broadcast(PUSH.dataChanged, 'readingList');
+  handle('readingList.list', (browser) => browser.profile.readingList.list());
+  handle('readingList.add', (browser, _event, url, article) => {
+    const id = browser.profile.readingList.add(asString(url), article);
+    readingChanged(browser);
+    return id;
+  });
+  handle('readingList.isSaved', (browser, _event, url) => browser.profile.readingList.isSaved(asString(url)));
+  handle('readingList.article', (browser, _event, id) => browser.profile.readingList.article(asString(id)));
+  handle('readingList.setRead', (browser, _event, id, isRead) => {
+    browser.profile.readingList.setRead(asString(id), isRead === true);
+    readingChanged(browser);
+  });
+  handle('readingList.remove', (browser, _event, id) => {
+    browser.profile.readingList.remove(asString(id));
+    readingChanged(browser);
+  });
+
   // An address is read back off the payload field by field, as a password is.
   handle('addresses.list', (browser) => browser.vaultSession.addresses.list());
   handle('addresses.add', (browser, _event, fields) => browser.vaultSession.addresses.add(fields));
@@ -972,14 +992,7 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
     patch.ambientHue = ((Math.round(value.ambientHue) % 360) + 360) % 360;
   }
   if (Array.isArray(value.startPageWidgets)) {
-    const allowed = ['clock', 'search', 'topSites', 'bookmarks'];
-    const seen = new Set<string>();
-    for (const id of value.startPageWidgets) {
-      if (typeof id === 'string' && allowed.includes(id)) {
-        seen.add(id);
-      }
-    }
-    patch.startPageWidgets = [...seen] as Settings['startPageWidgets'];
+    patch.startPageWidgets = [...new Set(value.startPageWidgets.filter(isStartPageWidgetId))];
   }
   // Checked and clamped like the per-site levels below it, which it was not:
   // the two sat beside each other doing different things, and this one let a

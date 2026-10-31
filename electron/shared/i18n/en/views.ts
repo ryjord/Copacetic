@@ -235,6 +235,13 @@ export const views = {
       showAll: 'Show all {count}',
       showFewer: 'Show fewer',
     },
+    readingList: {
+      title: 'Reading list',
+      empty: 'Save an article from reader view and it is kept here, to read even with no connection.',
+      remove: 'Remove {title} from the reading list',
+      minutes: '{site} · {count} min',
+      minutesNoSite: '{count} min',
+    },
     welcome: {
       title: 'Welcome to Copacetic',
       import: 'Bring your bookmarks, history and passwords from Chrome, Firefox or a file.',
@@ -261,6 +268,8 @@ export const views = {
     },
     minutes: { one: '{count} minute read', other: '{count} minute read' },
     openOriginal: 'Open original',
+    saveForLater: 'Save for later',
+    saved: 'Saved',
     print: 'Print the page',
     style: {
       // Drawn in the reading typeface, as a sample of what it changes.

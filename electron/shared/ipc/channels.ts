@@ -33,7 +33,7 @@ export const PUSH = {
 } as const;
 
 /** The kinds of kept data a view refetches when told it changed. */
-export type DataKind = 'history' | 'startTiles';
+export type DataKind = 'history' | 'startTiles' | 'readingList';
 
 export type PushChannel = (typeof PUSH)[keyof typeof PUSH];
 
