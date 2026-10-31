@@ -20,6 +20,8 @@ export function addressFillScriptFor(fields: AddressFields, point: { x: number; 
     'family-name': familyNames.join(' '),
     organization: fields.organisation,
     'street-address': fields.street,
+    // A one-line box drops line breaks without a space, so it is given the lines joined.
+    'street-address-on-one-line': [line1, line2, ...rest].filter(Boolean).join(', '),
     'address-line1': line1,
     'address-line2': [line2, ...rest].filter(Boolean).join(', '),
     'address-level2': fields.city,
@@ -52,23 +54,43 @@ export function addressFillScriptFor(fields: AddressFields, point: { x: number; 
     [element.name, element.id, element.getAttribute('aria-label'), element.placeholder, element.labels?.[0]?.textContent]
       .filter(Boolean)
       .join(' ');
+  // Words autocomplete can carry beside the field's own name, which say nothing about what it is.
+  const qualifiers = new Set(['', 'on', 'off', 'shipping', 'billing', 'home', 'work', 'mobile', 'fax', 'pager']);
   const kindOf = (element) => {
-    const tokens = (element.getAttribute('autocomplete') || '').toLowerCase().split(/\\s+/);
+    const tokens = (element.getAttribute('autocomplete') || '')
+      .toLowerCase()
+      .split(/\\s+/)
+      .filter((token) => !token.startsWith('section-'));
     const named = tokens.find((token) => token in values);
     if (named) {
       return named;
     }
-    if (tokens.includes('off') && tokens.length === 1 && !describe(element)) {
+    // The page said what the field is, and it is not part of an address, such as a username or a card.
+    if (tokens.some((token) => !qualifiers.has(token))) {
       return null;
     }
     const text = describe(element);
     return guesses.find(([, pattern]) => pattern.test(text))?.[0] ?? null;
   };
+  // Only what someone can see: an address put into a field kept off screen or invisible is handed over unseen.
   const isFillable = (element) => {
     const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
     const type = (element.type || '').toLowerCase();
-    return rect.width > 0 && rect.height > 0 && !element.disabled && !element.readOnly &&
+    const pageWidth = Math.max(document.documentElement.scrollWidth, window.innerWidth);
+    const isOnPage = rect.right > 0 && rect.bottom > 0 && rect.left < pageWidth;
+    return rect.width > 1 && rect.height > 1 && isOnPage && style.visibility !== 'hidden' &&
+      Number(style.opacity || 1) > 0.1 && !element.disabled && !element.readOnly &&
       !['hidden', 'password', 'checkbox', 'radio', 'submit', 'button', 'file', 'search'].includes(type);
+  };
+  // A list someone has already chosen from is theirs, as typed text is.
+  const isChosen = (element) => {
+    if (!(element instanceof HTMLSelectElement)) {
+      return Boolean(element.value);
+    }
+    // Chosen when it no longer shows what it started on: the option marked selected, or the first.
+    const started = Array.from(element.options).findIndex((option) => option.defaultSelected);
+    return element.selectedIndex !== Math.max(started, 0);
   };
   const setValue = (element, value) => {
     const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype
@@ -88,11 +110,12 @@ export function addressFillScriptFor(fields: AddressFields, point: { x: number; 
   const scope = clicked?.closest?.('form') ?? document.activeElement?.closest?.('form') ?? document;
   let filled = 0;
   for (const element of scope.querySelectorAll('input, select, textarea')) {
-    if (!isFillable(element) || (element.value && !(element instanceof HTMLSelectElement))) {
+    if (!isFillable(element) || isChosen(element)) {
       continue;
     }
     const kind = kindOf(element);
-    const value = kind ? values[kind] : '';
+    const isOneLineStreet = kind === 'street-address' && !(element instanceof HTMLTextAreaElement);
+    const value = kind ? values[isOneLineStreet ? 'street-address-on-one-line' : kind] : '';
     if (!value) {
       continue;
     }

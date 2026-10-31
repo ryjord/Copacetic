@@ -38,6 +38,8 @@ function nameOf(language: string): string {
  */
 export class PageTranslation {
   private readonly translated = new Set<TabId>();
+  /** Counts each tab's new documents, so a translation that finishes after the page moved on is dropped. */
+  private readonly documents = new Map<TabId, number>();
 
   constructor(private readonly deps: PageTranslationDeps) {}
 
@@ -49,6 +51,7 @@ export class PageTranslation {
   pageChanged(tabId: TabId, change: PageChange): void {
     if (change === 'committed') {
       this.translated.delete(tabId);
+      this.documents.set(tabId, (this.documents.get(tabId) ?? 0) + 1);
     }
   }
 
@@ -70,6 +73,7 @@ export class PageTranslation {
       this.say(tabId, t('main.pageTranslation.noPage'));
       return;
     }
+    const document = this.documents.get(tabId) ?? 0;
     let found: unknown = null;
     try {
       found = await contents.executeJavaScriptInIsolatedWorld(PAGE_TRANSLATION_WORLD, [{ code: COLLECT_PAGE_TEXT }]);
@@ -100,12 +104,16 @@ export class PageTranslation {
     try {
       const translations = await this.translateInBatches(from, to, texts);
       // The page in the tab may have changed while the engine worked; writing into another would be wrong.
-      if (this.deps.tabs.livePageFor(tabId) !== contents) {
+      if (this.deps.tabs.livePageFor(tabId) !== contents || (this.documents.get(tabId) ?? 0) !== document) {
         return;
       }
-      await contents.executeJavaScriptInIsolatedWorld(PAGE_TRANSLATION_WORLD, [
+      const applied: unknown = await contents.executeJavaScriptInIsolatedWorld(PAGE_TRANSLATION_WORLD, [
         { code: applyTranslationsScript(translations) },
       ]);
+      if (typeof applied !== 'number' || applied === 0) {
+        this.say(tabId, t('main.pageTranslation.failed'));
+        return;
+      }
       this.translated.add(tabId);
       this.say(tabId, t('main.pageTranslation.done', { from: nameOf(from), to: nameOf(to) }), 'done');
     } catch (error) {

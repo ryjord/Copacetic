@@ -7,15 +7,25 @@ export interface ExtensionPageHost {
   wire(contents: WebContents): void;
 }
 
-/** Every extension loaded somewhere in the app, so the tab guards can let its own pages open and nothing else's. */
-const loaded = new Map<string, ExtensionPageHost | null>();
+/**
+ * Every extension loaded somewhere in the app, so the tab guards can let its
+ * own pages open and nothing else's, by the session it is loaded in: each
+ * profile has a host of its own, and a page must be wired to its own profile's.
+ */
+const loaded = new Map<string, Map<object, ExtensionPageHost | null>>();
 
-export function markLoaded(id: string, host: ExtensionPageHost | null = null): void {
-  loaded.set(id, host);
+export function markLoaded(id: string, where: object, host: ExtensionPageHost | null = null): void {
+  const sessions = loaded.get(id) ?? new Map<object, ExtensionPageHost | null>();
+  sessions.set(where, host);
+  loaded.set(id, sessions);
 }
 
-export function markUnloaded(id: string): void {
-  loaded.delete(id);
+export function markUnloaded(id: string, where: object): void {
+  const sessions = loaded.get(id);
+  sessions?.delete(where);
+  if (sessions?.size === 0) {
+    loaded.delete(id);
+  }
 }
 
 const EXTENSION_PAGE = /^chrome-extension:\/\/([a-p]{32})\//;
@@ -32,10 +42,10 @@ export function isLoadedExtensionPage(url: string): boolean {
   return id !== undefined && loaded.has(id);
 }
 
-/** The extension an address is the page of, with what its tab needs; null for any other address. */
-export function extensionPageOf(url: string): { id: string; host: ExtensionPageHost } | null {
+/** The extension an address is the page of, in this session, with what its tab needs; null for any other address. */
+export function extensionPageOf(url: string, where: object): { id: string; host: ExtensionPageHost } | null {
   const id = EXTENSION_PAGE.exec(url)?.[1];
-  const host = id === undefined ? null : loaded.get(id);
+  const host = id === undefined ? null : loaded.get(id)?.get(where);
   return id !== undefined && host ? { id, host } : null;
 }
 

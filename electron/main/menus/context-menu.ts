@@ -316,7 +316,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     },
     {
       label: t('main.menu.context.putOtherTabsToSleep'),
-      enabled: browser.tabs.tabsInOrder().some((tab) => tab.id !== tabId && browser.tabs.canSleep(tab.id)),
+      enabled: browser.tabs.sleepableOthers(tabId).length > 0,
       click: () => browser.tabs.sleepOthers(tabId),
     },
     { label: t('main.menu.view.reload'), click: () => browser.tabs.reload(tabId) },

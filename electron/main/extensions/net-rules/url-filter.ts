@@ -127,8 +127,14 @@ export function requiredLiteralOf(source: string): string | null {
       // An escaped mark is itself; \d, \w, \b and the like are not literal text.
       if (depth === 0 && /[!-/:-@[-`{-~]/.test(escaped)) {
         run += escaped;
-      } else {
-        finishRun();
+        continue;
+      }
+      finishRun();
+      // \x41, \u{2F}, \p{L}, \cJ, \k<name> and \123 take what follows as their argument, which is not text either.
+      if (/[xuUpPck0-9]/.test(escaped)) {
+        while (index + 1 < source.length && /[0-9A-Za-z{}<>_]/.test(source.charAt(index + 1))) {
+          index += 1;
+        }
       }
       continue;
     }

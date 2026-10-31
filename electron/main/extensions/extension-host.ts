@@ -237,7 +237,7 @@ export class ExtensionHost {
           loaded: extension.id,
         });
       }
-      markLoaded(entry.id, {
+      markLoaded(entry.id, session, {
         preload: this.deps.pagePreload,
         wire: (contents) => this.wirePage(entry.id, contents, contents.id),
       });
@@ -251,8 +251,8 @@ export class ExtensionHost {
       if (session.extensions.getExtension(id)) {
         session.extensions.removeExtension(id);
       }
+      markUnloaded(id, session);
     });
-    markUnloaded(id);
     this.workers.delete(id);
   }
 

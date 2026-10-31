@@ -10,7 +10,8 @@ function setup({ language = 'fr', texts = ['Bonjour', 'le monde'], reader = 'en'
     executeJavaScriptInIsolatedWorld: vi.fn(async (world: number, sources: { code: string }[]) => {
       expect(world).toBe(PAGE_TRANSLATION_WORLD);
       scripts.push(sources[0]?.code ?? '');
-      return scripts.length === 1 ? { language, texts } : 0;
+      // The first script reads the page; the next writes translations in, and says how many it put back.
+      return scripts.length === 1 ? { language, texts } : texts.length;
     }),
   };
   const notices: string[] = [];

@@ -182,7 +182,10 @@ export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStr
           if (isMoving && moving && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
             event.preventDefault();
             const to = Math.min(Math.max(current + (event.key === 'ArrowRight' ? 1 : -1), 0), tabs.length - 1);
+            // Where it comes to rest decides its group, as a drag does, so a group's run is never split.
+            const groupId = groupForDrop(tabs, current, to);
             send((api) => api.tabs.move(moving.id, to));
+            send((api) => api.groups.setForTab(moving.id, groupId));
             return;
           }
 

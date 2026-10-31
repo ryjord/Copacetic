@@ -87,3 +87,47 @@ describe('filling a saved address into a form', () => {
     expect(Reflect.get(globalThis, 'hacked')).toBeUndefined();
   });
 });
+
+describe('what an address is never put into', () => {
+  // The classic way to collect an address unseen: fields kept off screen or made invisible.
+  it('skips a field kept off screen or made invisible', () => {
+    document.body.innerHTML = `<form><input autocomplete="name" id="name">
+      <input autocomplete="email" id="offscreen"><input autocomplete="tel" id="invisible" style="opacity: 0"></form>`;
+    const offscreen = document.querySelector<HTMLInputElement>('#offscreen');
+    // On the element itself: a spy here would change the prototype's mock, and with it every field.
+    if (offscreen) {
+      offscreen.getBoundingClientRect = () => new DOMRect(-9999, 0, 120, 24);
+    }
+    const result: { filled: number } = (0, eval)(addressFillScriptFor(RILEY, null));
+    expect(result.filled).toBe(1);
+    expect(document.querySelector<HTMLInputElement>('#name')?.value).toBe('Riley Jordan');
+    expect(offscreen?.value).toBe('');
+    expect(document.querySelector<HTMLInputElement>('#invisible')?.value).toBe('');
+  });
+
+  it('leaves a list someone has already chosen from', () => {
+    document.body.innerHTML = `<form><select autocomplete="country" id="country">
+      <option value="">Choose</option><option value="IE">Ireland</option><option value="GB">United Kingdom</option>
+    </select></form>`;
+    const select = document.querySelector<HTMLSelectElement>('#country');
+    if (select) {
+      select.value = 'IE';
+    }
+    (0, eval)(addressFillScriptFor(RILEY, null));
+    expect(select?.value).toBe('IE');
+  });
+
+  // The page said what the box is, and it is not part of an address.
+  it('does not guess at a field whose autocomplete names something else, such as a username', () => {
+    const { valueOf } = fill('<form><input autocomplete="username" id="username" name="username"></form>');
+    expect(valueOf('#username')).toBe('');
+  });
+
+  it('joins the street lines for a one-line box, and keeps them apart in a text area', () => {
+    const { valueOf } = fill(
+      '<form><input autocomplete="street-address" id="line"><textarea autocomplete="street-address" id="area"></textarea></form>',
+    );
+    expect(valueOf('#line')).toBe('1 High Street, Flat 2');
+    expect(document.querySelector<HTMLTextAreaElement>('#area')?.value).toBe('1 High Street\nFlat 2');
+  });
+});

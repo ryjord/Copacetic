@@ -57,6 +57,7 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSle
       isPinned: () => false,
       isMuted: () => false,
       tabsInOrder: () => [],
+      sleepableOthers: () => [],
       setPinned: record('tabs.setPinned'),
       setMuted: record('tabs.setMuted'),
       sleepOthers: record('tabs.sleepOthers'),

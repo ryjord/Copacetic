@@ -418,11 +418,15 @@ export class TabManager {
     }
   }
 
-  /** Every other tab that can give its memory back does, as when they have all been left alone. */
+  /** Every other tab that can give its memory back does, as when they have all been left alone: one playing sound plays on. */
   sleepOthers(id: TabId): void {
-    this.tabsInOrder()
-      .filter((tab) => tab.id !== id && this.canSleep(tab.id))
-      .forEach((tab) => this.sleep(tab.id));
+    this.sleepableOthers(id).forEach((tab) => this.sleep(tab.id));
+  }
+
+  sleepableOthers(id: TabId): TabRecord[] {
+    return this.tabsInOrder().filter(
+      (tab) => tab.id !== id && this.canSleep(tab.id) && !(pageOf(tab)?.isCurrentlyAudible() ?? false),
+    );
   }
 
   /** Every tab in the window, in strip order. */
@@ -840,10 +844,10 @@ export class TabManager {
     // Before the view exists, not after. A group's own session had nothing
     // installed on it at all, so its tabs ran with permissions approved by
     // default, no tracker blocking and no download handling.
-    this.prepareSession(partition);
+    const tabSession = this.prepareSession(partition);
 
     // No extension runs in Hush, so a Hush tab has nothing to give the page.
-    const extensionPage = options.adopting || inherited.hush ? null : extensionPageOf(rawUrl);
+    const extensionPage = options.adopting || inherited.hush ? null : extensionPageOf(rawUrl, tabSession);
     const view = this.makeView(partition, options.adopting, extensionPage?.host.preload);
 
     const internal = options.adopting ? null : internalAddressOf(rawUrl);
@@ -1059,7 +1063,7 @@ export class TabManager {
 
   /** A new page for a sleeping tab, there at once; resolves when it can be navigated. */
   private givePageBack(tab: TabRecord, history: SessionHistory | null = null): Promise<unknown> {
-    const extensionPage = extensionPageOf(tab.url);
+    const extensionPage = tab.isHush ? null : extensionPageOf(tab.url, this.prepareSession(tab.partition));
     tab.view = this.makeView(tab.partition, undefined, extensionPage?.host.preload);
     tab.extensionPage = extensionPage?.id ?? null;
     tab.isAsleep = false;
@@ -1805,6 +1809,8 @@ export class TabManager {
   startFind(query: string): void {
     this.find = { ...findForQuery(this.find, query), isWholeWordUnavailable: false };
     this.wholeWordPlan = null;
+    // A new search goes forward from where it starts, whichever way the last one was stepped.
+    this.findForward = true;
 
     const contents = this.activeId ? this.contentsFor(this.activeId) : null;
     if (!contents || !query) {
