@@ -63,8 +63,7 @@ function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
 
 /** The menu shown when someone right-clicks inside a page. */
 export async function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): Promise<void> {
-  // Asked before the menu is built, both at once: which saved passwords and addresses fit needs the vault to open them.
-  // Addresses are offered on an encrypted page only, as passwords are, and only ones this machine can open.
+  // Addresses, like passwords, only on an encrypted page and only ones this machine can open.
   // Waited on only in a form field, so every other right-click opens at once.
   const [passwordOffer, savedAddresses] = params.isEditable
     ? await Promise.all([

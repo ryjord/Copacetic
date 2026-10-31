@@ -106,8 +106,7 @@ export class VaultSession {
     };
   }
 
-  // A keyring can start or stop while Copacetic runs, so the answer is kept for a second, not for good:
-  // long enough that opening every entry of a list asks once rather than once an entry.
+  // Kept a second, not for good: a keyring can stop meanwhile, but a list's entries ask once, not once each.
   private keychain(): Promise<KeychainDescription> {
     const now = Date.now();
     if (!this.keychainAnswer || now - this.keychainAnswer.at > KEYCHAIN_ANSWER_KEPT_MS) {

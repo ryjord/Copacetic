@@ -88,10 +88,7 @@ describe('what a page is allowed to fetch', () => {
    * release that failed to build or load them fails here and nowhere else.
    */
   it('refuses a tracker only the shipped lists know about', async () => {
-    // The lists load after the window shows, so this waits on the blocker's own
-    // count rather than a fixed sleep. A rejected fetch on its own proves
-    // nothing: an offline runner rejects too, and would make every test here
-    // pass with blocking switched off.
+    // The blocker's own count, not the fetch: an offline runner rejects too, and the lists load after the window.
     const isCounted = await copacetic.until(async () => {
       await askPage(tryFetch('https://bat.bing.com/bat.js'));
       return ((await blockedCounts())['bat.bing.com'] ?? 0) > 0;
