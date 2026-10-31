@@ -135,6 +135,11 @@ export class RuleIndex {
     return this.patterns.size;
   }
 
+  /** Whether this rule, by identity, is one this index holds: how a match is traced back to its ruleset. */
+  has(rule: Rule): boolean {
+    return this.patterns.has(rule);
+  }
+
   constructor(rules: readonly Rule[]) {
     this.hasHeaderRules = rules.some((rule) => rule.action.type === 'modifyHeaders');
     for (const rule of rules) {
