@@ -6,6 +6,7 @@ import { type KeychainDescription, describeKeychain } from '../../shared/passwor
 import { describeLock, unlockMethodFor } from '../../shared/passwords/vault-lock';
 import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vault';
 import { PersistedFile } from '../data/persistence';
+import { AddressBook, type AddressFile, EMPTY_ADDRESS_FILE, reviveAddressFile } from './address-book';
 import { t } from '../../shared/i18n/translate';
 
 // Types
@@ -35,7 +36,9 @@ export interface VaultHost {
  */
 export class VaultSession {
   readonly vault: Vault;
+  readonly addresses: AddressBook;
   private readonly file: PersistedFile<VaultFile>;
+  private readonly addressFile: PersistedFile<AddressFile>;
   // No idle timeout: once unlocked it stays open until it is locked or Copacetic quits.
   private isUnlocked = false;
 
@@ -47,13 +50,23 @@ export class VaultSession {
     this.file = new PersistedFile<VaultFile>('vault.json', () => EMPTY_VAULT_FILE, reviveVaultFile, {
       directory: this.host.profileDirectory(),
     });
+    const secrets = {
+      isAvailable: async () => (await this.keychain()).problem === '',
+      whyUnavailable: async () => (await this.keychain()).problem,
+      encrypt: (plainText: string) => this.host.encryptStringAsync(plainText),
+      decrypt: (cipherText: Buffer) => this.host.decryptStringAsync(cipherText),
+    };
+    this.addressFile = new PersistedFile<AddressFile>('addresses.json', () => EMPTY_ADDRESS_FILE, reviveAddressFile, {
+      directory: this.host.profileDirectory(),
+    });
+    this.addresses = new AddressBook(
+      secrets,
+      { get: () => this.addressFile.get(), set: (next) => this.addressFile.set(next) },
+      () => this.isUnlocked,
+      this.now,
+    );
     this.vault = new Vault(
-      {
-        isAvailable: async () => (await this.keychain()).problem === '',
-        whyUnavailable: async () => (await this.keychain()).problem,
-        encrypt: (plainText) => this.host.encryptStringAsync(plainText),
-        decrypt: (cipherText) => this.host.decryptStringAsync(cipherText),
-      },
+      secrets,
       {
         get: () => this.file.get(),
         set: (next) => this.file.set(next),
@@ -127,6 +140,7 @@ export class VaultSession {
 
   flush(): void {
     this.file.flush();
+    this.addressFile.flush();
   }
 }
 

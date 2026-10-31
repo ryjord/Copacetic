@@ -9,6 +9,7 @@ import type { SuggestionView } from '../browsing/suggestion-view';
 import type { GroupColourId } from '../tabs/tab-groups';
 import type { ProfileSummary } from '../data/profiles';
 import type { SpellcheckChoices } from '../chrome/spellcheck';
+import type { AddressEntry, AddressFields } from '../passwords/addresses';
 import type { ClearChoice } from '../data/clearing';
 import type { PasswordRecipe } from '../passwords/password-generator';
 import type {
@@ -318,6 +319,17 @@ export interface CopaceticApi {
     fillForTab(id: TabId, x: number, y: number): Promise<void>;
     /** Save, never for this site, or not now, for the password a sign-in just offered. */
     answerSaveOffer(id: string, answer: PasswordOfferAnswer): Promise<void>;
+  };
+
+  /** Addresses kept in the vault, filled into a form from the right-click menu. */
+  addresses: {
+    list(): Promise<AddressEntry[]>;
+    add(fields: AddressFields): Promise<{ id: string } | { error: string }>;
+    /** The whole address, to edit; null while the vault is locked. */
+    fields(id: string): Promise<AddressFields | null>;
+    /** Resolves empty, or with why nothing changed. */
+    update(id: string, fields: AddressFields): Promise<string>;
+    remove(id: string): Promise<string>;
   };
 
   profiles: {

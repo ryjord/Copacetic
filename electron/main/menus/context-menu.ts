@@ -6,6 +6,7 @@ import { cleanUrl } from '../../shared/browsing/link-cleaning';
 import { t } from '../../shared/i18n/translate';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome/chrome-text';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
+import { isFillablePage } from '../../shared/passwords/credential-matching';
 import { GROUP_COLOURS, claimOf, describeClaim } from '../../shared/tabs/tab-groups';
 import { isInSplit } from '../../shared/tabs/split-view';
 import { groupIdOf, groupTarget, openRuleFor } from '../../shared/tabs/open-rules';
@@ -64,6 +65,11 @@ function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
 export async function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): Promise<void> {
   // Asked before the menu is built: which saved passwords fit needs the vault to open their sites.
   const passwordOffer = params.isEditable ? await browser.passwords.offerFor(tabId) : null;
+  // Offered on an encrypted page only, as passwords are, and only addresses this machine can open.
+  const addresses =
+    params.isEditable && isFillablePage(browser.tabs.urlFor(tabId) ?? '')
+      ? (await browser.vaultSession.addresses.list()).filter((address) => address.isReadable)
+      : [];
   const items: MenuItemConstructorOptions[] = [];
   const push = (item: MenuItemConstructorOptions) => items.push(item);
   const separate = () => {
@@ -153,6 +159,19 @@ export async function showPageContextMenu(browser: Browser, tabId: TabId, params
         },
       })),
     });
+  }
+  if (addresses.length > 0) {
+    push({
+      label: t('main.menu.context.fillAddress'),
+      submenu: addresses.map((address) => ({
+        label: address.label || t('main.menu.context.savedAddress'),
+        click: () => {
+          void browser.addressFill.fill(tabId, address.id, { x: params.x, y: params.y });
+        },
+      })),
+    });
+  }
+  if ((passwordOffer && passwordOffer.entries.length > 0) || addresses.length > 0) {
     separate();
   }
 

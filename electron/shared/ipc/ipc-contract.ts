@@ -190,6 +190,12 @@ export const CHANNELS = {
   'vault.fillForTab': 'vault:fill-for-tab',
   'vault.answerSaveOffer': 'vault:answer-save-offer',
 
+  'addresses.list': 'address:list',
+  'addresses.add': 'address:add',
+  'addresses.fields': 'address:fields',
+  'addresses.update': 'address:update',
+  'addresses.remove': 'address:remove',
+
   'profiles.create': 'profile:create',
   'profiles.update': 'profile:update',
   'profiles.remove': 'profile:remove',

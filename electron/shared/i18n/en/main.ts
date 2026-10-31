@@ -97,6 +97,7 @@ export const main = {
       copyImageAddress: 'Copy image address',
       saveImage: 'Save image',
       fillPassword: 'Fill password',
+      fillAddress: 'Fill address',
       noSpellingSuggestions: 'No spelling suggestions',
       copyPageAddress: 'Copy page address',
       inspectElement: 'Inspect element',
@@ -127,6 +128,7 @@ export const main = {
       openAllAsTabGroup: 'Open all as a tab group',
       empty: 'Empty',
       savedPassword: 'Saved password',
+      savedAddress: 'Saved address',
       unpinTab: 'Unpin tab',
       pinTab: 'Pin tab',
       leaveSplit: 'Leave split view',
@@ -300,6 +302,21 @@ export const main = {
       lineBreak:
         'Filled, but this password contains a line break and the box on this page cannot hold one. Sign-in will fail; paste it yourself.',
       rejected: 'The page would not accept it.',
+    },
+  },
+  addresses: {
+    errors: {
+      empty: 'Fill in at least one part of the address.',
+      unlockToChange: 'Unlock the vault before changing an address.',
+      unlockToRemove: 'Unlock the vault before removing an address.',
+      gone: 'That address is no longer saved.',
+    },
+    fill: {
+      locked: 'The vault is locked, or that address cannot be decrypted on this machine.',
+      noPage: 'There is no page here to fill.',
+      noFields: 'No address fields were found on this page.',
+      rejected: 'The page would not accept it.',
+      notEncrypted: 'This page is not encrypted, so an address is not filled into it.',
     },
   },
   groups: {

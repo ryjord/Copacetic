@@ -15,6 +15,7 @@ import { BookmarkCommands } from '../workflows/bookmarks';
 import { DataTransfer } from '../workflows/data-transfer';
 import { GroupCommands } from '../workflows/groups';
 import { PasswordFill } from '../workflows/password-fill';
+import { AddressFill } from '../workflows/address-fill';
 import { PasswordSave } from '../workflows/password-save';
 import { SiteData } from '../workflows/site-data';
 import { TabCommands } from '../workflows/tab-commands';
@@ -69,6 +70,7 @@ export class Browser {
   readonly sites: SiteData;
   readonly transfer: DataTransfer;
   readonly passwords: PasswordFill;
+  readonly addressFill: AddressFill;
   readonly passwordSave: PasswordSave;
   readonly commands: TabCommands;
 
@@ -186,6 +188,7 @@ export class Browser {
       changed,
     });
     this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
+    this.addressFill = new AddressFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
     this.passwordSave = new PasswordSave({
       tabs: this.tabs,
       vaultSession: this.vaultSession,

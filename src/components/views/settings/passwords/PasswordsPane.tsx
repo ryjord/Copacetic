@@ -10,6 +10,7 @@ import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow'
 import { StatusPill } from '@/components/ui/StatusPill/StatusPill';
 import { TextField } from '@/components/ui/TextField/TextField';
 import { GeneratorOptions } from '@/components/views/settings/passwords/GeneratorOptions';
+import { SavedAddresses } from '@/components/views/settings/passwords/SavedAddresses';
 import { SavedPasswords } from '@/components/views/settings/passwords/SavedPasswords';
 import { SaveOffers } from '@/components/views/settings/passwords/SaveOffers';
 
@@ -160,6 +161,8 @@ export function PasswordsPane({ openPane }: Partial<Pick<SettingsPaneProps, 'ope
             </div>
           ))}
       </SettingGroup>
+
+      <SavedAddresses isUnlocked={lock.isUnlocked} />
 
       <SettingGroup title={t('settings.passwords.transfer.title')}>
         {transferMessage && (

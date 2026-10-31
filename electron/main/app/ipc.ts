@@ -513,6 +513,19 @@ export function registerIpcHandlers(profiles: Profiles): void {
     await clearCopiedSecret();
   });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
+
+  // An address is read back off the payload field by field, as a password is.
+  handle('addresses.list', (browser) => browser.vaultSession.addresses.list());
+  handle('addresses.add', (browser, _event, fields) => browser.vaultSession.addresses.add(fields));
+  handle('addresses.fields', (browser, _event, id) => browser.vaultSession.addresses.fieldsOf(asString(id)));
+  handle('addresses.update', async (browser, _event, id, fields) => {
+    const result = await browser.vaultSession.addresses.update(asString(id), fields);
+    return result?.error ?? '';
+  });
+  handle(
+    'addresses.remove',
+    (browser, _event, id) => browser.vaultSession.addresses.remove(asString(id))?.error ?? '',
+  );
   handle(
     'vault.countForTab',
     async (browser, _event, id) => (await browser.passwords.offerFor(asString(id))).entries.length,
