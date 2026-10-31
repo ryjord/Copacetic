@@ -207,6 +207,10 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         label: t('main.menu.view.pictureInPicture'),
         click: () => inWindow((browser) => browser.commands.pictureInPictureOfActiveTab()),
       },
+      {
+        label: t('main.menu.view.translatePage'),
+        click: () => inWindow((browser) => browser.translateActivePage()),
+      },
       { role: 'togglefullscreen' },
       { type: 'separator' },
       {

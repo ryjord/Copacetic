@@ -51,6 +51,7 @@ export const main = {
       actualSize: 'Actual size',
       readerView: 'Reader view',
       pictureInPicture: 'Picture in picture',
+      translatePage: 'Translate this page, or show the original',
       commandPalette: 'Command palette',
       viewPageSource: 'View page source',
       developerTools: 'Developer tools',
@@ -90,6 +91,8 @@ export const main = {
     },
     context: {
       pictureInPicture: 'Picture in picture',
+      translatePage: 'Translate this page',
+      showOriginal: 'Show original',
       openLinkInNewTab: 'Open link in new tab',
       openLinkInBackgroundTab: 'Open link in background tab',
       openLinkInHushTab: 'Open link in Hush tab',
@@ -313,6 +316,16 @@ export const main = {
         'Filled, but this password contains a line break and the box on this page cannot hold one. Sign-in will fail; paste it yourself.',
       rejected: 'The page would not accept it.',
     },
+  },
+  pageTranslation: {
+    noPage: 'There is no page here to translate.',
+    noText: 'There is no text on this page to translate.',
+    noLanguage:
+      'This page does not say what language it is in. Reader view can translate it from a language you choose.',
+    unsupported: 'Pages in {language} cannot be translated on this machine yet.',
+    working: 'Translating from {from} into {to}, on this machine…',
+    done: 'Translated from {from} into {to}. Choose Show original to put it back.',
+    failed: 'This page could not be translated.',
   },
   addresses: {
     errors: {

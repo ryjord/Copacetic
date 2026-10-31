@@ -60,6 +60,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     },
     { label: t('main.menu.view.readerView'), ...shortcut('reader-view'), click: () => browser.openSurface('reader') },
     { label: t('main.menu.view.pictureInPicture'), click: () => browser.commands.pictureInPictureOfActiveTab() },
+    { label: t('main.menu.view.translatePage'), click: () => browser.translateActivePage() },
     { label: t('main.menu.tabs.splitView'), ...shortcut('split-view'), click: () => browser.tabs.toggleSplit() },
     { label: t('main.menu.tabs.pin'), ...shortcut('pin-tab'), click: () => browser.tabs.togglePinnedActive() },
     { label: t('main.menu.tabs.mute'), ...shortcut('mute-tab'), click: () => browser.tabs.toggleMutedActive() },

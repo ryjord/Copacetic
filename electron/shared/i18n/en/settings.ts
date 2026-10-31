@@ -912,7 +912,7 @@ export const settings = {
       },
       runs: {
         title: 'What runs in pages',
-        line: 'A placeholder some sign-in pages need, Fill password, Fill address and Picture in picture when you choose them, a call to leave full screen, a look at how far down the page you are, and nothing that watches what you type.',
+        line: 'A placeholder some sign-in pages need, Fill password, Fill address, Picture in picture and Translate this page when you choose them, a call to leave full screen, a look at how far down the page you are, and nothing that watches what you type.',
       },
       more: 'Read more',
     },
@@ -998,9 +998,9 @@ export const settings = {
       title: 'Scripts in pages',
       run: {
         question: 'Does Copacetic run code in the pages I visit?',
-        before: 'Five small things. Every page gets a placeholder for the',
+        before: 'Six small things. Every page gets a placeholder for the',
         after:
-          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password and Fill address run once when you choose them, filling only empty fields, and so does Picture in picture, in a world of its own, reading only which video is where. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. When you leave a tab, and once a minute for the one in front, a line in a world of its own reads how far across and down the page is, and nothing else, so a restored or woken tab is put back where you were; typed form input is still not brought back. Not in Hush. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and it looks again 3, 10 and 30 seconds after the page loads for a form drawn later or in a dialog; where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
+          "object that real Chrome has and Electron leaves empty, because some sign-in pages refuse a browser without it. It holds three empty members and nothing of the browser's. Fill password and Fill address run once when you choose them, filling only empty fields, and so does Picture in picture, in a world of its own, reading only which video is where. A page left in full screen when you switch tabs is asked to leave it, with one call that reads nothing. When you leave a tab, and once a minute for the one in front, a line in a world of its own reads how far across and down the page is, and nothing else, so a restored or woken tab is put back where you were; typed form input is still not brought back. Not in Hush. Translate this page, when you choose it, reads the page’s visible text in a world of its own, leaving out scripts, code and anything typed into a form, translates it on this machine and puts the translation in its place; Show original puts the page back. And on each secure page a short script looks for a sign-in form, in a world of its own the page cannot see or reach: where there is none it stops at once, and it looks again 3, 10 and 30 seconds after the page loads for a form drawn later or in a dialog; where there is one it waits for you to send it, reads the username and password once, and hands them to Copacetic to offer to save. Not in Hush, and it can be turned off in Passwords.",
       },
       extensions: {
         question: 'What about extensions?',

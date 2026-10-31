@@ -16,6 +16,8 @@ import { DataTransfer } from '../workflows/data-transfer';
 import { GroupCommands } from '../workflows/groups';
 import { PasswordFill } from '../workflows/password-fill';
 import { AddressFill } from '../workflows/address-fill';
+import { PageTranslation } from '../workflows/page-translation';
+import { ENGLISH, languageOf } from '../../shared/translation/languages';
 import { PasswordSave } from '../workflows/password-save';
 import { SiteData } from '../workflows/site-data';
 import { TabCommands } from '../workflows/tab-commands';
@@ -71,6 +73,7 @@ export class Browser {
   readonly transfer: DataTransfer;
   readonly passwords: PasswordFill;
   readonly addressFill: AddressFill;
+  readonly pageTranslation: PageTranslation;
   readonly passwordSave: PasswordSave;
   readonly commands: TabCommands;
 
@@ -189,6 +192,12 @@ export class Browser {
     });
     this.passwords = new PasswordFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
     this.addressFill = new AddressFill({ tabs: this.tabs, vaultSession: this.vaultSession, notices: this.notices });
+    this.pageTranslation = new PageTranslation({
+      tabs: this.tabs,
+      translation: this.profile.translation,
+      notices: this.notices,
+      readerLanguage: () => languageOf(app.getLocale()) ?? ENGLISH,
+    });
     this.passwordSave = new PasswordSave({
       tabs: this.tabs,
       vaultSession: this.vaultSession,
@@ -200,7 +209,10 @@ export class Browser {
       },
       changed,
     });
-    this.tabs.onPageChange((tabId, change) => this.passwordSave.pageChanged(tabId, change));
+    this.tabs.onPageChange((tabId, change) => {
+      this.passwordSave.pageChanged(tabId, change);
+      this.pageTranslation.pageChanged(tabId, change);
+    });
     this.tabs.onLastTabClosed(() => this.window.close());
     this.commands = new TabCommands({ store: this.store, tabs: this.tabs, notices: this.notices, changed, push });
 
@@ -549,6 +561,14 @@ export class Browser {
   }
 
   /** Settings, history, bookmarks or downloads, in a tab of their own rather than over the page. */
+  /** The page in front translated where it stands, or put back if it already is. */
+  translateActivePage(): void {
+    const { activeTabId } = this.tabs.snapshot();
+    if (activeTabId) {
+      void this.pageTranslation.toggle(activeTabId);
+    }
+  }
+
   showPage(page: InternalPage, section: string | null = null): void {
     this.closeSiteInfo();
     // The page is the thing asked for, so an overlay such as the palette gives way to it.

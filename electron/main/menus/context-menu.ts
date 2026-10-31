@@ -237,6 +237,12 @@ export async function showPageContextMenu(browser: Browser, tabId: TabId, params
     push({ label: t('main.menu.file.savePageAs'), click: () => browser.commands.savePage(tabId) });
     push({ label: t('main.menu.file.screenshot'), click: () => browser.commands.saveScreenshot(tabId) });
     push({ label: t('main.menu.file.print'), click: () => browser.commands.print(tabId) });
+    push({
+      label: browser.pageTranslation.isTranslated(tabId)
+        ? t('main.menu.context.showOriginal')
+        : t('main.menu.context.translatePage'),
+      click: () => void browser.pageTranslation.toggle(tabId),
+    });
     push({ label: t('main.menu.view.viewPageSource'), click: () => browser.commands.viewSource(tabId) });
     separate();
   }
