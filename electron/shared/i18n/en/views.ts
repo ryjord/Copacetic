@@ -4,7 +4,10 @@ export const views = {
     confirm: 'Clear',
     history: 'History from {range}',
     siteData: 'Cookies and site data, from all time. You will be signed out of sites.',
+    siteDataOfVisited:
+      'Cookies and site data of the sites visited in the {range}, however old. You will be signed out of them.',
     cache: 'Cached images and files, from all time',
+    cacheOfVisited: 'Cached images and files of the sites visited in the {range}',
     groupsNote: 'Groups that keep their own browsing are cleared too. Open tabs stay open.',
   },
   lists: {
