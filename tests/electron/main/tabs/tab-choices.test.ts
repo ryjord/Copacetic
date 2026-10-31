@@ -19,6 +19,7 @@ const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate
   isHush: false,
   isPinned: false,
   history: null,
+  scroll: null,
   ...over,
 });
 
@@ -49,6 +50,13 @@ describe('which tab to show after closing the one in front', () => {
  * be the one trace that tab left.
  */
 describe('what is written down to reopen', () => {
+  // The position alone, apart from the page state, which would bring back typed form input too.
+  it('keeps how far down its page a tab was, and nothing when it was at the top', () => {
+    const snapshot = sessionFrom([tab('a', { scroll: { x: 0, y: 1800 } }), tab('b')], 'a');
+    expect(snapshot.tabs[0]?.scroll).toEqual({ x: 0, y: 1800 });
+    expect(snapshot.tabs[1]).not.toHaveProperty('scroll');
+  });
+
   it('keeps ordinary tabs, with their group', () => {
     const snapshot = sessionFrom([tab('a', { groupId: 'work' }), tab('b')], 'a');
     expect(snapshot.tabs).toEqual([

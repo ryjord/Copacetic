@@ -231,6 +231,7 @@ export class Browser {
         groupId: tab.groupId,
         pinned: tab.isPinned === true,
         history: tab.history,
+        scroll: tab.scroll,
       }),
     );
     const { split } = session;

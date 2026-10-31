@@ -74,6 +74,7 @@ import {
 import { describeTab } from '../system/browser-identity';
 import { log } from '../system/diagnostics';
 import { isThisMachineLowOnMemory } from '../system/memory';
+import { readScroll, restoreScroll } from './scroll-memory';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents, markLoadRequested, settleUnstartedLoad } from './tab-events';
 import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
@@ -91,6 +92,7 @@ import type { InternalPage } from '../../shared/tabs/internal-pages';
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
 import type { SessionHistory, SessionSnapshot } from '../data/session-store';
+import type { ScrollPosition } from '../../shared/tabs/scroll-position';
 import type { NamedSessionTab } from '../../shared/data/named-sessions';
 import { type TabMemory, memoryByTab } from '../../shared/tabs/tab-memory';
 import type { ProfilePartitions } from '../../shared/data/partitions';
@@ -220,6 +222,7 @@ export class TabManager {
           isPinned: tab.isPinned,
           // A page Copacetic draws has only the blank page behind it to go back to.
           history: internalPage === null ? this.historyOf(tab) : null,
+          scroll: tab.scroll?.url === tab.url ? tab.scroll.position : null,
         });
       }
     }
@@ -741,6 +744,8 @@ export class TabManager {
       pinned?: boolean;
       /** Where it can go back and forward to, from a restored session. */
       history?: SessionHistory;
+      /** How far down its page it was, from a restored session. */
+      scroll?: ScrollPosition;
       /**
        * A page a tab opened with `window.open`, already made by Chromium and
        * linked to its opener. It becomes this tab as it is, never loaded again,
@@ -818,6 +823,8 @@ export class TabManager {
       lastActiveAt: Date.now(),
       sleptHistory: null,
       extensionPage: extensionPage?.id ?? null,
+      scroll: null,
+      pendingScroll: options.scroll && !internal ? { url: rawUrl, position: options.scroll } : null,
     };
 
     this.tabs.set(id, tab);
@@ -929,6 +936,7 @@ export class TabManager {
     if (tab.extensionPage !== null) {
       this.guardExtensionView(tab, tab.extensionPage);
     }
+    view.webContents.on('did-finish-load', () => this.putBackScroll(tab, view.webContents));
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
     // An adopted page already has a document and is on its way somewhere; loading the empty one would stop it.
@@ -991,6 +999,7 @@ export class TabManager {
     if (!tab.isAsleep) {
       return;
     }
+    tab.pendingScroll = tab.scroll;
     const history = tab.sleptHistory;
     void this.givePageBack(tab, history).then(() => {
       const page = pageOf(tab);
@@ -1075,9 +1084,39 @@ export class TabManager {
     void this.loadUrl(tab, url);
   }
 
+  /** Reads how far down its page a tab is, for a restore or a wake to put back; never for Hush or a page of ours. */
+  private async rememberScroll(tab: TabRecord): Promise<void> {
+    const contents = pageOf(tab);
+    if (!contents || tab.isHush || internalPageOf(tab.url) !== null) {
+      return;
+    }
+    const url = contents.getURL();
+    const position = await readScroll(contents);
+    if (pageOf(tab) === contents && contents.getURL() === url) {
+      tab.scroll = position ? { url, position } : null;
+    }
+  }
+
+  private putBackScroll(tab: TabRecord, contents: WebContents): void {
+    const pending = tab.pendingScroll;
+    // The primed empty page loads first, and is no reason to give up waiting.
+    if (!pending || pageOf(tab) !== contents || contents.getURL() === 'about:blank') {
+      return;
+    }
+    tab.pendingScroll = null;
+    if (contents.getURL() === pending.url) {
+      void restoreScroll(contents, pending.position);
+    }
+  }
+
   private sleepIdleTabs(): void {
     const afterMinutes = this.store.getSettings().sleepTabsAfterMinutes;
     const visible = this.visibleSplit();
+    // The tabs on screen are read once a minute too, since a quit gives no moment to ask them.
+    [this.activeId, visible ? partnerIn(visible, this.activeId ?? '') : null]
+      .map((id) => (id ? this.tabs.get(id) : undefined))
+      .filter((tab) => tab !== undefined)
+      .forEach((tab) => void this.rememberScroll(tab));
     const candidates = [...this.tabs.values()].map((tab) => ({
       id: tab.id,
       isActive: tab.id === this.activeId || isInSplit(visible, tab.id),
@@ -1320,6 +1359,7 @@ export class TabManager {
     const leaving = this.activeTab();
     if (leaving) {
       leaving.lastActiveAt = now;
+      void this.rememberScroll(leaving);
     }
     this.activeId = id;
     const arriving = this.tabs.get(id);

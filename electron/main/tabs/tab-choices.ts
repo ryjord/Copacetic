@@ -8,6 +8,7 @@ import {
 import { isPageNavigableUrl } from '../../shared/browsing/url';
 
 // Types
+import type { ScrollPosition } from '../../shared/tabs/scroll-position';
 import type { TabId } from '../../shared/types';
 import type { SplitView } from '../../shared/tabs/split-view';
 
@@ -46,6 +47,8 @@ export interface SessionCandidate {
   isPinned: boolean;
   /** Its back and forward list as the page has it, page state and all; only addresses and titles are kept. */
   history: { entries: readonly { url: string; title: string }[]; index: number } | null;
+  /** How far down its page it was, when that was read of the page it shows now. */
+  scroll: ScrollPosition | null;
 }
 
 /**
@@ -103,6 +106,7 @@ export function sessionFrom(
       groupId: tab.groupId,
       ...(tab.isPinned ? { isPinned: true } : {}),
       ...(history ? { history } : {}),
+      ...(tab.scroll ? { scroll: tab.scroll } : {}),
     });
   }
 
