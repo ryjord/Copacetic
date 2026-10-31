@@ -32,7 +32,7 @@ import {
 } from '../../shared/tabs/internal-pages';
 import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
 import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
-import { isLoadedExtensionPage } from '../extensions/extension-pages';
+import { extensionPageOf, isLoadedExtensionPage, isOwnPage } from '../extensions/extension-pages';
 import {
   DEFAULT_INSETS,
   type ContentBounds,
@@ -789,7 +789,9 @@ export class TabManager {
     // default, no tracker blocking and no download handling.
     this.prepareSession(partition);
 
-    const view = this.makeView(partition, options.adopting);
+    // No extension runs in Hush, so a Hush tab has nothing to give the page.
+    const extensionPage = options.adopting || inherited.hush ? null : extensionPageOf(rawUrl);
+    const view = this.makeView(partition, options.adopting, extensionPage?.host.preload);
 
     const internal = options.adopting ? null : internalAddressOf(rawUrl);
     // Reached with one of our addresses only for an adopted page, which is a site whatever it was opened at.
@@ -815,6 +817,7 @@ export class TabManager {
       isAsleep: false,
       lastActiveAt: Date.now(),
       sleptHistory: null,
+      extensionPage: extensionPage?.id ?? null,
     };
 
     this.tabs.set(id, tab);
@@ -824,6 +827,7 @@ export class TabManager {
 
     const history = internal ? null : (options.history ?? null);
     const described = this.wireView(tab, options.adopting !== undefined, history);
+    extensionPage?.host.wire(view.webContents);
 
     if (!internal && !options.adopting) {
       void described.then(() => {
@@ -848,11 +852,12 @@ export class TabManager {
   }
 
   /** A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows. */
-  private makeView(partition: string, adopting?: Electron.WebContents): WebContentsView {
+  // `extensionPreload` only for an extension's own page: a website never loads in a view that has one.
+  private makeView(partition: string, adopting?: Electron.WebContents, extensionPreload?: string): WebContentsView {
     const view = new WebContentsView({
       ...(adopting ? { webContents: adopting } : {}),
       webPreferences: {
-        preload: undefined,
+        preload: extensionPreload,
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
@@ -921,6 +926,9 @@ export class TabManager {
     };
     view.webContents.on('will-navigate', followRule);
     view.webContents.on('will-redirect', followRule);
+    if (tab.extensionPage !== null) {
+      this.guardExtensionView(tab, tab.extensionPage);
+    }
     view.webContents.on('enter-html-full-screen', () => this.enterFullscreen(id));
     view.webContents.on('leave-html-full-screen', () => this.leaveFullscreen(id));
     // An adopted page already has a document and is on its way somewhere; loading the empty one would stop it.
@@ -994,10 +1002,66 @@ export class TabManager {
 
   /** A new page for a sleeping tab, there at once; resolves when it can be navigated. */
   private givePageBack(tab: TabRecord, history: SessionHistory | null = null): Promise<unknown> {
-    tab.view = this.makeView(tab.partition);
+    const extensionPage = extensionPageOf(tab.url);
+    tab.view = this.makeView(tab.partition, undefined, extensionPage?.host.preload);
+    tab.extensionPage = extensionPage?.id ?? null;
     tab.isAsleep = false;
     tab.sleptHistory = null;
-    return this.wireView(tab, false, history);
+    const described = this.wireView(tab, false, history);
+    extensionPage?.host.wire(tab.view.webContents);
+    return described;
+  }
+
+  /**
+   * Keeps a view carrying an extension's preload to that extension's pages. A
+   * link or script leaving for a website is cancelled before its request; any
+   * other way out (Back, say) is noticed as it starts. Either way the tab then
+   * gets a plain view, with its history, and goes there.
+   */
+  private guardExtensionView(tab: TabRecord, extensionId: string): void {
+    const contents = tab.view.webContents;
+    // After the event that asked: stopping or closing a page inside its own navigation event crashes Chromium.
+    const leave = (url: string) =>
+      setImmediate(() => {
+        if (pageOf(tab) === contents && tab.extensionPage === extensionId) {
+          this.leaveExtensionView(tab, url);
+        }
+      });
+    const stopAtTheDoor = (event: Electron.Event<{ url: string; isMainFrame: boolean }>) => {
+      if (event.isMainFrame && !isOwnPage(extensionId, event.url)) {
+        event.preventDefault();
+        leave(event.url);
+      }
+    };
+    contents.on('will-navigate', stopAtTheDoor);
+    contents.on('will-redirect', stopAtTheDoor);
+    contents.on('did-start-navigation', (event) => {
+      if (event.isMainFrame && !event.isSameDocument && !isOwnPage(extensionId, event.url)) {
+        leave(event.url);
+      }
+    });
+  }
+
+  private leaveExtensionView(tab: TabRecord, url: string): void {
+    const contents = pageOf(tab);
+    if (!contents) {
+      return;
+    }
+    const history: SessionHistory = {
+      entries: contents.navigationHistory.getAllEntries(),
+      index: contents.navigationHistory.getActiveIndex(),
+    };
+    this.destroyTab(tab);
+    tab.extensionPage = null;
+    tab.view = this.makeView(tab.partition);
+    void this.wireView(tab, false, history).then(() => {
+      if (this.tabs.get(tab.id) === tab && pageOf(tab)) {
+        void this.loadUrl(tab, url);
+      }
+    });
+    this.applyVisibility();
+    this.applyBounds();
+    this.onChanged();
   }
 
   /** Takes a primed page where it was going: to its place in the history restored, or to its address. */
@@ -1526,6 +1590,10 @@ export class TabManager {
   private async loadUrl(tab: TabRecord, url: string): Promise<void> {
     const contents = pageOf(tab);
     if (!contents) {
+      return;
+    }
+    if (tab.extensionPage !== null && !isOwnPage(tab.extensionPage, url)) {
+      this.leaveExtensionView(tab, url);
       return;
     }
 

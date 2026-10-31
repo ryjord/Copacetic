@@ -32,6 +32,8 @@ export interface TabRecord {
   lastActiveAt: number;
   /** The back and forward list it had when it went to sleep, restored when it wakes. */
   sleptHistory: { entries: Electron.NavigationEntry[]; index: number } | null;
+  /** The extension whose own page this view was made for, with its preload; null for every other view. */
+  extensionPage: string | null;
 }
 
 /**

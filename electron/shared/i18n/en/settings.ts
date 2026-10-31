@@ -982,7 +982,7 @@ export const settings = {
       extensions: {
         question: 'What about extensions?',
         answer:
-          'An extension you add runs its own code, in the pages it asks for, as it would in Chrome; Settings says what each may do before it is added. Once one is added, Copacetic also gives every worker in that profile a script of its own, which supplies the parts of the extension API Electron lacks to an extension and does nothing at all in a website’s worker. None of this reaches a Hush tab.',
+          'An extension you add runs its own code, in the pages it asks for, as it would in Chrome; Settings says what each may do before it is added. Once one is added, Copacetic also gives every worker in that profile a script of its own, which supplies the parts of the extension API Electron lacks to an extension and does nothing at all in a website’s worker. The extension’s own pages, in its popup or in a tab, get the same; a tab that leaves them for a website is given a fresh page with none of it. None of this reaches a Hush tab.',
       },
     },
     blocking: {

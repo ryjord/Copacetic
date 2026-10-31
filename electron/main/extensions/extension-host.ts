@@ -237,7 +237,10 @@ export class ExtensionHost {
           loaded: extension.id,
         });
       }
-      markLoaded(entry.id);
+      markLoaded(entry.id, {
+        preload: this.deps.pagePreload,
+        wire: (contents) => this.wirePage(entry.id, contents, contents.id),
+      });
     } catch (error) {
       log.warn('could not load an extension', describeError(error));
     }
