@@ -47,6 +47,18 @@ describe('the saved session, read back off disk', () => {
   // One window's worth, which is what each of these is about.
   const oneWindow = (window: unknown) => reviveSession({ windows: [window] })?.windows[0];
 
+  // A position is two whole numbers in range; anything else in the file is dropped rather than scrolled to.
+  it('brings back a scroll position only when it is one', () => {
+    const scrollOf = (scroll: unknown) =>
+      oneWindow({ tabs: [{ url: 'https://a.example/', scroll }] })?.tabs[0]?.scroll;
+    expect(scrollOf({ x: 0, y: 2400 })).toEqual({ x: 0, y: 2400 });
+    expect(scrollOf({ x: -1, y: 2400 })).toBeUndefined();
+    expect(scrollOf({ x: 0, y: 1e12 })).toBeUndefined();
+    expect(scrollOf({ x: 0, y: '2400' })).toBeUndefined();
+    expect(scrollOf({ x: 0, y: 0 })).toBeUndefined();
+    expect(scrollOf(null)).toBeUndefined();
+  });
+
   // An index past the end would select a tab that does not exist.
   it('clamps the active index to the tabs that are actually there', () => {
     expect(oneWindow({ tabs: tabs('a', 'b'), activeIndex: 99 })?.activeIndex).toBe(1);

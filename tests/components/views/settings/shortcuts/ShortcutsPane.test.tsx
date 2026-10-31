@@ -43,8 +43,8 @@ describe('the shortcuts pane', () => {
 
   it('moves a shortcut to the keys pressed, and lets the menu go while recording', () => {
     render(<ShortcutsPane />);
-    fireEvent.keyDown(changePrint(), { code: 'KeyP', ctrlKey: true, altKey: true });
-    expect(updateSettings).toHaveBeenCalledWith({ shortcutOverrides: { print: 'CmdOrCtrl+Alt+P' } });
+    fireEvent.keyDown(changePrint(), { code: 'KeyY', ctrlKey: true, altKey: true });
+    expect(updateSettings).toHaveBeenCalledWith({ shortcutOverrides: { print: 'CmdOrCtrl+Alt+Y' } });
     expect(recording).toContain(true);
     expect(recording.at(-1)).toBe(false);
   });

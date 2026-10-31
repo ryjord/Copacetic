@@ -20,7 +20,7 @@ import { type Notice, admit, dismiss, dismissAfterMs } from '@shared/chrome/noti
 
 const LOOK: Record<Notice['tone'], { icon: typeof Info; className: string }> = {
   info: { icon: Info, className: 'text-ink-dim' },
-  done: { icon: Check, className: 'text-clear' },
+  done: { icon: Check, className: 'text-ink-dim' },
   ask: { icon: CircleAlert, className: 'text-caution' },
   undo: { icon: Undo2, className: 'text-ink-dim' },
 };

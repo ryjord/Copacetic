@@ -1,6 +1,8 @@
+// Types
 import type { WebContents, WebContentsView } from 'electron';
 import type { PageError, TabId } from '../../shared/types';
 import type { BrowsingRecord } from './browsing-record';
+import type { ScrollPosition } from '../../shared/tabs/scroll-position';
 
 /** Everything the main process knows about one tab. */
 export interface TabRecord {
@@ -32,6 +34,12 @@ export interface TabRecord {
   lastActiveAt: number;
   /** The back and forward list it had when it went to sleep, restored when it wakes. */
   sleptHistory: { entries: Electron.NavigationEntry[]; index: number } | null;
+  /** The extension whose own page this view was made for, with its preload; null for every other view. */
+  extensionPage: string | null;
+  /** How far down the page at that address it was, last time it was read. */
+  scroll: { url: string; position: ScrollPosition } | null;
+  /** Where to put the page back to once that address has loaded, after a restore or a wake. */
+  pendingScroll: { url: string; position: ScrollPosition } | null;
 }
 
 /**

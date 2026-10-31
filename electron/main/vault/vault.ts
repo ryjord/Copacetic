@@ -1,6 +1,7 @@
 // Utils
 import { asNumber, asString, isRecord, newId } from '../data/persistence';
 import { t } from '../../shared/i18n/translate';
+import { isKeychainAvailable, openText, sealText, whyKeychainUnavailable } from './sealing';
 
 // Types
 import type { CsvCredential } from '../../shared/passwords/credential-csv';
@@ -8,11 +9,12 @@ import type { VaultEntry, VaultState } from '../../shared/types';
 
 /** The OS keychain, behind an interface so the rules above it can be tested without one. */
 export interface SecretStore {
-  isAvailable(): boolean;
+  isAvailable(): Promise<boolean>;
   /** Why it is not available, where the platform can say more than that. */
-  whyUnavailable?(): string;
-  encrypt(plainText: string): Buffer;
-  decrypt(cipherText: Buffer): string;
+  whyUnavailable?(): Promise<string>;
+  encrypt(plainText: string): Promise<Buffer>;
+  /** `shouldReEncrypt`: sealed under a key the keychain has since replaced. */
+  decrypt(cipherText: Buffer): Promise<{ result: string; shouldReEncrypt: boolean }>;
 }
 
 /** Which site a password is for and whose it is: as revealing as the password, for the list of accounts it makes. */
@@ -60,14 +62,15 @@ export interface VaultStorage {
 
 export const EMPTY_VAULT_FILE: VaultFile = { version: CURRENT_VERSION, entries: [] };
 
-const NO_KEYCHAIN = t('main.vault.keychain.none');
-
 // A vault with nothing in it and one that cannot be decrypted are different states.
 export class Vault {
   /** Sites and usernames already opened, keyed by what was sealed: the list shows them, so they are not secret here. */
   private readonly opened = new Map<string, Identity>();
   /** Ciphertexts that have opened on this machine; only positives, so a keychain that comes back is noticed. */
   private readonly knownReadable = new Set<string>();
+
+  /** Every read and write waits for version 1's entries to be sealed, so none of them sees a half-upgraded file. */
+  private readonly ready: Promise<void>;
 
   constructor(
     private readonly secrets: SecretStore,
@@ -76,23 +79,24 @@ export class Vault {
     // Enforced here, not just the interface - a lock the renderer honours and the vault does not is decoration.
     private readonly isUnlocked: () => boolean = () => true,
   ) {
-    this.sealLegacyEntries();
+    this.ready = this.sealLegacyEntries();
   }
 
-  state(): VaultState {
+  async state(): Promise<VaultState> {
+    await this.ready;
     const stored = this.storage.get().entries;
 
-    if (!this.secrets.isAvailable()) {
+    if (!(await this.isAvailable())) {
       // Every secret is unreadable, but they are all still there.
       return {
         availability: 'unavailable',
-        detail: this.secrets.whyUnavailable?.() || NO_KEYCHAIN,
-        entries: stored.map((entry) => this.describe(entry, false)),
+        detail: await this.unavailableReason(),
+        entries: await Promise.all(stored.map((entry) => this.describe(entry, false))),
         unreadableCount: stored.length,
       };
     }
 
-    const entries = stored.map((entry) => this.describe(entry, this.canRead(entry)));
+    const entries = await Promise.all(stored.map(async (entry) => this.describe(entry, await this.canRead(entry))));
     const unreadableCount = entries.filter((entry) => !entry.isReadable).length;
 
     if (unreadableCount > 0) {
@@ -108,9 +112,14 @@ export class Vault {
   }
 
   /** Returns the new entry's id, or a message explaining why nothing was saved. */
-  add(input: { origin: string; username: string; password: string }): { id: string } | { error: string } {
-    if (!this.secrets.isAvailable()) {
-      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
+  async add(input: {
+    origin: string;
+    username: string;
+    password: string;
+  }): Promise<{ id: string } | { error: string }> {
+    await this.ready;
+    if (!(await this.isAvailable())) {
+      return { error: await this.unavailableReason() };
     }
 
     const origin = input.origin.trim();
@@ -122,13 +131,13 @@ export class Vault {
       return { error: t('main.vault.errors.nothingToSave') };
     }
 
-    const encrypted = this.encryptOrError(password);
+    const encrypted = await this.encryptOrError(password);
     if ('error' in encrypted) {
       return encrypted;
     }
-    const identity = this.sealIdentity({ origin, username: input.username.trim() });
+    const identity = await this.sealIdentity({ origin, username: input.username.trim() });
     if (identity === null) {
-      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
+      return { error: await this.unavailableReason() };
     }
 
     const timestamp = this.now();
@@ -147,32 +156,35 @@ export class Vault {
 
   // Overwriting a password you cannot read is losing it, so this is behind the
   // lock too. Adding a new one is not: nothing is lost by it.
-  update(id: string, changes: { origin?: string; username?: string; password?: string }): { error: string } | null {
+  async update(
+    id: string,
+    changes: { origin?: string; username?: string; password?: string },
+  ): Promise<{ error: string } | null> {
+    await this.ready;
     if (!this.isUnlocked()) {
       return { error: t('main.vault.errors.unlockToChange') };
     }
-    const file = this.storage.get();
-    const existing = file.entries.find((entry) => entry.id === id);
+    const existing = this.storage.get().entries.find((entry) => entry.id === id);
     if (!existing) {
       return { error: t('main.vault.errors.gone') };
     }
 
     let secret = existing.secret;
     if (changes.password !== undefined) {
-      if (!this.secrets.isAvailable()) {
-        return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
+      if (!(await this.isAvailable())) {
+        return { error: await this.unavailableReason() };
       }
       if (!changes.password) {
         return { error: t('main.vault.errors.nothingToSave') };
       }
-      const encrypted = this.encryptOrError(changes.password);
+      const encrypted = await this.encryptOrError(changes.password);
       if ('error' in encrypted) {
         return encrypted;
       }
       secret = encrypted.secret;
     }
 
-    const current = this.identityOf(existing);
+    const current = await this.identityOf(existing);
     if (!current) {
       return { error: t('main.vault.errors.unreadableToChange') };
     }
@@ -180,12 +192,12 @@ export class Vault {
     if (!origin) {
       return { error: t('main.vault.errors.needsSite') };
     }
-    const identity = this.sealIdentity({
+    const identity = await this.sealIdentity({
       origin,
       username: changes.username === undefined ? current.username : changes.username.trim(),
     });
     if (identity === null) {
-      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
+      return { error: await this.unavailableReason() };
     }
 
     const updated: SealedEntry = {
@@ -196,6 +208,11 @@ export class Vault {
       updatedAt: this.now(),
     };
 
+    // Read again after the keychain answered: it can have been removed meanwhile, and writing it back would undo that.
+    const file = this.storage.get();
+    if (!file.entries.some((entry) => entry.id === id)) {
+      return { error: t('main.vault.errors.gone') };
+    }
     this.storage.set({ ...file, entries: file.entries.map((entry) => (entry.id === id ? updated : entry)) });
     return null;
   }
@@ -222,7 +239,8 @@ export class Vault {
   }
 
   /** The only way a password leaves this process, one at a time and only when asked. */
-  reveal(id: string): string | null {
+  async reveal(id: string): Promise<string | null> {
+    await this.ready;
     if (!this.isUnlocked()) {
       return null;
     }
@@ -231,31 +249,35 @@ export class Vault {
   }
 
   // Leaving an undecryptable password out quietly is how someone believes they took everything.
-  exportAll(): { credentials: CsvCredential[]; unreadable: number } {
+  async exportAll(): Promise<{ credentials: CsvCredential[]; unreadable: number }> {
+    await this.ready;
     // The largest reveal there is, so it is behind the same lock.
     if (!this.isUnlocked()) {
       return { credentials: [], unreadable: this.storage.get().entries.length };
     }
-    const credentials: CsvCredential[] = [];
-    let unreadable = 0;
+    const stored = this.storage.get().entries;
+    const opened = await Promise.all(
+      stored.map(async (entry) => ({
+        password: await this.decryptEntry(entry),
+        identity: await this.identityOf(entry),
+      })),
+    );
+    const credentials = opened.flatMap(({ password, identity }): CsvCredential[] =>
+      password === null || identity === null
+        ? []
+        : [{ origin: identity.origin, username: identity.username, password }],
+    );
 
-    for (const entry of this.storage.get().entries) {
-      const password = this.decryptEntry(entry);
-      const identity = this.identityOf(entry);
-      if (password === null || identity === null) {
-        unreadable += 1;
-        continue;
-      }
-      credentials.push({ origin: identity.origin, username: identity.username, password });
-    }
-
-    return { credentials, unreadable };
+    return { credentials, unreadable: stored.length - credentials.length };
   }
 
   /** A site and username already here has its password replaced rather than duplicated. */
   // An import updates entries that already exist, so it can overwrite a password
   // nobody can currently read. Behind the lock for the same reason as update.
-  importMany(credentials: readonly CsvCredential[]): { added: number; updated: number; skipped: number } {
+  async importMany(
+    credentials: readonly CsvCredential[],
+  ): Promise<{ added: number; updated: number; skipped: number }> {
+    await this.ready;
     if (!this.isUnlocked()) {
       return { added: 0, updated: 0, skipped: credentials.length };
     }
@@ -263,14 +285,12 @@ export class Vault {
     let updated = 0;
     let skipped = 0;
 
+    // One at a time: a file can name the same site and username twice, and the second must find the first.
     for (const credential of credentials) {
-      const existing = this.storage.get().entries.find((entry) => {
-        const identity = this.identityOf(entry);
-        return identity?.origin === credential.origin.trim() && identity.username === credential.username.trim();
-      });
+      const existing = await this.entryFor(credential.origin.trim(), credential.username.trim());
 
       if (existing) {
-        const failure = this.update(existing.id, { password: credential.password });
+        const failure = await this.update(existing.id, { password: credential.password });
         if (failure) {
           skipped += 1;
         } else {
@@ -279,7 +299,7 @@ export class Vault {
         continue;
       }
 
-      const result = this.add(credential);
+      const result = await this.add(credential);
       if ('error' in result) {
         skipped += 1;
       } else {
@@ -290,13 +310,21 @@ export class Vault {
     return { added, updated, skipped };
   }
 
+  private async entryFor(origin: string, username: string): Promise<StoredEntry | undefined> {
+    const stored = this.storage.get().entries;
+    const identities = await Promise.all(stored.map((entry) => this.identityOf(entry)));
+    return stored.find(
+      (_entry, index) => identities[index]?.origin === origin && identities[index].username === username,
+    );
+  }
+
   /** Whether the secret decrypts, which is a different question from whether the vault is unlocked. */
-  private canRead(entry: StoredEntry): boolean {
+  private async canRead(entry: StoredEntry): Promise<boolean> {
     // Asked for every entry on every list, so a secret that opened once is not decrypted again to say so.
     if (this.knownReadable.has(entry.secret)) {
       return true;
     }
-    const isReadable = this.decryptEntry(entry) !== null && this.identityOf(entry) !== null;
+    const isReadable = (await this.decryptEntry(entry)) !== null && (await this.identityOf(entry)) !== null;
     if (isReadable) {
       this.knownReadable.add(entry.secret);
     }
@@ -304,7 +332,7 @@ export class Vault {
   }
 
   /** The site and username, opened once and remembered, or null where this machine cannot open them. */
-  private identityOf(entry: StoredEntry): Identity | null {
+  private async identityOf(entry: StoredEntry): Promise<Identity | null> {
     if (!isSealed(entry)) {
       return { origin: entry.origin, username: entry.username };
     }
@@ -312,11 +340,12 @@ export class Vault {
     if (remembered) {
       return remembered;
     }
-    if (!this.secrets.isAvailable()) {
+    const plainText = await this.open(entry.id, entry.identity);
+    if (plainText === null) {
       return null;
     }
     try {
-      const parsed: unknown = JSON.parse(this.secrets.decrypt(Buffer.from(entry.identity, 'base64')));
+      const parsed: unknown = JSON.parse(plainText);
       if (!isRecord(parsed) || typeof parsed.origin !== 'string' || typeof parsed.username !== 'string') {
         return null;
       }
@@ -328,14 +357,12 @@ export class Vault {
     }
   }
 
-  private sealIdentity(identity: Identity): string | null {
-    try {
-      const sealed = this.secrets.encrypt(JSON.stringify(identity)).toString('base64');
+  private async sealIdentity(identity: Identity): Promise<string | null> {
+    const sealed = await this.seal(JSON.stringify(identity));
+    if (sealed !== null) {
       this.opened.set(sealed, identity);
-      return sealed;
-    } catch {
-      return null;
     }
+    return sealed;
   }
 
   /**
@@ -345,42 +372,77 @@ export class Vault {
    * machine cannot read is still upgraded and still kept. Without a keychain
    * nothing changes and nothing is dropped: the entries wait for one.
    */
-  private sealLegacyEntries(): void {
-    const file = this.storage.get();
-    if (!file.entries.some((entry) => !isSealed(entry)) || !this.secrets.isAvailable()) {
+  private async sealLegacyEntries(): Promise<void> {
+    const legacy = this.storage.get().entries.filter((entry): entry is LegacyEntry => !isSealed(entry));
+    if (legacy.length === 0 || !(await this.isAvailable())) {
       return;
     }
-    const entries = file.entries.map((entry): StoredEntry => {
-      if (isSealed(entry)) {
-        return entry;
-      }
-      const identity = this.sealIdentity({ origin: entry.origin, username: entry.username });
-      return identity === null
+    const sealedIdentities = new Map(
+      await Promise.all(
+        legacy.map(async (entry): Promise<[string, string | null]> => [
+          entry.id,
+          await this.sealIdentity({ origin: entry.origin, username: entry.username }),
+        ]),
+      ),
+    );
+    // Read again: the file is only written once every seal has come back.
+    const entries = this.storage.get().entries.map((entry): StoredEntry => {
+      const identity = sealedIdentities.get(entry.id);
+      return isSealed(entry) || !identity
         ? entry
         : { id: entry.id, identity, secret: entry.secret, createdAt: entry.createdAt, updatedAt: entry.updatedAt };
     });
-    const isComplete = entries.every(isSealed);
-    this.storage.set({ version: isComplete ? CURRENT_VERSION : 1, entries });
+    this.storage.set({ version: entries.every(isSealed) ? CURRENT_VERSION : 1, entries });
   }
 
-  private encryptOrError(password: string): { secret: string } | { error: string } {
-    try {
-      return { secret: this.secrets.encrypt(password).toString('base64') };
-    } catch {
-      // Never fall back to storing it in the clear.
-      return { error: this.secrets.whyUnavailable?.() || NO_KEYCHAIN };
-    }
+  private async encryptOrError(password: string): Promise<{ secret: string } | { error: string }> {
+    const secret = await this.seal(password);
+    // Never fall back to storing it in the clear.
+    return secret === null ? { error: await this.unavailableReason() } : { secret };
   }
 
-  private decryptEntry(entry: StoredEntry): string | null {
-    if (!this.secrets.isAvailable()) {
-      return null;
+  private decryptEntry(entry: StoredEntry): Promise<string | null> {
+    return this.open(entry.id, entry.secret);
+  }
+
+  private seal(plainText: string): Promise<string | null> {
+    return sealText(this.secrets, plainText);
+  }
+
+  /** Opens one sealed field of an entry, and seals it again where the keychain has moved on to a newer key. */
+  private async open(entryId: string, sealed: string): Promise<string | null> {
+    const opened = await openText(this.secrets, sealed);
+    if (opened?.shouldReEncrypt) {
+      await this.reseal(entryId, sealed, opened.result);
     }
-    try {
-      return this.secrets.decrypt(Buffer.from(entry.secret, 'base64'));
-    } catch {
-      return null;
+    return opened?.result ?? null;
+  }
+
+  /** Swaps one sealed field for the same text under the keychain's current key, unless it was changed meanwhile. */
+  private async reseal(entryId: string, was: string, plainText: string): Promise<void> {
+    const resealed = await this.seal(plainText);
+    if (resealed === null) {
+      return;
     }
+    const file = this.storage.get();
+    const entries = file.entries.map((entry): StoredEntry => {
+      if (entry.id !== entryId) {
+        return entry;
+      }
+      if (entry.secret === was) {
+        return { ...entry, secret: resealed };
+      }
+      return isSealed(entry) && entry.identity === was ? { ...entry, identity: resealed } : entry;
+    });
+    this.storage.set({ ...file, entries });
+  }
+
+  private isAvailable(): Promise<boolean> {
+    return isKeychainAvailable(this.secrets);
+  }
+
+  private unavailableReason(): Promise<string> {
+    return whyKeychainUnavailable(this.secrets);
   }
 
   /** The count alone, without attempting to decrypt anything - cheap enough for a status readout. */
@@ -388,9 +450,9 @@ export class Vault {
     return this.storage.get().entries.length;
   }
 
-  private describe(entry: StoredEntry, isReadable: boolean): VaultEntry {
+  private async describe(entry: StoredEntry, isReadable: boolean): Promise<VaultEntry> {
     // Unopenable on this machine: kept and counted, with nothing to say about which site it was for.
-    const identity = this.identityOf(entry) ?? { origin: '', username: '' };
+    const identity = (await this.identityOf(entry)) ?? { origin: '', username: '' };
     return {
       id: entry.id,
       origin: identity.origin,

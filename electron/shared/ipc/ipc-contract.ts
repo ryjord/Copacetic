@@ -64,6 +64,7 @@ export const CHANNELS = {
   'tabs.setZoom': 'tab:set-zoom',
   'tabs.openContextMenu': 'tab:open-context-menu',
   'tabs.openNewTabMenu': 'tab:open-new-tab-menu',
+  'chrome.openToolbarMenu': 'chrome:open-toolbar-menu',
   'startPage.saveShortcut': 'start-page:save-shortcut',
   'startPage.removeTile': 'start-page:remove-tile',
   'startPage.chooseIcon': 'start-page:choose-icon',
@@ -154,6 +155,7 @@ export const CHANNELS = {
   'find.previous': 'find:previous',
   'find.stop': 'find:stop',
   'find.setMatchCase': 'find:set-match-case',
+  'find.setWholeWord': 'find:set-whole-word',
 
   'settings.get': 'settings:get',
   'settings.update': 'settings:update',
@@ -188,6 +190,19 @@ export const CHANNELS = {
   'vault.countForTab': 'vault:count-for-tab',
   'vault.fillForTab': 'vault:fill-for-tab',
   'vault.answerSaveOffer': 'vault:answer-save-offer',
+
+  'readingList.list': 'reading:list',
+  'readingList.add': 'reading:add',
+  'readingList.isSaved': 'reading:is-saved',
+  'readingList.article': 'reading:article',
+  'readingList.setRead': 'reading:set-read',
+  'readingList.remove': 'reading:remove',
+
+  'addresses.list': 'address:list',
+  'addresses.add': 'address:add',
+  'addresses.fields': 'address:fields',
+  'addresses.update': 'address:update',
+  'addresses.remove': 'address:remove',
 
   'profiles.create': 'profile:create',
   'profiles.update': 'profile:update',

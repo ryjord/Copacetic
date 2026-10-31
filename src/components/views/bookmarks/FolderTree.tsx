@@ -100,7 +100,7 @@ export function FolderTree({
   const rowClasses = (isSelected: boolean, isDropTarget: boolean) =>
     cn(
       'group flex min-h-[34px] w-full items-center gap-2 rounded-field pr-2 text-body font-medium transition-colors',
-      isSelected ? 'bg-accent-soft font-semibold text-accent' : 'text-ink-dim hover:bg-hover hover:text-ink',
+      isSelected ? 'bg-accent-soft font-semibold text-ink' : 'text-ink-dim hover:bg-hover hover:text-ink',
       isDropTarget && 'outline outline-1 outline-accent',
     );
 
@@ -113,6 +113,7 @@ export function FolderTree({
         type="button"
         // Not a drop target: every bookmark is already in All, so a drop here could only unfile it without saying so.
         onClick={() => onSelect({ kind: 'all' })}
+        aria-current={selection.kind === 'all' ? 'true' : undefined}
         className={cn(rowClasses(selection.kind === 'all', false), 'pl-2')}
       >
         <List size={16} strokeWidth={1.75} className="shrink-0" />
@@ -140,6 +141,7 @@ export function FolderTree({
               event.preventDefault();
               send((api) => api.bookmarkFolders.openContextMenu(folder.id));
             }}
+            aria-current={isSelected ? 'true' : undefined}
             className={rowClasses(isSelected, dropTarget === folder.id)}
             style={{ paddingLeft: 8 + depth * 14 }}
           >
@@ -209,6 +211,7 @@ export function FolderTree({
         onClick={() => onSelect({ kind: 'unfiled' })}
         onDragOver={(event) => event.dataTransfer.types.includes(DRAG_BOOKMARK) && event.preventDefault()}
         onDrop={(event) => handleDrop(event, null)}
+        aria-current={selection.kind === 'unfiled' ? 'true' : undefined}
         className={cn(rowClasses(selection.kind === 'unfiled', false), 'pl-2')}
       >
         <Inbox size={16} strokeWidth={1.75} className="shrink-0" />

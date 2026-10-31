@@ -4,7 +4,7 @@ import { fillScriptFor } from '../system/fill-script';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { TabId } from '../../shared/types';
+import type { TabId, VaultEntry } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { VaultSession } from '../vault/vault-session';
 import type { TabManager } from '../tabs/tabs';
@@ -20,9 +20,9 @@ export class PasswordFill {
   constructor(private readonly deps: PasswordFillDeps) {}
 
   /** What could be filled into the page in this tab, or why nothing can be. */
-  offerFor(tabId: TabId): { entries: { id: string; username: string }[]; refusal: string } {
+  async offerFor(tabId: TabId): Promise<{ entries: { id: string; username: string }[]; refusal: string }> {
     const url = this.deps.tabs.urlFor(tabId) ?? '';
-    const offer = offerFor(url, this.deps.vaultSession.vault.state().entries);
+    const offer = offerFor(url, (await this.deps.vaultSession.vault.state()).entries);
     return { entries: offer.entries.map(({ id, username }) => ({ id, username })), refusal: offer.refusal };
   }
 
@@ -46,15 +46,21 @@ export class PasswordFill {
     return problem;
   }
 
-  private entryFor(tabId: TabId, entryId: string): { entry?: { username: string }; refusal: string } {
-    const url = this.deps.tabs.urlFor(tabId) ?? '';
-    const offer = offerFor(url, this.deps.vaultSession.vault.state().entries);
+  // The address is read each time it is asked, so it is the page as it is now.
+  private entryFor(
+    tabId: TabId,
+    entryId: string,
+    entries: readonly VaultEntry[],
+  ): { entry?: { username: string }; refusal: string } {
+    const offer = offerFor(this.deps.tabs.urlFor(tabId) ?? '', entries);
     const entry = offer.entries.find((candidate) => candidate.id === entryId);
     return entry ? { entry, refusal: '' } : { refusal: offer.refusal || t('main.passwords.fill.wrongPage') };
   }
 
   private async attemptFill(tabId: TabId, entryId: string): Promise<string> {
-    const beforeUnlock = this.entryFor(tabId, entryId);
+    // Read once: what is saved does not change while filling, though the page's address can.
+    const { entries } = await this.deps.vaultSession.vault.state();
+    const beforeUnlock = this.entryFor(tabId, entryId, entries);
     if (beforeUnlock.refusal) {
       return beforeUnlock.refusal;
     }
@@ -68,14 +74,20 @@ export class PasswordFill {
     }
 
     // Checked again: the page may have navigated while the prompt was up.
-    const { entry, refusal } = this.entryFor(tabId, entryId);
-    if (!entry) {
-      return refusal;
+    const afterUnlock = this.entryFor(tabId, entryId, entries);
+    if (afterUnlock.refusal) {
+      return afterUnlock.refusal;
     }
 
-    const password = this.deps.vaultSession.vault.reveal(entryId);
+    const password = await this.deps.vaultSession.vault.reveal(entryId);
     if (password === null) {
       return t('main.passwords.fill.locked');
+    }
+
+    // And once more after decrypting, which waits on the keychain too.
+    const { entry, refusal } = this.entryFor(tabId, entryId, entries);
+    if (!entry) {
+      return refusal;
     }
 
     const contents = this.deps.tabs.livePageFor(tabId);

@@ -20,7 +20,7 @@ address bar, the prompts, the panels - and a set of decisions about what a
 browser should and should not do on your behalf.
 
 **[Download for macOS, Windows or Linux](https://github.com/ryjord/Copacetic/releases/latest)** ·
-[What changed](CHANGELOG.md) · [Report a security issue](SECURITY.md)
+[What changed](CHANGELOG.md) · [Report a security issue](SECURITY.md) · [Privacy](PRIVACY.md) · [Support](SUPPORT.md)
 
 ---
 
@@ -120,7 +120,7 @@ machine. There are no accounts and no telemetry.
   whole group as a group, pinned if it was, from any window, and Recently
   closed lists the rest in the main menu and beside the new tab button.
 - **Back still works after a restart.** Each tab keeps where Back and Forward go,
-  as addresses and titles only.
+  as addresses and titles only, and how far down its page you were.
 - **Sign-in pop-ups that work.** "Sign in with Google" and its like open as a
   tab that stays linked to the page that opened it, never as a window.
 - **Settings, History, Bookmarks and Downloads in tabs of their own**, so the
@@ -158,12 +158,14 @@ machine. There are no accounts and no telemetry.
   rather than a script in the page, and rebuilt from a short list of tags so
   none of the page's markup reaches the interface. It has its own text size,
   typeface and line length, and shows the article's images.
-- **Translation** of an article in reader view, on this machine, with models
-  downloaded from Mozilla the first time a language is used and checked
-  against the hash Mozilla publishes.
+- **Translation** of an article in reader view, or of the whole page where it
+  stands, on this machine, with models downloaded from Mozilla the first time a
+  language is used and checked against the hash Mozilla publishes.
+- **A reading list.** Save an article from reader view and it is kept whole, to
+  read later from the start page with no connection at all.
 - **A picture of the whole page**, saved as a PNG, plus Save page as, View
   source, printing, PDFs in the built-in viewer, and find in page with match
-  counts.
+  counts, match case and whole words.
 - **Zoom remembered per site**, with a chip in the address bar that shows when
   a page is off your default and resets it in one click.
 
@@ -179,7 +181,8 @@ machine. There are no accounts and no telemetry.
   signed in with one, and filled only when you ask: a key in the address bar
   fills a saved one in one click. They can be searched,
   sorted, edited and copied, and a copied password is cleared from the
-  clipboard after 30 seconds, or as soon as the vault locks.
+  clipboard after 30 seconds, or as soon as the vault locks. Addresses are kept
+  in the same vault and filled into a form from its right-click menu.
 - **History, bookmarks and downloads you can filter and sort**, with a tick per
   row to open, delete or remove many at once, and **Undo** for eight seconds
   after removing anything that can be put back.
@@ -304,7 +307,7 @@ that. To report something that gets past them, see [SECURITY.md](SECURITY.md).
 
 | Concern                               | What Copacetic does                                                                                                                                                                                             |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Page code reaching the app            | Tabs run with `sandbox: true`, `contextIsolation: true`, no `nodeIntegration` and **no preload script**                                                                                                         |
+| Page code reaching the app            | Tabs run with `sandbox: true`, `contextIsolation: true`, no `nodeIntegration` and **no preload script**; only an extension's own page gets the extension API's, and a website never loads in a view that has it |
 | Renderer compromise reaching the OS   | The interface's renderer is sandboxed too, and every IPC handler validates its sender and the shape of what it sent                                                                                             |
 | Page data reaching the interface      | Web content lives in its own session partitions, separate from the session that runs the interface                                                                                                              |
 | The interface being navigated away    | Navigation is refused for anything that is not the app's own document, so the bridge is never handed to a remote origin                                                                                         |
@@ -318,14 +321,17 @@ that. To report something that gets past them, see [SECURITY.md](SECURITY.md).
 | Malicious download filenames          | Path components, control characters and bidirectional overrides are stripped before a file is written                                                                                                           |
 | Tampering with the packaged app       | Electron's fuses are set: no `RunAsNode`, no `NODE_OPTIONS`, no inspector flags, ASAR integrity validated, and the app loads only from its archive                                                              |
 
-Five small scripts are the only ones Copacetic puts in a page, and the
+A few small scripts are the only ones Copacetic puts in a page, and the
 transparency page names each of them. One fills in the `window.chrome` object
 that real Chrome has and Electron leaves empty, with three placeholder members
 and nothing of the browser's, because some sign-in pages refuse a browser
-without it. Fill password runs once, when you choose it, and so does Picture in
-picture, which reads only which video is where. A page left in full screen when
-you switch to another tab is asked to leave it, with one call that reads
-nothing. And on each secure page, in a world of its own the page cannot
+without it. Fill password and Fill address run once, when you choose them, and
+so do Picture in picture, which reads only which video is where, and Translate
+this page, which reads the page's visible text in a world of its own and puts
+the translation in its place. A page left in full screen when you switch to
+another tab is asked to leave it, with one call that reads nothing. One line,
+also in a world of its own, reads how far down a page you were and nothing
+else, so a restored tab comes back there. And on each secure page, in a world of its own the page cannot
 see or reach, one looks for a sign-in form: it stops at once where there is
 none, and otherwise reads the username and password once you send them, so
 Copacetic can offer to save them. It looks again 3, 10 and 30 seconds after the
@@ -354,18 +360,17 @@ extension and does nothing in a website's worker. None of it reaches Hush.
 - **Passkeys and security keys on macOS and Linux.** Electron has no dialog to
   answer them, so Copacetic tells a site at once that there are none and it
   offers another way to sign in. On Windows, Windows Hello answers them.
-- **What Electron cannot do.** Cookies, site data and the cache clear for all
-  time, not for an hour or a day; find in page has no whole-word option; on
-  macOS spelling follows the languages in System Settings.
-- **Left out on purpose.** A restored tab does not keep its scroll position,
-  since the page state that holds it also holds what was typed into forms.
+- **What Electron cannot do.** Cookies, site data and the cache have no time of
+  their own, so clearing the last hour or day clears them for the sites visited
+  in it, however old; on macOS spelling follows the languages in System
+  Settings.
+- **Left out on purpose.** A restored tab does not bring back what was typed
+  into its forms, since the page state that would hold it is not written down.
   HTTPS-first upgrades the page, not the frames inside it, as Chrome does. A
   bookmark for a site never visited shows its first letter rather than fetch an
   icon from the site unasked.
 - **English only.** Every word is in one catalogue, ready for a second language
   once someone fluent has checked it.
-- **Translation in reader view only.** An article is translated on this
-  machine; a whole page, with its layout, is not.
 - **Certificate inspection is Chromium's.** The badge reports the certificate
   Chromium accepted; it does no chain analysis of its own.
 - **Not code-signed, and not audited.** A personal project built to a high

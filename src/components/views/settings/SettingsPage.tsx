@@ -101,10 +101,17 @@ export function SettingsPage({ tabId, section }: { tabId: string; section: strin
           <SearchField value={query} onChange={setQuery} label={t('settings.page.search')} />
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="flex flex-col gap-0.5">
-              <h3 className="px-2.5 pb-1 pt-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint">
+              {/* A label for its list, not a heading: the pane's own title is the heading under the page's. */}
+              <p
+                id={`settings-group-${group.label.toLowerCase().replace(/[^a-z]+/g, '-')}`}
+                className="px-2.5 pb-1 pt-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint"
+              >
                 {group.label}
-              </h3>
-              <ul className="flex flex-col gap-0.5">
+              </p>
+              <ul
+                aria-labelledby={`settings-group-${group.label.toLowerCase().replace(/[^a-z]+/g, '-')}`}
+                className="flex flex-col gap-0.5"
+              >
                 {SETTINGS_PANES.filter((pane) => group.paneIds.includes(pane.id)).map((pane) => {
                   const Icon = pane.icon;
                   const isActive = pane.id === activePaneId && !query;
@@ -117,7 +124,7 @@ export function SettingsPage({ tabId, section }: { tabId: string; section: strin
                         className={cn(
                           'flex min-h-[32px] w-full items-center gap-2.5 rounded-field px-2.5 py-1.5 text-left text-body font-medium transition-colors',
                           isActive
-                            ? 'bg-accent-soft font-semibold text-accent'
+                            ? 'bg-accent-soft font-semibold text-ink'
                             : 'text-ink-dim hover:bg-hover hover:text-ink',
                         )}
                       >

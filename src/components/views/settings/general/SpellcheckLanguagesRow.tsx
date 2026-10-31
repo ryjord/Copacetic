@@ -11,21 +11,13 @@ import { SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { ask } from '@/lib/bridge/bridge';
 import { updateSettings } from '@/components/views/settings/shared/options';
 import { t } from '@shared/i18n/translate';
+import { languageName } from '@shared/translation/languages';
 
 // Types
 import type { SpellcheckChoices } from '@shared/chrome/spellcheck';
 
 const SYSTEM = 'system';
 const NONE = 'none';
-const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
-
-function nameOf(code: string): string {
-  try {
-    return LANGUAGE_NAMES.of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
 
 /** Which dictionaries check what you type: chosen on Windows and Linux, the system's own on macOS. */
 export function SpellcheckLanguagesRow({ chosen }: { chosen: readonly string[] }) {
@@ -39,7 +31,7 @@ export function SpellcheckLanguagesRow({ chosen }: { chosen: readonly string[] }
   if (!choices) {
     return null;
   }
-  const inUse = choices.inUse.map(nameOf).join(' and ');
+  const inUse = choices.inUse.map((code) => languageName(code)).join(' and ');
   if (!choices.canChoose) {
     return (
       <SettingRow
@@ -54,7 +46,7 @@ export function SpellcheckLanguagesRow({ chosen }: { chosen: readonly string[] }
   }
 
   const languages = choices.available
-    .map((code) => ({ id: code, label: nameOf(code) }))
+    .map((code) => ({ id: code, label: languageName(code) }))
     .sort((aLanguage, bLanguage) => aLanguage.label.localeCompare(bLanguage.label));
   const [first, second] = chosen;
   const checkingIn = inUse ? `${t('settings.general.typing.languages.checkingIn', { languages: inUse })} ` : '';

@@ -39,32 +39,27 @@ function fakePage({ hasPassword = true, hasUsername = true, dropsNewlines = fals
         this.type = type;
       }
     },
-    window: {
-      HTMLInputElement: {
-        prototype: {},
-      },
-    },
+    // The element classes a page has, which the shared value setter tells fields apart by.
+    HTMLInputElement: class {},
+    HTMLSelectElement: class {},
+    HTMLTextAreaElement: class {},
   } as Record<string, unknown>;
 
   // The script reaches for the native value setter; give it one that records.
-  Object.defineProperty(
-    (context.window as { HTMLInputElement: { prototype: object } }).HTMLInputElement.prototype,
-    'value',
-    {
-      // Stores as well as records: the script reads the value back to check the
-      // page did not alter it, so a setter that only records looks like alteration.
-      set(this: { type: string; _value: string }, next: string) {
-        // A single-line input strips newlines as the value is assigned.
-        const stored = dropsNewlines ? next.replaceAll('\n', '') : next;
-        this._value = stored;
-        set.push({ type: this.type, value: stored });
-      },
-      get(this: { _value: string }) {
-        return this._value;
-      },
-      configurable: true,
+  Object.defineProperty((context.HTMLInputElement as { prototype: object }).prototype, 'value', {
+    // Stores as well as records: the script reads the value back to check the
+    // page did not alter it, so a setter that only records looks like alteration.
+    set(this: { type: string; _value: string }, next: string) {
+      // A single-line input strips newlines as the value is assigned.
+      const stored = dropsNewlines ? next.replaceAll('\n', '') : next;
+      this._value = stored;
+      set.push({ type: this.type, value: stored });
     },
-  );
+    get(this: { _value: string }) {
+      return this._value;
+    },
+    configurable: true,
+  });
 
   return { context, set, events };
 }

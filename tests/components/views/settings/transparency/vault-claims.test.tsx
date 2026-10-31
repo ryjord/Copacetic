@@ -65,11 +65,20 @@ describe('what the vault admits to', () => {
 /**
  * Nothing of Copacetic's sits in a page permanently, which is why it never
  * offers to save what you type. If a preload ever reaches web content the claim
- * becomes false, and this fails rather than leaving it standing.
+ * becomes false, and this fails rather than leaving it standing. Only an
+ * extension's own page is given one; extensions.smoke.ts proves a website the
+ * tab goes on to gets a fresh view without it.
  */
 describe('the promise not to watch what you type', () => {
-  it('is still true of the code: no preload reaches web content', () => {
-    expect(readFileSync('electron/main/tabs/tabs.ts', 'utf8')).toMatch(/preload:\s*undefined/);
+  it('is still true of the code: a preload reaches only an extension page, never web content', () => {
+    const source = readFileSync('electron/main/tabs/tabs.ts', 'utf8');
+    expect(source).toMatch(/preload:\s*extensionPreload,/);
+    const preloadsGiven = [...source.matchAll(/this\.makeView\(([^)]*)\)/g)]
+      .map((call) => call[1]?.split(',')[2]?.trim())
+      .filter((preload) => preload !== undefined);
+    expect(preloadsGiven.length).toBeGreaterThan(0);
+    expect(preloadsGiven.every((preload) => preload === 'extensionPage?.host.preload')).toBe(true);
+    expect(source).toContain('this.guardExtensionView(tab, tab.extensionPage)');
   });
 
   it('names what keeps the key, and says why when nothing can', async () => {

@@ -30,9 +30,25 @@ describe('the clear browsing data dialog', () => {
   it('clears only what is ticked', () => {
     const onConfirm = open('hour');
     fireEvent.click(screen.getByLabelText('History from last hour'));
-    fireEvent.click(screen.getByLabelText('Cached images and files, from all time'));
+    fireEvent.click(screen.getByLabelText('Cached images and files of the sites visited in the last hour'));
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
     expect(onConfirm).toHaveBeenCalledWith({ history: false, siteData: false, cache: true });
+  });
+
+  // Chromium keeps no time for cookies or the cache, so a range reaches them by site, and says so before it runs.
+  it('says a time range clears cookies and the cache of the sites visited in it, however old', () => {
+    open('hour');
+    expect(
+      screen.getByLabelText(
+        'Cookies and site data of the sites visited in the last hour, however old. You will be signed out of them.',
+      ),
+    ).toBeTruthy();
+    cleanup();
+    open('all');
+    expect(
+      screen.getByLabelText('Cookies and site data, from all time. You will be signed out of sites.'),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Cached images and files, from all time')).toBeTruthy();
   });
 
   it('cannot be confirmed with nothing ticked', () => {

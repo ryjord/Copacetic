@@ -68,8 +68,8 @@ const SORTERS: Record<BookmarkSort, (aBookmark: Bookmark, bBookmark: Bookmark) =
 };
 
 const DROP_LINE_CLASSES = {
-  before: 'before:absolute before:inset-x-3 before:-top-px before:h-0.5 before:rounded-full before:bg-active',
-  after: 'after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-active',
+  before: 'before:absolute before:inset-x-3 before:-top-px before:h-0.5 before:rounded-full before:bg-accent',
+  after: 'after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent',
 };
 
 function isLowerHalf(event: React.DragEvent<HTMLElement>): boolean {
@@ -445,7 +445,7 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
                             name: bookmark.title || t('views.bookmarks.fallbackName'),
                           })}
                           size="sm"
-                          className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+                          className="opacity-70 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
                           onClick={() => send((api) => api.bookmarks.openContextMenu(bookmark.id))}
                         >
                           <Ellipsis size={14} />
@@ -455,7 +455,7 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
                             name: bookmark.title || t('views.bookmarks.fallbackName'),
                           })}
                           size="sm"
-                          className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+                          className="opacity-70 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
                           onClick={() => setEditingId(bookmark.id)}
                         >
                           <Pencil size={14} />
@@ -465,7 +465,7 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
                             name: bookmark.title || t('views.bookmarks.fallbackName'),
                           })}
                           size="sm"
-                          className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+                          className="opacity-70 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
                           onClick={() => {
                             send((api) => api.bookmarks.remove(bookmark.id));
                             setBookmarks((current) => current.filter((item) => item.id !== bookmark.id));

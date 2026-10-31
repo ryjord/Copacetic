@@ -31,7 +31,7 @@ export function Select<Id extends string>({ options, value, onChange, label }: S
     >
       <SelectPrimitive.Trigger
         aria-label={label}
-        className="no-drag inline-flex h-8 min-w-36 items-center justify-between gap-2 rounded-sm border border-line-strong bg-raised px-2.5 text-body text-ink hover:bg-hover"
+        className="no-drag inline-flex h-8 min-w-36 items-center justify-between gap-2 rounded-sm border border-line-control bg-raised px-2.5 text-body text-ink hover:bg-hover"
       >
         <SelectPrimitive.Value />
         <SelectPrimitive.Icon>
@@ -51,7 +51,7 @@ export function Select<Id extends string>({ options, value, onChange, label }: S
                 value={option.id}
                 className={cn(
                   'flex h-7 items-center justify-between gap-4 rounded-xs px-2 text-body text-ink outline-none',
-                  'data-[highlighted]:bg-hover',
+                  'data-[highlighted]:bg-hover data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-accent',
                 )}
               >
                 <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>

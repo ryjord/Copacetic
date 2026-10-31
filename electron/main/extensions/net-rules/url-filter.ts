@@ -98,6 +98,89 @@ export function compileRegexFilter(filter: string, isCaseSensitive = false): Reg
   }
 }
 
+// Shorter than this, a literal is in too many addresses to be worth checking first.
+const SHORTEST_USEFUL_LITERAL = 3;
+
+/**
+ * A run of plain characters every match of a regexFilter has to contain, so a
+ * request without it is passed over before the regex runs: the linear engine
+ * costs about a microsecond a rule, and an extension may have a thousand.
+ *
+ * Read conservatively, at the top level only: groups and classes are skipped,
+ * any top-level | means no literal at all, and a character a quantifier can
+ * drop is not counted. Only printable ASCII is taken, so lowercasing both sides
+ * is exactly how the either-case rewrite above matches. Null when there is none.
+ */
+export function requiredLiteralOf(source: string): string | null {
+  let best = '';
+  let run = '';
+  let depth = 0;
+  const finishRun = () => {
+    best = run.length > best.length ? run : best;
+    run = '';
+  };
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source.charAt(index);
+    if (character === '\\') {
+      const escaped = source.charAt(index + 1);
+      index += 1;
+      // An escaped mark is itself; \d, \w, \b and the like are not literal text.
+      if (depth === 0 && /[!-/:-@[-`{-~]/.test(escaped)) {
+        run += escaped;
+        continue;
+      }
+      finishRun();
+      // \x41, \u{2F}, \p{L}, \cJ, \k<name> and \123 take what follows as their argument, which is not text either.
+      if (/[xuUpPck0-9]/.test(escaped)) {
+        while (index + 1 < source.length && /[0-9A-Za-z{}<>_]/.test(source.charAt(index + 1))) {
+          index += 1;
+        }
+      }
+      continue;
+    }
+    if (character === '[') {
+      finishRun();
+      // The class is one unknown character; its end is the first ] that is not escaped or first in it.
+      index += source.charAt(index + 1) === ']' ? 2 : 1;
+      while (index < source.length && source.charAt(index) !== ']') {
+        index += source.charAt(index) === '\\' ? 2 : 1;
+      }
+      continue;
+    }
+    if (character === '(' || character === ')') {
+      depth += character === '(' ? 1 : -1;
+      finishRun();
+      continue;
+    }
+    if (depth > 0) {
+      continue;
+    }
+    if (character === '|') {
+      return null;
+    }
+    if ('*?{'.includes(character)) {
+      // The character before can be left out, so the run stops short of it.
+      run = run.slice(0, -1);
+      finishRun();
+      if (character === '{') {
+        index = Math.max(index, source.indexOf('}', index));
+      }
+      continue;
+    }
+    if (character === '+' || character === '^' || character === '$' || character === '.') {
+      finishRun();
+      continue;
+    }
+    if (/[ -~]/.test(character)) {
+      run += character;
+    } else {
+      finishRun();
+    }
+  }
+  finishRun();
+  return best.length >= SHORTEST_USEFUL_LITERAL ? best : null;
+}
+
 /**
  * The host a || pattern starts with, when it names a whole one; such a rule can
  * only match at that host or below it. `||ads.` or `||example.com` with nothing

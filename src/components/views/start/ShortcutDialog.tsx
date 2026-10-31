@@ -105,7 +105,7 @@ export function ShortcutDialog({ tile, onClose, onSaved }: Props) {
             </Button>
           )}
         </div>
-        {problem && <p className="text-body-sm text-caution">{problem}</p>}
+        {problem && <p className="text-body-sm text-alert">{problem}</p>}
       </div>
     </ConfirmDialog>
   );

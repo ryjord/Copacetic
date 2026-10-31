@@ -397,3 +397,36 @@ describe('narrowing and ordering the list', () => {
     );
   });
 });
+
+// A ranged clear reaches cookies through the sites visited in the range, so which sites those are has to be right.
+describe('the sites a time range covers', () => {
+  const HOUR = 60 * 60 * 1000;
+
+  it('names each origin visited in the range once, and none visited only before it', () => {
+    const store = new HistoryStore(openDatabase(path.join(dir, 'copacetic.db')), dir, () => 0);
+    store.importVisits([
+      { url: 'https://recent.example/one', title: 'One', lastVisitedAt: Date.now() - HOUR / 2, visitCount: 1 },
+      { url: 'https://recent.example/two', title: 'Two', lastVisitedAt: Date.now() - HOUR / 4, visitCount: 1 },
+      { url: 'http://plain.example:8080/', title: 'Plain', lastVisitedAt: Date.now() - HOUR / 3, visitCount: 1 },
+      { url: 'https://yesterday.example/', title: 'Older', lastVisitedAt: Date.now() - 20 * HOUR, visitCount: 1 },
+    ]);
+
+    expect(store.originsVisitedIn('hour').sort()).toEqual(['http://plain.example:8080', 'https://recent.example']);
+    expect(store.originsVisitedIn('day')).toContain('https://yesterday.example');
+  });
+
+  // A site visited long ago and again today was visited today; its last visit is what counts.
+  it('includes a site first visited long before the range and again within it', () => {
+    const store = openStore();
+    store.importVisits([
+      {
+        url: 'https://regular.example/',
+        title: 'Regular',
+        lastVisitedAt: Date.now() - 30 * 24 * HOUR,
+        visitCount: 9,
+      },
+    ]);
+    store.recordVisit('https://regular.example/', 'Regular');
+    expect(store.originsVisitedIn('hour')).toEqual(['https://regular.example']);
+  });
+});

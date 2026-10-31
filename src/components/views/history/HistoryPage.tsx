@@ -263,7 +263,7 @@ export function HistoryPage({ tabId }: { tabId: string }) {
                       <IconButton
                         label={t('views.history.more', { name: entry.title || hostFor(entry.url) })}
                         size="sm"
-                        className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+                        className="opacity-70 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
                         onClick={() => send((api) => api.history.openContextMenu(entry.url))}
                       >
                         <Ellipsis size={14} />
@@ -271,7 +271,7 @@ export function HistoryPage({ tabId }: { tabId: string }) {
                       <IconButton
                         label={t('views.history.remove', { name: entry.title || hostFor(entry.url) })}
                         size="sm"
-                        className="opacity-40 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+                        className="opacity-70 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
                         onClick={() => remove(entry.id)}
                       >
                         <X size={14} />

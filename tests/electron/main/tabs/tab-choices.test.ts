@@ -6,6 +6,7 @@ import {
   tabAfterClosing,
   pinnedFirst,
   clampToRun,
+  tabToSleepForMemory,
   tabsToSleep,
   type SleepCandidate,
 } from '../../../../electron/main/tabs/tab-choices';
@@ -18,6 +19,7 @@ const tab = (id: string, over: Partial<SessionCandidate> = {}): SessionCandidate
   isHush: false,
   isPinned: false,
   history: null,
+  scroll: null,
   ...over,
 });
 
@@ -48,6 +50,13 @@ describe('which tab to show after closing the one in front', () => {
  * be the one trace that tab left.
  */
 describe('what is written down to reopen', () => {
+  // The position alone, apart from the page state, which would bring back typed form input too.
+  it('keeps how far down its page a tab was, and nothing when it was at the top', () => {
+    const snapshot = sessionFrom([tab('a', { scroll: { x: 0, y: 1800 } }), tab('b')], 'a');
+    expect(snapshot.tabs[0]?.scroll).toEqual({ x: 0, y: 1800 });
+    expect(snapshot.tabs[1]).not.toHaveProperty('scroll');
+  });
+
   it('keeps ordinary tabs, with their group', () => {
     const snapshot = sessionFrom([tab('a', { groupId: 'work' }), tab('b')], 'a');
     expect(snapshot.tabs).toEqual([
@@ -179,6 +188,45 @@ describe('which tabs go to sleep', () => {
     ['a tab already asleep', { isAsleep: true }],
   ] as const)('is never %s', (_name, over) => {
     expect(tabsToSleep([tab(over)], now, 60)).toEqual([]);
+  });
+});
+
+// Running low on memory sleeps tabs early, one at a time, and never one just glanced away from.
+describe('the tab that sleeps early when memory runs low', () => {
+  const now = 10_000_000;
+  const minute = 60_000;
+  const tab = (id: string, minutesIdle: number, over: Partial<SleepCandidate> = {}): SleepCandidate => ({
+    id,
+    isActive: false,
+    isInternalPage: false,
+    isAsleep: false,
+    isAudible: false,
+    lastActiveAt: now - minutesIdle * minute,
+    ...over,
+  });
+
+  it('is the one left alone longest', () => {
+    expect(tabToSleepForMemory([tab('recent', 10), tab('oldest', 40), tab('older', 20)], now, 60)).toBe('oldest');
+  });
+
+  it('is none when every tab was looked at in the last five minutes', () => {
+    expect(tabToSleepForMemory([tab('a', 4), tab('b', 1)], now, 60)).toBeNull();
+  });
+
+  it('passes over the tab in front, one playing sound, a page of ours and one already asleep', () => {
+    const tabs = [
+      tab('front', 50, { isActive: true }),
+      tab('playing', 49, { isAudible: true }),
+      tab('settings', 48, { isInternalPage: true }),
+      tab('asleep', 47, { isAsleep: true }),
+      tab('this one', 6),
+    ];
+    expect(tabToSleepForMemory(tabs, now, 60)).toBe('this one');
+  });
+
+  // Never means never, even with memory short.
+  it('is none when sleeping is turned off', () => {
+    expect(tabToSleepForMemory([tab('a', 300)], now, 0)).toBeNull();
   });
 });
 

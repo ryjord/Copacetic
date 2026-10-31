@@ -306,6 +306,22 @@ try {
   }
   console.log('The packaged app opened its database and searched it.');
 
+  // MPL-2.0 asks that the changed worker says so and travels with its licence, so it is checked in what shipped.
+  const mpl = await app.evaluate(() => {
+    const { existsSync, readFileSync } = process.mainModule.require('node:fs');
+    const { join } = process.mainModule.require('node:path');
+    const engine = join(process.resourcesPath, 'app.asar', 'dist', 'electron', 'translation', 'engine');
+    return {
+      hasNotice: readFileSync(join(engine, 'translator-worker.js'), 'utf8').includes('Mozilla Public'),
+      hasChanges: existsSync(join(engine, 'MPL-CHANGES.txt')),
+      hasLicence: existsSync(join(engine, 'LICENSE-MPL-2.0.txt')),
+    };
+  });
+  if (!mpl.hasNotice || !mpl.hasChanges || !mpl.hasLicence) {
+    throw new Error(`the packaged translation worker is missing what MPL-2.0 asks of it: ${JSON.stringify(mpl)}`);
+  }
+  console.log('The changed translation worker ships with its MPL notice, change list and licence.');
+
   // macOS is updated by hand until the builds are signed, so there is no updater there to exercise.
   if (process.platform !== 'darwin') {
     const feed = await startUpdateFeed();

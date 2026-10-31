@@ -2,11 +2,14 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
+import { type LocalSite, startLocalSite } from './support/local-site';
 
 let copacetic: SmokeApp;
+let site: LocalSite;
 const PROBE = path.resolve('smoke/fixtures/extensions/probe');
 
 beforeAll(async () => {
+  site = await startLocalSite();
   copacetic = await SmokeApp.launch();
   await copacetic.waitForReady();
   // The folder dialog and the question before adding, answered as a person would.
@@ -21,7 +24,10 @@ beforeAll(async () => {
     dialog.showMessageBox = (async () => ({ response: 0, checkboxChecked: false })) as typeof dialog.showMessageBox;
   }, PROBE);
 });
-afterAll(async () => copacetic?.close());
+afterAll(async () => {
+  await copacetic?.close();
+  await site?.close();
+});
 
 const probe = async () =>
   (await copacetic.chrome.evaluate(() => window.copacetic.extensions.list())).find(
@@ -118,6 +124,64 @@ describe('an extension', () => {
     await copacetic.chrome.evaluate((extensionId) => window.copacetic.extensions.setPinned(extensionId, false), id);
     expect(await copacetic.until(async () => !(await isOnToolbar()), 5_000)).toBe(true);
   }, 30_000);
+
+  /**
+   * An extension's own page opened in a tab, as an options page or a dashboard
+   * is, gets the API its popup has. Tabs otherwise carry no preload, and the
+   * second half is the promise kept: once the tab leaves for a website, the
+   * website is in a new view, with none of the extension's bridge.
+   */
+  it('gives its own page in a tab the extension API, and a website it goes on to none of it', async () => {
+    const id = (await probe())?.id ?? '';
+    const pageUrl = `chrome-extension://${id}/popup.html`;
+    const idsAt = (url: string) =>
+      copacetic.read(
+        ({ webContents }, target) =>
+          webContents
+            .getAllWebContents()
+            .filter((contents) => contents.getURL() === target)
+            .map((contents) => contents.id),
+        url,
+      );
+    // The popup from the test above can still be open at the same address, so the tab's page is the one that is new.
+    const popupIds = await idsAt(pageUrl);
+    const tabId = await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), pageUrl);
+    let pageId: number | undefined;
+    await copacetic.until(async () => {
+      pageId = (await idsAt(pageUrl)).find((candidate) => !popupIds.includes(candidate));
+      return pageId !== undefined;
+    }, 15_000);
+    const titleOf = (contentsId: number | undefined) =>
+      copacetic.read(({ webContents }, target) => webContents.fromId(target ?? -1)?.getTitle(), contentsId);
+    expect(await copacetic.until(async () => (await titleOf(pageId))?.startsWith('active: ') === true, 15_000)).toBe(
+      true,
+    );
+
+    // Sent by the page itself, the way a link in a dashboard would be.
+    const website = `${site.origin}/after-the-extension`;
+    await copacetic.read(
+      ({ webContents }, options) =>
+        webContents
+          .fromId(options.pageId ?? -1)
+          ?.executeJavaScript(`location.href = ${JSON.stringify(options.website)}`),
+      { pageId, website },
+    );
+    const tabUrl = async () =>
+      copacetic.chrome.evaluate(
+        async (tab) => (await window.copacetic.chrome.getState()).tabs.find((candidate) => candidate.id === tab)?.url,
+        tabId,
+      );
+    expect(await copacetic.until(async () => (await tabUrl()) === website, 15_000)).toBe(true);
+    const seen = await copacetic.inOpenPage<{ hasTabsApi: boolean; hasRuntimeId: boolean }>(
+      website,
+      '({ hasTabsApi: typeof chrome?.tabs !== "undefined", hasRuntimeId: typeof chrome?.runtime?.id === "string" })',
+    );
+    const websiteIds = await idsAt(website);
+
+    expect(seen).toEqual({ hasTabsApi: false, hasRuntimeId: false });
+    expect(websiteIds).toHaveLength(1);
+    expect(websiteIds).not.toContain(pageId);
+  }, 60_000);
 
   it('goes away when removed', async () => {
     const id = (await probe())?.id ?? '';

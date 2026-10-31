@@ -41,7 +41,7 @@ export function Menu({ trigger, items, align = 'end' }: MenuProps) {
               disabled={item.disabled}
               onSelect={item.onSelect}
               className={cn(
-                'flex h-7 items-center rounded-xs px-2 text-body outline-none data-[highlighted]:bg-hover data-[disabled]:opacity-40',
+                'flex h-7 items-center rounded-xs px-2 text-body outline-none data-[highlighted]:bg-hover data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-accent data-[disabled]:opacity-40',
                 item.isDestructive ? 'text-alert' : 'text-ink',
               )}
             >

@@ -216,7 +216,7 @@ function LoadingLine({ isLoading }: { isLoading: boolean }) {
   return (
     // Inset with the page's frame, and seen only while something loads: an idle line across the window was one more rule.
     <div className="relative mx-3 h-px shrink-0 overflow-hidden" aria-hidden>
-      {isLoading && <div className="animate-indeterminate h-full w-full bg-active" />}
+      {isLoading && <div className="animate-indeterminate h-full w-full bg-ink-dim" />}
     </div>
   );
 }

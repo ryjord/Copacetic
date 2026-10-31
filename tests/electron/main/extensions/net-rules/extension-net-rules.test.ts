@@ -309,3 +309,71 @@ describe('an extension’s rules', () => {
     expect(rules.call(OTHER, 'getDynamicRules', [])).toBeNull();
   });
 });
+
+/**
+ * An ad blocker's "what did I block here" report reads getMatchedRules, which
+ * answered nothing at all, so the report was empty on every page.
+ */
+describe('the matched-rules report', () => {
+  const FEEDBACK = ['declarativeNetRequest', 'declarativeNetRequestFeedback'];
+
+  function reporting(now: () => number) {
+    const rules = new ExtensionNetRules(fakeStore(), vi.fn(), vi.fn(), now);
+    rules.load(extensionWith({ main: { enabled: true, rules: [blockAds] } }, { permissions: FEEDBACK }));
+    return rules;
+  }
+
+  it('names each rule that decided a request, its ruleset and its tab', () => {
+    let clock = 1_000;
+    const rules = reporting(() => clock);
+    rules.call(ID, 'updateDynamicRules', [
+      { addRules: [{ id: 7, action: { type: 'block' }, condition: { urlFilter: '||tracker.example^' } }] },
+    ]);
+    rules.call(ID, 'updateSessionRules', [
+      { addRules: [{ id: 9, action: { type: 'allow' }, condition: { urlFilter: '||cdn.example^' } }] },
+    ]);
+
+    rules.decide(context('https://ads.example/a.js', {}, 4));
+    clock = 2_000;
+    rules.decide(context('https://tracker.example/t.js', {}, 5));
+    rules.decide(context('https://cdn.example/lib.js', {}, 5));
+    rules.decide(context('https://ordinary.example/page.js', {}, 5));
+
+    expect(rules.call(ID, 'getMatchedRules', [])).toEqual({
+      rulesMatchedInfo: [
+        { rule: { ruleId: 1, rulesetId: 'main' }, tabId: 4, timeStamp: 1_000 },
+        { rule: { ruleId: 7, rulesetId: '_dynamic' }, tabId: 5, timeStamp: 2_000 },
+        { rule: { ruleId: 9, rulesetId: '_session' }, tabId: 5, timeStamp: 2_000 },
+      ],
+    });
+  });
+
+  it('narrows to one tab, and to matches since a time, as the filter asks', () => {
+    let clock = 1_000;
+    const rules = reporting(() => clock);
+    rules.decide(context('https://ads.example/a.js', {}, 4));
+    clock = 3_000;
+    rules.decide(context('https://ads.example/b.js', {}, 6));
+
+    const forTab = rules.call(ID, 'getMatchedRules', [{ tabId: 6 }]) as { rulesMatchedInfo: { tabId: number }[] };
+    expect(forTab.rulesMatchedInfo.map((match) => match.tabId)).toEqual([6]);
+    const since = rules.call(ID, 'getMatchedRules', [{ minTimeStamp: 2_000 }]) as {
+      rulesMatchedInfo: { timeStamp: number }[];
+    };
+    expect(since.rulesMatchedInfo.map((match) => match.timeStamp)).toEqual([3_000]);
+  });
+
+  // Chrome's window, so a report never names what a page did long ago.
+  it('forgets a match after five minutes', () => {
+    let clock = 0;
+    const rules = reporting(() => clock);
+    rules.decide(context('https://ads.example/a.js'));
+    clock = 5 * 60_000 + 1;
+    expect(rules.call(ID, 'getMatchedRules', [])).toEqual({ rulesMatchedInfo: [] });
+  });
+
+  it('is refused to an extension that did not ask for the feedback permission, as in Chrome', () => {
+    const { rules } = setup();
+    expect(() => rules.call(ID, 'getMatchedRules', [])).toThrow(RefusedCall);
+  });
+});

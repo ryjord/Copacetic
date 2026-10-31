@@ -2,14 +2,15 @@
 import { PersistedFile, asNumber, asString, isRecord } from './persistence';
 import { EVEN_SPLIT_RATIO, clampSplitRatio } from '../../shared/tabs/split-view';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
+import { type ScrollPosition, readScrollPosition } from '../../shared/tabs/scroll-position';
 
 // Types
 import type { SchemaPlan } from './schema';
 
 /**
  * Where a tab could go back and forward to. Addresses and titles only: the
- * page state that would bring back the scroll position also holds what was
- * typed into the page's forms, which is not written to disk.
+ * page state also holds what was typed into the page's forms, which is not
+ * written to disk; the scroll position is kept on its own, in SessionTab.
  */
 export interface SessionHistory {
   entries: { url: string; title: string }[];
@@ -27,6 +28,8 @@ export interface SessionTab {
   isPinned?: boolean;
   /** Written only when there is somewhere to go back or forward to. */
   history?: SessionHistory;
+  /** How far down its page it was, written only when it was scrolled at all. */
+  scroll?: ScrollPosition;
 }
 
 /** Two of a window's tabs shown side by side, by their place in its list. */
@@ -140,12 +143,14 @@ function reviveWindow(raw: unknown): SessionSnapshot {
         }
         const groupId = asString(entry.groupId);
         const history = reviveHistory(entry.history);
+        const scroll = readScrollPosition(entry.scroll);
         return [
           {
             url,
             groupId: groupId || null,
             ...(entry.isPinned === true ? { isPinned: true } : {}),
             ...(history ? { history } : {}),
+            ...(scroll ? { scroll } : {}),
           },
         ];
       })

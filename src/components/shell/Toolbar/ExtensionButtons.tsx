@@ -12,6 +12,7 @@ import { useBrowserStore } from '@/store/useBrowserStore';
 // Utils
 import { send } from '@/lib/bridge/bridge';
 import { useExtensions } from '@/lib/extensions/useExtensions';
+import { readableInkOn } from '@/lib/colour/readable-ink';
 import { cn } from '@/lib/utils';
 import { t } from '@shared/i18n/translate';
 
@@ -91,8 +92,8 @@ function ExtensionButton({ extension, action }: { extension: ExtensionSummary; a
       {/* After the icon, so it paints over it without any layering. */}
       {action.badgeText && (
         <span
-          className="absolute right-0 bottom-0 min-w-3.5 rounded-xs px-0.5 text-center text-caption font-semibold text-white"
-          style={{ background: action.badgeColour }}
+          className="absolute right-0 bottom-0 min-w-3.5 rounded-xs px-0.5 text-center text-caption font-semibold"
+          style={{ background: action.badgeColour, color: readableInkOn(action.badgeColour) }}
         >
           {action.badgeText}
         </span>

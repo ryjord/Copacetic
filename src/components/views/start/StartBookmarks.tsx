@@ -24,8 +24,8 @@ const CHIP_CLASSES =
   'flex max-w-44 items-center gap-2 rounded-full bg-raised/70 px-3 py-1.5 text-body-sm text-ink-dim transition-colors hover:bg-raised hover:text-ink';
 const CRUMB_CLASSES = 'rounded-sm px-1 text-body-sm text-ink-dim transition-colors hover:text-ink';
 const DROP_LINE_CLASSES = {
-  before: 'before:absolute before:-left-1 before:inset-y-1 before:w-0.5 before:rounded-full before:bg-active',
-  after: 'after:absolute after:-right-1 after:inset-y-1 after:w-0.5 after:rounded-full after:bg-active',
+  before: 'before:absolute before:-left-1 before:inset-y-1 before:w-0.5 before:rounded-full before:bg-accent',
+  after: 'after:absolute after:-right-1 after:inset-y-1 after:w-0.5 after:rounded-full after:bg-accent',
 };
 
 type ChipKind = 'folder' | 'bookmark';
@@ -70,8 +70,25 @@ export function StartBookmarks({ tabId }: { tabId: string }) {
       const box = event.currentTarget.getBoundingClientRect();
       return event.clientX > box.left + box.width / 2;
     };
+    const reorderBefore = (beforeId: string | null) =>
+      send((api) =>
+        kind === 'folder' ? api.bookmarkFolders.reorder(id, beforeId) : api.bookmarks.reorder(id, beforeId),
+      );
     return {
       draggable: true,
+      // Alt and an arrow moves a chip one place, the keyboard's way to do what the drag does.
+      onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+        if (!event.altKey || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) {
+          return;
+        }
+        event.preventDefault();
+        const index = siblings.findIndex((sibling) => sibling.id === id);
+        if (event.key === 'ArrowLeft' && index > 0) {
+          reorderBefore(siblings[index - 1]?.id ?? null);
+        } else if (event.key === 'ArrowRight' && index < siblings.length - 1) {
+          reorderBefore(siblings[index + 2]?.id ?? null);
+        }
+      },
       onDragStart: () => setDragging({ kind, id }),
       onDragEnd: endDrag,
       onDragOver: (event: React.DragEvent<HTMLElement>) => {

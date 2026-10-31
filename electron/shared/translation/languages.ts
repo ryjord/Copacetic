@@ -42,6 +42,17 @@ export function routeFor(from: string, to: string): LanguagePair[] {
   ];
 }
 
+const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
+
+/** A language's name in English, like every other word Copacetic shows; the code itself where it has none. */
+export function languageName(code: string): string {
+  try {
+    return LANGUAGE_NAMES.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 /** A page's declared language, as one this list names, or null: `pt-BR` is Portuguese, `zh-TW` traditional Chinese. */
 export function languageOf(tag: string | null | undefined): string | null {
   const lowered = (tag ?? '').trim().toLowerCase();

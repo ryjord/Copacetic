@@ -10,7 +10,9 @@ import { IconButton } from '@/components/ui/IconButton/IconButton';
 import { Menu } from '@/components/ui/Menu/Menu';
 import { ShortcutDialog } from '@/components/views/start/ShortcutDialog';
 import { StartBookmarks } from '@/components/views/start/StartBookmarks';
+import { StartReadingList } from '@/components/views/start/StartReadingList';
 import { StartBackdrop } from '@/components/views/start/StartBackdrop';
+import { WelcomeCard } from '@/components/views/start/WelcomeCard';
 
 // Icons
 import { Ellipsis, EyeOff, Plus, Search } from 'lucide-react';
@@ -98,6 +100,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
 
       <div className="relative flex w-full max-w-[880px] flex-col gap-9 pb-12 pt-[88px]">
         {isShowingNotice && <HushNotice />}
+        {!isHush && !settings.welcomeDismissed && <WelcomeCard />}
 
         {shownWidgets.map((widget) => (
           <div key={widget} className="flex w-full">
@@ -112,7 +115,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
                   aria-label={t('views.start.search')}
                   spellCheck={false}
                   autoComplete="off"
-                  className="h-11 w-full rounded-md border border-line-strong bg-raised pl-11 pr-5 text-reading text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+                  className="h-11 w-full rounded-md border border-line-control bg-raised pl-11 pr-5 text-reading text-ink placeholder:text-ink-faint focus:border-accent"
                 />
                 {/* After the input, so it paints over the field's backdrop rather than under it. */}
                 <Search
@@ -127,6 +130,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
               <TopSites sites={topSites} tabId={tabId} onChanged={() => setTilesVersion((version) => version + 1)} />
             )}
             {widget === 'bookmarks' && <StartBookmarks tabId={tabId} />}
+            {widget === 'readingList' && <StartReadingList />}
           </div>
         ))}
       </div>

@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
+  welcomeDismissed: false,
   offerToSavePasswords: true,
   neverSavePasswordsOn: [],
   showBookmarksBar: false,

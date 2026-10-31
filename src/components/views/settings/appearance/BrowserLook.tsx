@@ -208,7 +208,7 @@ function ToolbarChoices({ value }: { value: ToolbarItemId[] }) {
 }
 
 const MODE_SURFACES: Record<Exclude<AppearanceId, 'system'>, { ground: string; bar: string; line: string }> = {
-  light: { ground: '#eef0f2', bar: '#ffffff', line: '#d7dbe0' },
+  light: { ground: '#eef0f2', bar: '#f7f8f9', line: '#d7dbe0' },
   dark: { ground: '#0e1114', bar: '#1b2026', line: '#2a3139' },
 };
 

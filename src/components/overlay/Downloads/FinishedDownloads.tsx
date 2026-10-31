@@ -91,7 +91,7 @@ function FinishedCard({ download, onClose }: { download: DownloadState; onClose:
       <Icon
         size={16}
         strokeWidth={1.75}
-        className={cn('mt-px shrink-0', isComplete ? 'text-clear' : 'text-caution')}
+        className={cn('mt-px shrink-0', isComplete ? 'text-ink-dim' : 'text-caution')}
         aria-hidden
       />
       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 pt-px">

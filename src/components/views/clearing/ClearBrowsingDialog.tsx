@@ -22,11 +22,12 @@ interface ClearBrowsingDialogProps {
   onConfirm: (choice: ClearChoice) => void;
 }
 
-/** Asks what to clear as well as whether, and is plain that only history can be cleared by time. */
+/** Asks what to clear as well as whether, and is plain that a range reaches cookies and the cache only by site. */
 export function ClearBrowsingDialog({ range, open, onOpenChange, onConfirm }: ClearBrowsingDialogProps) {
   const [choice, setChoice] = useState<ClearChoice>(() => defaultClearChoice(range));
   const rangeLabel = CLEAR_RANGES.find((option) => option.id === range)?.label.toLowerCase() ?? '';
   const choose = (part: keyof ClearChoice) => (isChosen: boolean) => setChoice({ ...choice, [part]: isChosen });
+  const isAllTime = range === 'all';
 
   return (
     <ConfirmDialog
@@ -44,8 +45,18 @@ export function ClearBrowsingDialog({ range, open, onOpenChange, onConfirm }: Cl
           checked={choice.history}
           onChange={choose('history')}
         />
-        <Checkbox label={t('views.clearing.siteData')} checked={choice.siteData} onChange={choose('siteData')} />
-        <Checkbox label={t('views.clearing.cache')} checked={choice.cache} onChange={choose('cache')} />
+        <Checkbox
+          label={
+            isAllTime ? t('views.clearing.siteData') : t('views.clearing.siteDataOfVisited', { range: rangeLabel })
+          }
+          checked={choice.siteData}
+          onChange={choose('siteData')}
+        />
+        <Checkbox
+          label={isAllTime ? t('views.clearing.cache') : t('views.clearing.cacheOfVisited', { range: rangeLabel })}
+          checked={choice.cache}
+          onChange={choose('cache')}
+        />
         <span>{t('views.clearing.groupsNote')}</span>
       </div>
     </ConfirmDialog>

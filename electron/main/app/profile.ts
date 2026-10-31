@@ -18,6 +18,7 @@ import { sweepOrphanedGroupPartitions } from '../data/group-partitions';
 import { VaultSession } from '../vault/vault-session';
 import { log } from '../system/diagnostics';
 import { Wallpaper } from '../system/wallpaper';
+import { ReadingList } from '../data/reading-list-store';
 import { isDevelopment } from './env';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
@@ -74,6 +75,7 @@ export class Profile {
   readonly sessions: SessionRegistry;
   readonly securityDelegate: SecurityDelegate;
   readonly wallpaper: Wallpaper;
+  readonly readingList: ReadingList;
   readonly partitions: ProfilePartitions;
   /** Tabs to reopen, one stack for every window of this profile. */
   readonly closedTabs = new ClosedTabs();
@@ -100,6 +102,7 @@ export class Profile {
     this.partitions = partitionsFor(id);
     this.store = new BrowserStore(directory);
     this.wallpaper = new Wallpaper(directory);
+    this.readingList = new ReadingList(directory);
     this.blocker = host.blocker;
     this.updates = host.updates;
     this.translation = host.translation;
@@ -111,10 +114,10 @@ export class Profile {
     // safeStorage is only reachable after app.ready, which is why the keychain is asked at each call.
     this.vaultSession = new VaultSession(
       {
-        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+        isAsyncEncryptionAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
         storageBackend: () => (process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null),
-        encryptString: (plainText) => safeStorage.encryptString(plainText),
-        decryptString: (cipherText) => safeStorage.decryptString(cipherText),
+        encryptStringAsync: (plainText) => safeStorage.encryptStringAsync(plainText),
+        decryptStringAsync: (cipherText) => safeStorage.decryptStringAsync(cipherText),
         platform: process.platform,
         canPromptTouchID: () => systemPreferences.canPromptTouchID?.() ?? false,
         promptTouchID: (reason) => systemPreferences.promptTouchID(reason),
@@ -580,6 +583,7 @@ export class Profile {
 
   prepareForQuit(): void {
     this.vaultSession.flush();
+    this.readingList.flush();
     if (this.isQuitting) {
       return;
     }
