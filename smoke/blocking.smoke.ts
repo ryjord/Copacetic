@@ -1,18 +1,30 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SmokeApp } from './support/harness';
+import { type LocalSite, startLocalSite } from './support/local-site';
 
 let copacetic: SmokeApp;
+let site: LocalSite;
+
+// A public-looking name for the local site: EasyList turns element hiding off on 127.0.0.1 and localhost, on purpose.
+const PAGE_ORIGIN = 'http://blocking.example';
 
 beforeAll(async () => {
-  copacetic = await SmokeApp.launch();
+  site = await startLocalSite();
+  copacetic = await SmokeApp.launch({
+    args: [`--host-resolver-rules=MAP blocking.example 127.0.0.1:${new URL(site.origin).port}`],
+  });
   await copacetic.waitForVisible();
-  await copacetic.chrome.evaluate(() => window.copacetic.tabs.create('https://example.com'));
-  await new Promise((resolve) => setTimeout(resolve, 4000));
+  // The local site speaks only HTTP; what is tested here is blocking, not the upgrade.
+  await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ httpsFirst: false }));
 });
-afterAll(async () => copacetic?.close());
+afterAll(async () => {
+  await copacetic?.close();
+  await site?.close();
+});
 
 /** Asked from inside a real page, because that is the only place it is true. */
-const askPage = <T>(expression: string): Promise<T> => copacetic.inPage<T>('https://example.com', expression);
+const askPage = <T>(expression: string, path = '/'): Promise<T> =>
+  copacetic.inPage<T>(`${PAGE_ORIGIN}${path}`, expression);
 
 /**
  * What the blocker recorded for a host, which is the signal that means what we
@@ -76,17 +88,22 @@ describe('what a page is allowed to fetch', () => {
    * release that failed to build or load them fails here and nowhere else.
    */
   it('refuses a tracker only the shipped lists know about', async () => {
-    expect(await askPage(tryFetch('https://bat.bing.com/bat.js'))).toBe('refused');
-    // And the blocker says it was the one who refused it. A rejected fetch on
-    // its own proves nothing: an offline runner rejects too, and would make
-    // every test here pass with blocking switched off.
-    expect((await blockedCounts())['bat.bing.com']).toBeGreaterThan(0);
+    // The lists load after the window shows, so this waits on the blocker's own
+    // count rather than a fixed sleep. A rejected fetch on its own proves
+    // nothing: an offline runner rejects too, and would make every test here
+    // pass with blocking switched off.
+    const isCounted = await copacetic.until(async () => {
+      await askPage(tryFetch('https://bat.bing.com/bat.js'));
+      return ((await blockedCounts())['bat.bing.com'] ?? 0) > 0;
+    }, 30_000);
+    expect(isCounted).toBe(true);
   }, 90_000);
 
   // The counterweight. A blocker that refused everything would pass both tests
   // above and be useless, and this is the only assertion that notices.
   it('allows an ordinary request', async () => {
-    expect(await askPage(tryFetch('https://example.com/?ordinary=1'))).toBe('allowed');
+    expect(await askPage(tryFetch(`${PAGE_ORIGIN}/?ordinary=1`))).toBe('allowed');
+    expect((await blockedCounts())['blocking.example'] ?? 0).toBe(0);
   }, 90_000);
 
   /*
@@ -95,17 +112,24 @@ describe('what a page is allowed to fetch', () => {
    * only person who would find out is someone who turned it off to fix a broken
    * site and watched it stay broken.
    */
+  // Counted by the blocker rather than by whether the fetch succeeded, so the half with blocking off needs no network.
   it('stops refusing when blocking is switched off', async () => {
+    const analytics = tryFetch('https://www.google-analytics.com/analytics.js');
+    const counted = async () => (await blockedCounts())['www.google-analytics.com'] ?? 0;
+
     await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ blockTrackers: false }));
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const allowed = await askPage(tryFetch('https://www.google-analytics.com/analytics.js'));
+    const before = await counted();
+    await askPage(analytics, '/?blocking=off');
+    const whileOff = await counted();
 
     await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ blockTrackers: true }));
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const refused = await askPage(tryFetch('https://www.google-analytics.com/analytics.js'));
+    const isRefusedAgain = await copacetic.until(async () => {
+      await askPage(analytics, '/?blocking=on');
+      return (await counted()) > whileOff;
+    }, 15_000);
 
-    expect(allowed).toBe('allowed');
-    expect(refused).toBe('refused');
+    expect(whileOff).toBe(before);
+    expect(isRefusedAgain).toBe(true);
   }, 120_000);
 });
 
@@ -158,11 +182,15 @@ describe('hiding cookie banners', () => {
   `;
 
   it('hides a consent banner the cookie list names, and shows it once switched off', async () => {
-    const hidden = await copacetic.inPage<string>('https://example.com/?banners=on', bannerDisplay);
+    const hidden = await askPage<string>(bannerDisplay, '/?banners=on');
 
     await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ hideCookieBanners: false }));
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const shown = await copacetic.inPage<string>('https://example.com/?banners=off', bannerDisplay);
+    // Each look is a new tab, which is what picks up the switch: a page already open keeps the sheet it was given.
+    let shown = '';
+    await copacetic.until(async () => {
+      shown = await askPage<string>(bannerDisplay, `/?banners=off&look=${Date.now()}`);
+      return shown === 'block';
+    }, 15_000);
     await copacetic.chrome.evaluate(() => window.copacetic.settings.update({ hideCookieBanners: true }));
 
     expect(hidden).toBe('none');
