@@ -78,16 +78,25 @@ Bergamot translator
               https://www.mozilla.org/MPL/2.0/
 
 The engine that translates in reader view, compiled to WebAssembly and run in a
-utility process of its own. One file is changed, at build time, by
-scripts/build-translation-engine.mjs: in worker/translator-worker.js, two lines
-that build file addresses by hand now use Node's fileURLToPath and
-pathToFileURL, so the engine finds its own files on Windows, and the two lines
-that find its parent use Electron's process.parentPort, since it is not a
-worker thread; and WebAssembly.instantiateStreaming is supplied, built from
-WebAssembly.instantiate, where that process lacks it. The source of
-every original file is at the address above. The language models it runs are not shipped: they are
-downloaded from Mozilla when someone first translates a language, under
-Mozilla's own terms.
+utility process of its own. One file is changed, at build time:
+worker/translator-worker.js, in four places. Two lines that build file
+addresses by hand use Node's fileURLToPath and pathToFileURL instead, so the
+engine finds its own files on Windows; the lines that find its parent use
+Electron's process.parentPort, since it is not a worker thread; and
+WebAssembly.instantiateStreaming is supplied, built from
+WebAssembly.instantiate, where that process lacks it.
+
+The changed file stays under MPL-2.0 and ships as readable source inside the
+app, at dist/electron/translation/engine/translator-worker.js in its
+resources, with the licence's notice at the top. Beside it, MPL-CHANGES.txt
+shows each change as it was and as it is now, and LICENSE-MPL-2.0.txt holds the
+licence. The source of every original file is at the address above, and a copy
+of the changed file is sent on request to contact@mrenigma.uk. The language
+models it runs are not shipped: they are downloaded from Mozilla when someone
+first translates a language, under Mozilla's own terms.
+
+The Ghostery adblocker packages, also MPL-2.0, ship unchanged, with their
+licence in each package.
 
 
 Everything else
