@@ -37,6 +37,7 @@ import {
   findWithMatchCase,
   findWithMatches,
   findWithWholeWord,
+  findWithWholeWordMatches,
   openedFind,
 } from './find-state';
 import { renderedTextOf, wholeWordFlags, wholeWordPosition } from './whole-word';
@@ -121,6 +122,8 @@ export class TabManager {
   private readonly sleepTimer: NodeJS.Timeout;
   private readonly stopCounting: () => void;
   private find: FindState = CLOSED_FIND;
+  /** The page's text for a whole-words search, read once while the bar is open rather than at every keystroke. */
+  private pageText: { contents: WebContents; url: string; text: Promise<string> } | null = null;
   /** Which of the occurrences of a whole-words search are whole words, read once per search. */
   private wholeWordPlan: { query: string; matchCase: boolean; flags: boolean[] } | null = null;
   // The way the last step went, so a skip past a part of a word keeps going that way.
@@ -399,23 +402,23 @@ export class TabManager {
     return this.tabs.get(id)?.isMuted ?? false;
   }
 
-  /** The tab in front pinned or not, muted or not, for a shortcut that has no tab to name. */
-  togglePinnedActive(): void {
+  // For a shortcut, which has no tab to name: the one in front, if there is one.
+  private withActive(act: (id: TabId) => void): void {
     if (this.activeId) {
-      this.setPinned(this.activeId, !this.isPinned(this.activeId));
+      act(this.activeId);
     }
+  }
+
+  togglePinnedActive(): void {
+    this.withActive((id) => this.setPinned(id, !this.isPinned(id)));
   }
 
   toggleMutedActive(): void {
-    if (this.activeId) {
-      this.setMuted(this.activeId, !this.isMuted(this.activeId));
-    }
+    this.withActive((id) => this.setMuted(id, !this.isMuted(id)));
   }
 
   sleepAllButActive(): void {
-    if (this.activeId) {
-      this.sleepOthers(this.activeId);
-    }
+    this.withActive((id) => this.sleepOthers(id));
   }
 
   /** Every other tab that can give its memory back does, as when they have all been left alone: one playing sound plays on. */
@@ -435,9 +438,7 @@ export class TabManager {
   }
 
   tabsInGroup(groupId: string): TabRecord[] {
-    return this.order
-      .map((tabId) => this.tabs.get(tabId))
-      .filter((tab): tab is TabRecord => tab !== undefined && tab.groupId === groupId);
+    return this.tabsInOrder().filter((tab) => tab.groupId === groupId);
   }
 
   /** Whether a group is holding anything that keeps nothing, which is what stops it claiming to be separate. */
@@ -910,8 +911,10 @@ export class TabManager {
     return id;
   }
 
-  /** A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows. */
-  // `extensionPreload` only for an extension's own page: a website never loads in a view that has one.
+  /**
+   * A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows.
+   * `extensionPreload` is given only for an extension's own page; a website never loads in a view that has one.
+   */
   private makeView(partition: string, adopting?: Electron.WebContents, extensionPreload?: string): WebContentsView {
     const view = new WebContentsView({
       ...(adopting ? { webContents: adopting } : {}),
@@ -1165,10 +1168,14 @@ export class TabManager {
     const afterMinutes = this.store.getSettings().sleepTabsAfterMinutes;
     const visible = this.visibleSplit();
     // The tabs on screen are read once a minute too, since a quit gives no moment to ask them.
-    [this.activeId, visible ? partnerIn(visible, this.activeId ?? '') : null]
-      .map((id) => (id ? this.tabs.get(id) : undefined))
-      .filter((tab) => tab !== undefined)
-      .forEach((tab) => void this.rememberScroll(tab));
+    const front = this.activeTab();
+    const beside = visible && this.activeId ? this.tabs.get(partnerIn(visible, this.activeId)) : undefined;
+    if (front) {
+      void this.rememberScroll(front);
+    }
+    if (beside) {
+      void this.rememberScroll(beside);
+    }
     const candidates = [...this.tabs.values()].map((tab) => ({
       id: tab.id,
       isActive: tab.id === this.activeId || isInSplit(visible, tab.id),
@@ -1180,9 +1187,14 @@ export class TabManager {
     const now = Date.now();
     const idle = tabsToSleep(candidates, now, afterMinutes);
     idle.forEach((id) => this.sleep(id));
-    const stillAwake = candidates.filter((tab) => !idle.includes(tab.id));
-    const forMemory = isThisMachineLowOnMemory() ? tabToSleepForMemory(stillAwake, now, afterMinutes) : null;
-    if (forMemory) {
+    const slept = new Set(idle);
+    // Asked of the machine only when there is a tab it could put to sleep.
+    const forMemory = tabToSleepForMemory(
+      candidates.filter((tab) => !slept.has(tab.id)),
+      now,
+      afterMinutes,
+    );
+    if (forMemory && isThisMachineLowOnMemory()) {
       this.sleep(forMemory);
     }
   }
@@ -1807,7 +1819,7 @@ export class TabManager {
 
   /** Begin a new search. Every keystroke in the find bar lands here. */
   startFind(query: string): void {
-    this.find = { ...findForQuery(this.find, query), isWholeWordUnavailable: false };
+    this.find = findForQuery({ ...this.find, isWholeWordUnavailable: false }, query);
     this.wholeWordPlan = null;
     // A new search goes forward from where it starts, whichever way the last one was stepped.
     this.findForward = true;
@@ -1832,11 +1844,20 @@ export class TabManager {
    * read through DevTools, as reader view reads it, to know which of the
    * occurrences find will step through are whole words; no script runs in it.
    */
+  private pageTextFor(contents: WebContents): Promise<string> {
+    const url = contents.getURL();
+    if (this.pageText?.contents !== contents || this.pageText.url !== url) {
+      const text = withPageDebugger(contents, (send) =>
+        send('DOMSnapshot.captureSnapshot', { computedStyles: [] }),
+      ).then((snapshot) => ('value' in snapshot ? renderedTextOf(snapshot.value) : ''));
+      this.pageText = { contents, url, text };
+    }
+    return this.pageText.text;
+  }
+
   private async findWholeWords(contents: WebContents, query: string): Promise<void> {
     const { matchCase } = this.find;
-    const snapshot = await withPageDebugger(contents, (send) =>
-      send('DOMSnapshot.captureSnapshot', { computedStyles: [] }),
-    );
+    const text = await this.pageTextFor(contents);
     const isStillAsked =
       this.find.query === query &&
       this.find.wholeWord &&
@@ -1845,7 +1866,7 @@ export class TabManager {
     if (!isStillAsked) {
       return;
     }
-    const flags = wholeWordFlags('value' in snapshot ? renderedTextOf(snapshot.value) : '', query, matchCase);
+    const flags = wholeWordFlags(text, query, matchCase);
     this.wholeWordPlan = { query, matchCase, flags };
     // Not one whole word: find would only light up the parts of other words.
     if (flags.length > 0 && !flags.includes(true)) {
@@ -1869,7 +1890,7 @@ export class TabManager {
     const position = wholeWordPosition(plan.flags, activeMatch, matches);
     if (!position) {
       // Counted differently from find, say for text that spans elements: every match is shown, and the bar says why.
-      this.find = { ...findWithMatches(this.find, activeMatch, matches), isWholeWordUnavailable: true };
+      this.find = findWithWholeWordMatches(this.find, activeMatch, matches, true);
       return;
     }
     const active = this.activeTab();
@@ -1878,10 +1899,7 @@ export class TabManager {
       this.runFind(contents, plan.query, { forward: this.findForward, isNewSession: false });
       return;
     }
-    this.find = {
-      ...findWithMatches(this.find, position.activeMatch, position.totalMatches),
-      isWholeWordUnavailable: false,
-    };
+    this.find = findWithWholeWordMatches(this.find, position.activeMatch, position.totalMatches, false);
   }
 
   /** Step through the matches of the search already running. */
@@ -1922,6 +1940,7 @@ export class TabManager {
   }
 
   stopFind(): void {
+    this.pageText = null;
     if (!this.find.isOpen && !this.find.query) {
       return;
     }

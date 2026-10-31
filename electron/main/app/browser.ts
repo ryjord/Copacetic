@@ -560,7 +560,6 @@ export class Browser {
     this.pushToChrome(PUSH.openSurface, surface);
   }
 
-  /** Settings, history, bookmarks or downloads, in a tab of their own rather than over the page. */
   /** The page in front translated where it stands, or put back if it already is. */
   translateActivePage(): void {
     const { activeTabId } = this.tabs.snapshot();
@@ -569,6 +568,7 @@ export class Browser {
     }
   }
 
+  /** Settings, history, bookmarks or downloads, in a tab of their own rather than over the page. */
   showPage(page: InternalPage, section: string | null = null): void {
     this.closeSiteInfo();
     // The page is the thing asked for, so an overlay such as the palette gives way to it.

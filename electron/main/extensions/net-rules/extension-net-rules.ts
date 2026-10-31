@@ -137,6 +137,8 @@ export class ExtensionNetRules {
   private readonly allowedPages = new Map<string, Map<number, number>>();
   private readonly counts = new Map<string, Map<number, number>>();
   private readonly matches: MatchedRules;
+  /** Which ruleset each rule came from, filled as the rules are indexed, for the matched-rules report. */
+  private readonly rulesetOf = new WeakMap<Rule, string>();
 
   constructor(
     private readonly store: NetRulesStore,
@@ -172,7 +174,7 @@ export class ExtensionNetRules {
       enabled,
       disabledStatic,
       dynamic,
-      dynamicIndex: new RuleIndex(dynamic),
+      dynamicIndex: this.indexed(dynamic, NET_RULE_LIMITS.DYNAMIC_RULESET_ID),
       session: [],
       sessionIndex: new RuleIndex([]),
       displaysActionCount: kept?.displaysActionCount ?? false,
@@ -341,22 +343,15 @@ export class ExtensionNetRules {
     return { kind: 'redirect', url };
   }
 
-  /** Written down for getMatchedRules; the stand-in for a page an extension allowed everything on names no rule. */
+  /**
+   * Written down for getMatchedRules, and only for an extension that may read
+   * it; the stand-in for a page an extension allowed everything on names no rule.
+   */
   private recordMatch(rules: ExtensionRules, rule: Rule, context: RequestContext): void {
-    const rulesetId = this.rulesetIdOf(rules, rule);
-    if (rulesetId !== null) {
+    const rulesetId = this.rulesetOf.get(rule);
+    if (rulesetId !== undefined && rules.extension.permissions.includes('declarativeNetRequestFeedback')) {
       this.matches.record(rules.extension.id, { ruleId: rule.id, rulesetId }, context.request.tabId);
     }
-  }
-
-  private rulesetIdOf(rules: ExtensionRules, rule: Rule): string | null {
-    if (rules.dynamicIndex.has(rule)) {
-      return NET_RULE_LIMITS.DYNAMIC_RULESET_ID;
-    }
-    if (rules.sessionIndex.has(rule)) {
-      return NET_RULE_LIMITS.SESSION_RULESET_ID;
-    }
-    return [...rules.enabled].find((id) => rules.rulesets.get(id)?.index?.has(rule)) ?? null;
   }
 
   private patternFor(rules: ExtensionRules, rule: Rule): RegExp | null {
@@ -392,14 +387,14 @@ export class ExtensionNetRules {
     switch (method) {
       case 'updateDynamicRules':
         rules.dynamic = this.updated(rules.dynamic, options, NET_RULE_LIMITS.MAX_NUMBER_OF_DYNAMIC_RULES);
-        rules.dynamicIndex = new RuleIndex(rules.dynamic);
+        rules.dynamicIndex = this.indexed(rules.dynamic, NET_RULE_LIMITS.DYNAMIC_RULESET_ID);
         this.keep(rules);
         return null;
       case 'getDynamicRules':
         return this.filtered(rules.dynamic, options);
       case 'updateSessionRules':
         rules.session = this.updated(rules.session, options, NET_RULE_LIMITS.MAX_NUMBER_OF_SESSION_RULES);
-        rules.sessionIndex = new RuleIndex(rules.session);
+        rules.sessionIndex = this.indexed(rules.session, NET_RULE_LIMITS.SESSION_RULESET_ID);
         return null;
       case 'getSessionRules':
         return this.filtered(rules.session, options);
@@ -536,6 +531,11 @@ export class ExtensionNetRules {
     }, 0);
   }
 
+  private indexed(list: readonly Rule[], rulesetId: string): RuleIndex {
+    list.forEach((rule) => this.rulesetOf.set(rule, rulesetId));
+    return new RuleIndex(list);
+  }
+
   private indexRuleset(rules: ExtensionRules, id: string): void {
     const ruleset = rules.rulesets.get(id);
     if (!ruleset || ruleset.index) {
@@ -550,7 +550,7 @@ export class ExtensionNetRules {
     try {
       const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
       // A static ruleset keeps the rules it can use, as Chrome skips a bad one at install with a warning.
-      ruleset.index = new RuleIndex(usableRules(Array.isArray(parsed) ? parsed : []));
+      ruleset.index = this.indexed(usableRules(Array.isArray(parsed) ? parsed : []), id);
     } catch (error) {
       this.onProblem(
         rules.extension.id,

@@ -22,14 +22,19 @@ export function isNavigableUrl(value: string): boolean {
   }
 }
 
+/** Whether an address is a web page's, over http or https, with a host. */
+export function isWebUrl(value: string): boolean {
+  try {
+    const { protocol, host } = new URL(value);
+    return (protocol === 'http:' || protocol === 'https:') && host !== '';
+  } catch {
+    return false;
+  }
+}
+
 /** The source of a web page, and only a web page's: never a file's, nor another source view's. */
 export function viewSourceUrlFor(url: string): string | null {
-  try {
-    const protocol = new URL(url).protocol;
-    return protocol === 'http:' || protocol === 'https:' ? `view-source:${url}` : null;
-  } catch {
-    return null;
-  }
+  return isWebUrl(url) ? `view-source:${url}` : null;
 }
 
 /** True when page code may send a tab here. Stricter than `isNavigableUrl`. */

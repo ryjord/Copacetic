@@ -1,6 +1,7 @@
 // Utils
 import { asNumber, asString, isRecord, newId } from '../data/persistence';
 import { t } from '../../shared/i18n/translate';
+import { isKeychainAvailable, openText, sealText, whyKeychainUnavailable } from './sealing';
 
 // Types
 import type { CsvCredential } from '../../shared/passwords/credential-csv';
@@ -60,8 +61,6 @@ export interface VaultStorage {
 }
 
 export const EMPTY_VAULT_FILE: VaultFile = { version: CURRENT_VERSION, entries: [] };
-
-const NO_KEYCHAIN = t('main.vault.keychain.none');
 
 // A vault with nothing in it and one that cannot be decrypted are different states.
 export class Vault {
@@ -406,29 +405,17 @@ export class Vault {
     return this.open(entry.id, entry.secret);
   }
 
-  /** Base64 of the sealed text, or null where the keychain would not seal it. */
-  private async seal(plainText: string): Promise<string | null> {
-    try {
-      return (await this.secrets.encrypt(plainText)).toString('base64');
-    } catch {
-      return null;
-    }
+  private seal(plainText: string): Promise<string | null> {
+    return sealText(this.secrets, plainText);
   }
 
   /** Opens one sealed field of an entry, and seals it again where the keychain has moved on to a newer key. */
   private async open(entryId: string, sealed: string): Promise<string | null> {
-    if (!(await this.isAvailable())) {
-      return null;
+    const opened = await openText(this.secrets, sealed);
+    if (opened?.shouldReEncrypt) {
+      await this.reseal(entryId, sealed, opened.result);
     }
-    try {
-      const { result, shouldReEncrypt } = await this.secrets.decrypt(Buffer.from(sealed, 'base64'));
-      if (shouldReEncrypt) {
-        await this.reseal(entryId, sealed, result);
-      }
-      return result;
-    } catch {
-      return null;
-    }
+    return opened?.result ?? null;
   }
 
   /** Swaps one sealed field for the same text under the keychain's current key, unless it was changed meanwhile. */
@@ -450,16 +437,12 @@ export class Vault {
     this.storage.set({ ...file, entries });
   }
 
-  private async isAvailable(): Promise<boolean> {
-    try {
-      return await this.secrets.isAvailable();
-    } catch {
-      return false;
-    }
+  private isAvailable(): Promise<boolean> {
+    return isKeychainAvailable(this.secrets);
   }
 
-  private async unavailableReason(): Promise<string> {
-    return (await this.secrets.whyUnavailable?.()) || NO_KEYCHAIN;
+  private unavailableReason(): Promise<string> {
+    return whyKeychainUnavailable(this.secrets);
   }
 
   /** The count alone, without attempting to decrypt anything - cheap enough for a status readout. */

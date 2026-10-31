@@ -12,6 +12,8 @@ import { t } from '../../shared/i18n/translate';
 // Types
 import type { VaultFacts, VaultLock } from '../../shared/types';
 
+const KEYCHAIN_ANSWER_KEPT_MS = 1_000;
+
 /**
  * The parts of the machine the vault has to ask about: the keychain that holds
  * the key, and whoever can vouch that you are still the person who unlocked it.
@@ -41,6 +43,7 @@ export class VaultSession {
   private readonly addressFile: PersistedFile<AddressFile>;
   // No idle timeout: once unlocked it stays open until it is locked or Copacetic quits.
   private isUnlocked = false;
+  private keychainAnswer: { at: number; answer: Promise<KeychainDescription> } | null = null;
 
   constructor(
     private readonly host: VaultHost,
@@ -103,13 +106,17 @@ export class VaultSession {
     };
   }
 
-  // Asked each time: a keyring can start or stop while Copacetic runs.
-  private async keychain(): Promise<KeychainDescription> {
-    return describeKeychain(
-      this.host.platform,
-      this.host.storageBackend(),
-      await this.host.isAsyncEncryptionAvailable(),
-    );
+  // A keyring can start or stop while Copacetic runs, so the answer is kept for a second, not for good:
+  // long enough that opening every entry of a list asks once rather than once an entry.
+  private keychain(): Promise<KeychainDescription> {
+    const now = Date.now();
+    if (!this.keychainAnswer || now - this.keychainAnswer.at > KEYCHAIN_ANSWER_KEPT_MS) {
+      const answer = this.host
+        .isAsyncEncryptionAvailable()
+        .then((isAvailable) => describeKeychain(this.host.platform, this.host.storageBackend(), isAvailable));
+      this.keychainAnswer = { at: now, answer };
+    }
+    return this.keychainAnswer.answer;
   }
 
   lockInfo(): VaultLock {

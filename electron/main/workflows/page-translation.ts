@@ -6,7 +6,7 @@ import {
   RESTORE_PAGE_TEXT,
   applyTranslationsScript,
 } from '../tabs/page-translation-scripts';
-import { ENGLISH, languageOf, routeFor } from '../../shared/translation/languages';
+import { ENGLISH, languageName, languageOf, routeFor } from '../../shared/translation/languages';
 import { t } from '../../shared/i18n/translate';
 
 // Types
@@ -25,11 +25,6 @@ interface PageTranslationDeps {
 
 // Enough pieces at once for the engine to work through without one request holding the whole page.
 const PIECES_A_BATCH = 200;
-
-/** A language's name for a notice, in English like every other word Copacetic shows. */
-function nameOf(language: string): string {
-  return new Intl.DisplayNames(['en'], { type: 'language' }).of(language) ?? language;
-}
 
 /**
  * The page in front translated where it stands, on this machine, as reader view
@@ -97,10 +92,10 @@ export class PageTranslation {
     const reader = this.deps.readerLanguage();
     const to = reader === from ? (from === ENGLISH ? null : ENGLISH) : reader;
     if (!to || routeFor(from, to).length === 0) {
-      this.say(tabId, t('main.pageTranslation.unsupported', { language: nameOf(from) }));
+      this.say(tabId, t('main.pageTranslation.unsupported', { language: languageName(from) }));
       return;
     }
-    this.say(tabId, t('main.pageTranslation.working', { from: nameOf(from), to: nameOf(to) }));
+    this.say(tabId, t('main.pageTranslation.working', { from: languageName(from), to: languageName(to) }));
     try {
       const translations = await this.translateInBatches(from, to, texts);
       // The page in the tab may have changed while the engine worked; writing into another would be wrong.
@@ -115,7 +110,7 @@ export class PageTranslation {
         return;
       }
       this.translated.add(tabId);
-      this.say(tabId, t('main.pageTranslation.done', { from: nameOf(from), to: nameOf(to) }), 'done');
+      this.say(tabId, t('main.pageTranslation.done', { from: languageName(from), to: languageName(to) }), 'done');
     } catch (error) {
       this.say(tabId, error instanceof Error ? error.message : t('main.pageTranslation.failed'));
     }

@@ -9,6 +9,8 @@ import {
 } from '../../shared/passwords/addresses';
 import { t } from '../../shared/i18n/translate';
 
+import { isKeychainAvailable, openText, sealText, whyKeychainUnavailable } from './sealing';
+
 // Types
 import type { SecretStore } from './vault';
 
@@ -66,16 +68,17 @@ export class AddressBook {
   }
 
   async add(input: unknown): Promise<{ id: string } | { error: string }> {
-    const fields = readAddressFields(input);
-    if (isEmptyAddress(fields)) {
-      return { error: t('main.addresses.errors.empty') };
-    }
-    const sealed = await this.seal(fields);
-    if (sealed === null) {
-      return { error: await this.unavailableReason() };
+    const sealing = await this.sealed(input);
+    if ('error' in sealing) {
+      return sealing;
     }
     const timestamp = this.now();
-    const address: SealedAddress = { id: newId(), sealed, createdAt: timestamp, updatedAt: timestamp };
+    const address: SealedAddress = {
+      id: newId(),
+      sealed: sealing.sealed,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
     // Read after the keychain answered, so two saves at once both land.
     const file = this.storage.get();
     this.storage.set({ ...file, addresses: [...file.addresses, address] });
@@ -95,14 +98,11 @@ export class AddressBook {
     if (!this.isUnlocked()) {
       return { error: t('main.addresses.errors.unlockToChange') };
     }
-    const fields = readAddressFields(input);
-    if (isEmptyAddress(fields)) {
-      return { error: t('main.addresses.errors.empty') };
+    const sealing = await this.sealed(input);
+    if ('error' in sealing) {
+      return sealing;
     }
-    const sealed = await this.seal(fields);
-    if (sealed === null) {
-      return { error: await this.unavailableReason() };
-    }
+    const { sealed } = sealing;
     const file = this.storage.get();
     if (!file.addresses.some((address) => address.id === id)) {
       return { error: t('main.addresses.errors.gone') };
@@ -134,35 +134,32 @@ export class AddressBook {
     if (remembered) {
       return remembered;
     }
+    const opened = await openText(this.secrets, address.sealed);
     try {
-      if (!(await this.secrets.isAvailable())) {
-        return null;
+      const fields = opened ? readAddressFields(JSON.parse(opened.result)) : null;
+      if (fields) {
+        this.opened.set(address.sealed, fields);
       }
-      const { result } = await this.secrets.decrypt(Buffer.from(address.sealed, 'base64'));
-      const fields = readAddressFields(JSON.parse(result));
-      this.opened.set(address.sealed, fields);
       return fields;
     } catch {
       return null;
     }
   }
 
-  private async seal(fields: AddressFields): Promise<string | null> {
-    try {
-      if (!(await this.secrets.isAvailable())) {
-        return null;
-      }
-      const sealed = (await this.secrets.encrypt(JSON.stringify(fields))).toString('base64');
-      this.opened.set(sealed, fields);
-      return sealed;
-    } catch {
-      // Never fall back to keeping it in the clear.
-      return null;
+  /** The address sealed, or why it could not be: empty, or no keychain to seal it with. */
+  private async sealed(input: unknown): Promise<{ fields: AddressFields; sealed: string } | { error: string }> {
+    const fields = readAddressFields(input);
+    if (isEmptyAddress(fields)) {
+      return { error: t('main.addresses.errors.empty') };
     }
-  }
-
-  private async unavailableReason(): Promise<string> {
-    return (await this.secrets.whyUnavailable?.()) || t('main.vault.keychain.none');
+    const sealed = (await isKeychainAvailable(this.secrets))
+      ? await sealText(this.secrets, JSON.stringify(fields))
+      : null;
+    if (sealed === null) {
+      return { error: await whyKeychainUnavailable(this.secrets) };
+    }
+    this.opened.set(sealed, fields);
+    return { fields, sealed };
   }
 }
 
@@ -175,7 +172,7 @@ export function reviveAddressFile(raw: unknown): AddressFile | null {
     return sealed
       ? [
           {
-            id: typeof entry.id === 'string' ? entry.id : newId(),
+            id: asString(entry.id) || newId(),
             sealed,
             createdAt: asNumber(entry.createdAt),
             updatedAt: asNumber(entry.updatedAt),

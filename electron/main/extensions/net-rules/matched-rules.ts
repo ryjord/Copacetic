@@ -16,19 +16,25 @@ export class MatchedRules {
 
   constructor(private readonly now: () => number = Date.now) {}
 
+  // Run for every request a rule decided, so it only appends; the list is cut back once it is twice the limit.
   record(extensionId: string, rule: { ruleId: number; rulesetId: string }, tabId: number): void {
-    const kept = this.recent(extensionId);
+    const kept = this.byExtension.get(extensionId) ?? [];
     kept.push({ rule, tabId, timeStamp: this.now() });
-    this.byExtension.set(extensionId, kept.slice(-MATCHES_KEPT_AT_MOST));
+    this.byExtension.set(
+      extensionId,
+      kept.length > MATCHES_KEPT_AT_MOST * 2 ? kept.slice(-MATCHES_KEPT_AT_MOST) : kept,
+    );
   }
 
   /** Newest last, as Chrome lists them; `tabId` and `minTimeStamp` narrow it as getMatchedRules' filter does. */
   list(extensionId: string, filter: { tabId?: number; minTimeStamp?: number } = {}): MatchedRuleInfo[] {
-    return this.recent(extensionId).filter(
-      (match) =>
-        (filter.tabId === undefined || match.tabId === filter.tabId) &&
-        (filter.minTimeStamp === undefined || match.timeStamp >= filter.minTimeStamp),
-    );
+    return this.recent(extensionId)
+      .slice(-MATCHES_KEPT_AT_MOST)
+      .filter(
+        (match) =>
+          (filter.tabId === undefined || match.tabId === filter.tabId) &&
+          (filter.minTimeStamp === undefined || match.timeStamp >= filter.minTimeStamp),
+      );
   }
 
   forget(extensionId: string): void {

@@ -63,13 +63,17 @@ function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
 
 /** The menu shown when someone right-clicks inside a page. */
 export async function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): Promise<void> {
-  // Asked before the menu is built: which saved passwords fit needs the vault to open their sites.
-  const passwordOffer = params.isEditable ? await browser.passwords.offerFor(tabId) : null;
-  // Offered on an encrypted page only, as passwords are, and only addresses this machine can open.
-  const addresses =
-    params.isEditable && isFillablePage(browser.tabs.urlFor(tabId) ?? '')
-      ? (await browser.vaultSession.addresses.list()).filter((address) => address.isReadable)
-      : [];
+  // Asked before the menu is built, both at once: which saved passwords and addresses fit needs the vault to open them.
+  // Addresses are offered on an encrypted page only, as passwords are, and only ones this machine can open.
+  // Waited on only in a form field, so every other right-click opens at once.
+  const [passwordOffer, savedAddresses] = params.isEditable
+    ? await Promise.all([
+        browser.passwords.offerFor(tabId),
+        isFillablePage(browser.tabs.urlFor(tabId) ?? '') ? browser.vaultSession.addresses.list() : [],
+      ])
+    : [null, []];
+  const passwords = passwordOffer?.entries ?? [];
+  const addresses = savedAddresses.filter((address) => address.isReadable);
   const items: MenuItemConstructorOptions[] = [];
   const push = (item: MenuItemConstructorOptions) => items.push(item);
   const separate = () => {
@@ -149,10 +153,10 @@ export async function showPageContextMenu(browser: Browser, tabId: TabId, params
   }
 
   // Offered where a password box actually is, and only for this page's own site.
-  if (passwordOffer && passwordOffer.entries.length > 0) {
+  if (passwords.length > 0) {
     push({
       label: t('main.menu.context.fillPassword'),
-      submenu: passwordOffer.entries.map((entry) => ({
+      submenu: passwords.map((entry) => ({
         label: entry.username || t('main.menu.context.savedPassword'),
         click: () => {
           void browser.passwords.fill(tabId, entry.id);
@@ -171,7 +175,7 @@ export async function showPageContextMenu(browser: Browser, tabId: TabId, params
       })),
     });
   }
-  if ((passwordOffer && passwordOffer.entries.length > 0) || addresses.length > 0) {
+  if (passwords.length > 0 || addresses.length > 0) {
     separate();
   }
 
@@ -359,11 +363,6 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
   Menu.buildFromTemplate(items).popup({ window: browser.window });
 }
 
-/**
- * Behind the caret beside the new-tab button. A native menu rather than markup:
- * a WebContentsView paints above the chrome's HTML, so a dropdown over the page
- * area would be drawn underneath the page.
- */
 /** The toolbar's own buttons, chosen where they are rather than only in Settings. */
 export function showToolbarMenu(browser: Browser): void {
   const shown = browser.profile.settings().toolbarItems;
@@ -384,6 +383,11 @@ export function showToolbarMenu(browser: Browser): void {
   Menu.buildFromTemplate(items).popup({ window: browser.window });
 }
 
+/**
+ * Behind the caret beside the new-tab button. A native menu rather than markup:
+ * a WebContentsView paints above the chrome's HTML, so a dropdown over the page
+ * area would be drawn underneath the page.
+ */
 export function showNewTabMenu(browser: Browser): void {
   const items: MenuItemConstructorOptions[] = [
     { label: t('main.menu.file.newTab'), click: () => browser.commands.newTab() },

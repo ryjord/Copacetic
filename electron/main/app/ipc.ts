@@ -528,8 +528,9 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('readingList.isSaved', (browser, _event, url) => browser.profile.readingList.isSaved(asString(url)));
   handle('readingList.article', (browser, _event, id) => browser.profile.readingList.article(asString(id)));
   handle('readingList.setRead', (browser, _event, id, isRead) => {
-    browser.profile.readingList.setRead(asString(id), isRead === true);
-    readingChanged(browser);
+    if (browser.profile.readingList.setRead(asString(id), isRead === true)) {
+      readingChanged(browser);
+    }
   });
   handle('readingList.remove', (browser, _event, id) => {
     browser.profile.readingList.remove(asString(id));

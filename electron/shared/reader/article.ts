@@ -1,3 +1,6 @@
+// Utils
+import { isWebUrl } from '../browsing/url';
+
 /** The tags reader view draws. Anything else is unwrapped, keeping its text. */
 export const READER_TAGS = [
   'p',
@@ -40,7 +43,7 @@ const MOST_NODES = 60_000;
 const MOST_TEXT = 4_000_000;
 
 const isReaderTag = (value: unknown): value is ReaderTag => READER_TAGS.some((tag) => tag === value);
-const isWebAddress = (value: unknown): value is string => typeof value === 'string' && /^https?:\/\//.test(value);
+const isWebAddress = (value: unknown): value is string => typeof value === 'string' && isWebUrl(value);
 const textOrNull = (value: unknown) => (typeof value === 'string' && value ? value.slice(0, 500) : null);
 
 /**

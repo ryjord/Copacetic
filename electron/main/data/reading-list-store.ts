@@ -76,15 +76,17 @@ export class ReadingList {
     if (!article || !isPageNavigableUrl(url)) {
       return null;
     }
-    const kept = this.file.get().filter((item) => item.url !== url);
-    const id = this.file.get().find((item) => item.url === url)?.id ?? newId();
-    const next = [...kept, { id, url, article, savedAt: this.now(), isRead: false }];
-    const overflow = next.length - MOST_SAVED;
+    const earlier = this.file.get().find((item) => item.url === url);
+    const id = earlier?.id ?? newId();
+    const next = [
+      ...this.file.get().filter((item) => item !== earlier),
+      { id, url, article, savedAt: this.now(), isRead: false },
+    ];
     const dropped = new Set(
       next
         .filter((item) => item.id !== id)
         .toSorted((aItem, bItem) => Number(bItem.isRead) - Number(aItem.isRead) || aItem.savedAt - bItem.savedAt)
-        .slice(0, Math.max(0, overflow))
+        .slice(0, Math.max(0, next.length - MOST_SAVED))
         .map((item) => item.id),
     );
     this.file.set(next.filter((item) => !dropped.has(item.id)));
@@ -95,8 +97,13 @@ export class ReadingList {
     return this.file.get().some((item) => item.url === url);
   }
 
-  setRead(id: string, isRead: boolean): void {
-    this.file.set(this.file.get().map((item) => (item.id === id ? { ...item, isRead } : item)));
+  /** Whether anything changed: opening one already read is no reason to write 200 articles to disk again. */
+  setRead(id: string, isRead: boolean): boolean {
+    const isChange = this.file.get().some((item) => item.id === id && item.isRead !== isRead);
+    if (isChange) {
+      this.file.set(this.file.get().map((item) => (item.id === id ? { ...item, isRead } : item)));
+    }
+    return isChange;
   }
 
   remove(id: string): void {

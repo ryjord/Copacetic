@@ -8,6 +8,21 @@
  * set. That is not a leak: the value is a password you are deliberately giving
  * that page, and it would see it the moment you typed it by hand.
  */
+/**
+ * Sets a form field's value the way typing does, for both fill scripts. React
+ * and friends listen for input events rather than watching the value, so
+ * setting it directly leaves the page's own state stale and the form submits
+ * empty; the prototype's own setter is used because a framework replaces the
+ * element's.
+ */
+export const SET_VALUE_SOURCE = `const setValue = (element, value) => {
+    const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype
+      : element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  };`;
+
 export function fillScriptFor(username: string, password: string): string {
   // Serialised as JSON so a password containing quotes or newlines cannot end
   // the string and become code.
@@ -25,15 +40,7 @@ export function fillScriptFor(username: string, password: string): string {
     return { filled: false, reason: 'no-password-field' };
   }
 
-  // React and friends listen for input events rather than watching the value,
-  // so setting it directly leaves the page's own state stale and the form
-  // submits empty.
-  const setValue = (element, value) => {
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    setter.call(element, value);
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  };
+  ${SET_VALUE_SOURCE}
 
   let filledUsername = false;
   if (username) {

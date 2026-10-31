@@ -144,11 +144,6 @@ export class RuleIndex {
     return this.patterns.size;
   }
 
-  /** Whether this rule, by identity, is one this index holds: how a match is traced back to its ruleset. */
-  has(rule: Rule): boolean {
-    return this.patterns.has(rule);
-  }
-
   constructor(rules: readonly Rule[]) {
     this.hasHeaderRules = rules.some((rule) => rule.action.type === 'modifyHeaders');
     for (const rule of rules) {
@@ -190,12 +185,18 @@ export class RuleIndex {
     const filed = new Set<CompiledRule>();
     keys.hosts.forEach((host) => this.byHost.get(host)?.forEach((compiled) => filed.add(compiled)));
     keys.tokens.forEach((token) => this.byToken.get(token)?.forEach((compiled) => filed.add(compiled)));
-    const lowercaseUrl = request.url.toLowerCase();
-    const hasLiteral = (compiled: CompiledRule) =>
-      compiled.literal === null ||
-      (compiled.rule.condition.isUrlFilterCaseSensitive === true ? request.url : lowercaseUrl).includes(
-        compiled.literal,
-      );
+    // Lowercased once, and only if a rule has text to look for in it.
+    let lowercaseUrl: string | null = null;
+    const hasLiteral = (compiled: CompiledRule) => {
+      if (compiled.literal === null) {
+        return true;
+      }
+      if (compiled.rule.condition.isUrlFilterCaseSensitive === true) {
+        return request.url.includes(compiled.literal);
+      }
+      lowercaseUrl ??= request.url.toLowerCase();
+      return lowercaseUrl.includes(compiled.literal);
+    };
     return [...this.everywhere, ...filed]
       .filter(
         (compiled) =>

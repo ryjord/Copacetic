@@ -4,7 +4,7 @@ import { fillScriptFor } from '../system/fill-script';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { TabId } from '../../shared/types';
+import type { TabId, VaultEntry } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { VaultSession } from '../vault/vault-session';
 import type { TabManager } from '../tabs/tabs';
@@ -46,16 +46,21 @@ export class PasswordFill {
     return problem;
   }
 
-  private async entryFor(tabId: TabId, entryId: string): Promise<{ entry?: { username: string }; refusal: string }> {
-    const entries = (await this.deps.vaultSession.vault.state()).entries;
-    // The address is read after the vault answers, so it is the page as it is now.
+  // The address is read each time it is asked, so it is the page as it is now.
+  private entryFor(
+    tabId: TabId,
+    entryId: string,
+    entries: readonly VaultEntry[],
+  ): { entry?: { username: string }; refusal: string } {
     const offer = offerFor(this.deps.tabs.urlFor(tabId) ?? '', entries);
     const entry = offer.entries.find((candidate) => candidate.id === entryId);
     return entry ? { entry, refusal: '' } : { refusal: offer.refusal || t('main.passwords.fill.wrongPage') };
   }
 
   private async attemptFill(tabId: TabId, entryId: string): Promise<string> {
-    const beforeUnlock = await this.entryFor(tabId, entryId);
+    // Read once: what is saved does not change while filling, though the page's address can.
+    const { entries } = await this.deps.vaultSession.vault.state();
+    const beforeUnlock = this.entryFor(tabId, entryId, entries);
     if (beforeUnlock.refusal) {
       return beforeUnlock.refusal;
     }
@@ -69,7 +74,7 @@ export class PasswordFill {
     }
 
     // Checked again: the page may have navigated while the prompt was up.
-    const afterUnlock = await this.entryFor(tabId, entryId);
+    const afterUnlock = this.entryFor(tabId, entryId, entries);
     if (afterUnlock.refusal) {
       return afterUnlock.refusal;
     }
@@ -80,7 +85,7 @@ export class PasswordFill {
     }
 
     // And once more after decrypting, which waits on the keychain too.
-    const { entry, refusal } = await this.entryFor(tabId, entryId);
+    const { entry, refusal } = this.entryFor(tabId, entryId, entries);
     if (!entry) {
       return refusal;
     }

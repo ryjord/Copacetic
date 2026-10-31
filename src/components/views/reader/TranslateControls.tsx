@@ -11,15 +11,21 @@ import { Select } from '@/components/ui/Select/Select';
 import { ask } from '@/lib/bridge/bridge';
 import { blocksToTranslate, withTranslations } from '@/lib/reader/translate-article';
 import { t } from '@shared/i18n/translate';
-import { ENGLISH, SOURCE_LANGUAGES, TARGET_LANGUAGES, languageOf, routeFor } from '@shared/translation/languages';
+import {
+  ENGLISH,
+  SOURCE_LANGUAGES,
+  TARGET_LANGUAGES,
+  languageName,
+  languageOf,
+  routeFor,
+} from '@shared/translation/languages';
 
 // Types
 import type { Article, ReaderNode } from '@/lib/reader/article';
 
-const names = new Intl.DisplayNames(['en'], { type: 'language' });
 const optionsFor = (codes: readonly string[]) =>
   codes
-    .map((code) => ({ id: code, label: names.of(code) ?? code }))
+    .map((code) => ({ id: code, label: languageName(code) }))
     .toSorted((aLanguage, bLanguage) => aLanguage.label.localeCompare(bLanguage.label));
 const SOURCE_OPTIONS = optionsFor(SOURCE_LANGUAGES);
 const TARGET_OPTIONS = optionsFor(TARGET_LANGUAGES);

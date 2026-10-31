@@ -46,13 +46,15 @@ export function SavedAddresses({ isUnlocked }: { isUnlocked: boolean }) {
     });
   };
 
-  const save = (next: NonNullable<Editing>) => {
+  // Both ways resolve to a sentence to show, or nothing when it saved.
+  const save = ({ id, fields }: NonNullable<Editing>) => {
+    const nothingSaved = t('settings.passwords.form.nothingSaved');
     const saving =
-      next.id === null
-        ? ask((api) => api.addresses.add(next.fields), { error: t('settings.passwords.form.nothingSaved') }).then(
-            (result) => ('error' in result ? result.error : ''),
+      id === null
+        ? ask((api) => api.addresses.add(fields), { error: nothingSaved }).then((result) =>
+            'error' in result ? result.error : '',
           )
-        : ask((api) => api.addresses.update(next.id ?? '', next.fields), t('settings.passwords.form.nothingSaved'));
+        : ask((api) => api.addresses.update(id, fields), nothingSaved);
     void saving.then((problem) => {
       setMessage(problem);
       if (!problem) {

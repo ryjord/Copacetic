@@ -1,3 +1,6 @@
+// Utils
+import { SET_VALUE_SOURCE } from './fill-script';
+
 // Types
 import type { AddressFields } from '../../shared/passwords/addresses';
 
@@ -92,13 +95,7 @@ export function addressFillScriptFor(fields: AddressFields, point: { x: number; 
     const started = Array.from(element.options).findIndex((option) => option.defaultSelected);
     return element.selectedIndex !== Math.max(started, 0);
   };
-  const setValue = (element, value) => {
-    const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype
-      : element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-    Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  };
+  ${SET_VALUE_SOURCE}
   const chooseOption = (select, wanted) => {
     const target = wanted.toLowerCase();
     const option = Array.from(select.options).find(

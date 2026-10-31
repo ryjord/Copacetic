@@ -31,6 +31,16 @@ export function findWithWholeWord(state: FindState, wholeWord: boolean): FindSta
   return { ...state, wholeWord };
 }
 
+/** Counts for the bar, saying whether whole words could be told apart on this page. */
+export function findWithWholeWordMatches(
+  state: FindState,
+  activeMatch: number,
+  totalMatches: number,
+  isWholeWordUnavailable: boolean,
+): FindState {
+  return { ...state, activeMatch, totalMatches, isWholeWordUnavailable };
+}
+
 export function findWithMatches(state: FindState, activeMatch: number, totalMatches: number): FindState {
   return { ...state, activeMatch, totalMatches };
 }
