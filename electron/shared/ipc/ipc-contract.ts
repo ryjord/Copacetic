@@ -64,6 +64,7 @@ export const CHANNELS = {
   'tabs.setZoom': 'tab:set-zoom',
   'tabs.openContextMenu': 'tab:open-context-menu',
   'tabs.openNewTabMenu': 'tab:open-new-tab-menu',
+  'chrome.openToolbarMenu': 'chrome:open-toolbar-menu',
   'startPage.saveShortcut': 'start-page:save-shortcut',
   'startPage.removeTile': 'start-page:remove-tile',
   'startPage.chooseIcon': 'start-page:choose-icon',

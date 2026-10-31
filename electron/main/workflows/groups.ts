@@ -3,6 +3,7 @@ import { descendantsOf } from '../../shared/data/bookmark-folders';
 import { PUSH } from '../../shared/ipc/channels';
 import { OPEN_WITHOUT_ASKING, openFolderMessage, savedGroupMessage } from '../../shared/chrome/notices';
 import { t } from '../../shared/i18n/translate';
+import { isPageNavigableUrl } from '../../shared/browsing/url';
 
 // Types
 import type { GroupColourId } from '../../shared/tabs/tab-groups';
@@ -113,12 +114,30 @@ export class GroupCommands {
     if (!group) {
       return { saved: 0, skippedHush: 0 };
     }
+    return this.saveTabsAsFolder(group.name, group.colour, this.deps.tabs.tabsInGroup(id));
+  }
 
-    const folder = this.deps.store.createBookmarkFolder(group.name, group.colour, null);
+  /** Every tab in the window, as one folder named for the day, by the same rules as a group. */
+  saveWindowAsFolder(): { saved: number; skippedHush: number } {
+    const day = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return this.saveTabsAsFolder(
+      t('main.bookmarks.allTabsFolder', { date: day }),
+      'ocean',
+      this.deps.tabs.tabsInOrder(),
+    );
+  }
+
+  private saveTabsAsFolder(
+    name: string,
+    colour: GroupColourId,
+    tabs: readonly { url: string; title: string; isHush: boolean }[],
+  ): { saved: number; skippedHush: number } {
+    const folder = this.deps.store.createBookmarkFolder(name, colour, null);
     let saved = 0;
     let skippedHush = 0;
 
-    for (const tab of this.deps.tabs.tabsInGroup(id)) {
+    // A page of ours, such as the start page, is not somewhere a bookmark can go back to.
+    for (const tab of tabs.filter((candidate) => isPageNavigableUrl(candidate.url))) {
       if (tab.isHush) {
         skippedHush += 1;
         continue;

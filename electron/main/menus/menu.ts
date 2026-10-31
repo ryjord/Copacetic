@@ -298,6 +298,21 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.tabs.toggleSplit()),
       },
       {
+        label: t('main.menu.tabs.pin'),
+        accelerator: key('pin-tab'),
+        click: () => inWindow((browser) => browser.tabs.togglePinnedActive()),
+      },
+      {
+        label: t('main.menu.tabs.mute'),
+        accelerator: key('mute-tab'),
+        click: () => inWindow((browser) => browser.tabs.toggleMutedActive()),
+      },
+      {
+        label: t('main.menu.tabs.sleepOthers'),
+        accelerator: key('sleep-other-tabs'),
+        click: () => inWindow((browser) => browser.tabs.sleepAllButActive()),
+      },
+      {
         label: t('main.menu.tabs.saveSession'),
         click: () => inWindow((browser) => browser.saveTabsAsSession()),
       },

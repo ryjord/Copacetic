@@ -45,13 +45,21 @@ function fakeBrowser({ hasClosedTabs = true, url = 'https://example.com', canSle
       toggleBookmark: record('toggleBookmark'),
       listGroups: () => [],
     },
-    groups: { create: record('createGroup'), setForTab: record('setTabGroup') },
+    groups: {
+      create: record('createGroup'),
+      setForTab: record('setTabGroup'),
+      saveWindowAsFolder: record('groups.saveWindowAsFolder'),
+    },
     tabs: {
       urlFor: () => url,
       groupIdFor: () => null,
       isHush: () => false,
       isPinned: () => false,
+      isMuted: () => false,
+      tabsInOrder: () => [],
       setPinned: record('tabs.setPinned'),
+      setMuted: record('tabs.setMuted'),
+      sleepOthers: record('tabs.sleepOthers'),
       canSleep: () => canSleep,
       getSplit: () => null,
       getActiveTabId: () => null,
@@ -115,6 +123,22 @@ describe('reopening a closed tab without a keyboard', () => {
     const items = build({ hasClosedTabs });
     expect(labelsOf(items)).toContain('Reopen closed tab');
     expect(itemNamed(items, 'Reopen closed tab')?.enabled).toBe(hasClosedTabs);
+  });
+});
+
+// Things done to tabs in bulk or to their sound, reachable from the tab itself rather than only the palette.
+describe('the rest of what a tab menu offers', () => {
+  it('mutes the tab, bookmarks every tab as a folder, and sleeps the others', () => {
+    called.length = 0;
+    (itemNamed(tabMenu(), 'Mute tab')?.click as () => void)();
+    (itemNamed(tabMenu(), 'Bookmark all tabs')?.click as () => void)();
+    (itemNamed(tabMenu(), 'Put other tabs to sleep')?.click as () => void)();
+    expect(called).toEqual(['tabs.setMuted', 'groups.saveWindowAsFolder', 'tabs.sleepOthers']);
+  });
+
+  // Nothing else could sleep, so there is nothing to offer.
+  it('cannot put other tabs to sleep when there are none to sleep', () => {
+    expect(itemNamed(tabMenu(), 'Put other tabs to sleep')?.enabled).toBe(false);
   });
 });
 

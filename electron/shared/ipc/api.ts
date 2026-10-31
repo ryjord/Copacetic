@@ -145,6 +145,8 @@ export interface CopaceticApi {
     closeBookmarkSheet(): Promise<void>;
     /** One of our pages in a tab of its own: focused if open, opened beside the tab in front if not. */
     showPage(page: InternalPage, section?: string | null): Promise<void>;
+    /** Which optional buttons the toolbar shows, as a menu at the pointer. */
+    openToolbarMenu(): Promise<void>;
     getState(): Promise<BrowserState>;
     /** A surface asked for before this renderer was listening, collected on mount. */
     pendingSurface(): Promise<ChromeSurface | null>;

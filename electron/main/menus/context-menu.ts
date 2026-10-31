@@ -15,7 +15,7 @@ import { countTraces, describeTraces, siteOf } from '../../shared/data/forgettin
 import { copyText } from '../system/clipboard';
 
 // Types
-import type { TabId } from '../../shared/types';
+import { TOOLBAR_ITEMS, type TabId } from '../../shared/types';
 import type { OpenTarget } from '../../shared/tabs/open-rules';
 import type { Browser } from '../app/browser';
 
@@ -300,9 +300,18 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
       click: () => browser.tabs.setPinned(tabId, !browser.tabs.isPinned(tabId)),
     },
     {
+      label: browser.tabs.isMuted(tabId) ? t('main.menu.context.unmuteTab') : t('main.menu.context.muteTab'),
+      click: () => browser.tabs.setMuted(tabId, !browser.tabs.isMuted(tabId)),
+    },
+    {
       label: t('main.menu.context.putTabToSleep'),
       enabled: browser.tabs.canSleep(tabId),
       click: () => browser.tabs.sleep(tabId),
+    },
+    {
+      label: t('main.menu.context.putOtherTabsToSleep'),
+      enabled: browser.tabs.tabsInOrder().some((tab) => tab.id !== tabId && browser.tabs.canSleep(tab.id)),
+      click: () => browser.tabs.sleepOthers(tabId),
     },
     { label: t('main.menu.view.reload'), click: () => browser.tabs.reload(tabId) },
     splitItem(browser, tabId),
@@ -320,6 +329,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
         }
       },
     },
+    { label: t('main.menu.context.bookmarkAllTabs'), click: () => browser.groups.saveWindowAsFolder() },
     {
       label: t('main.menu.context.copyAddress'),
       enabled: url !== null,
@@ -348,6 +358,26 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
  * a WebContentsView paints above the chrome's HTML, so a dropdown over the page
  * area would be drawn underneath the page.
  */
+/** The toolbar's own buttons, chosen where they are rather than only in Settings. */
+export function showToolbarMenu(browser: Browser): void {
+  const shown = browser.profile.settings().toolbarItems;
+  const items: MenuItemConstructorOptions[] = [
+    ...TOOLBAR_ITEMS.map((item) => ({
+      label: t(`settings.appearance.browser.toolbar.${item}`),
+      type: 'checkbox' as const,
+      checked: shown.includes(item),
+      click: () =>
+        browser.updateSettings({
+          // Kept in the catalogue's order, which is the order they are drawn in.
+          toolbarItems: TOOLBAR_ITEMS.filter((candidate) => (candidate === item) !== shown.includes(candidate)),
+        }),
+    })),
+    { type: 'separator' },
+    { label: t('main.menu.context.customiseToolbar'), click: () => browser.showPage('settings', 'appearance') },
+  ];
+  Menu.buildFromTemplate(items).popup({ window: browser.window });
+}
+
 export function showNewTabMenu(browser: Browser): void {
   const items: MenuItemConstructorOptions[] = [
     { label: t('main.menu.file.newTab'), click: () => browser.commands.newTab() },
@@ -481,7 +511,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
     {
       label: t('main.menu.context.colour'),
       submenu: GROUP_COLOURS.map((colour) => ({
-        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        label: t(`main.groupColours.${colour.id}`),
         type: 'radio' as const,
         checked: colour.id === group.colour,
         click: () => browser.groups.update(groupId, { colour: colour.id }),
@@ -586,7 +616,7 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
     {
       label: t('main.menu.context.colour'),
       submenu: GROUP_COLOURS.map((colour) => ({
-        label: colour.id.charAt(0).toUpperCase() + colour.id.slice(1),
+        label: t(`main.groupColours.${colour.id}`),
         type: 'radio' as const,
         checked: colour.id === folder.colour,
         click: () => browser.bookmarks.updateFolder(folderId, { colour: colour.id }),

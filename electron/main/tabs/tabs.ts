@@ -395,6 +395,41 @@ export class TabManager {
     return true;
   }
 
+  isMuted(id: TabId): boolean {
+    return this.tabs.get(id)?.isMuted ?? false;
+  }
+
+  /** The tab in front pinned or not, muted or not, for a shortcut that has no tab to name. */
+  togglePinnedActive(): void {
+    if (this.activeId) {
+      this.setPinned(this.activeId, !this.isPinned(this.activeId));
+    }
+  }
+
+  toggleMutedActive(): void {
+    if (this.activeId) {
+      this.setMuted(this.activeId, !this.isMuted(this.activeId));
+    }
+  }
+
+  sleepAllButActive(): void {
+    if (this.activeId) {
+      this.sleepOthers(this.activeId);
+    }
+  }
+
+  /** Every other tab that can give its memory back does, as when they have all been left alone. */
+  sleepOthers(id: TabId): void {
+    this.tabsInOrder()
+      .filter((tab) => tab.id !== id && this.canSleep(tab.id))
+      .forEach((tab) => this.sleep(tab.id));
+  }
+
+  /** Every tab in the window, in strip order. */
+  tabsInOrder(): TabRecord[] {
+    return this.order.map((tabId) => this.tabs.get(tabId)).filter((tab): tab is TabRecord => tab !== undefined);
+  }
+
   tabsInGroup(groupId: string): TabRecord[] {
     return this.order
       .map((tabId) => this.tabs.get(tabId))

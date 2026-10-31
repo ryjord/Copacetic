@@ -199,6 +199,13 @@ export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStr
             send((api) => api.tabs.close(tabs[current]!.id));
           }
         }}
+        // The empty end of the strip is a large target; a right-click there offers what the new-tab caret does.
+        onContextMenu={(event) => {
+          if (event.target === event.currentTarget) {
+            event.preventDefault();
+            send((api) => api.tabs.openNewTabMenu());
+          }
+        }}
         // A wheel moves up and down; a strip that only scrolls sideways should take that too.
         onWheel={(event) => {
           if (stripRef.current && event.deltaX === 0) {

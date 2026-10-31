@@ -56,6 +56,7 @@ import {
   showBookmarkFolderMenu,
   showGroupContextMenu,
   showNewTabMenu,
+  showToolbarMenu,
   showTabContextMenu,
 } from '../menus/context-menu';
 import { showMainMenu } from '../menus/main-menu';
@@ -204,6 +205,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('tabs.setZoom', (browser, _event, id, zoom) => browser.tabs.setZoom(asString(id), asNumber(zoom, 1)));
   handle('tabs.openContextMenu', (browser, _event, id) => showTabContextMenu(browser, asString(id)));
   handle('tabs.openNewTabMenu', (browser) => showNewTabMenu(browser));
+  handle('chrome.openToolbarMenu', (browser) => showToolbarMenu(browser));
 
   // ----------------------------------------------------------------- chrome
 

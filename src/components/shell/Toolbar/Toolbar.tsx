@@ -45,6 +45,14 @@ export function Toolbar({ tab, tabStrip }: ToolbarProps) {
   const isOneLine = tabStrip !== undefined;
   return (
     <div
+      // The address field keeps its own menu, for cut, copy and paste, and a tab in a one-line header keeps its own.
+      onContextMenu={(event) => {
+        if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('input, textarea'))) {
+          return;
+        }
+        event.preventDefault();
+        send((api) => api.chrome.openToolbarMenu());
+      }}
       className={cn(
         'flex shrink-0 items-center gap-2 bg-ground',
         isOneLine
