@@ -46,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   readerStyle: { size: 'default', typeface: 'serif', width: 'default' },
   startPageWidgets: ['clock', 'search', 'topSites'],
   hushNoticeDismissed: false,
+  welcomeDismissed: false,
   offerToSavePasswords: true,
   neverSavePasswordsOn: [],
   showBookmarksBar: false,
@@ -193,7 +194,7 @@ export class SettingsStore {
 
 const WIDGET_IDS: readonly StartPageWidgetId[] = ['clock', 'search', 'topSites', 'bookmarks'];
 
-function reviveSettings(raw: unknown): Settings | null {
+export function reviveSettings(raw: unknown): Settings | null {
   if (!isRecord(raw)) {
     return null;
   }
@@ -242,6 +243,8 @@ function reviveSettings(raw: unknown): Settings | null {
       : DEFAULT_SETTINGS.historyRetentionDays,
     startPageWidgets: reviveStartPageWidgets(raw),
     hushNoticeDismissed: raw.hushNoticeDismissed === true,
+    // Missing only from a file written before the card existed, by someone well past their first run.
+    welcomeDismissed: raw.welcomeDismissed !== false,
     offerToSavePasswords: asBoolean(raw.offerToSavePasswords, DEFAULT_SETTINGS.offerToSavePasswords),
     neverSavePasswordsOn: Array.isArray(raw.neverSavePasswordsOn)
       ? raw.neverSavePasswordsOn.filter((site): site is string => typeof site === 'string' && site.length > 0)

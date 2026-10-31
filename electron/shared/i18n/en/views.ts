@@ -235,6 +235,16 @@ export const views = {
       showAll: 'Show all {count}',
       showFewer: 'Show fewer',
     },
+    welcome: {
+      title: 'Welcome to Copacetic',
+      import: 'Bring your bookmarks, history and passwords from Chrome, Firefox or a file.',
+      importAction: 'Import',
+      defaultBrowser: 'Open links from other apps in Copacetic.',
+      defaultBrowserAction: 'Make default',
+      hush: 'A Hush tab keeps nothing on this computer, not even that it was open.',
+      hushAction: 'Open a Hush tab',
+      done: 'Done',
+    },
     hush: {
       title: 'This is a Hush tab',
       keeps: 'Nothing here reaches the disk: no history, cookies, cache, icons or list of tabs to reopen.',

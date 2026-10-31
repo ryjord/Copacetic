@@ -651,6 +651,8 @@ export interface Settings {
   neverSavePasswordsOn: string[];
   /** Set once someone has read what Hush does and does not do. */
   hushNoticeDismissed: boolean;
+  /** Set once the start page's first-run card has been put away; a profile from before it counts as having seen it. */
+  welcomeDismissed: boolean;
   /** Degrees the start page's atmosphere is turned from the theme's own hue. Nothing else in the interface moves. */
   ambientHue: number;
   // Ask GitHub whether a newer release exists, on launch and on a long timer.

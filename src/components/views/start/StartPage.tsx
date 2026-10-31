@@ -11,6 +11,7 @@ import { Menu } from '@/components/ui/Menu/Menu';
 import { ShortcutDialog } from '@/components/views/start/ShortcutDialog';
 import { StartBookmarks } from '@/components/views/start/StartBookmarks';
 import { StartBackdrop } from '@/components/views/start/StartBackdrop';
+import { WelcomeCard } from '@/components/views/start/WelcomeCard';
 
 // Icons
 import { Ellipsis, EyeOff, Plus, Search } from 'lucide-react';
@@ -98,6 +99,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
 
       <div className="relative flex w-full max-w-[880px] flex-col gap-9 pb-12 pt-[88px]">
         {isShowingNotice && <HushNotice />}
+        {!isHush && !settings.welcomeDismissed && <WelcomeCard />}
 
         {shownWidgets.map((widget) => (
           <div key={widget} className="flex w-full">

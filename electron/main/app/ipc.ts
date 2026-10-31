@@ -958,6 +958,9 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   if (typeof value.hushNoticeDismissed === 'boolean') {
     patch.hushNoticeDismissed = value.hushNoticeDismissed;
   }
+  if (typeof value.welcomeDismissed === 'boolean') {
+    patch.welcomeDismissed = value.welcomeDismissed;
+  }
   if (typeof value.showBookmarksBar === 'boolean') {
     patch.showBookmarksBar = value.showBookmarksBar;
   }
