@@ -39,6 +39,7 @@ export const shell = {
   },
   liveAnnouncer: {
     permissionRequested: 'A site is asking for permission.',
+    passwordOffered: 'Save the password for {site}? The offer is at the top of the page.',
     downloadFinished: 'Download finished.',
     loaded: 'Loaded: {title}',
     loading: 'Loading',

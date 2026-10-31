@@ -176,6 +176,16 @@ export function TabStrip({ tabs, activeTabId, groups, isNarrow = false }: TabStr
             }
           };
 
+          // Moving the tab itself, the keyboard's way to do what a drag does; plain arrows still move between tabs.
+          const isMoving = event.shiftKey && (event.metaKey || event.ctrlKey);
+          const moving = tabs[current];
+          if (isMoving && moving && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+            event.preventDefault();
+            const to = Math.min(Math.max(current + (event.key === 'ArrowRight' ? 1 : -1), 0), tabs.length - 1);
+            send((api) => api.tabs.move(moving.id, to));
+            return;
+          }
+
           if (event.key === 'ArrowRight') {
             go(current + 1);
           } else if (event.key === 'ArrowLeft') {
@@ -415,6 +425,7 @@ const Tab = memo(function Tab({
       <div className="flex h-full items-center gap-2 px-2.5 @max-[72px]:justify-center @max-[72px]:px-0">
         {tab.isLoading ? (
           <span
+            role="img"
             aria-label={t('shell.tabStrip.loading')}
             className="size-[15px] shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-ink-dim"
           />
@@ -440,6 +451,8 @@ const Tab = memo(function Tab({
           <button
             type="button"
             aria-label={tab.isMuted ? t('shell.tabStrip.unmute') : t('shell.tabStrip.mute')}
+            // Out of the Tab order, which moves between tabs: Delete closes one, and muting is on its right-click.
+            tabIndex={-1}
             className="shrink-0 text-ink-dim hover:text-ink @max-[72px]:hidden"
             onClick={(event) => {
               event.stopPropagation();
@@ -453,6 +466,7 @@ const Tab = memo(function Tab({
         <button
           type="button"
           aria-label={t('shell.tabStrip.close', { title })}
+          tabIndex={-1}
           className={cn(
             'grid size-4 shrink-0 place-items-center rounded transition-opacity hover:bg-line-strong @max-[72px]:hidden',
             isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70',

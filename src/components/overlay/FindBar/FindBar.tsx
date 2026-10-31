@@ -43,7 +43,7 @@ export function FindBar({ find }: { find: FindState }) {
     <div
       role="search"
       aria-label={t('shell.overlay.findBar.label')}
-      className="animate-pop flex h-11 w-95 items-center gap-1 rounded-lg border border-line bg-raised pl-3 pr-1.5 shadow-popover"
+      className="animate-pop flex h-11 w-95 items-center gap-1 rounded-lg border border-line bg-raised pl-3 pr-1.5 shadow-popover focus-within:border-accent"
     >
       <input
         ref={inputRef}

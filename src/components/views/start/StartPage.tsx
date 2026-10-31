@@ -115,7 +115,7 @@ export function StartPage({ tabId, isHush = false }: { tabId: string; isHush?: b
                   aria-label={t('views.start.search')}
                   spellCheck={false}
                   autoComplete="off"
-                  className="h-11 w-full rounded-md border border-line-strong bg-raised pl-11 pr-5 text-reading text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+                  className="h-11 w-full rounded-md border border-line-control bg-raised pl-11 pr-5 text-reading text-ink placeholder:text-ink-faint focus:border-accent"
                 />
                 {/* After the input, so it paints over the field's backdrop rather than under it. */}
                 <Search

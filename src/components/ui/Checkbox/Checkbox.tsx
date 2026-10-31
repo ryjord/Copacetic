@@ -27,7 +27,7 @@ export function Checkbox({ checked, onChange, label, isLabelHidden = false }: Ch
         checked={checked}
         onCheckedChange={(state) => onChange(state === true)}
         className={cn(
-          'grid size-4 shrink-0 place-items-center rounded-xs border border-line-strong transition-colors duration-100',
+          'grid size-4 shrink-0 place-items-center rounded-xs border border-line-control transition-colors duration-100',
           'data-[state=checked]:border-accent data-[state=checked]:bg-accent',
         )}
       >

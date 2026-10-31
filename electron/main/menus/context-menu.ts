@@ -647,6 +647,10 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
     return;
   }
 
+  // In your order, within its own folder: the keyboard's way to do what dragging a row does.
+  const siblings = browser.store.listBookmarks().filter((candidate) => candidate.folderId === bookmark.folderId);
+  const place = siblings.findIndex((candidate) => candidate.id === bookmarkId);
+
   const folders = browser.store.listBookmarkFolders();
   const withPath = folders.map((folder) => ({
     folder,
@@ -685,6 +689,16 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
           click: () => browser.bookmarks.file(bookmarkId, folder.id),
         })),
       ],
+    },
+    {
+      label: t('main.menu.context.moveUp'),
+      enabled: place > 0,
+      click: () => browser.bookmarks.reorder(bookmarkId, siblings[place - 1]?.id ?? null),
+    },
+    {
+      label: t('main.menu.context.moveDown'),
+      enabled: place < siblings.length - 1,
+      click: () => browser.bookmarks.reorder(bookmarkId, siblings[place + 2]?.id ?? null),
     },
     ...hideFromBarItems(browser, bookmarkId, bookmark.folderId === null),
     { type: 'separator' },

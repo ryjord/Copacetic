@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 // Components
 import { TextField } from '@/components/ui/TextField/TextField';
@@ -22,6 +22,7 @@ interface PageAddressFieldProps {
 export function PageAddressField({ value, label, onChange }: PageAddressFieldProps) {
   const [typed, setTyped] = useState<string | null>(null);
   const [problem, setProblem] = useState('');
+  const problemId = useId();
 
   const commit = () => {
     if (typed === null) {
@@ -45,6 +46,7 @@ export function PageAddressField({ value, label, onChange }: PageAddressFieldPro
         placeholder="example.com"
         aria-label={label}
         aria-invalid={problem !== ''}
+        aria-describedby={problem ? problemId : undefined}
         onChange={(event) => setTyped(event.target.value)}
         onBlur={commit}
         onKeyDown={(event) => {
@@ -54,7 +56,11 @@ export function PageAddressField({ value, label, onChange }: PageAddressFieldPro
         }}
         className="h-7 w-72"
       />
-      {problem && <div className="text-body text-alert">{problem}</div>}
+      {problem && (
+        <div id={problemId} role="alert" className="text-body text-alert">
+          {problem}
+        </div>
+      )}
     </div>
   );
 }

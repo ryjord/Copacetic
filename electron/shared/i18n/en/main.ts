@@ -122,6 +122,8 @@ export const main = {
       deleteFolder: 'Delete this folder',
       open: 'Open',
       moveToFolder: 'Move to folder',
+      moveUp: 'Move up',
+      moveDown: 'Move down',
       unfiled: 'Unfiled',
       removeBookmark: 'Remove bookmark',
       hideFromBookmarksBar: 'Hide from the bookmarks bar',

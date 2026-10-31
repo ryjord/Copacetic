@@ -195,7 +195,7 @@ export function ReaderSurface() {
         </div>
       )}
       {reading.state === 'loading' && (
-        <div className="mx-auto w-full max-w-[68ch] px-6 py-10" aria-label={t('views.reader.loading')}>
+        <div className="mx-auto w-full max-w-[68ch] px-6 py-10">
           <SkeletonRows count={6} />
         </div>
       )}

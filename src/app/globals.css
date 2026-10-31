@@ -22,6 +22,8 @@
   --scrim: rgb(0 0 0 / 50%);
   --line: rgb(255 255 255 / 8%);
   --line-strong: rgb(255 255 255 / 14%);
+  /* The edge of something to type in or switch, which has to reach 3:1 against what it sits on. */
+  --line-control: #6a737e;
   --ink: #edf0f3;
   --ink-dim: #a3acb6;
   --ink-faint: #8a94a0;
@@ -52,6 +54,7 @@
     --scrim: rgb(18 21 25 / 28%);
     --line: rgb(0 0 0 / 8%);
     --line-strong: rgb(0 0 0 / 14%);
+    --line-control: #80878f;
     --ink: #121519;
     --ink-dim: #4f5863;
     --ink-faint: #5d6671;
@@ -135,6 +138,7 @@
 
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-line-control: var(--line-control);
 
   --color-ink: var(--ink);
   --color-ink-dim: var(--ink-dim);

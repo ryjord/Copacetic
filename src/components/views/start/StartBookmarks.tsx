@@ -70,8 +70,25 @@ export function StartBookmarks({ tabId }: { tabId: string }) {
       const box = event.currentTarget.getBoundingClientRect();
       return event.clientX > box.left + box.width / 2;
     };
+    const reorderBefore = (beforeId: string | null) =>
+      send((api) =>
+        kind === 'folder' ? api.bookmarkFolders.reorder(id, beforeId) : api.bookmarks.reorder(id, beforeId),
+      );
     return {
       draggable: true,
+      // Alt and an arrow moves a chip one place, the keyboard's way to do what the drag does.
+      onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+        if (!event.altKey || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) {
+          return;
+        }
+        event.preventDefault();
+        const index = siblings.findIndex((sibling) => sibling.id === id);
+        if (event.key === 'ArrowLeft' && index > 0) {
+          reorderBefore(siblings[index - 1]?.id ?? null);
+        } else if (event.key === 'ArrowRight' && index < siblings.length - 1) {
+          reorderBefore(siblings[index + 2]?.id ?? null);
+        }
+      },
       onDragStart: () => setDragging({ kind, id }),
       onDragEnd: endDrag,
       onDragOver: (event: React.DragEvent<HTMLElement>) => {
