@@ -153,7 +153,7 @@ export class Browser {
       this.closeBookmarkSheet();
       this.profile.extensions.closePopup();
     });
-    this.tabs.onPageContextMenu((tabId, params) => showPageContextMenu(this, tabId, params));
+    this.tabs.onPageContextMenu((tabId, params) => void showPageContextMenu(this, tabId, params));
 
     const changed = () => this.scheduleStatePush();
     const push = (channel: string, payload?: unknown) => this.pushToChrome(channel, payload);

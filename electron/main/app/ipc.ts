@@ -481,23 +481,23 @@ export function registerIpcHandlers(profiles: Profiles): void {
       password: asString(isRecord(input) ? input.password : ''),
     }),
   );
-  handle('vault.update', (browser, _event, id, changes) => {
+  handle('vault.update', async (browser, _event, id, changes) => {
     const patch = isRecord(changes) ? changes : {};
-    const result = browser.vault.update(asString(id), pickStrings(patch, ['origin', 'username', 'password']));
+    const result = await browser.vault.update(asString(id), pickStrings(patch, ['origin', 'username', 'password']));
     return result?.error ?? '';
   });
   handle('vault.remove', (browser, _event, id) => browser.vault.remove(asString(id)));
   handle('vault.reveal', (browser, _event, id) => browser.vault.reveal(asString(id)));
   handle('vault.copy', async (browser, _event, id, field) => {
     if (field === 'password') {
-      const secret = browser.vault.reveal(asString(id));
+      const secret = await browser.vault.reveal(asString(id));
       if (secret === null) {
         return false;
       }
       await copySecret(secret);
       return true;
     }
-    const entry = browser.vault.state().entries.find((candidate) => candidate.id === asString(id));
+    const entry = (await browser.vault.state()).entries.find((candidate) => candidate.id === asString(id));
     if (!entry?.isReadable) {
       return false;
     }
@@ -512,7 +512,10 @@ export function registerIpcHandlers(profiles: Profiles): void {
     await clearCopiedSecret();
   });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
-  handle('vault.countForTab', (browser, _event, id) => browser.passwords.offerFor(asString(id)).entries.length);
+  handle(
+    'vault.countForTab',
+    async (browser, _event, id) => (await browser.passwords.offerFor(asString(id))).entries.length,
+  );
   handle('vault.fillForTab', (browser, _event, id, x, y) =>
     showFillMenu(browser, asString(id), Math.round(asNumber(x, 0)), Math.round(asNumber(y, 0))),
   );

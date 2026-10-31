@@ -17,11 +17,11 @@ import type { VaultFacts, VaultLock } from '../../shared/types';
  * Passed in rather than imported so the answers can be arranged in a test.
  */
 export interface VaultHost {
-  isEncryptionAvailable(): boolean;
+  isAsyncEncryptionAvailable(): Promise<boolean>;
   /** Which secret store Chromium chose; only Linux has a choice, so elsewhere null. */
   storageBackend(): string | null;
-  encryptString(plainText: string): Buffer;
-  decryptString(cipherText: Buffer): string;
+  encryptStringAsync(plainText: string): Promise<Buffer>;
+  decryptStringAsync(cipherText: Buffer): Promise<{ result: string; shouldReEncrypt: boolean }>;
   platform: string;
   canPromptTouchID(): boolean;
   promptTouchID(reason: string): Promise<void>;
@@ -49,10 +49,10 @@ export class VaultSession {
     });
     this.vault = new Vault(
       {
-        isAvailable: () => this.keychain().problem === '',
-        whyUnavailable: () => this.keychain().problem,
-        encrypt: (plainText) => this.host.encryptString(plainText),
-        decrypt: (cipherText) => this.host.decryptString(cipherText),
+        isAvailable: async () => (await this.keychain()).problem === '',
+        whyUnavailable: async () => (await this.keychain()).problem,
+        encrypt: (plainText) => this.host.encryptStringAsync(plainText),
+        decrypt: (cipherText) => this.host.decryptStringAsync(cipherText),
       },
       {
         get: () => this.file.get(),
@@ -72,12 +72,12 @@ export class VaultSession {
   }
 
   /** Whether there is a keychain to seal a password with, asked once rather than for all the facts. */
-  hasKeychain(): boolean {
-    return this.keychain().problem === '';
+  async hasKeychain(): Promise<boolean> {
+    return (await this.keychain()).problem === '';
   }
 
-  facts(): VaultFacts {
-    const keychain = this.keychain();
+  async facts(): Promise<VaultFacts> {
+    const keychain = await this.keychain();
     return {
       filePath: path.join(this.host.profileDirectory(), 'vault.json'),
       hasKeychain: keychain.problem === '',
@@ -91,8 +91,12 @@ export class VaultSession {
   }
 
   // Asked each time: a keyring can start or stop while Copacetic runs.
-  private keychain(): KeychainDescription {
-    return describeKeychain(this.host.platform, this.host.storageBackend(), this.host.isEncryptionAvailable());
+  private async keychain(): Promise<KeychainDescription> {
+    return describeKeychain(
+      this.host.platform,
+      this.host.storageBackend(),
+      await this.host.isAsyncEncryptionAvailable(),
+    );
   }
 
   lockInfo(): VaultLock {

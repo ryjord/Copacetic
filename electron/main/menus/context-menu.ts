@@ -61,7 +61,9 @@ function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
 }
 
 /** The menu shown when someone right-clicks inside a page. */
-export function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): void {
+export async function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): Promise<void> {
+  // Asked before the menu is built: which saved passwords fit needs the vault to open their sites.
+  const passwordOffer = params.isEditable ? await browser.passwords.offerFor(tabId) : null;
   const items: MenuItemConstructorOptions[] = [];
   const push = (item: MenuItemConstructorOptions) => items.push(item);
   const separate = () => {
@@ -141,20 +143,17 @@ export function showPageContextMenu(browser: Browser, tabId: TabId, params: Cont
   }
 
   // Offered where a password box actually is, and only for this page's own site.
-  if (params.isEditable) {
-    const offer = browser.passwords.offerFor(tabId);
-    if (offer.entries.length > 0) {
-      push({
-        label: t('main.menu.context.fillPassword'),
-        submenu: offer.entries.map((entry) => ({
-          label: entry.username || t('main.menu.context.savedPassword'),
-          click: () => {
-            void browser.passwords.fill(tabId, entry.id);
-          },
-        })),
-      });
-      separate();
-    }
+  if (passwordOffer && passwordOffer.entries.length > 0) {
+    push({
+      label: t('main.menu.context.fillPassword'),
+      submenu: passwordOffer.entries.map((entry) => ({
+        label: entry.username || t('main.menu.context.savedPassword'),
+        click: () => {
+          void browser.passwords.fill(tabId, entry.id);
+        },
+      })),
+    });
+    separate();
   }
 
   if (params.isEditable) {
@@ -499,7 +498,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
  * put into it, and nothing here watches what is typed.
  */
 export async function showFillMenu(browser: Browser, tabId: TabId, x: number, y: number): Promise<void> {
-  const offer = browser.passwords.offerFor(tabId);
+  const offer = await browser.passwords.offerFor(tabId);
   const only = offer.entries.length === 1 ? offer.entries[0] : undefined;
   if (only) {
     await browser.passwords.fill(tabId, only.id);

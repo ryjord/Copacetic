@@ -111,10 +111,10 @@ export class Profile {
     // safeStorage is only reachable after app.ready, which is why the keychain is asked at each call.
     this.vaultSession = new VaultSession(
       {
-        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+        isAsyncEncryptionAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
         storageBackend: () => (process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null),
-        encryptString: (plainText) => safeStorage.encryptString(plainText),
-        decryptString: (cipherText) => safeStorage.decryptString(cipherText),
+        encryptStringAsync: (plainText) => safeStorage.encryptStringAsync(plainText),
+        decryptStringAsync: (cipherText) => safeStorage.decryptStringAsync(cipherText),
         platform: process.platform,
         canPromptTouchID: () => systemPreferences.canPromptTouchID?.() ?? false,
         promptTouchID: (reason) => systemPreferences.promptTouchID(reason),
