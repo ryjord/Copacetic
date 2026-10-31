@@ -20,7 +20,7 @@ address bar, the prompts, the panels - and a set of decisions about what a
 browser should and should not do on your behalf.
 
 **[Download for macOS, Windows or Linux](https://github.com/ryjord/Copacetic/releases/latest)** ·
-[What changed](CHANGELOG.md) · [Report a security issue](SECURITY.md)
+[What changed](CHANGELOG.md) · [Report a security issue](SECURITY.md) · [Privacy](PRIVACY.md) · [Support](SUPPORT.md)
 
 ---
 

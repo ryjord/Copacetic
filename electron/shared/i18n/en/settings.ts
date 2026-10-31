@@ -941,7 +941,7 @@ export const settings = {
         question: 'Where are they?',
         before: 'Encrypted one at a time in',
         fallbackPath: 'your profile',
-        after: '. The sites and usernames in it are readable; the passwords are not.',
+        after: '. The site, the username and the password are each sealed, so the file names no account.',
       },
       protect: {
         question: 'What protects them?',
@@ -1044,7 +1044,8 @@ export const settings = {
       },
       report: {
         question: 'Where do I report a problem?',
-        answer: "On the project's issue tracker. Copacetic comes with no warranty.",
+        answer:
+          'Help > Send feedback writes an email to contact@mrenigma.uk with the version and system filled in, and sends nothing until you press send. Copacetic comes with no warranty.',
       },
     },
   },
