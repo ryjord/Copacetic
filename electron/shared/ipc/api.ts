@@ -257,6 +257,7 @@ export interface CopaceticApi {
     previous(): Promise<void>;
     stop(): Promise<void>;
     setMatchCase(matchCase: boolean): Promise<void>;
+    setWholeWord(wholeWord: boolean): Promise<void>;
   };
   settings: {
     get(): Promise<Settings>;

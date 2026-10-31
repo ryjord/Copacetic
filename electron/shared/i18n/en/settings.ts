@@ -1025,7 +1025,7 @@ export const settings = {
       engine: {
         question: 'What can Electron not do?',
         answer:
-          'Clear cookies, site data or the cache by when they were made. For the last hour, day or week, Copacetic clears them for the sites you visited in that time instead, however old, which signs you out of those sites, and the clearing dialog says so. Find whole words only: find in page matches case or not, and nothing more. Choose the spelling language on macOS, which uses the languages set in System Settings.',
+          'Clear cookies, site data or the cache by when they were made. For the last hour, day or week, Copacetic clears them for the sites you visited in that time instead, however old, which signs you out of those sites, and the clearing dialog says so. Find whole words by itself: Copacetic reads the page’s text through DevTools, as reader view does, to know which matches are whole words, and says so on a page whose text it cannot line up. Choose the spelling language on macOS, which uses the languages set in System Settings.',
       },
       language: {
         question: 'Is it in my language?',

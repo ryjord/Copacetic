@@ -154,6 +154,7 @@ export const CHANNELS = {
   'find.previous': 'find:previous',
   'find.stop': 'find:stop',
   'find.setMatchCase': 'find:set-match-case',
+  'find.setWholeWord': 'find:set-whole-word',
 
   'settings.get': 'settings:get',
   'settings.update': 'settings:update',

@@ -6,6 +6,8 @@ export const CLOSED_FIND: FindState = {
   activeMatch: 0,
   totalMatches: 0,
   matchCase: false,
+  wholeWord: false,
+  isWholeWordUnavailable: false,
 };
 
 export function openedFind(state: FindState): FindState {
@@ -25,11 +27,15 @@ export function findWithMatchCase(state: FindState, matchCase: boolean): FindSta
   return { ...state, matchCase };
 }
 
+export function findWithWholeWord(state: FindState, wholeWord: boolean): FindState {
+  return { ...state, wholeWord };
+}
+
 export function findWithMatches(state: FindState, activeMatch: number, totalMatches: number): FindState {
   return { ...state, activeMatch, totalMatches };
 }
 
-/** Match case survives closing the bar: it is a preference, not part of one search. */
+/** Match case and whole words survive closing the bar: they are preferences, not part of one search. */
 export function closedFind(state: FindState): FindState {
-  return { ...CLOSED_FIND, matchCase: state.matchCase };
+  return { ...CLOSED_FIND, matchCase: state.matchCase, wholeWord: state.wholeWord };
 }

@@ -170,6 +170,8 @@ export const shell = {
       matchCount: '{current} of {total}',
       noMatches: 'No matches',
       matchCase: 'Match case',
+      wholeWord: 'Whole words',
+      wholeWordUnavailable: 'Whole words cannot be told apart on this page, so every match is shown',
       previous: 'Previous match',
       next: 'Next match',
       close: 'Close find',

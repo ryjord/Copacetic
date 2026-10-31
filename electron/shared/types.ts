@@ -222,6 +222,9 @@ export interface FindState {
   activeMatch: number;
   totalMatches: number;
   matchCase: boolean;
+  wholeWord: boolean;
+  /** The page's text could not be lined up with what find counted, so every match is shown. */
+  isWholeWordUnavailable: boolean;
 }
 
 export type PermissionKind =

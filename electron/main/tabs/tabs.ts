@@ -30,7 +30,16 @@ import {
   internalPageTitle,
   internalPageUrl,
 } from '../../shared/tabs/internal-pages';
-import { CLOSED_FIND, closedFind, findForQuery, findWithMatchCase, findWithMatches, openedFind } from './find-state';
+import {
+  CLOSED_FIND,
+  closedFind,
+  findForQuery,
+  findWithMatchCase,
+  findWithMatches,
+  findWithWholeWord,
+  openedFind,
+} from './find-state';
+import { renderedTextOf, wholeWordFlags, wholeWordPosition } from './whole-word';
 import { fetchFaviconDataUrl, fetchImageDataUrl, fetchImagesWithinBudget } from './tab-favicon';
 import { extensionPageOf, isLoadedExtensionPage, isOwnPage } from '../extensions/extension-pages';
 import {
@@ -112,6 +121,10 @@ export class TabManager {
   private readonly sleepTimer: NodeJS.Timeout;
   private readonly stopCounting: () => void;
   private find: FindState = CLOSED_FIND;
+  /** Which of the occurrences of a whole-words search are whole words, read once per search. */
+  private wholeWordPlan: { query: string; matchCase: boolean; flags: boolean[] } | null = null;
+  // The way the last step went, so a skip past a part of a word keeps going that way.
+  private findForward = true;
   private isDisposed = false;
   /** What has already been added to history per tab, so only the difference is. */
   private readonly countedBlocked = new Map<number, number>();
@@ -906,12 +919,12 @@ export class TabManager {
       onChanged: () => this.onChanged(),
       applyVisibility: () => this.applyVisibility(),
       cacheFavicon: (record, faviconUrl) => void this.cacheFavicon(record, faviconUrl),
-      onFoundInPage: (activeMatch, matches) => {
+      onFoundInPage: (activeMatch, matches, isFinal) => {
         // A background tab finishing a search must not overwrite the count for the one on screen.
         if (this.activeId !== id) {
           return;
         }
-        this.find = findWithMatches(this.find, activeMatch, matches);
+        this.foundInPage(activeMatch, matches, isFinal);
       },
       onContextMenu: (tabId, params) => this.contextMenuHandler?.(tabId, params),
       onPageChanged: (tabId, change) => this.pageChangeHandler?.(tabId, change),
@@ -1755,7 +1768,8 @@ export class TabManager {
 
   /** Begin a new search. Every keystroke in the find bar lands here. */
   startFind(query: string): void {
-    this.find = findForQuery(this.find, query);
+    this.find = { ...findForQuery(this.find, query), isWholeWordUnavailable: false };
+    this.wholeWordPlan = null;
 
     const contents = this.activeId ? this.contentsFor(this.activeId) : null;
     if (!contents || !query) {
@@ -1764,8 +1778,69 @@ export class TabManager {
       return;
     }
 
-    this.runFind(contents, query, { forward: true, isNewSession: true });
+    if (this.find.wholeWord) {
+      void this.findWholeWords(contents, query);
+    } else {
+      this.runFind(contents, query, { forward: true, isNewSession: true });
+    }
     this.onChanged();
+  }
+
+  /**
+   * Chromium's find has no whole-words option, so the page's rendered text is
+   * read through DevTools, as reader view reads it, to know which of the
+   * occurrences find will step through are whole words; no script runs in it.
+   */
+  private async findWholeWords(contents: WebContents, query: string): Promise<void> {
+    const { matchCase } = this.find;
+    const snapshot = await withPageDebugger(contents, (send) =>
+      send('DOMSnapshot.captureSnapshot', { computedStyles: [] }),
+    );
+    const isStillAsked =
+      this.find.query === query &&
+      this.find.wholeWord &&
+      this.find.matchCase === matchCase &&
+      this.activeTab()?.view.webContents === contents;
+    if (!isStillAsked) {
+      return;
+    }
+    const flags = wholeWordFlags('value' in snapshot ? renderedTextOf(snapshot.value) : '', query, matchCase);
+    this.wholeWordPlan = { query, matchCase, flags };
+    // Not one whole word: find would only light up the parts of other words.
+    if (flags.length > 0 && !flags.includes(true)) {
+      contents.stopFindInPage('clearSelection');
+      this.find = findWithMatches(this.find, 0, 0);
+      this.onChanged();
+      return;
+    }
+    this.runFind(contents, query, { forward: true, isNewSession: true });
+  }
+
+  private foundInPage(activeMatch: number, matches: number, isFinal: boolean): void {
+    const plan = this.find.wholeWord ? this.wholeWordPlan : null;
+    if (!plan || plan.query !== this.find.query) {
+      this.find = findWithMatches(this.find, activeMatch, matches);
+      return;
+    }
+    if (!isFinal) {
+      return;
+    }
+    const position = wholeWordPosition(plan.flags, activeMatch, matches);
+    if (!position) {
+      // Counted differently from find, say for text that spans elements: every match is shown, and the bar says why.
+      this.find = { ...findWithMatches(this.find, activeMatch, matches), isWholeWordUnavailable: true };
+      return;
+    }
+    const active = this.activeTab();
+    const contents = active ? pageOf(active) : null;
+    if (!position.isWhole && contents) {
+      this.runFind(contents, plan.query, { forward: this.findForward, isNewSession: false });
+      return;
+    }
+    this.find = {
+      ...findWithMatches(this.find, position.activeMatch, position.totalMatches),
+      isWholeWordUnavailable: false,
+    };
   }
 
   /** Step through the matches of the search already running. */
@@ -1774,6 +1849,7 @@ export class TabManager {
     if (!contents || !this.find.query) {
       return;
     }
+    this.findForward = forward;
     this.runFind(contents, this.find.query, { forward, isNewSession: false });
   }
 
@@ -1788,6 +1864,15 @@ export class TabManager {
 
   setFindMatchCase(matchCase: boolean): void {
     this.find = findWithMatchCase(this.find, matchCase);
+    if (this.find.query) {
+      this.startFind(this.find.query);
+    } else {
+      this.onChanged();
+    }
+  }
+
+  setFindWholeWord(wholeWord: boolean): void {
+    this.find = findWithWholeWord(this.find, wholeWord);
     if (this.find.query) {
       this.startFind(this.find.query);
     } else {

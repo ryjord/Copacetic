@@ -426,6 +426,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
   handle('find.previous', (browser) => browser.tabs.findNext(false));
   handle('find.stop', (browser) => browser.stopFind());
   handle('find.setMatchCase', (browser, _event, matchCase) => browser.tabs.setFindMatchCase(matchCase === true));
+  handle('find.setWholeWord', (browser, _event, wholeWord) => browser.tabs.setFindWholeWord(wholeWord === true));
 
   // --------------------------------------------------------------- settings
 

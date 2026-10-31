@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 
 // Icons
-import { CaseSensitive, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { CaseSensitive, ChevronDown, ChevronUp, WholeWord, X } from 'lucide-react';
 
 // Utils
 import { getBridge, send } from '@/lib/bridge/bridge';
@@ -66,6 +66,7 @@ export function FindBar({ find }: { find: FindState }) {
       />
       <span
         role="status"
+        title={find.isWholeWordUnavailable ? t('shell.overlay.findBar.wholeWordUnavailable') : undefined}
         className={cn(
           'shrink-0 px-1.5 text-body-sm tabular-nums',
           hasQuery && !hasMatches ? 'text-alert' : 'text-ink-faint',
@@ -84,6 +85,18 @@ export function FindBar({ find }: { find: FindState }) {
         onClick={() => send((api) => api.find.setMatchCase(!find.matchCase))}
       >
         <CaseSensitive size={16} strokeWidth={1.75} />
+      </IconButton>
+      <IconButton
+        label={
+          find.isWholeWordUnavailable
+            ? t('shell.overlay.findBar.wholeWordUnavailable')
+            : t('shell.overlay.findBar.wholeWord')
+        }
+        tone={find.wholeWord ? 'active' : 'default'}
+        aria-pressed={find.wholeWord}
+        onClick={() => send((api) => api.find.setWholeWord(!find.wholeWord))}
+      >
+        <WholeWord size={16} strokeWidth={1.75} />
       </IconButton>
       <IconButton
         label={t('shell.overlay.findBar.previous')}
