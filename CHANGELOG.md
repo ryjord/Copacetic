@@ -2,6 +2,46 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.2.0-beta.2 - 30 October 2026
+
+The second beta of 2.2: picture in picture, a way to send feedback, bookmarks
+you can order on the start page itself, and Copacetic for Linux on Arm.
+
+**If you updated the filter lists yourself:** update them again in Privacy. The
+blocking engine in this beta reads its lists in a new format, so lists fetched
+under an earlier version are set aside and the ones that came with this
+release are used until you do.
+
+### New
+
+- **Picture in picture.** Right-click a video and choose Picture in picture to
+  keep it playing in a small window above everything else, or use View, Picture
+  in picture, for the page in front, which is the way on sites such as YouTube
+  that put their own menu where the browser's would be. Choose it again to
+  bring the video back. It is a short script run once when you choose it, and
+  the transparency page names it with the other four.
+- **Send feedback.** Help, Send feedback, opens your mail app with an email to
+  contact@mrenigma.uk already written, with the version and system it came
+  from. Nothing is sent until you send it, and you can change any of it first.
+- **Order bookmarks on the start page.** Drag a bookmark or folder onto the left
+  half of another to put it before, or the right half to put it after.
+- **Linux on Arm.** An AppImage and a .deb for arm64 machines, alongside x64.
+
+### Fixed
+
+- **Saving a password from a sign-in form that appears later.** A form drawn a
+  few seconds after the page loaded, or opened in a dialog, was never offered
+  for saving. Copacetic now looks for one again 3, 10 and 30 seconds after the
+  page loads, and each look still stops at once where there is no form.
+
+### Changed
+
+- **Starts faster:** a visible window in 343 ms and one that responds in 569 ms
+  on the machine in the README, from 483 ms and 658 ms in 2.0.
+- EasyList and EasyPrivacy are taken under CC BY-SA 3.0, one of the two
+  licences they offer, and About and the transparency page say so.
+- Dependencies updated, among them React 19.3 and the blocking engine.
+
 ## 2.2.0-beta.1 - 30 October 2026
 
 The first beta of 2.2, built from a week of using Copacetic every day: the
