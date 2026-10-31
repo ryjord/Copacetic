@@ -162,9 +162,33 @@ export function tabsToSleep(tabs: readonly SleepCandidate[], now: number, afterM
     return [];
   }
   const cutoff = now - afterMinutes * 60_000;
-  return tabs
-    .filter(
-      (tab) => !tab.isActive && !tab.isInternalPage && !tab.isAsleep && !tab.isAudible && tab.lastActiveAt <= cutoff,
-    )
-    .map((tab) => tab.id);
+  return tabs.filter((tab) => canSleepNow(tab) && tab.lastActiveAt <= cutoff).map((tab) => tab.id);
+}
+
+function canSleepNow(tab: SleepCandidate): boolean {
+  return !tab.isActive && !tab.isInternalPage && !tab.isAsleep && !tab.isAudible;
+}
+
+// Left alone at least this long before memory running low can put a tab to sleep early.
+export const MEMORY_SLEEP_IDLE_MINUTES = 5;
+
+/**
+ * The one tab to give back its memory early, when the machine runs low: the
+ * one left alone longest, so a page just glanced away from is not reloaded.
+ * One at a time, so each look at memory sees what the last sleep gave back.
+ * Turning sleeping off turns this off too.
+ */
+export function tabToSleepForMemory(
+  tabs: readonly SleepCandidate[],
+  now: number,
+  afterMinutes: number,
+): TabId | null {
+  if (afterMinutes <= 0) {
+    return null;
+  }
+  const cutoff = now - MEMORY_SLEEP_IDLE_MINUTES * 60_000;
+  const [longestIdle] = tabs
+    .filter((tab) => canSleepNow(tab) && tab.lastActiveAt <= cutoff)
+    .toSorted((aTab, bTab) => aTab.lastActiveAt - bTab.lastActiveAt);
+  return longestIdle?.id ?? null;
 }

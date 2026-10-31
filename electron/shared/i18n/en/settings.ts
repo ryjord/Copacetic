@@ -227,7 +227,7 @@ export const settings = {
       title: 'Memory',
       sleep: {
         label: 'Put tabs to sleep',
-        help: 'A tab left alone this long, unless it is playing sound, gives back its memory and comes back where it was.',
+        help: 'A tab left alone this long, unless it is playing sound, gives back its memory and comes back where it was. When the computer runs low on memory, one left alone five minutes can sleep sooner.',
         never: 'Never',
         after15: 'After 15 minutes',
         after30: 'After 30 minutes',

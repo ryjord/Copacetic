@@ -50,6 +50,7 @@ import {
   tabAfterClosing,
   clampToRun,
   pinnedFirst,
+  tabToSleepForMemory,
   tabsToSleep,
 } from './tab-choices';
 import { clampZoom } from '../../shared/types';
@@ -72,6 +73,7 @@ import {
 } from '../security/certificate-exceptions';
 import { describeTab } from '../system/browser-identity';
 import { log } from '../system/diagnostics';
+import { isThisMachineLowOnMemory } from '../system/memory';
 import { surfaceColour } from '../window/appearance';
 import { attachTabEvents, markLoadRequested, settleUnstartedLoad } from './tab-events';
 import type { ClosedEntry, ClosedGroup, ClosedTabs } from './closed-tabs';
@@ -1020,7 +1022,14 @@ export class TabManager {
       isAudible: pageOf(tab)?.isCurrentlyAudible() ?? false,
       lastActiveAt: tab.lastActiveAt,
     }));
-    tabsToSleep(candidates, Date.now(), afterMinutes).forEach((id) => this.sleep(id));
+    const now = Date.now();
+    const idle = tabsToSleep(candidates, now, afterMinutes);
+    idle.forEach((id) => this.sleep(id));
+    const stillAwake = candidates.filter((tab) => !idle.includes(tab.id));
+    const forMemory = isThisMachineLowOnMemory() ? tabToSleepForMemory(stillAwake, now, afterMinutes) : null;
+    if (forMemory) {
+      this.sleep(forMemory);
+    }
   }
 
   /** New tabs opened by a page land immediately after the tab that opened them. */
