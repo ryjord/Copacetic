@@ -1,5 +1,12 @@
 // Utils
-import { anchoredHostOf, compileRegexFilter, compileUrlFilter, tokenOf, tokensIn } from './url-filter';
+import {
+  anchoredHostOf,
+  compileRegexFilter,
+  compileUrlFilter,
+  requiredLiteralOf,
+  tokenOf,
+  tokensIn,
+} from './url-filter';
 
 // Types
 import type { RequestMethod, ResourceType, Rule } from './rule';
@@ -22,6 +29,8 @@ export interface NetRequest {
 interface CompiledRule {
   rule: Rule;
   pattern: RegExp | null;
+  /** Text a regexFilter cannot match without, lowercased unless the rule is case-sensitive; checked first. */
+  literal: string | null;
 }
 
 /** A domain list names a host when it names it or any domain above it. */
@@ -149,7 +158,13 @@ export class RuleIndex {
         continue;
       }
       this.patterns.set(rule, pattern);
-      const compiled = { rule, pattern };
+      const { regexFilter, isUrlFilterCaseSensitive } = rule.condition;
+      const literal = regexFilter === undefined ? null : requiredLiteralOf(regexFilter);
+      const compiled = {
+        rule,
+        pattern,
+        literal: literal !== null && isUrlFilterCaseSensitive !== true ? literal.toLowerCase() : literal,
+      };
       if (requestDomains) {
         requestDomains.forEach((domain) => file(this.byHost, domain, compiled));
         continue;
@@ -175,10 +190,18 @@ export class RuleIndex {
     const filed = new Set<CompiledRule>();
     keys.hosts.forEach((host) => this.byHost.get(host)?.forEach((compiled) => filed.add(compiled)));
     keys.tokens.forEach((token) => this.byToken.get(token)?.forEach((compiled) => filed.add(compiled)));
+    const lowercaseUrl = request.url.toLowerCase();
+    const hasLiteral = (compiled: CompiledRule) =>
+      compiled.literal === null ||
+      (compiled.rule.condition.isUrlFilterCaseSensitive === true ? request.url : lowercaseUrl).includes(
+        compiled.literal,
+      );
     return [...this.everywhere, ...filed]
       .filter(
         (compiled) =>
-          (compiled.pattern === null || compiled.pattern.test(request.url)) && appliesTo(compiled.rule, request),
+          hasLiteral(compiled) &&
+          (compiled.pattern === null || compiled.pattern.test(request.url)) &&
+          appliesTo(compiled.rule, request),
       )
       .map((compiled) => compiled.rule);
   }

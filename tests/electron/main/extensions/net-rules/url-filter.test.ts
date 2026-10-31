@@ -3,6 +3,7 @@ import {
   anchoredHostOf,
   compileRegexFilter,
   compileUrlFilter,
+  requiredLiteralOf,
   tokenOf,
   tokensIn,
   withEitherCase,
@@ -120,5 +121,70 @@ describe('the keys a rule is filed under', () => {
       'example',
       'https',
     ]);
+  });
+});
+
+/**
+ * A regexFilter is checked for text it cannot match without before it runs,
+ * since the linear engine costs about a microsecond a rule and an extension may
+ * have a thousand. Wrong here means a rule that never fires, so it is read
+ * conservatively and checked against the regex itself.
+ */
+describe('the text a regexFilter cannot match without', () => {
+  it.each([
+    ['^https?://[^/]*tracker\\.example\\.com/', 'tracker.example.com/'],
+    ['/ads/banner[0-9]+\\.gif', '/ads/banner'],
+    ['^https://cdn\\.(a|b)\\.net/pixel', 'https://cdn.'],
+    ['/(?:x|y)/collect\\?id=', '/collect?id='],
+  ])('reads %s as needing %s', (source, literal) => {
+    expect(requiredLiteralOf(source)).toBe(literal);
+  });
+
+  it.each([
+    ['an alternation at the top level', 'ads|tracking'],
+    ['nothing longer than two characters', '^[a-z]+\\.[a-z]{2,}$'],
+    ['only character classes and wildcards', '^.*[0-9]+.*$'],
+  ])('finds none in %s', (_name, source) => {
+    expect(requiredLiteralOf(source)).toBeNull();
+  });
+
+  // The last character before ? * or {0, can be absent, so it is not counted.
+  it('leaves out a character a quantifier can drop', () => {
+    expect(requiredLiteralOf('trackers?/px')).toBe('tracker');
+    expect(requiredLiteralOf('abcd*efg')).toBe('abc');
+  });
+
+  it('never claims text a match can be without, over many patterns and addresses', () => {
+    const patterns = [
+      '^https?://[^/]*track[0-9]*\\.com/.*[?&]id=\\d+',
+      'ad(vert)?s?/banner\\d*\\.(gif|png)',
+      '^https://([a-z]+\\.)?cdn\\.example\\.net/x+y',
+      'collect\\?v=1&t=(pageview|event)',
+      '[a-z]{3}\\.js\\?ver=\\d+$',
+      'a+b+c+d',
+      'pi?x?el\\.gif',
+    ];
+    const addresses = [
+      'https://track.com/a?id=1',
+      'https://www.track42.com/x?b=2&id=33',
+      'https://ads.example.org/banner7.gif',
+      'https://ad.example.org/advert/banner.png',
+      'https://img.cdn.example.net/xxy',
+      'https://cdn.example.net/xy',
+      'https://www.google-analytics.com/collect?v=1&t=event',
+      'https://example.com/abc.js?ver=12',
+      'https://example.com/aabbbcd',
+      'https://example.com/pel.gif',
+      'https://example.com/PIXEL.GIF',
+    ];
+    for (const source of patterns) {
+      const literal = requiredLiteralOf(source);
+      const pattern = compileRegexFilter(source, false);
+      for (const address of addresses) {
+        if (literal !== null && pattern?.test(address)) {
+          expect(address.toLowerCase(), `${source} on ${address}`).toContain(literal.toLowerCase());
+        }
+      }
+    }
   });
 });
