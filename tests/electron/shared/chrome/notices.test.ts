@@ -32,6 +32,11 @@ describe('how long a notice stays', () => {
   it('never goes on its own when it asked something', () => {
     expect(dismissAfterMs('ask')).toBeNull();
   });
+
+  // Translating a long page outlasted the six seconds an info notice stays, and read as nothing happening.
+  it('stays while work it describes is under way, until what came of it replaces it', () => {
+    expect(dismissAfterMs('progress')).toBeNull();
+  });
 });
 
 describe('adding a notice to what is already showing', () => {

@@ -8,6 +8,8 @@ export class NoticeCentre {
 
   /** Questions waiting on an answer, by the id the notice carries. */
   private readonly pendingAnswers = new Map<string, () => void>();
+  /** What a no does, for the few questions where turning it down is itself a choice to remember. */
+  private readonly pendingRefusals = new Map<string, () => void>();
   /**
    * Notices that have been said but not yet taken.
    *
@@ -26,19 +28,21 @@ export class NoticeCentre {
    * list update - and until now none of them could say so: each ended at a
    * count that nothing read.
    */
-  notify(notice: Notice, onConfirm?: () => void): void {
+  notify(notice: Notice, onConfirm?: () => void, onRefuse?: () => void): void {
     const next = admit(this.outstanding, notice);
     // Replaced or pushed out, a notice can no longer be answered, so what it was holding goes with it.
-    this.outstanding
-      .filter((shown) => !next.includes(shown))
-      .forEach((dropped) => this.pendingAnswers.delete(dropped.id));
+    this.outstanding.filter((shown) => !next.includes(shown)).forEach((dropped) => this.forgetAnswers(dropped.id));
     this.outstanding = next;
     if (onConfirm && next.includes(notice)) {
       this.pendingAnswers.set(notice.id, onConfirm);
     }
+    if (onRefuse && next.includes(notice)) {
+      this.pendingRefusals.set(notice.id, onRefuse);
+    }
     // A question is answered with a button, and the overlay is a view of its
-    // own: without this the keyboard cannot reach it at all.
-    if (notice.tone === 'ask') {
+    // own: without this the keyboard cannot reach it at all. An offer nobody
+    // asked for leaves the keyboard where it was.
+    if (notice.tone === 'ask' && !notice.isOffer) {
       this.deps.overlay.takeFocus();
     }
     // Said to the overlay, which is the renderer that draws notices. Pushing
@@ -60,7 +64,8 @@ export class NoticeCentre {
   /** Answers a question a notice asked. Anything but a yes simply drops it. */
   answer(id: string, confirmed: boolean): void {
     const act = this.pendingAnswers.get(id);
-    this.pendingAnswers.delete(id);
+    const refuse = this.pendingRefusals.get(id);
+    this.forgetAnswers(id);
     this.outstanding = dismissNotice(this.outstanding, id);
     // The overlay draws notices and keeps its own copy, so an answer given
     // anywhere else - the API, another window - would leave it on screen with
@@ -68,6 +73,23 @@ export class NoticeCentre {
     this.deps.overlay.send(PUSH.noticeSettled, id);
     if (confirmed) {
       act?.();
+    } else {
+      refuse?.();
     }
+  }
+
+  /** Takes a notice back because it no longer applies, which answers nothing either way. */
+  withdraw(id: string): void {
+    if (!this.outstanding.some((notice) => notice.id === id)) {
+      return;
+    }
+    this.forgetAnswers(id);
+    this.outstanding = dismissNotice(this.outstanding, id);
+    this.deps.overlay.send(PUSH.noticeSettled, id);
+  }
+
+  private forgetAnswers(id: string): void {
+    this.pendingAnswers.delete(id);
+    this.pendingRefusals.delete(id);
   }
 }

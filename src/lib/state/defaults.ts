@@ -27,6 +27,8 @@ export const DEFAULT_SETTINGS_SHAPE: Settings = {
   welcomeDismissed: false,
   offerToSavePasswords: true,
   neverSavePasswordsOn: [],
+  offerPageTranslation: true,
+  neverOfferTranslationFrom: [],
   showBookmarksBar: false,
   hiddenFromBookmarksBar: [],
   ambientHue: 0,

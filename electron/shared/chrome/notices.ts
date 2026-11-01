@@ -20,7 +20,9 @@ export type NoticeTone =
   /** Something needs a decision before it happens. */
   | 'ask'
   /** Something was removed, and can be put back for a few seconds. */
-  | 'undo';
+  | 'undo'
+  /** Something you asked for is under way, and says so until it finishes or fails. */
+  | 'progress';
 
 export interface Notice {
   id: string;
@@ -34,6 +36,8 @@ export interface Notice {
   key: string;
   /** The label of the thing that acts, for an `ask` or an `undo`. Nothing else may carry one. */
   confirm?: string;
+  /** An `ask` nobody asked for, such as an offer to translate: it waits, but leaves the keyboard with the page. */
+  isOffer?: boolean;
 }
 
 /**
@@ -43,7 +47,8 @@ export interface Notice {
  * timing out, which is not a decision anyone made.
  */
 export function dismissAfterMs(tone: NoticeTone): number | null {
-  if (tone === 'ask') {
+  // Work under way is not stale: it is replaced by what came of it.
+  if (tone === 'ask' || tone === 'progress') {
     return null;
   }
   if (tone === 'undo') {

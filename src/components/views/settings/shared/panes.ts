@@ -74,6 +74,8 @@ export const SETTINGS_PANES = [
       t('settings.terms.general.homePage'),
       t('settings.terms.general.history'),
       t('settings.terms.general.keepHistory'),
+      t('settings.terms.general.translatePages'),
+      t('settings.terms.general.translationOffer'),
     ],
   },
   {

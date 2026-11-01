@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { IconButton } from '@/components/ui/IconButton/IconButton';
 
 // Icons
-import { Check, CircleAlert, Info, Undo2, X } from 'lucide-react';
+import { Check, CircleAlert, Info, LoaderCircle, Undo2, X } from 'lucide-react';
 
 // Utils
 import { ask, getBridge, send } from '@/lib/bridge/bridge';
@@ -23,6 +23,7 @@ const LOOK: Record<Notice['tone'], { icon: typeof Info; className: string }> = {
   done: { icon: Check, className: 'text-ink-dim' },
   ask: { icon: CircleAlert, className: 'text-caution' },
   undo: { icon: Undo2, className: 'text-ink-dim' },
+  progress: { icon: LoaderCircle, className: 'text-ink-dim motion-safe:animate-spin' },
 };
 
 /** What the app has to say, as cards over the page's top-right corner, so nothing moves for something that lasts four seconds. */

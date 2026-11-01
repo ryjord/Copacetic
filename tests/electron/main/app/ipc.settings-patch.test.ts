@@ -50,6 +50,8 @@ describe('every setting can actually be changed', () => {
     updateExtensions: false,
     offerToSavePasswords: false,
     neverSavePasswordsOn: ['example.com'],
+    offerPageTranslation: false,
+    neverOfferTranslationFrom: ['pt', 'de'],
     permissionDecisions: { 'https://example.com|media': 'allow' },
     permissionDefaults: { notifications: 'block', geolocation: 'ask' },
     zoomLevels: { 'https://example.com': 1.5 },
@@ -82,6 +84,12 @@ describe('every setting can actually be changed', () => {
 });
 
 describe('but only settings, and only sane ones', () => {
+  it('keeps only languages that can be translated in the never-offer list', () => {
+    expect(asSettingsPatch({ neverOfferTranslationFrom: ['pt', 'klingon', 7, 'pt'] })).toEqual({
+      neverOfferTranslationFrom: ['pt'],
+    });
+  });
+
   it('ignores keys that are not settings at all', () => {
     expect(asSettingsPatch({ nonsense: 1, __proto__: { polluted: true } })).toEqual({});
   });

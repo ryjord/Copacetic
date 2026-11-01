@@ -19,6 +19,18 @@ export const SOURCE_LANGUAGES: readonly string[] = [ENGLISH, ...INTO_ENGLISH];
 /** Every language a translation can go into. */
 export const TARGET_LANGUAGES: readonly string[] = [ENGLISH, ...FROM_ENGLISH];
 
+export function isSourceLanguage(value: unknown): value is string {
+  return typeof value === 'string' && SOURCE_LANGUAGES.includes(value);
+}
+
+/** What a page in `from` is translated into: the reader's language, or English for a reader whose page is already in theirs. */
+export function targetFor(from: string, reader: string): string | null {
+  if (reader !== from) {
+    return reader;
+  }
+  return from === ENGLISH ? null : ENGLISH;
+}
+
 export interface LanguagePair {
   from: string;
   to: string;

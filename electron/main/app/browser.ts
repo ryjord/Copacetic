@@ -205,6 +205,13 @@ export class Browser {
       translation: this.profile.translation,
       notices: this.notices,
       readerLanguage: () => languageOf(app.getLocale()) ?? ENGLISH,
+      settings: () => this.profile.settings(),
+      neverOffer: (language) => {
+        const { neverOfferTranslationFrom } = this.profile.settings();
+        this.profile.updateSettings({
+          neverOfferTranslationFrom: [...new Set([...neverOfferTranslationFrom, language])],
+        });
+      },
     });
     this.passwordSave = new PasswordSave({
       tabs: this.tabs,
