@@ -61,16 +61,29 @@ describe('a site installed as an app', () => {
     await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), page);
     await copacetic.inOpenPage(page, 'document.readyState');
     const before = await windowCount();
+    // The browser tab stays on the same address, so the app's page is told apart by id, not by URL.
+    const pagesAt = (address: string) =>
+      copacetic.main(
+        ({ webContents }, wanted) =>
+          webContents
+            .getAllWebContents()
+            .filter((contents) => contents.getURL() === wanted)
+            .map((contents) => contents.id),
+        address,
+      );
+    const browserPages = await pagesAt(page);
 
     await copacetic.chrome.evaluate(() => window.copacetic.apps.installActive());
     expect(await copacetic.until(async () => (await windowCount()) === before + 1, 15_000)).toBe(true);
     expect(await copacetic.until(async () => shortcutsWritten().length === 1, 10_000), folders).toBe(true);
+    const appPageId = async () => (await pagesAt(page)).find((id) => !browserPages.includes(id));
+    expect(await copacetic.until(async () => (await appPageId()) !== undefined, 15_000)).toBe(true);
+    const appPage = await appPageId();
 
     // The app window's page, sent to another site the way a link would send it.
-    await copacetic.main(({ webContents }, address) => {
-      const pages = webContents.getAllWebContents().filter((contents) => contents.getURL() === address);
-      void pages.at(-1)?.executeJavaScript(`location.href = 'http://elsewhere.example/from-the-app'`);
-    }, page);
+    await copacetic.main(({ webContents }, id) => {
+      void webContents.fromId(id)?.executeJavaScript(`location.href = 'http://elsewhere.example/from-the-app'`);
+    }, appPage ?? -1);
     const browserTabs = () =>
       copacetic.chrome.evaluate(async () => (await window.copacetic.chrome.getState()).tabs.map((tab) => tab.url));
     expect(
@@ -79,12 +92,12 @@ describe('a site installed as an app', () => {
         15_000,
       ),
     ).toBe(true);
-    const appPages = await copacetic.main(
-      ({ webContents }, address) =>
-        webContents.getAllWebContents().filter((contents) => contents.getURL() === address).length,
-      page,
+    // The other site opened in the browser, and the app stayed where it was.
+    const appUrl = await copacetic.main(
+      ({ webContents }, id) => webContents.fromId(id)?.getURL() ?? '',
+      appPage ?? -1,
     );
-    expect(appPages).toBeGreaterThanOrEqual(1);
+    expect(appUrl).toBe(page);
   }, 90_000);
 
   it('closes its window and deletes its shortcut when removed', async () => {
