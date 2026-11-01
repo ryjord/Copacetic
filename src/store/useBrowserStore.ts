@@ -72,6 +72,7 @@ const EMPTY_STATE: BrowserState = {
   },
   profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },
   profiles: [],
+  app: null,
 };
 
 export const useBrowserStore = create<BrowserStoreState>((set, get) => ({

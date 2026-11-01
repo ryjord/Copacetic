@@ -135,6 +135,11 @@ export class TabManager {
   private pageChangeHandler: ((tabId: TabId, change: PageChange) => void) | null = null;
   private lastTabClosedHandler: (() => void) | null = null;
   private pageFocusHandler: (() => void) | null = null;
+  /**
+   * For an app window, which holds one site: where a new tab or a move to
+   * another site goes instead. True when it was sent elsewhere.
+   */
+  private elsewhere: { newTab(url: string): boolean; leaving(url: string): boolean } | null = null;
   private fullscreen: { tabId: TabId; wasWindowFullscreen: boolean } | null = null;
   private windowIsEnteringFullscreen = false;
   private split: SplitView | null = null;
@@ -807,6 +812,10 @@ export class TabManager {
       adopting?: Electron.WebContents;
     } = {},
   ): TabId {
+    // An app window keeps its one tab; anything opened from it goes to the browser, and its tab answers for it.
+    if (this.elsewhere && this.tabs.size > 0 && !options.adopting && this.elsewhere.newTab(requestedUrl)) {
+      return this.activeId ?? '';
+    }
     // Last line of defence. Callers are expected to have already decided the
     // URL is allowed, but this is the single place every tab is born, so
     // refusing here means no future caller can quietly open a `data:` or
@@ -982,7 +991,7 @@ export class TabManager {
       this.pageFocusHandler?.();
     });
     const followRule = (event: Electron.Event<{ url: string; isMainFrame: boolean }>) => {
-      if (event.isMainFrame && this.placeByOpenRule(tab, event.url)) {
+      if (event.isMainFrame && (this.elsewhere?.leaving(event.url) || this.placeByOpenRule(tab, event.url))) {
         event.preventDefault();
       }
     };
@@ -1957,6 +1966,11 @@ export class TabManager {
   }
 
   // ---------------------------------------------------------------- events
+
+  /** Makes this an app window's tabs: new tabs and moves to another site are handed to these instead. */
+  sendElsewhere(handlers: { newTab(url: string): boolean; leaving(url: string): boolean }): void {
+    this.elsewhere = handlers;
+  }
 
   onPageContextMenu(handler: (tabId: TabId, params: ContextMenuParams) => void): void {
     this.contextMenuHandler = handler;

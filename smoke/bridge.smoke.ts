@@ -25,6 +25,7 @@ describe('the bridge between the chrome and the main process', () => {
       [
         'addresses',
         'app',
+        'apps',
         'auth',
         'bookmarkFolders',
         'bookmarks',

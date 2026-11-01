@@ -517,6 +517,17 @@ export function registerIpcHandlers(profiles: Profiles): void {
   });
   handle('vault.facts', (browser) => browser.vaultSession.facts());
 
+  handle('apps.list', (browser) => browser.profile.apps.list());
+  handle('apps.installActive', (browser) => browser.installActiveSite());
+  handle('apps.open', async (browser, _event, id) => {
+    const installed = browser.profile.apps.get(asString(id));
+    if (installed) {
+      await browser.profile.openAppWindow(installed);
+    }
+  });
+  handle('apps.remove', (browser, _event, id) => browser.profile.removeApp(asString(id)));
+  handle('apps.openInBrowser', (browser) => browser.openAppInBrowser());
+
   // The article is rebuilt node by node in the store; a shape it does not draw is refused whole.
   const readingChanged = (browser: Browser) => browser.profile.broadcast(PUSH.dataChanged, 'readingList');
   handle('readingList.list', (browser) => browser.profile.readingList.list());

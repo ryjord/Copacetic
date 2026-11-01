@@ -4,6 +4,7 @@ import { t } from './i18n/translate';
 // Types
 import type { ShortcutOverrides } from './chrome/shortcuts';
 import type { ProfileSummary } from './data/profiles';
+import type { AppWindowState } from './data/installed-apps';
 import type { DnsMode } from './browsing/dns';
 import type { TabGroup } from './tabs/tab-groups';
 import type { SplitView } from './tabs/split-view';
@@ -738,6 +739,8 @@ export interface BrowserState {
   profile: ProfileSummary;
   /** Every profile, to switch between and to manage. */
   profiles: ProfileSummary[];
+  /** The site this window is an app for, which draws it with a slim header in place of tabs; null otherwise. */
+  app: AppWindowState | null;
 }
 
 /** What the window is told of a password it may save, for the tab in front: never the password itself. */

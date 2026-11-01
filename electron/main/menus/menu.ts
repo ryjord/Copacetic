@@ -105,6 +105,10 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.commands.saveActiveTab()),
       },
       {
+        label: t('main.menu.file.installAsApp'),
+        click: () => inWindow((browser) => void browser.installActiveSite()),
+      },
+      {
         label: t('main.menu.file.screenshot'),
         accelerator: key('screenshot'),
         click: () => inWindow((browser) => browser.commands.saveScreenshotOfActiveTab()),

@@ -80,5 +80,6 @@ export function stabiliseState(previous: BrowserState, next: BrowserState): Brow
     namedSessions: keepIfSame(previous.namedSessions, next.namedSessions),
     profile: keepIfSame(previous.profile, next.profile),
     profiles: keepIfSame(previous.profiles, next.profiles),
+    app: keepIfSame(previous.app, next.app),
   };
 }

@@ -76,6 +76,7 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
       ...shortcut('save-page'),
       click: () => browser.commands.saveActiveTab(),
     },
+    { label: t('main.menu.file.installAsApp'), click: () => void browser.installActiveSite() },
     {
       label: t('main.menu.file.screenshot'),
       ...shortcut('screenshot'),

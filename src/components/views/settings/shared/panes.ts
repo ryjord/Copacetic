@@ -4,6 +4,7 @@ import type { ComponentType } from 'react';
 // Components
 import { AboutPane } from '@/components/views/settings/about/AboutPane';
 import { AppearancePane } from '@/components/views/settings/appearance/AppearancePane';
+import { AppsPane } from '@/components/views/settings/apps/AppsPane';
 import { DataPane } from '@/components/views/settings/data/DataPane';
 import { ExtensionsPane } from '@/components/views/settings/extensions/ExtensionsPane';
 import { GeneralPane } from '@/components/views/settings/general/GeneralPane';
@@ -17,6 +18,7 @@ import { UpdatesPane } from '@/components/views/settings/updates/UpdatesPane';
 
 // Icons
 import {
+  AppWindow,
   Database,
   Download,
   Eye,
@@ -209,6 +211,13 @@ export const SETTINGS_PANES = [
     ],
   },
   {
+    id: 'apps',
+    label: t('settings.nav.apps'),
+    icon: AppWindow,
+    Component: AppsPane,
+    terms: [t('settings.terms.apps.apps'), t('settings.terms.apps.installAsApp'), t('settings.terms.apps.shortcut')],
+  },
+  {
     id: 'updates',
     label: t('settings.nav.updates'),
     icon: Download,
@@ -257,7 +266,7 @@ export type PaneId = (typeof SETTINGS_PANES)[number]['id'];
 
 /** The panes in the order they are shown, under four short headings. */
 export const NAV_GROUPS: readonly { label: string; paneIds: readonly PaneId[] }[] = [
-  { label: t('settings.navGroups.browser'), paneIds: ['general', 'appearance', 'shortcuts', 'extensions'] },
+  { label: t('settings.navGroups.browser'), paneIds: ['general', 'appearance', 'shortcuts', 'extensions', 'apps'] },
   { label: t('settings.navGroups.privacy'), paneIds: ['privacy', 'sites', 'passwords'] },
   { label: t('settings.navGroups.you'), paneIds: ['profiles', 'data'] },
   { label: t('settings.navGroups.copacetic'), paneIds: ['updates', 'about', 'transparency'] },

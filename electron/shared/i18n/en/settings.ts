@@ -19,6 +19,7 @@ export const settings = {
     extensions: 'Extensions',
     updates: 'Updates',
     about: 'About',
+    apps: 'Apps',
     transparency: 'What it sends',
     transparencyTitle: 'What Copacetic sends and keeps',
   },
@@ -140,6 +141,11 @@ export const settings = {
       addOns: 'Add-ons',
       chromeWebStore: 'Chrome Web Store',
       plugins: 'Plugins',
+    },
+    apps: {
+      apps: 'Apps',
+      installAsApp: 'Install as app',
+      shortcut: 'Shortcut',
     },
     updates: {
       update: 'Update',
@@ -771,6 +777,14 @@ export const settings = {
       action: 'Import',
     },
   },
+  apps: {
+    title: 'Installed apps',
+    description:
+      'Sites that open in a window of their own, from a shortcut beside your other apps. File, Install this site as an app, adds the one in front.',
+    empty: 'No sites are installed as apps.',
+    open: 'Open',
+    remove: 'Remove',
+  },
   passwords: {
     addresses: {
       title: 'Addresses',
@@ -944,7 +958,7 @@ export const settings = {
       where: {
         question: 'Where is my data?',
         answer:
-          "In Copacetic's folder in your user profile: a SQLite database for history, bookmarks, downloads and what you decided about each site, and a settings file you can read in any text editor. History is kept for as long as General says, 90 days unless you change it. You can export or clear it in Your data.",
+          "In Copacetic's folder in your user profile: a SQLite database for history, bookmarks, downloads and what you decided about each site, and a settings file you can read in any text editor. History is kept for as long as General says, 90 days unless you change it. You can export or clear it in Your data. Installing a site as an app also writes one shortcut where your system lists apps: Applications, Copacetic Apps on macOS, the Start menu on Windows, and ~/.local/share/applications on Linux. Removing the app deletes it.",
       },
       log: {
         question: 'What is the diagnostics log?',

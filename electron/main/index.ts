@@ -16,6 +16,7 @@ import { clearCopiedSecretBeforeQuit } from './vault/vault-clipboard';
 import { watchCertificateErrors } from './security/certificate-exceptions';
 import { urlFromArguments } from './system/default-browser';
 import { isPageNavigableUrl } from '../shared/browsing/url';
+import { APP_LINK_SCHEME, appIdFromArguments, appIdFromLink } from '../shared/data/installed-apps';
 import { stripElectronFromUserAgent } from '../shared/browsing/browser-identity';
 import { t } from '../shared/i18n/translate';
 
@@ -60,6 +61,8 @@ async function start(): Promise<void> {
   // Held when an address arrives before there is anywhere to put it, which on
   // macOS is the ordinary case: the event fires while the app is still starting.
   let pendingUrl: string | null = null;
+  // An app's shortcut can arrive just as early, and is held the same way.
+  let pendingAppId: string | null = null;
 
   const openUrl = (url: string) => {
     if (!profiles) {
@@ -73,15 +76,44 @@ async function start(): Promise<void> {
     });
   };
 
-  // macOS never puts the address on the command line; it sends this instead.
+  const openApp = (id: string) => {
+    if (!profiles) {
+      pendingAppId = id;
+      return;
+    }
+    const opening = profiles;
+    void opening.openApp(id).then(async (isOpened) => {
+      if (!isOpened) {
+        // A shortcut left behind by an app since removed: said, rather than nothing happening.
+        const browser = await opening.focusedOrNew();
+        browser.notices.notify({
+          id: 'open-app',
+          tone: 'info',
+          key: 'open-app',
+          message: t('main.apps.notInstalled'),
+        });
+      }
+    });
+  };
+
+  // macOS never puts the address on the command line; it sends this instead, and an app's launcher sends its link.
   app.on('open-url', (event, url) => {
     event.preventDefault();
-    if (isPageNavigableUrl(url)) {
+    const appId = appIdFromLink(url);
+    if (appId) {
+      openApp(appId);
+    } else if (isPageNavigableUrl(url)) {
       openUrl(url);
     }
   });
 
   app.on('second-instance', (_event, argv) => {
+    // A shortcut on Windows or Linux starts a second copy with --app, which hands it here and exits.
+    const appId = appIdFromArguments(argv);
+    if (appId) {
+      openApp(appId);
+      return;
+    }
     const url = urlFromArguments(argv);
     const browser = profiles?.focused();
     if (browser) {
@@ -115,7 +147,17 @@ async function start(): Promise<void> {
   profiles.whenListChanges(() => profiles && installApplicationMenu(profiles));
   profiles.whenShortcutsChange(() => profiles && installApplicationMenu(profiles));
   profiles.start();
-  await profiles.restoreWindows(didLastRunEndBadly);
+  // Started by an app's shortcut, only the app opens, as an app would; the browser's windows wait for the browser.
+  const requestedApp = pendingAppId ?? appIdFromArguments(process.argv);
+  pendingAppId = null;
+  if (requestedApp) {
+    openApp(requestedApp);
+  } else {
+    await profiles.restoreWindows(didLastRunEndBadly);
+  }
+  if (process.platform === 'darwin' && app.isPackaged) {
+    app.setAsDefaultProtocolClient(APP_LINK_SCHEME);
+  }
 
   // Cold start: the address is either on the command line, or was handed over
   // by the system before there was a window to put it in.
