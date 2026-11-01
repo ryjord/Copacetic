@@ -26,6 +26,12 @@ const shownCount = () =>
 
 const untilCount = (expected: string) => copacetic.until(async () => (await shownCount()) === expected, 15_000);
 
+/** Fails with what the bar showed, rather than only that it was not the count asked for. */
+const expectCount = async (expected: string) => {
+  const isShown = await untilCount(expected);
+  expect(isShown, `the find bar showed "${await shownCount()}"`).toBe(true);
+};
+
 /**
  * Chromium's find has no whole-words option. Copacetic reads the page's text
  * through DevTools to know which matches are whole words and steps over the
@@ -37,9 +43,12 @@ describe('finding whole words', () => {
     await copacetic.chrome.evaluate((url) => window.copacetic.tabs.create(url), page);
     await copacetic.inOpenPage(page, 'document.readyState');
 
+    // Typed once the bar is drawn: a search sent just before, the bar's own empty first search can undo.
     await copacetic.chrome.evaluate(() => window.copacetic.find.open());
-    await copacetic.chrome.evaluate(() => window.copacetic.find.start('cat'));
-    expect(await untilCount('1 of 4')).toBe(true);
+    const field = copacetic.overlay.locator('[role="search"] input');
+    await field.waitFor({ timeout: 15_000 });
+    await field.fill('cat');
+    await expectCount('1 of 4');
 
     // A new search goes on from the match already found, as Chromium's does, so either whole word can come first.
     await copacetic.chrome.evaluate(() => window.copacetic.find.setWholeWord(true));
@@ -50,12 +59,12 @@ describe('finding whole words', () => {
     const first = await shownCount();
     const other = first === '1 of 2' ? '2 of 2' : '1 of 2';
     await copacetic.chrome.evaluate(() => window.copacetic.find.next());
-    expect(await untilCount(other), await shownCount()).toBe(true);
+    await expectCount(other);
     await copacetic.chrome.evaluate(() => window.copacetic.find.next());
-    expect(await untilCount(first), await shownCount()).toBe(true);
+    await expectCount(first);
 
     await copacetic.chrome.evaluate(() => window.copacetic.find.setWholeWord(false));
-    expect(await untilCount('1 of 4'), await shownCount()).toBe(true);
+    await expectCount('1 of 4');
     await copacetic.chrome.evaluate(() => window.copacetic.find.stop());
   }, 90_000);
 });
