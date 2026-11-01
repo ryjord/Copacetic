@@ -1,7 +1,6 @@
-// Libs
-import { Menu, type MenuItemConstructorOptions, shell } from 'electron';
-
 // Utils
+import { type MenuEntry, popupMenu } from '../engine/menus';
+import { shell } from '../engine/system';
 import { profileMenuItems } from './profile-menu';
 import { namedSessionsSubmenu, recentlyClosedSubmenu } from './context-menu';
 import { acceleratorFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
@@ -14,7 +13,7 @@ import type { Browser } from '../app/browser';
 const PROJECT_URL = 'https://github.com/ryjord/Copacetic';
 
 /** Everything the toolbar no longer gives its own button, in the order people look for it. */
-export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
+export function mainMenuItems(browser: Browser): MenuEntry[] {
   // The application menu already owns these shortcuts; this menu only shows them.
   const overrides = readShortcutOverrides(browser.profile.settings().shortcutOverrides);
   const shortcut = (id: string) => ({ accelerator: acceleratorFor(id, overrides), registerAccelerator: false });
@@ -121,13 +120,10 @@ export function mainMenuItems(browser: Browser): MenuItemConstructorOptions[] {
     // Windows and Linux have no menu bar in a frameless window, so this is the only way to quit by pointer.
     ...(process.platform === 'darwin'
       ? []
-      : ([
-          { type: 'separator' },
-          { role: 'quit', label: t('main.menu.mainMenu.quit') },
-        ] as MenuItemConstructorOptions[])),
+      : ([{ type: 'separator' }, { role: 'quit', label: t('main.menu.mainMenu.quit') }] as MenuEntry[])),
   ];
 }
 
 export function showMainMenu(browser: Browser, x: number, y: number): void {
-  Menu.buildFromTemplate(mainMenuItems(browser)).popup({ window: browser.window, x, y });
+  popupMenu(mainMenuItems(browser), { window: browser.window, x, y });
 }

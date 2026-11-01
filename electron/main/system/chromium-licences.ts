@@ -1,9 +1,10 @@
 // Libs
-import { app, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
+import { app } from '../engine/app';
+import { resourcesPath, shell } from '../engine/system';
 import { t } from '../../shared/i18n/translate';
 
 const FILE = 'LICENSES.chromium.html';
@@ -22,7 +23,7 @@ export function chromiumLicencesCandidates(execPath: string, resourcesPath: stri
 }
 
 export async function openChromiumLicences(): Promise<string> {
-  const found = chromiumLicencesCandidates(process.execPath, process.resourcesPath, app.getAppPath()).find((file) =>
+  const found = chromiumLicencesCandidates(process.execPath, resourcesPath(), app.getAppPath()).find((file) =>
     existsSync(file),
   );
   if (!found) {

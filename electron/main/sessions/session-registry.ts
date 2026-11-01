@@ -1,7 +1,6 @@
-// Libs
-import { type Session, app, session as electronSession } from 'electron';
-
 // Utils
+import { app } from '../engine/app';
+import { type EngineSession, sessionFor } from '../engine/sessions';
 import { type ProfilePartitions, groupPartition, remembersDownloads } from '../../shared/data/partitions';
 import { type SecurityDelegate, hardenWebSession } from '../security/security';
 import { describeError, log } from '../system/diagnostics';
@@ -25,7 +24,7 @@ interface SessionRegistryDeps {
   isSpellcheckOn: () => boolean;
   spellcheckLanguages: () => readonly string[];
   /** Told of each session once it is hardened, for the extensions that run there. */
-  onPrepared?: (session: Session, partition: string) => void;
+  onPrepared?: (session: EngineSession, partition: string) => void;
 }
 
 /**
@@ -46,12 +45,12 @@ interface SessionRegistryDeps {
 export class SessionRegistry {
   /** Partitions already hardened, so the work happens once per session. */
   /** Every session made so far, by partition, so a setting can reach each without asking for it again. */
-  private readonly prepared = new Map<string, Session>();
+  private readonly prepared = new Map<string, EngineSession>();
 
   constructor(private readonly deps: SessionRegistryDeps) {}
 
-  prepare(partition: string): Session {
-    const session = electronSession.fromPartition(partition);
+  prepare(partition: string): EngineSession {
+    const session = sessionFor(partition);
     if (this.prepared.has(partition)) {
       return session;
     }
@@ -89,7 +88,7 @@ export class SessionRegistry {
   }
 
   // macOS checks with the system's own speller, and Electron ignores the call there.
-  private applySpellcheckLanguages(session: Session): void {
+  private applySpellcheckLanguages(session: EngineSession): void {
     if (process.platform === 'darwin') {
       return;
     }
@@ -114,7 +113,7 @@ export class SessionRegistry {
    * Every session that can hold site data: the shared one, any opened this run,
    * and every group's own whether or not a tab of it has been opened yet.
    */
-  siteDataSessions(): Session[] {
+  siteDataSessions(): EngineSession[] {
     const partitions = new Set([this.deps.partitions.web, ...this.prepared.keys()]);
     for (const group of this.deps.groups()) {
       if (group.ownSession) {
@@ -124,7 +123,7 @@ export class SessionRegistry {
     return [...partitions].map((partition) => this.prepare(partition));
   }
 
-  async clear(session: Session, parts = { siteData: true, cache: true }): Promise<void> {
+  async clear(session: EngineSession, parts = { siteData: true, cache: true }): Promise<void> {
     try {
       if (parts.siteData) {
         await session.clearStorageData();

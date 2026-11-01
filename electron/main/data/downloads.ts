@@ -1,10 +1,14 @@
 // Libs
-import { type DownloadItem, type Session, app, shell } from 'electron';
 import { createReadStream, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 
+// Utils
+import { app } from '../engine/app';
+import { shell } from '../engine/system';
+
 // Types
+import type { EngineDownload, EngineSession } from '../engine/sessions';
 import type { DownloadState, DownloadStatus } from '../../shared/types';
 /** How long an answer about a file on disk is worth reusing. */
 const EXISTS_REMEMBERED_MS = 5_000;
@@ -38,7 +42,7 @@ const RESERVED_PATH_CHARACTERS = /[/\\:*?"<>|]/g;
 const WINDOWS_DEVICE_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
 
 interface LiveDownload {
-  item: DownloadItem;
+  item: EngineDownload;
   lastSampleAt: number;
   lastSampleBytes: number;
   /** So a pause or an interruption is reported the instant it happens. */
@@ -60,10 +64,10 @@ export class DownloadManager {
    */
   private ephemeral: DownloadState[] = [];
   /** Which session each download this run came from, so a retry is made in the same one. */
-  private readonly sessionOf = new Map<string, Session>();
-  private defaultSession: Session | null = null;
+  private readonly sessionOf = new Map<string, EngineSession>();
+  private defaultSession: EngineSession | null = null;
   /** Finds a written-down session again after a restart, or null for one that has gone, such as a deleted group's. */
-  private sessionForPartition: (partition: string) => Session | null = () => null;
+  private sessionForPartition: (partition: string) => EngineSession | null = () => null;
 
   constructor(
     private readonly onChanged: () => void,
@@ -139,7 +143,7 @@ export class DownloadManager {
    * @param remember Whether this session's downloads are written down. False
    * for Hush, whose whole claim is that nothing it does is.
    */
-  attach(session: Session, remember = true, partition: string | null = null): void {
+  attach(session: EngineSession, remember = true, partition: string | null = null): void {
     if (remember && !this.defaultSession) {
       this.defaultSession = session;
     }
@@ -307,7 +311,7 @@ export class DownloadManager {
   }
 
   /** Where the person said to save it, once they have said; nothing changes until then. */
-  private chosenPath(item: DownloadItem, entry: DownloadState): Partial<DownloadState> {
+  private chosenPath(item: EngineDownload, entry: DownloadState): Partial<DownloadState> {
     const chosen = item.getSavePath();
     return chosen && chosen !== entry.savePath ? { savePath: chosen, filename: path.basename(chosen) } : {};
   }
@@ -399,7 +403,7 @@ export class DownloadManager {
     this.onChanged();
   }
 
-  setSessionResolver(resolve: (partition: string) => Session | null): void {
+  setSessionResolver(resolve: (partition: string) => EngineSession | null): void {
     this.sessionForPartition = resolve;
   }
 

@@ -2,7 +2,7 @@
 import { type WriteStream, createWriteStream } from 'node:fs';
 
 // Types
-import type { Session } from 'electron';
+import type { EngineSession } from '../engine/sessions';
 
 /** Where requests went and what came back, only when COPACETIC_REQUEST_LOG names a file; never a query, body or input. */
 
@@ -50,7 +50,7 @@ export function describeRequest(outcome: RequestOutcome, partition: string, at: 
 }
 
 export function startRequestLog(
-  session: Session,
+  session: EngineSession,
   partition: string,
   filePath = process.env.COPACETIC_REQUEST_LOG,
 ): void {

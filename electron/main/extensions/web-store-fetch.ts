@@ -1,7 +1,5 @@
-// Libs
-import { app } from 'electron';
-
 // Utils
+import { app } from '../engine/app';
 import { t } from '../../shared/i18n/translate';
 
 // Types

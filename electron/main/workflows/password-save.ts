@@ -9,7 +9,7 @@ import { t } from '../../shared/i18n/translate';
 import { isRecord } from '../data/persistence';
 
 // Types
-import type { WebContents } from 'electron';
+import type { EnginePage } from '../engine/views';
 import type { PageChange } from '../tabs/tab-events';
 import type { PasswordOffer, PasswordOfferAnswer, Settings, TabId } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
@@ -199,7 +199,7 @@ export class PasswordSave {
     return isWanted && (await this.deps.vaultSession.hasKeychain());
   }
 
-  private async watchable(tabId: TabId): Promise<WebContents | null> {
+  private async watchable(tabId: TabId): Promise<EnginePage | null> {
     const contents = this.deps.tabs.livePageFor(tabId);
     const isWatchable = contents && !this.deps.tabs.isHush(tabId) && (await this.isWatched(contents.getURL()));
     return isWatchable && !contents.isDestroyed() ? contents : null;
@@ -298,7 +298,7 @@ export class PasswordSave {
   }
 
   // A page that went before answering counts as asking, so nothing is offered on a guess.
-  private async stillAsksForPassword(contents: WebContents): Promise<boolean> {
+  private async stillAsksForPassword(contents: EnginePage): Promise<boolean> {
     try {
       return (
         (await contents.executeJavaScriptInIsolatedWorld(WATCH_WORLD, [{ code: STILL_ASKS_FOR_PASSWORD }])) !== false

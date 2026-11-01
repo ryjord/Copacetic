@@ -1,7 +1,6 @@
-// Libs
-import { app } from 'electron';
-
 // Utils
+import { app } from '../engine/app';
+import { systemVersion } from '../engine/system';
 import { t } from '../../shared/i18n/translate';
 
 // An address rather than the issue tracker, which stops being public when the source does.
@@ -43,7 +42,7 @@ export function feedbackFacts(): FeedbackFacts {
     version: app.getVersion(),
     platform: process.platform,
     // Electron's own addition to process, absent when this runs under plain Node in a test.
-    systemVersion: typeof process.getSystemVersion === 'function' ? process.getSystemVersion() : null,
+    systemVersion: systemVersion(),
     arch: process.arch,
   };
 }

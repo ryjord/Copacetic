@@ -13,7 +13,7 @@ import { forgetCertificates } from '../security/certificates';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { ClearDataOptions, Session } from 'electron';
+import type { EngineCookie, EngineSession, SessionClearOptions } from '../engine/sessions';
 import type { ClearRange } from '../../shared/types';
 import type { NoticeCentre } from '../notices/notice-centre';
 import type { DownloadManager } from '../data/downloads';
@@ -22,7 +22,7 @@ import type { BlockingPolicy } from '../security/blocking-policy';
 import type { SessionRegistry } from '../sessions/session-registry';
 
 // Everything clearData reaches but the cache, which is its own choice, and downloads, which are not site data.
-const SITE_STORAGE: NonNullable<ClearDataOptions['dataTypes']> = [
+const SITE_STORAGE: NonNullable<SessionClearOptions['dataTypes']> = [
   'backgroundFetch',
   'cookies',
   'fileSystems',
@@ -102,7 +102,7 @@ export class SiteData {
   private async forgetInSessions(
     sites: string[],
     known: string[] = [],
-    dataTypes?: ClearDataOptions['dataTypes'],
+    dataTypes?: SessionClearOptions['dataTypes'],
   ): Promise<number> {
     if (sites.length === 0) {
       return 0;
@@ -149,8 +149,8 @@ export class SiteData {
    * on `.example.com` is example.com's, and matching exact origins would leave
    * it behind. Used both to count before anything is removed and to remove.
    */
-  private async cookiesForSites(sites: string[]): Promise<{ session: Session; cookies: Electron.Cookie[] }[]> {
-    const found: { session: Session; cookies: Electron.Cookie[] }[] = [];
+  private async cookiesForSites(sites: string[]): Promise<{ session: EngineSession; cookies: EngineCookie[] }[]> {
+    const found: { session: EngineSession; cookies: EngineCookie[] }[] = [];
     for (const session of this.deps.sessions.siteDataSessions()) {
       try {
         const all = await session.cookies.get({});

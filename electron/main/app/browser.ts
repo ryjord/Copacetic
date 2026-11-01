@@ -1,8 +1,9 @@
 // Libs
-import { type BrowserWindow, type WebContents, type WebFrameMain, app, dialog } from 'electron';
 import { randomUUID } from 'node:crypto';
 
 // Utils
+import { app } from '../engine/app';
+import { dialog } from '../engine/dialogs';
 import { PUSH, type ChromeSurface } from '../../shared/ipc/channels';
 import { START_PAGE_URL, isWebUrl, siteOfUrl } from '../../shared/browsing/url';
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/tabs/surfaces';
@@ -32,6 +33,8 @@ import { pageReportFileName, pageReportFrom } from '../../shared/browsing/page-r
 import { writeChosenFile } from '../system/file-dialogs';
 
 // Types
+import type { EngineFrame, EnginePage } from '../engine/views';
+import type { EngineWindow } from '../engine/windows';
 import type {
   AppInfo,
   BookmarkSheetState,
@@ -65,7 +68,7 @@ import type { Profile } from './profile';
  * profile's, and is reached through it, so every window sees the same.
  */
 export class Browser {
-  readonly window: BrowserWindow;
+  readonly window: EngineWindow;
   readonly tabs: TabManager;
   readonly notices: NoticeCentre;
   readonly bookmarks: BookmarkCommands;
@@ -372,7 +375,7 @@ export class Browser {
   }
 
   /** Whether this is the chrome or one of the overlays of this window, which is what may ask it for anything. */
-  owns(contents: WebContents): boolean {
+  owns(contents: EnginePage): boolean {
     if (this.window.isDestroyed()) {
       return false;
     }
@@ -387,7 +390,7 @@ export class Browser {
    * The chrome and the overlays are trusted chrome with the same preload;
    * every page in every tab is not, and has no preload to ask with.
    */
-  isOwnFrame(frame: WebFrameMain | null): boolean {
+  isOwnFrame(frame: EngineFrame | null): boolean {
     return frame === this.window.webContents.mainFrame || this.overlayFor(frame) !== null;
   }
 
@@ -656,12 +659,12 @@ export class Browser {
     }
   }
 
-  private overlayFor(frame: WebFrameMain | null): OverlayLayer | null {
+  private overlayFor(frame: EngineFrame | null): OverlayLayer | null {
     return Object.values(this.overlays).find((overlay) => overlay.ownsFrame(frame)) ?? null;
   }
 
   /** How large an overlay's own content is, which only that overlay can measure. */
-  setOverlaySize(frame: WebFrameMain | null, width: number, height: number): void {
+  setOverlaySize(frame: EngineFrame | null, width: number, height: number): void {
     const overlay = this.overlayFor(frame);
     overlay?.setContentBounds(this.tabs.contentBounds());
     overlay?.setSize(width, height);
@@ -702,7 +705,7 @@ export class Browser {
   }
 
   /** Hands the keyboard to the overlay asking for it; a frame that is not an overlay gets nothing. */
-  focusOverlay(frame: WebFrameMain | null): void {
+  focusOverlay(frame: EngineFrame | null): void {
     this.overlayFor(frame)?.takeFocus();
   }
 

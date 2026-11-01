@@ -13,7 +13,7 @@ import { describeError, log } from '../system/diagnostics';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { BrowserWindow } from 'electron';
+import type { EngineWindow } from '../engine/windows';
 import type { ExportKind, ImportPreview, ImportSource } from '../../shared/types';
 import type { VaultSession } from '../vault/vault-session';
 import type { Machine } from '../import/chromium-profiles';
@@ -21,7 +21,7 @@ import type { BrowserStore } from '../data/store';
 import type { BookmarkCommands } from './bookmarks';
 
 interface DataTransferDeps {
-  window: BrowserWindow;
+  window: EngineWindow;
   store: BrowserStore;
   vaultSession: VaultSession;
   bookmarks: BookmarkCommands;

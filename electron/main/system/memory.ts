@@ -1,6 +1,9 @@
 // Libs
 import { readFileSync } from 'node:fs';
 
+// Utils
+import { systemMemoryInfo } from '../engine/system';
+
 /** What Electron reports, in kilobytes; macOS adds what it can take back, Linux and Windows do not. */
 export interface SystemMemory {
   total: number;
@@ -39,7 +42,7 @@ export function isMemoryLow(platform: string, memory: SystemMemory, procMeminfo 
 export function isThisMachineLowOnMemory(): boolean {
   try {
     const procMeminfo = process.platform === 'linux' ? readFileSync('/proc/meminfo', 'utf8') : '';
-    return isMemoryLow(process.platform, process.getSystemMemoryInfo(), procMeminfo);
+    return isMemoryLow(process.platform, systemMemoryInfo(), procMeminfo);
   } catch {
     return false;
   }

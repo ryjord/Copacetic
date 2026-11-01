@@ -1,9 +1,9 @@
 // Libs
-import { nativeImage } from 'electron';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
+import { imageFromDataUrl } from '../engine/images';
 import { describeError, log } from '../system/diagnostics';
 
 const PICTURE_FILE = 'picture.png';
@@ -41,7 +41,7 @@ export function headerSize(bytes: Buffer): { width: number; height: number } | n
 
 /** A chosen photo, cut to its centred square and made small, so a picture costs a few kilobytes however large it was. */
 export function squarePicture(dataUrl: string): Buffer | null {
-  const image = nativeImage.createFromDataURL(dataUrl);
+  const image = imageFromDataUrl(dataUrl);
   if (image.isEmpty()) {
     return null;
   }

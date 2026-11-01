@@ -9,7 +9,8 @@ import { t } from '../../shared/i18n/translate';
 import { describeError, log } from '../system/diagnostics';
 
 // Types
-import type { Session } from 'electron';
+import type { BeforeRequestDetails, RequestVerdict } from '../engine/requests';
+import type { EngineSession } from '../engine/sessions';
 import type { ConnectionEntry } from '../../shared/types';
 import type { BlockingPolicy } from './blocking-policy';
 import type { NetVerdict } from '../extensions/net-rules/outcome';
@@ -224,7 +225,7 @@ export class ContentBlocker {
   /** The site each tab is on, so a per-site exception can be honoured. */
   private readonly pageHosts = new Map<number, string>();
   /** What each profile chose, by the session it was attached to. */
-  private readonly policies = new WeakMap<Session, BlockingPolicy>();
+  private readonly policies = new WeakMap<EngineSession, BlockingPolicy>();
   /** One per window's tabs: each finds its own tabs in what it is told. */
   private readonly countListeners = new Set<(webContentsId: number, count: number) => void>();
 
@@ -394,7 +395,7 @@ export class ContentBlocker {
    * it needs no preload and runs no script of ours in the page, which is a
    * promise this browser has already made and has not spent.
    */
-  cosmeticStylesFor(url: string, session: Session, hidesCookieBanners: boolean): string {
+  cosmeticStylesFor(url: string, session: EngineSession, hidesCookieBanners: boolean): string {
     const policy = this.policies.get(session);
     if (!policy) {
       return '';
@@ -478,11 +479,11 @@ export class ContentBlocker {
    * Blocks in a session by the lists, and by what the profile that owns it chose.
    * Extensions' rules apply only where extensions run, which is never Hush.
    */
-  attach(session: Session, policy: BlockingPolicy, appliesExtensionRules = false): void {
+  attach(session: EngineSession, policy: BlockingPolicy, appliesExtensionRules = false): void {
     this.policies.set(session, policy);
     session.webRequest.onBeforeRequest((details, callback) => {
       // Chromium waits on this answer, so a throw would hang the request; a failure lets it through and is logged.
-      let response: Electron.CallbackResponse;
+      let response: RequestVerdict;
       try {
         response = this.decide(details, policy, appliesExtensionRules);
       } catch (error) {
@@ -494,10 +495,10 @@ export class ContentBlocker {
   }
 
   private decide(
-    details: Electron.OnBeforeRequestListenerDetails,
+    details: BeforeRequestDetails,
     policy: BlockingPolicy,
     appliesExtensionRules: boolean,
-  ): Electron.CallbackResponse {
+  ): RequestVerdict {
     const redirectURL = policy.redirectFor(details);
     if (redirectURL) {
       return { redirectURL };
@@ -567,7 +568,7 @@ export class ContentBlocker {
    */
   private ruleFor(details: {
     url: string;
-    resourceType: Electron.OnBeforeRequestListenerDetails['resourceType'];
+    resourceType: BeforeRequestDetails['resourceType'];
     referrer?: string;
     webContentsId?: number;
   }): string | null {

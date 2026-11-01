@@ -3,7 +3,8 @@ import { isThirdParty, pageSiteOf, withoutHeader } from '../../shared/browsing/t
 import { applyHeaderChanges } from '../extensions/net-rules/outcome';
 
 // Types
-import type { Session } from 'electron';
+import type { EngineSession } from '../engine/sessions';
+import type { EnginePage } from '../engine/views';
 import type { HeaderChange } from '../extensions/net-rules/rule';
 import type { RequestDetails } from '../extensions/net-rules/request-context';
 
@@ -29,9 +30,9 @@ const asSingles = (headers: Record<string, string[]>) =>
  * replaces the first without a word, so anything else that needs to change a
  * header joins these rather than registering its own.
  */
-export function installRequestHeaders(session: Session, rules: RequestHeaderRules): void {
+export function installRequestHeaders(session: EngineSession, rules: RequestHeaderRules): void {
   // A service worker's request has no page, so the site it belongs to is the one that started it.
-  const pageOf = (details: { webContents?: Electron.WebContents; initiatorOrigin?: string }) =>
+  const pageOf = (details: { webContents?: EnginePage; initiatorOrigin?: string }) =>
     details.webContents?.getURL() || details.initiatorOrigin;
   const isBlockedThirdParty = (url: string, pageUrl: string | undefined, resourceType: string) => {
     const site = pageUrl ? pageSiteOf(pageUrl) : null;

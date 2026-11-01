@@ -1,7 +1,7 @@
-// Libs
-import { Menu, type MenuItemConstructorOptions, app, shell } from 'electron';
-
 // Utils
+import { type MenuEntry, setApplicationMenu } from '../engine/menus';
+import { app } from '../engine/app';
+import { shell } from '../engine/system';
 import { acceleratorFor, aliasesFor, readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { t } from '../../shared/i18n/translate';
 import { feedbackFacts, feedbackMailto } from '../system/feedback';
@@ -13,14 +13,14 @@ import type { Profiles } from '../app/profiles';
 const isMac = process.platform === 'darwin';
 
 /** The application menu is not decoration. */
-export function buildApplicationMenu(profiles: Profiles): Menu {
+export function buildApplicationMenu(profiles: Profiles): MenuEntry[] {
   const inWindow = windowActions(profiles);
   const overrides = readShortcutOverrides(profiles.shortcutOverrides());
   // Compared with true: a menu built while a key is being recorded binds none, so the key reaches the recorder.
   const isRecording = profiles.isRecordingShortcut() === true;
   const key = (id: string) => (isRecording ? undefined : acceleratorFor(id, overrides));
   // The item on its key, then hidden copies on each of its other keys, so the menu shows one while all of them work.
-  const withAliases = (id: string, label: string, click: () => void): MenuItemConstructorOptions[] => [
+  const withAliases = (id: string, label: string, click: () => void): MenuEntry[] => [
     { label, accelerator: key(id), click },
     ...(isRecording ? [] : aliasesFor(id, overrides)).map((accelerator) => ({
       label,
@@ -30,7 +30,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       click,
     })),
   ];
-  const template: MenuItemConstructorOptions[] = [];
+  const template: MenuEntry[] = [];
 
   if (isMac) {
     template.push({
@@ -67,7 +67,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       {
         label: t('main.menu.file.newWindowInProfile'),
         submenu: [
-          ...profiles.summaries().map((summary): MenuItemConstructorOptions => ({
+          ...profiles.summaries().map((summary): MenuEntry => ({
             label: summary.name,
             click: () => void profiles.openWindow(summary.id),
           })),
@@ -118,7 +118,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         accelerator: key('print'),
         click: () => inWindow((browser) => browser.commands.printActiveTab()),
       },
-      ...(isMac ? [] : ([{ type: 'separator' }, { role: 'quit' }] as MenuItemConstructorOptions[])),
+      ...(isMac ? [] : ([{ type: 'separator' }, { role: 'quit' }] as MenuEntry[])),
     ],
   });
 
@@ -131,7 +131,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
       { role: 'cut' },
       { role: 'copy' },
       { role: 'paste' },
-      ...(isMac ? ([{ role: 'pasteAndMatchStyle' }] as MenuItemConstructorOptions[]) : []),
+      ...(isMac ? ([{ role: 'pasteAndMatchStyle' }] as MenuEntry[]) : []),
       { role: 'delete' },
       { role: 'selectAll' },
       { type: 'separator' },
@@ -147,7 +147,7 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
               click: () => inWindow((browser) => browser.showPage('settings')),
             },
             { type: 'separator' },
-          ] as MenuItemConstructorOptions[])),
+          ] as MenuEntry[])),
       {
         label: t('main.menu.edit.openAddressBar'),
         accelerator: key('address'),
@@ -333,13 +333,8 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         click: () => inWindow((browser) => browser.showPage('downloads')),
       },
       ...(isMac
-        ? ([
-            { type: 'separator' },
-            { role: 'minimize' },
-            { role: 'zoom' },
-            { role: 'front' },
-          ] as MenuItemConstructorOptions[])
-        : ([{ role: 'minimize' }] as MenuItemConstructorOptions[])),
+        ? ([{ type: 'separator' }, { role: 'minimize' }, { role: 'zoom' }, { role: 'front' }] as MenuEntry[])
+        : ([{ role: 'minimize' }] as MenuEntry[])),
     ],
   });
 
@@ -358,11 +353,11 @@ export function buildApplicationMenu(profiles: Profiles): Menu {
         label: t('main.menu.help.openDownloadsFolder'),
         click: () => inWindow((browser) => browser.openDownloadsFolder()),
       },
-      ...(isMac ? [] : ([{ type: 'separator' }, { role: 'about' }] as MenuItemConstructorOptions[])),
+      ...(isMac ? [] : ([{ type: 'separator' }, { role: 'about' }] as MenuEntry[])),
     ],
   });
 
-  return Menu.buildFromTemplate(template);
+  return template;
 }
 
 /** Cmd+1..8 select a tab by position; Cmd+9 always jumps to the last one. */
@@ -380,11 +375,8 @@ function windowActions(profiles: Profiles): InWindow {
   };
 }
 
-function tabSelectionItems(
-  inWindow: InWindow,
-  key: (id: string) => string | undefined,
-): MenuItemConstructorOptions[] {
-  const items: MenuItemConstructorOptions[] = [];
+function tabSelectionItems(inWindow: InWindow, key: (id: string) => string | undefined): MenuEntry[] {
+  const items: MenuEntry[] = [];
   for (let position = 1; position <= 8; position += 1) {
     items.push({
       label: t('main.menu.tabs.numbered', { position }),
@@ -401,5 +393,5 @@ function tabSelectionItems(
 }
 
 export function installApplicationMenu(profiles: Profiles): void {
-  Menu.setApplicationMenu(buildApplicationMenu(profiles));
+  setApplicationMenu(buildApplicationMenu(profiles));
 }

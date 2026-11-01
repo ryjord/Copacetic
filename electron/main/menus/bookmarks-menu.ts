@@ -1,7 +1,5 @@
-// Libs
-import { Menu, type KeyboardEvent, type MenuItemConstructorOptions } from 'electron';
-
 // Utils
+import { type MenuEntry, type MenuKeyboardEvent, popupMenu } from '../engine/menus';
 import { childrenOf, type BookmarkFolder } from '../../shared/data/bookmark-folders';
 import { t } from '../../shared/i18n/translate';
 
@@ -17,7 +15,7 @@ function labelFor(bookmark: Bookmark): string {
 }
 
 /** Cmd or Ctrl opens it in a background tab, as a middle-click would on a link. */
-function open(browser: Browser, bookmark: Bookmark, event: KeyboardEvent): void {
+function open(browser: Browser, bookmark: Bookmark, event: MenuKeyboardEvent): void {
   if (event.metaKey || event.ctrlKey) {
     browser.tabs.create(bookmark.url, { activate: false });
     return;
@@ -30,8 +28,8 @@ function itemsIn(
   folderId: string | null,
   folders: readonly BookmarkFolder[],
   bookmarks: readonly Bookmark[],
-): MenuItemConstructorOptions[] {
-  const items: MenuItemConstructorOptions[] = [
+): MenuEntry[] {
+  const items: MenuEntry[] = [
     ...childrenOf(folders, folderId).map((folder) => ({
       label: folder.name,
       submenu: itemsIn(browser, folder.id, folders, bookmarks),
@@ -40,14 +38,14 @@ function itemsIn(
       .filter((bookmark) => bookmark.folderId === folderId)
       .map((bookmark) => ({
         label: labelFor(bookmark),
-        click: (_item: unknown, _window: unknown, event: KeyboardEvent) => open(browser, bookmark, event),
+        click: (_item: unknown, _window: unknown, event: MenuKeyboardEvent) => open(browser, bookmark, event),
       })),
   ];
   return items.length > 0 ? items : [{ label: t('main.menu.context.empty'), enabled: false }];
 }
 
 /** Every folder and bookmark, cascading, so a bookmark is two clicks away over any page. */
-export function bookmarksMenuItems(browser: Browser): MenuItemConstructorOptions[] {
+export function bookmarksMenuItems(browser: Browser): MenuEntry[] {
   const { tabs, activeTabId } = browser.tabs.snapshot();
   const active = tabs.find((tab) => tab.id === activeTabId);
   const folders = browser.store.listBookmarkFolders();
@@ -77,7 +75,7 @@ export function showBookmarkOverflowMenu(
 ): void {
   const folders = browser.store.listBookmarkFolders();
   const bookmarks = browser.store.listBookmarks();
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     ...folders
       .filter((folder) => folderIds.includes(folder.id))
       .map((folder) => ({ label: folder.name, submenu: itemsIn(browser, folder.id, folders, bookmarks) })),
@@ -85,14 +83,14 @@ export function showBookmarkOverflowMenu(
       .filter((bookmark) => bookmarkIds.includes(bookmark.id))
       .map((bookmark) => ({
         label: labelFor(bookmark),
-        click: (_item: unknown, _window: unknown, event: KeyboardEvent) => open(browser, bookmark, event),
+        click: (_item: unknown, _window: unknown, event: MenuKeyboardEvent) => open(browser, bookmark, event),
       })),
   ];
   if (items.length > 0) {
-    Menu.buildFromTemplate(items).popup({ window: browser.window, x, y });
+    popupMenu(items, { window: browser.window, x, y });
   }
 }
 
 export function showBookmarksMenu(browser: Browser, x: number, y: number): void {
-  Menu.buildFromTemplate(bookmarksMenuItems(browser)).popup({ window: browser.window, x, y });
+  popupMenu(bookmarksMenuItems(browser), { window: browser.window, x, y });
 }

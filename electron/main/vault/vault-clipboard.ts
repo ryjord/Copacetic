@@ -1,7 +1,5 @@
-// Libs
-import { clipboard } from 'electron';
-
 // Utils
+import { clipboard } from '../engine/system';
 import { writeConcealed } from './concealed-clipboard';
 
 export const CLEAR_SECRET_AFTER_MS = 30_000;

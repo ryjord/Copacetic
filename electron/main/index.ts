@@ -1,8 +1,10 @@
 // Libs
-import { app, dialog, nativeImage } from 'electron';
 import { existsSync } from 'node:fs';
 
 // Utils
+import { app, setDockIcon } from './engine/app';
+import { dialog } from './engine/dialogs';
+import { engineVersions } from './engine/system';
 import { Profiles } from './app/profiles';
 import { devIconPath, isDevelopment } from './app/env';
 import { registerIpcHandlers, removeIpcHandlers } from './app/ipc';
@@ -136,7 +138,7 @@ async function start(): Promise<void> {
   // Before anything else that can fail, so that when it does there is a record.
   startDiagnostics(app.getPath('userData'));
   watchCertificateErrors();
-  log.info('started', { version: app.getVersion(), platform: process.platform, electron: process.versions.electron });
+  log.info('started', { version: app.getVersion(), platform: process.platform, electron: engineVersions().electron });
   handleAppProtocol();
 
   const didLastRunEndBadly = markRunning(app.getPath('userData'));
@@ -240,10 +242,7 @@ function applyDevelopmentIcon(): void {
     return;
   }
 
-  const icon = nativeImage.createFromPath(iconPath);
-  if (!icon.isEmpty()) {
-    app.dock?.setIcon(icon);
-  }
+  setDockIcon(iconPath);
 }
 
 process.on('uncaughtException', (error) => {

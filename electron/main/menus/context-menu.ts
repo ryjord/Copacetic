@@ -1,7 +1,7 @@
-// Libs
-import { type ContextMenuParams, Menu, type MenuItemConstructorOptions, dialog, shell } from 'electron';
-
 // Utils
+import { type MenuEntry, popupMenu } from '../engine/menus';
+import { dialog } from '../engine/dialogs';
+import { shell } from '../engine/system';
 import { cleanUrl } from '../../shared/browsing/link-cleaning';
 import { t } from '../../shared/i18n/translate';
 import { addToDictionaryLabel, searchSelectionLabel } from '../../shared/chrome/chrome-text';
@@ -15,12 +15,13 @@ import { countTraces, describeTraces, siteOf } from '../../shared/data/forgettin
 import { copyText } from '../system/clipboard';
 
 // Types
+import type { PageContextMenu } from '../engine/views';
 import { TOOLBAR_ITEMS, type TabId } from '../../shared/types';
 import type { OpenTarget } from '../../shared/tabs/open-rules';
 import type { Browser } from '../app/browser';
 
 /** Where this tab's site always opens: offered for a page, never for Hush, which already keeps nothing. */
-function openRuleItems(browser: Browser, tabId: TabId): MenuItemConstructorOptions[] {
+function openRuleItems(browser: Browser, tabId: TabId): MenuEntry[] {
   const url = browser.tabs.urlFor(tabId);
   const site = url && isPageNavigableUrl(url) ? siteOf(url) : '';
   if (!url || !site || browser.tabs.isHush(tabId)) {
@@ -51,7 +52,7 @@ function openRuleItems(browser: Browser, tabId: TabId): MenuItemConstructorOptio
   ];
 }
 
-function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
+function splitItem(browser: Browser, tabId: TabId): MenuEntry {
   if (isInSplit(browser.tabs.getSplit(), tabId)) {
     return { label: t('main.menu.context.leaveSplit'), click: () => browser.tabs.leaveSplit() };
   }
@@ -62,7 +63,7 @@ function splitItem(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
 }
 
 /** The menu shown when someone right-clicks inside a page. */
-export async function showPageContextMenu(browser: Browser, tabId: TabId, params: ContextMenuParams): Promise<void> {
+export async function showPageContextMenu(browser: Browser, tabId: TabId, params: PageContextMenu): Promise<void> {
   // Addresses, like passwords, only on an encrypted page and only ones this machine can open.
   // Waited on only in a form field, so every other right-click opens at once.
   const [passwordOffer, savedAddresses] = params.isEditable
@@ -73,8 +74,8 @@ export async function showPageContextMenu(browser: Browser, tabId: TabId, params
     : [null, []];
   const passwords = passwordOffer?.entries ?? [];
   const addresses = savedAddresses.filter((address) => address.isReadable);
-  const items: MenuItemConstructorOptions[] = [];
-  const push = (item: MenuItemConstructorOptions) => items.push(item);
+  const items: MenuEntry[] = [];
+  const push = (item: MenuEntry) => items.push(item);
   const separate = () => {
     if (items.length > 0 && items[items.length - 1]?.type !== 'separator') {
       push({ type: 'separator' });
@@ -275,7 +276,7 @@ export async function showPageContextMenu(browser: Browser, tabId: TabId, params
     click: () => browser.tabs.inspectAt(tabId, params.x, params.y),
   });
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 /** The menu shown when someone right-clicks a tab in the strip. */
@@ -283,7 +284,7 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
   const url = browser.tabs.urlFor(tabId);
   const isBookmarked = url ? browser.store.isBookmarked(url) : false;
 
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     {
       label: t('main.menu.context.newTabToTheRight'),
       click: () =>
@@ -359,13 +360,13 @@ export function showTabContextMenu(browser: Browser, tabId: TabId): void {
     { label: t('main.menu.context.closeTabsToTheRight'), click: () => browser.tabs.closeToTheRight(tabId) },
   ];
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 /** The toolbar's own buttons, chosen where they are rather than only in Settings. */
 export function showToolbarMenu(browser: Browser): void {
   const shown = browser.profile.settings().toolbarItems;
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     ...TOOLBAR_ITEMS.map((item) => ({
       label: t(`settings.appearance.browser.toolbar.${item}`),
       type: 'checkbox' as const,
@@ -379,7 +380,7 @@ export function showToolbarMenu(browser: Browser): void {
     { type: 'separator' },
     { label: t('main.menu.context.customiseToolbar'), click: () => browser.showPage('settings', 'appearance') },
   ];
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 /**
@@ -388,7 +389,7 @@ export function showToolbarMenu(browser: Browser): void {
  * area would be drawn underneath the page.
  */
 export function showNewTabMenu(browser: Browser): void {
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     { label: t('main.menu.file.newTab'), click: () => browser.commands.newTab() },
     { label: t('main.menu.file.newHushTab'), click: () => browser.commands.newHushTab() },
     { type: 'separator' },
@@ -403,13 +404,13 @@ export function showNewTabMenu(browser: Browser): void {
     namedSessionsSubmenu(browser),
   ];
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 const MAX_CLOSED_LABEL = 60;
 
 /** Every tab and group that can come back, newest first; a group is one item and reopens as the group. */
-export function recentlyClosedSubmenu(browser: Browser): MenuItemConstructorOptions {
+export function recentlyClosedSubmenu(browser: Browser): MenuEntry {
   const entries = browser.tabs.closedEntries();
   const shorten = (text: string) =>
     text.length > MAX_CLOSED_LABEL ? `${text.slice(0, MAX_CLOSED_LABEL - 1)}…` : text;
@@ -429,7 +430,7 @@ export function recentlyClosedSubmenu(browser: Browser): MenuItemConstructorOpti
   };
 }
 
-export function namedSessionsSubmenu(browser: Browser): MenuItemConstructorOptions {
+export function namedSessionsSubmenu(browser: Browser): MenuEntry {
   const sessions = browser.store.listNamedSessions();
   return {
     label: t('main.sessions.savedSessions'),
@@ -457,12 +458,12 @@ export function namedSessionsSubmenu(browser: Browser): MenuItemConstructorOptio
  * it decides which session the tabs load in, and turning it on later would
  * silently sign someone out of pages already open.
  */
-function groupSubmenu(browser: Browser, tabId: TabId): MenuItemConstructorOptions {
+function groupSubmenu(browser: Browser, tabId: TabId): MenuEntry {
   const groups = browser.store.listGroups();
   const current = browser.tabs.groupIdFor(tabId);
   const isHush = browser.tabs.isHush(tabId);
 
-  const existing: MenuItemConstructorOptions[] = groups.map((group) => ({
+  const existing: MenuEntry[] = groups.map((group) => ({
     label: group.name,
     type: 'checkbox',
     checked: group.id === current,
@@ -513,7 +514,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
   // is the only place a mixed group admits what it is.
   const claim = claimOf(group, browser.tabs.groupHoldsHush(groupId));
 
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     { label: describeClaim(claim), enabled: false },
     { type: 'separator' },
     { label: t('main.menu.context.renameNamed', { name: group.name }), click: () => browser.groups.rename(groupId) },
@@ -547,7 +548,7 @@ export function showGroupContextMenu(browser: Browser, groupId: string): void {
     },
   ];
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 /**
@@ -565,12 +566,13 @@ export async function showFillMenu(browser: Browser, tabId: TabId, x: number, y:
   if (offer.entries.length === 0) {
     return;
   }
-  Menu.buildFromTemplate(
+  popupMenu(
     offer.entries.map((entry) => ({
       label: entry.username || t('main.menu.context.savedPassword'),
       click: () => void browser.passwords.fill(tabId, entry.id),
     })),
-  ).popup({ window: browser.window, x, y });
+    { window: browser.window, x, y },
+  );
 }
 
 /** A group with its own session loses its sign-ins when it closes, which reopening cannot bring back, so it asks. */
@@ -609,7 +611,7 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
   const counted = countIn(browser.store.listBookmarks(), folders, folderId);
   const children = folders.filter((candidate) => candidate.parentId === folderId).length;
 
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     {
       label:
         counted.here === counted.withDescendants
@@ -654,11 +656,11 @@ export function showBookmarkFolderContextMenu(browser: Browser, folderId: string
     },
   ];
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 /** Leaving a top-level bookmark or folder off the bar; Appearance has the way back. */
-function hideFromBarItems(browser: Browser, id: string, isTopLevel: boolean): MenuItemConstructorOptions[] {
+function hideFromBarItems(browser: Browser, id: string, isTopLevel: boolean): MenuEntry[] {
   const hidden = browser.profile.settings().hiddenFromBookmarksBar;
   if (!isTopLevel || hidden.includes(id)) {
     return [];
@@ -700,7 +702,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
       .join(' / '),
   }));
 
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     { label: bookmark.title || bookmark.url, enabled: false },
     { type: 'separator' },
     { label: t('main.menu.context.open'), click: () => browser.commands.openInActiveTab(bookmark.url) },
@@ -744,7 +746,7 @@ export function showBookmarkContextMenu(browser: Browser, bookmarkId: string): v
     { label: t('main.menu.context.removeBookmark'), click: () => browser.removeBookmarks([bookmarkId]) },
   ];
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 /**
@@ -762,7 +764,7 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
   }
   const traces = browser.store.tracesOf(address);
 
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     { label: site, enabled: false },
     { type: 'separator' },
     { label: t('main.menu.context.open'), click: () => browser.commands.openInActiveTab(address) },
@@ -781,7 +783,7 @@ export function showSiteContextMenu(browser: Browser, address: string): void {
     { label: describeTraces(traces), enabled: false },
   ];
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window });
+  popupMenu(items, { window: browser.window });
 }
 
 /**
@@ -796,7 +798,7 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
   const folders = browser.store.listBookmarkFolders();
   const bookmarks = browser.store.listBookmarks();
 
-  const build = (parentId: string, seen: ReadonlySet<string>): MenuItemConstructorOptions[] => {
+  const build = (parentId: string, seen: ReadonlySet<string>): MenuEntry[] => {
     const here = bookmarks
       .filter((bookmark) => bookmark.folderId === parentId)
       .map((bookmark) => ({
@@ -821,7 +823,7 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
     return;
   }
 
-  const items: MenuItemConstructorOptions[] = [
+  const items: MenuEntry[] = [
     ...build(folderId, new Set([folderId])),
     { type: 'separator' },
     {
@@ -830,5 +832,5 @@ export function showBookmarkFolderMenu(browser: Browser, folderId: string, x: nu
     },
   ];
 
-  Menu.buildFromTemplate(items).popup({ window: browser.window, x, y });
+  popupMenu(items, { window: browser.window, x, y });
 }

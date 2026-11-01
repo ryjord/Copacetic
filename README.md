@@ -414,6 +414,7 @@ browser state of its own, only what the main process pushes to it.
 ```
 electron/
   main/
+    engine/       the only code that calls Electron, so moving engine ports this folder
     app/          lifecycle, windows, profiles, typed and validated IPC
     tabs/         one view per tab, navigation, split view, sleep, find
     security/     session hardening, blocking, HTTPS-first, certificates
@@ -440,6 +441,12 @@ the panels, the palette, the reader - hides the view instead of floating over
 it. And the renderer measures its own layout and reports the content rectangle,
 so the main process places each page exactly into the space the interface left
 for it.
+
+Every Electron call the main process makes goes through `electron/main/engine/`,
+and lint refuses an `electron` import anywhere else in it. The rest of the main
+process is written against the members the engine lists for a page, a window or
+a session, so the engine folder is the list of what another engine would have
+to provide.
 
 ## Development
 

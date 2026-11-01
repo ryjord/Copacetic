@@ -1,19 +1,14 @@
 // Libs
-import {
-  BrowserWindow,
-  type WebContents,
-  app,
-  dialog,
-  nativeImage,
-  net,
-  safeStorage,
-  shell,
-  systemPreferences,
-} from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
+import { app } from '../engine/app';
+import { dialog, type MessageBoxChoice, type OpenDialogChoice } from '../engine/dialogs';
+import { type BeforeRequestDetails, net } from '../engine/requests';
+import { biometrics, engineVersions, keychain, shell } from '../engine/system';
+import { imageFromDataUrl } from '../engine/images';
+import { focusedWindow } from '../engine/windows';
 import { cleanUrl } from '../../shared/browsing/link-cleaning';
 import { BlockingPolicy } from '../security/blocking-policy';
 import { HttpsFirst } from '../security/https-first';
@@ -43,6 +38,7 @@ import { abilitiesOf } from '../../shared/extensions/abilities';
 import { t } from '../../shared/i18n/translate';
 
 // Types
+import type { EnginePage } from '../engine/views';
 import type { TranslationService } from '../translation/translation-service';
 import type { AppInfo, PermissionDecision, PermissionKind, Settings, TabId } from '../../shared/types';
 import type { ContentBlocker } from '../security/blocker';
@@ -129,13 +125,13 @@ export class Profile {
     // safeStorage is only reachable after app.ready, which is why the keychain is asked at each call.
     this.vaultSession = new VaultSession(
       {
-        isAsyncEncryptionAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
-        storageBackend: () => (process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null),
-        encryptStringAsync: (plainText) => safeStorage.encryptStringAsync(plainText),
-        decryptStringAsync: (cipherText) => safeStorage.decryptStringAsync(cipherText),
+        isAsyncEncryptionAvailable: () => keychain.isAvailable(),
+        storageBackend: () => (process.platform === 'linux' ? keychain.backend() : null),
+        encryptStringAsync: (plainText) => keychain.seal(plainText),
+        decryptStringAsync: (cipherText) => keychain.open(cipherText),
         platform: process.platform,
-        canPromptTouchID: () => systemPreferences.canPromptTouchID?.() ?? false,
-        promptTouchID: (reason) => systemPreferences.promptTouchID(reason),
+        canPromptTouchID: () => biometrics.isAvailable(),
+        promptTouchID: (reason) => biometrics.prompt(reason),
         profileDirectory: () => directory,
       },
       () => this.scheduleStatePush(),
@@ -183,7 +179,7 @@ export class Profile {
       confirmAdd: async (request) => {
         const abilities = abilitiesOf(request.permissions, request.hostPermissions);
         const parent = this.focused()?.window;
-        const options: Electron.MessageBoxOptions = {
+        const options: MessageBoxChoice = {
           type: 'question',
           message: t('main.extensions.add.message', { name: request.name }),
           detail: t('main.extensions.add.detail', {
@@ -197,18 +193,16 @@ export class Profile {
           cancelId: 1,
           noLink: true,
         };
-        const { response } = parent
-          ? await dialog.showMessageBox(parent, options)
-          : await dialog.showMessageBox(options);
+        const { response } = await dialog.showMessageBox(parent ?? null, options);
         return response === 0;
       },
       chooseFolder: async () => {
         const parent = this.focused()?.window;
-        const options: Electron.OpenDialogOptions = {
+        const options: OpenDialogChoice = {
           title: t('main.extensions.add.chooseFolder'),
           properties: ['openDirectory'],
         };
-        const chosen = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options);
+        const chosen = await dialog.showOpenDialog(parent ?? null, options);
         return chosen.canceled ? null : (chosen.filePaths[0] ?? null);
       },
       workerPreload: path.join(app.getAppPath(), 'dist', 'electron', 'preload', 'extensions', 'worker.js'),
@@ -312,7 +306,7 @@ export class Profile {
   }
 
   /** A page's own address without its tracking parameters, asked for in their place; nothing else is touched. */
-  private cleanedNavigation(details: Electron.OnBeforeRequestListenerDetails): string | null {
+  private cleanedNavigation(details: BeforeRequestDetails): string | null {
     if (!this.store.getSettings().cleanLinks || details.resourceType !== 'mainFrame' || details.method !== 'GET') {
       return null;
     }
@@ -370,7 +364,7 @@ export class Profile {
 
   /** The window in front, or the one that last was. Null only when every window is closed. */
   focused(): Browser | null {
-    const inFront = BrowserWindow.getFocusedWindow();
+    const inFront = focusedWindow();
     const match = [...this.windows].find((window) => window.window === inFront);
     return match ?? (this.lastFocused && this.windows.has(this.lastFocused) ? this.lastFocused : null);
   }
@@ -381,7 +375,7 @@ export class Profile {
   }
 
   /** The window whose chrome or overlay this is, for routing what it asks to the right place. */
-  browserFor(contents: WebContents): Browser | null {
+  browserFor(contents: EnginePage): Browser | null {
     return [...this.windows].find((window) => window.owns(contents)) ?? null;
   }
 
@@ -392,7 +386,7 @@ export class Profile {
       return null;
     }
     const iconUrl = this.store.getFavicon(url);
-    const icon = iconUrl ? nativeImage.createFromDataURL(iconUrl).resize({ width: 256, height: 256 }).toPNG() : null;
+    const icon = iconUrl ? imageFromDataUrl(iconUrl).resize({ width: 256, height: 256 }).toPNG() : null;
     const shortcut = await createShortcut(installed, icon && icon.length > 0 ? icon : null);
     await this.openAppWindow(installed);
     return { installed, shortcut };
@@ -521,10 +515,11 @@ export class Profile {
   }
 
   getAppInfo(): AppInfo {
+    const versions = engineVersions();
     return {
       version: app.getVersion(),
-      electronVersion: process.versions.electron ?? 'unknown',
-      chromeVersion: process.versions.chrome ?? 'unknown',
+      electronVersion: versions.electron ?? 'unknown',
+      chromeVersion: versions.chromium ?? 'unknown',
       platform: process.platform,
       isDevelopment: isDevelopment(),
       blockerRuleCount: this.blocker.ruleCount,

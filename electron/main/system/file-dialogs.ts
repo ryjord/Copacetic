@@ -1,10 +1,13 @@
 // Libs
-import { type BrowserWindow, type FileFilter, dialog } from 'electron';
 import { chmod, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 // Utils
+import { dialog, type DialogFileFilter } from '../engine/dialogs';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { EngineWindow } from '../engine/windows';
 
 /**
  * What came of putting a file dialog in front of someone. Cancelling is not a
@@ -22,8 +25,8 @@ const reasonFor = (error: unknown, fallback: string) => (error instanceof Error 
 
 /** Asks for a file and reads it as text. */
 export async function readChosenFile(
-  window: BrowserWindow,
-  options: { title: string; filters: FileFilter[] },
+  window: EngineWindow,
+  options: { title: string; filters: DialogFileFilter[] },
 ): Promise<FileResult<string>> {
   const { canceled, filePaths } = await dialog.showOpenDialog(window, {
     title: options.title,
@@ -45,7 +48,7 @@ export async function readChosenFile(
 
 /** Asks for a picture and reads it as a data URL, refusing one larger than `maxBytes`. */
 export async function readChosenImage(
-  window: BrowserWindow,
+  window: EngineWindow,
   options: { title: string; maxBytes: number; tooLarge: string },
 ): Promise<FileResult<string>> {
   const { canceled, filePaths } = await dialog.showOpenDialog(window, {
@@ -83,8 +86,8 @@ const IMAGE_TYPES: Record<string, string> = {
 
 /** Asks where to put a file and writes it. The contents are produced only once somewhere has been chosen. */
 export async function writeChosenFile(
-  window: BrowserWindow,
-  options: { title: string; defaultPath: string; filters: FileFilter[] },
+  window: EngineWindow,
+  options: { title: string; defaultPath: string; filters: DialogFileFilter[] },
   contents: () => string,
 ): Promise<FileResult<true>> {
   const { canceled, filePath } = await dialog.showSaveDialog(window, options);

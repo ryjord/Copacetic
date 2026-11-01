@@ -1,11 +1,13 @@
 // Libs
-import { type UtilityProcess, utilityProcess } from 'electron';
 import path from 'node:path';
+
+// Utils
+import { type EngineUtilityProcess, forkUtilityProcess } from '../engine/system';
+import { t } from '../../shared/i18n/translate';
 
 // Types
 import type { LanguagePair } from '../../shared/translation/languages';
 import type { ModelBuffers } from './translation-models';
-import { t } from '../../shared/i18n/translate';
 
 interface WorkerReply {
   id: number;
@@ -22,7 +24,7 @@ interface WorkerReply {
  * no network of its own, and the models it runs were checked before it got them.
  */
 export class TranslationEngine {
-  private worker: UtilityProcess | null = null;
+  private worker: EngineUtilityProcess | null = null;
   private ready: Promise<unknown> | null = null;
   private nextId = 1;
   private readonly waiting = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
@@ -69,9 +71,10 @@ export class TranslationEngine {
 
   private started(): Promise<unknown> {
     if (!this.ready) {
-      const worker = utilityProcess.fork(path.join(this.engineDirectory, 'translator-worker.js'), [], {
-        serviceName: 'Copacetic translation',
-      });
+      const worker = forkUtilityProcess(
+        path.join(this.engineDirectory, 'translator-worker.js'),
+        'Copacetic translation',
+      );
       worker.on('message', (reply: WorkerReply) => {
         const pending = this.waiting.get(reply.id);
         this.waiting.delete(reply.id);

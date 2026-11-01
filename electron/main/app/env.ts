@@ -1,5 +1,9 @@
-import { app } from 'electron';
+// Libs
 import path from 'node:path';
+
+// Utils
+import { app } from '../engine/app';
+import { resourcesPath } from '../engine/system';
 
 /** Custom scheme the packaged renderer is served from. */
 export const APP_SCHEME = 'copacetic-app';
@@ -19,7 +23,7 @@ export function chromeEntryUrl(): string {
 
 /** Root of the exported Next build, used by the custom protocol handler. */
 export function rendererRoot(): string {
-  return app.isPackaged ? path.join(process.resourcesPath, 'app.asar', 'out') : path.join(app.getAppPath(), 'out');
+  return app.isPackaged ? path.join(resourcesPath(), 'app.asar', 'out') : path.join(app.getAppPath(), 'out');
 }
 
 /**

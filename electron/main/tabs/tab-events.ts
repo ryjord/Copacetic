@@ -8,7 +8,7 @@ import { log } from '../system/diagnostics';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { ContextMenuParams } from 'electron';
+import type { PageContextMenu } from '../engine/views';
 import type { TabId } from '../../shared/types';
 import type { ContentBlocker } from '../security/blocker';
 import type { HttpsFirst } from '../security/https-first';
@@ -33,7 +33,7 @@ export interface TabEventDeps {
   applyVisibility: () => void;
   cacheFavicon: (tab: TabRecord, faviconUrl: string) => void;
   onFoundInPage: (activeMatch: number, matches: number, isFinal: boolean) => void;
-  onContextMenu: (tabId: TabId, params: ContextMenuParams) => void;
+  onContextMenu: (tabId: TabId, params: PageContextMenu) => void;
   onPageChanged: (tabId: TabId, change: PageChange) => void;
 }
 

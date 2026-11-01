@@ -1,7 +1,6 @@
-// Libs
-import { type Session, type WebContents, app, desktopCapturer, shell } from 'electron';
-
 // Utils
+import { app } from '../engine/app';
+import { desktopCapturer, shell } from '../engine/system';
 import { type DisplaySource, displayChoices } from '../../shared/chrome/display-sources';
 import { isLoopbackHost, isPageNavigableUrl } from '../../shared/browsing/url';
 import { observeCertificates } from './certificates';
@@ -12,6 +11,8 @@ import { t } from '../../shared/i18n/translate';
 import { isLoadedExtensionPage } from '../extensions/extension-pages';
 
 // Types
+import type { EngineSession } from '../engine/sessions';
+import type { EnginePage } from '../engine/views';
 import type { PermissionAnswer, PermissionDecision, PermissionDefault, PermissionKind } from '../../shared/types';
 import type { HeaderChange } from '../extensions/net-rules/rule';
 import type { RequestDetails } from '../extensions/net-rules/request-context';
@@ -28,7 +29,7 @@ export interface SecurityDelegate {
   openInNewTab(url: string, options: { activate: boolean; openerWebContentsId: number }): void;
   /** Makes a page a tab opened, with its opener kept, a tab; false when it could not, and it is then closed. */
   adoptOpenedPage(
-    contents: WebContents,
+    contents: EnginePage,
     url: string,
     options: { activate: boolean; openerWebContentsId: number },
   ): boolean;
@@ -84,7 +85,7 @@ export function promptFor(
   return PROMPTED[permission] ?? null;
 }
 
-export function hardenChromeSession(session: Session): void {
+export function hardenChromeSession(session: EngineSession): void {
   session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.setPermissionCheckHandler(() => false);
 
@@ -130,7 +131,11 @@ function chromeContentSecurityPolicy(): string {
   ].join('; ');
 }
 
-export function hardenWebSession(session: Session, delegate: SecurityDelegate, appliesExtensionRules = false): void {
+export function hardenWebSession(
+  session: EngineSession,
+  delegate: SecurityDelegate,
+  appliesExtensionRules = false,
+): void {
   session.setPermissionRequestHandler((contents, permission, callback, details) => {
     void resolvePermission(delegate, contents, permission, details?.requestingUrl ?? '').then(callback);
   });
@@ -189,11 +194,7 @@ async function chooseDisplayMedia(
   }
   let sources: DisplaySource[];
   try {
-    const found = await desktopCapturer.getSources({
-      types: ['screen', 'window'],
-      thumbnailSize: { width: 0, height: 0 },
-    });
-    sources = found.map((source) => ({ id: source.id, name: source.name }));
+    sources = await desktopCapturer.sources();
   } catch {
     // The Linux PipeWire picker cancelled, or capture is unavailable.
     return null;
@@ -208,7 +209,7 @@ async function chooseDisplayMedia(
 
 async function resolvePermission(
   delegate: SecurityDelegate,
-  contents: WebContents | null,
+  contents: EnginePage | null,
   permission: string,
   requestingUrl: string,
 ): Promise<boolean> {
@@ -253,7 +254,7 @@ async function resolvePermission(
   return answer.decision === 'allow';
 }
 
-function isWebContents(value: unknown): value is WebContents {
+function isWebContents(value: unknown): value is EnginePage {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -272,7 +273,7 @@ export function isRecentGesture(lastInputAt: number | null, now: number): boolea
 }
 
 /** Guards applied to every tab's webContents. */
-export function guardTabWebContents(contents: WebContents, delegate: SecurityDelegate): void {
+export function guardTabWebContents(contents: EnginePage, delegate: SecurityDelegate): void {
   // Seen by the main process before the page, so a script cannot fake one.
   let lastInputAt: number | null = null;
   contents.on('input-event', (_event, input) => {
@@ -341,7 +342,7 @@ export function guardTabWebContents(contents: WebContents, delegate: SecurityDel
 }
 
 /** Guards for the window that renders Copacetic's own interface. */
-export function guardChromeWebContents(contents: WebContents): void {
+export function guardChromeWebContents(contents: EnginePage): void {
   contents.on('will-navigate', (event, url) => {
     if (isChromeDocument(url)) {
       return;
@@ -362,7 +363,7 @@ export function guardChromeWebContents(contents: WebContents): void {
   hardenAttachedFrames(contents);
 }
 
-function hardenAttachedFrames(contents: WebContents): void {
+function hardenAttachedFrames(contents: EnginePage): void {
   // `<webview>` is disabled on every webPreferences Copacetic creates, but a
   // renderer compromise could still try to attach one. Refusing here means the
   // check does not depend on any single webPreferences object being right.

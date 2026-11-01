@@ -1,5 +1,5 @@
 // Types
-import type { WebContents, WebContentsView } from 'electron';
+import type { EnginePage, EngineView, NavigationRecord } from '../engine/views';
 import type { PageError, TabId } from '../../shared/types';
 import type { BrowsingRecord } from './browsing-record';
 import type { ScrollPosition } from '../../shared/tabs/scroll-position';
@@ -7,7 +7,7 @@ import type { ScrollPosition } from '../../shared/tabs/scroll-position';
 /** Everything the main process knows about one tab. */
 export interface TabRecord {
   id: TabId;
-  view: WebContentsView;
+  view: EngineView;
   /** Nothing this tab does is written to disk - see ProfilePartitions.hush. */
   isHush: boolean;
   /** Where what it leaves behind goes; for a Hush tab, nowhere. */
@@ -33,7 +33,7 @@ export interface TabRecord {
   /** When it was last the tab in front, which is what sleeping is measured from. */
   lastActiveAt: number;
   /** The back and forward list it had when it went to sleep, restored when it wakes. */
-  sleptHistory: { entries: Electron.NavigationEntry[]; index: number } | null;
+  sleptHistory: { entries: NavigationRecord[]; index: number } | null;
   /** The extension whose own page this view was made for, with its preload; null for every other view. */
   extensionPage: string | null;
   /** How far down the page at that address it was, last time it was read. */
@@ -49,7 +49,7 @@ export interface TabRecord {
  * type says, so asking a sleeping tab's view anything throws: the first push
  * after a tab went to sleep took the whole window's state down with it.
  */
-export function pageOf(tab: TabRecord): WebContents | null {
-  const contents: WebContents | undefined = tab.view.webContents;
+export function pageOf(tab: TabRecord): EnginePage | null {
+  const contents: EnginePage | undefined = tab.view.webContents;
   return tab.isAsleep || !contents || contents.isDestroyed() ? null : contents;
 }
