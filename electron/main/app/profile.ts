@@ -1,5 +1,15 @@
 // Libs
-import { BrowserWindow, type WebContents, app, dialog, net, safeStorage, shell, systemPreferences } from 'electron';
+import {
+  BrowserWindow,
+  type WebContents,
+  app,
+  dialog,
+  nativeImage,
+  net,
+  safeStorage,
+  shell,
+  systemPreferences,
+} from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -19,6 +29,8 @@ import { VaultSession } from '../vault/vault-session';
 import { log } from '../system/diagnostics';
 import { Wallpaper } from '../system/wallpaper';
 import { ReadingList } from '../data/reading-list-store';
+import { InstalledApps } from '../data/installed-apps-store';
+import { createShortcut, removeShortcut } from '../system/app-shortcuts';
 import { isDevelopment } from './env';
 import { Browser } from './browser';
 import { launchRestore } from './launch-restore';
@@ -37,6 +49,7 @@ import type { ContentBlocker } from '../security/blocker';
 import type { SecurityDelegate } from '../security/security';
 import type { Vault } from '../vault/vault';
 import type { SessionSnapshot } from '../data/session-store';
+import type { InstalledApp } from '../../shared/data/installed-apps';
 import type { UpdateManager } from '../system/updates';
 import type { AppWideSetting, ProfileSummary } from '../../shared/data/profiles';
 
@@ -76,6 +89,7 @@ export class Profile {
   readonly securityDelegate: SecurityDelegate;
   readonly wallpaper: Wallpaper;
   readonly readingList: ReadingList;
+  readonly apps: InstalledApps;
   readonly partitions: ProfilePartitions;
   /** Tabs to reopen, one stack for every window of this profile. */
   readonly closedTabs = new ClosedTabs();
@@ -103,6 +117,7 @@ export class Profile {
     this.store = new BrowserStore(directory);
     this.wallpaper = new Wallpaper(directory);
     this.readingList = new ReadingList(directory);
+    this.apps = new InstalledApps(directory);
     this.blocker = host.blocker;
     this.updates = host.updates;
     this.translation = host.translation;
@@ -259,8 +274,10 @@ export class Profile {
    * Opens a window. The first of a launch brings back the saved session;
    * any after that start on a new tab, as a new window does everywhere else.
    */
-  async openWindow(options: { tabs?: SessionSnapshot; url?: string; isHush?: boolean } = {}): Promise<Browser> {
-    const window = new Browser(this);
+  async openWindow(
+    options: { tabs?: SessionSnapshot; url?: string; isHush?: boolean; app?: InstalledApp } = {},
+  ): Promise<Browser> {
+    const window = new Browser(this, options.app ?? null);
     this.windows.add(window);
     this.lastFocused = window;
     this.lastFocusedAt = Date.now();
@@ -366,6 +383,52 @@ export class Profile {
   /** The window whose chrome or overlay this is, for routing what it asks to the right place. */
   browserFor(contents: WebContents): Browser | null {
     return [...this.windows].find((window) => window.owns(contents)) ?? null;
+  }
+
+  /** Installs a site as an app, with a shortcut where the system lists apps; null for an address that is not a site. */
+  async installApp(url: string, title: string): Promise<{ installed: InstalledApp; shortcut: string | null } | null> {
+    const installed = this.apps.install(title, url);
+    if (!installed) {
+      return null;
+    }
+    const iconUrl = this.store.getFavicon(url);
+    const icon = iconUrl ? nativeImage.createFromDataURL(iconUrl).resize({ width: 256, height: 256 }).toPNG() : null;
+    const shortcut = await createShortcut(installed, icon && icon.length > 0 ? icon : null);
+    await this.openAppWindow(installed);
+    return { installed, shortcut };
+  }
+
+  /** Removes an app: its windows close, and its shortcut goes with it. */
+  async removeApp(id: string): Promise<void> {
+    [...this.windows].filter((window) => window.installedApp?.id === id).forEach((window) => window.window.close());
+    const removed = this.apps.remove(id);
+    if (removed) {
+      await removeShortcut(removed);
+    }
+  }
+
+  /** An app's window, brought to the front if it is open already. */
+  async openAppWindow(installed: InstalledApp): Promise<Browser> {
+    const open = [...this.windows].find((window) => window.installedApp?.id === installed.id);
+    if (open) {
+      open.window.show();
+      open.window.focus();
+      return open;
+    }
+    return this.openWindow({ app: installed });
+  }
+
+  /** A page sent out of an app window: into the browser window last in front, or a new one. */
+  async openInBrowser(url: string): Promise<void> {
+    const browsers = [...this.windows].filter((window) => window.installedApp === null);
+    const target = browsers.find((window) => window === this.lastFocused) ?? browsers.at(-1);
+    if (!target) {
+      await this.openWindow({ url });
+      return;
+    }
+    target.tabs.create(url, { activate: true });
+    target.window.show();
+    target.window.focus();
   }
 
   allWindows(): Browser[] {
@@ -559,7 +622,8 @@ export class Profile {
    * macOS the app stays running, and that is the session to reopen.
    */
   saveSession(closing: Browser | null = null): void {
-    const windows = [...this.windows].filter((window) => window !== closing);
+    // An app window is reopened by its shortcut, not by a restart.
+    const windows = [...this.windows].filter((window) => window !== closing && window.installedApp === null);
     if (windows.length === 0) {
       return;
     }
@@ -584,6 +648,7 @@ export class Profile {
   prepareForQuit(): void {
     this.vaultSession.flush();
     this.readingList.flush();
+    this.apps.flush();
     if (this.isQuitting) {
       return;
     }

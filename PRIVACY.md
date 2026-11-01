@@ -25,6 +25,10 @@ Copacetic keeps these in its folder in your user profile, and nowhere else:
   nothing can be saved.
 - **Cookies, cache and site data** that the sites you visit store, as any
   browser does.
+- **Sites installed as apps**, in the same folder, and one shortcut for each
+  where your system lists apps (Applications > Copacetic Apps on macOS, the
+  Start menu on Windows, ~/.local/share/applications on Linux), deleted when the
+  app is removed.
 - **A diagnostics log** of what Copacetic did, such as that it started or that
   a setting would not save. Addresses are cut down to their scheme before they
   are written, so it never names a page you visited. Nothing sends it anywhere.

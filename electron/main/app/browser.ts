@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 
 // Utils
 import { PUSH, type ChromeSurface } from '../../shared/ipc/channels';
-import { START_PAGE_URL } from '../../shared/browsing/url';
+import { START_PAGE_URL, isWebUrl, siteOfUrl } from '../../shared/browsing/url';
 import { type SurfaceRequest, stillWanted, worthHolding } from '../../shared/tabs/surfaces';
 import { focusContents, showWindow } from '../system/launch-mode';
 import { type ContentInsets } from '../tabs/tab-layout';
@@ -45,6 +45,7 @@ import type {
 } from '../../shared/types';
 import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
 import type { InternalPage } from '../../shared/tabs/internal-pages';
+import type { InstalledApp } from '../../shared/data/installed-apps';
 import type { SuggestionView } from '../../shared/browsing/suggestion-view';
 import type { ContentBlocker } from '../security/blocker';
 import type { DownloadManager } from '../data/downloads';
@@ -112,7 +113,11 @@ export class Browser {
     return this.profile.updates;
   }
 
-  constructor(readonly profile: Profile) {
+  constructor(
+    readonly profile: Profile,
+    /** The site this window is an app for, or null for an ordinary browser window. */
+    readonly installedApp: InstalledApp | null = null,
+  ) {
     const { density, headerLayout } = profile.settings();
     this.window = createChromeWindow(density, headerLayout);
     this.publisher = new StatePublisher({
@@ -228,7 +233,10 @@ export class Browser {
   async start(options: { tabs?: SessionSnapshot; url?: string; isHush?: boolean } = {}): Promise<void> {
     await this.window.loadURL(chromeEntryUrl());
     showWindow(this.window);
-    if (options.tabs) {
+    if (this.installedApp) {
+      this.tabs.create(this.installedApp.url);
+      this.keepToItsSite(this.installedApp);
+    } else if (options.tabs) {
       this.restoreTabs(options.tabs);
     } else {
       this.tabs.create(options.url ?? START_PAGE_URL, { hush: options.isHush === true });
@@ -260,6 +268,52 @@ export class Browser {
     }
   }
 
+  /** An app window holds its one site: anything else opened from it goes to a browser window instead. */
+  private keepToItsSite(installed: InstalledApp): void {
+    const site = siteOfUrl(installed.url);
+    this.tabs.sendElsewhere({
+      newTab: (url) => {
+        void this.profile.openInBrowser(url);
+        return true;
+      },
+      leaving: (url) => {
+        const isOtherSite = isWebUrl(url) && siteOfUrl(url) !== site;
+        if (isOtherSite) {
+          void this.profile.openInBrowser(url);
+        }
+        return isOtherSite;
+      },
+    });
+  }
+
+  /** The site in front, installed as an app and opened in its own window; said where its shortcut went. */
+  async installActiveSite(): Promise<void> {
+    const tabId = this.tabs.snapshot().activeTabId;
+    const url = tabId ? this.tabs.urlFor(tabId) : null;
+    const result = url && isWebUrl(url) ? await this.profile.installApp(url, this.tabs.titleFor(tabId ?? '')) : null;
+    if (!result) {
+      this.notices.notify({ id: 'install-app', tone: 'info', key: 'install-app', message: t('main.apps.notASite') });
+      return;
+    }
+    const name = result.installed.name;
+    this.notices.notify({
+      id: 'install-app',
+      tone: result.shortcut ? 'done' : 'info',
+      key: 'install-app',
+      message: result.shortcut
+        ? t('main.apps.installed', { name })
+        : t('main.apps.installedWithoutShortcut', { name }),
+    });
+  }
+
+  /** The page in an app window, moved to a browser window as an ordinary tab, and the app window closed. */
+  openAppInBrowser(): void {
+    const url = this.tabs.urlFor(this.tabs.snapshot().activeTabId ?? '');
+    if (this.installedApp && url) {
+      void this.profile.openInBrowser(url).then(() => this.window.close());
+    }
+  }
+
   // ------------------------------------------------------------------ state
 
   getState(): BrowserState {
@@ -283,6 +337,7 @@ export class Browser {
       passwordOffer: this.passwordSave.offerFor(activeTabId),
       profile: this.profile.summary(),
       profiles: this.profile.allProfiles(),
+      app: this.installedApp ? { id: this.installedApp.id, name: this.installedApp.name } : null,
     };
   }
 

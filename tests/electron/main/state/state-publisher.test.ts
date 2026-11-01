@@ -48,6 +48,7 @@ const state = (over: Partial<BrowserState> = {}): BrowserState => ({
   namedSessions: [],
   profile: { id: 'default', name: 'Personal', colour: 'ocean', pictureVersion: null },
   profiles: [],
+  app: null,
   downloads: [],
   find: {
     isOpen: false,

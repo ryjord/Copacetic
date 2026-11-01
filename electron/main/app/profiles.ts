@@ -190,6 +190,21 @@ export class Profiles {
     return this.focused() ?? this.first.openWindow();
   }
 
+  /** Opens an installed app from its shortcut, in whichever profile it belongs to; false when no profile has it. */
+  async openApp(id: string): Promise<boolean> {
+    // Every profile, not just the open ones: a shortcut can name an app in one that has no window yet.
+    const owner = this.list
+      .list()
+      .map((summary) => this.profile(summary.id))
+      .find((profile) => profile.apps.get(id) !== null);
+    const installed = owner?.apps.get(id);
+    if (!owner || !installed) {
+      return false;
+    }
+    await owner.openAppWindow(installed);
+    return true;
+  }
+
   browserFor(contents: WebContents): Browser | null {
     return this.allWindows().find((window) => window.owns(contents)) ?? null;
   }

@@ -11,6 +11,7 @@ import type { ProfileSummary } from '../data/profiles';
 import type { SpellcheckChoices } from '../chrome/spellcheck';
 import type { AddressEntry, AddressFields } from '../passwords/addresses';
 import type { ReadingItem } from '../data/reading-list';
+import type { InstalledApp } from '../data/installed-apps';
 import type { Article } from '../reader/article';
 import type { ClearChoice } from '../data/clearing';
 import type { PasswordRecipe } from '../passwords/password-generator';
@@ -323,6 +324,18 @@ export interface CopaceticApi {
     fillForTab(id: TabId, x: number, y: number): Promise<void>;
     /** Save, never for this site, or not now, for the password a sign-in just offered. */
     answerSaveOffer(id: string, answer: PasswordOfferAnswer): Promise<void>;
+  };
+
+  /** Sites installed as apps, each opened in a window of its own from a shortcut beside the system's apps. */
+  apps: {
+    list(): Promise<InstalledApp[]>;
+    /** The site in front, installed and opened in its own window. */
+    installActive(): Promise<void>;
+    open(id: string): Promise<void>;
+    /** Its windows close and its shortcut is deleted. */
+    remove(id: string): Promise<void>;
+    /** From an app window: the page moved to a browser window as an ordinary tab, and the app window closed. */
+    openInBrowser(): Promise<void>;
   };
 
   /** Pages saved from reader view to read later, kept whole so they read with no connection. */

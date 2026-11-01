@@ -12,6 +12,7 @@ import { InternalPage } from '@/components/shell/InternalPage/InternalPage';
 import { LiveAnnouncer } from '@/components/shell/LiveAnnouncer/LiveAnnouncer';
 import { SplitView } from '@/components/shell/SplitView/SplitView';
 import { TabStrip } from '@/components/shell/TabStrip/TabStrip';
+import { AppHeader } from '@/components/shell/AppHeader/AppHeader';
 import { Toolbar } from '@/components/shell/Toolbar/Toolbar';
 
 // Store
@@ -45,6 +46,7 @@ export function Chrome() {
   const ambientHue = useBrowserStore((state) => state.settings.ambientHue);
   const showBookmarksBar = useBrowserStore((state) => state.settings.showBookmarksBar);
   const isOneLine = useBrowserStore((state) => state.settings.headerLayout === 'one-line');
+  const installedApp = useBrowserStore((state) => state.app);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +162,9 @@ export function Chrome() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-ground">
-      {isOneLine ? (
+      {installedApp ? (
+        <AppHeader app={installedApp} tab={activeTab} />
+      ) : isOneLine ? (
         <header className="shrink-0">
           <Toolbar
             tab={activeTab}
@@ -179,7 +183,7 @@ export function Chrome() {
         </header>
       )}
 
-      {showBookmarksBar && <BookmarksBar />}
+      {showBookmarksBar && !installedApp && <BookmarksBar />}
 
       <LoadingLine isLoading={activeTab?.isLoading ?? false} />
 

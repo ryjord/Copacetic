@@ -191,6 +191,12 @@ export const CHANNELS = {
   'vault.fillForTab': 'vault:fill-for-tab',
   'vault.answerSaveOffer': 'vault:answer-save-offer',
 
+  'apps.list': 'apps:list',
+  'apps.installActive': 'apps:install-active',
+  'apps.open': 'apps:open',
+  'apps.remove': 'apps:remove',
+  'apps.openInBrowser': 'apps:open-in-browser',
+
   'readingList.list': 'reading:list',
   'readingList.add': 'reading:add',
   'readingList.isSaved': 'reading:is-saved',

@@ -22,6 +22,7 @@ export const main = {
       reopenClosedTab: 'Reopen closed tab',
       closeTab: 'Close tab',
       savePageAs: 'Save page as…',
+      installAsApp: 'Install this site as an app',
       screenshot: 'Save a picture of the whole page…',
       print: 'Print…',
     },
@@ -316,6 +317,13 @@ export const main = {
         'Filled, but this password contains a line break and the box on this page cannot hold one. Sign-in will fail; paste it yourself.',
       rejected: 'The page would not accept it.',
     },
+  },
+  apps: {
+    notASite: 'Only a website can be installed as an app.',
+    installed: '{name} is installed as an app, with a shortcut beside your other apps. Remove it in Settings, Apps.',
+    installedWithoutShortcut:
+      '{name} is installed as an app, but its shortcut could not be written. Open it from Settings, Apps.',
+    notInstalled: 'That app is no longer installed.',
   },
   pageTranslation: {
     noPage: 'There is no page here to translate.',

@@ -163,6 +163,10 @@ machine. There are no accounts and no telemetry.
   language is used and checked against the hash Mozilla publishes.
 - **A reading list.** Save an article from reader view and it is kept whole, to
   read later from the start page with no connection at all.
+- **Sites as apps.** File, Install this site as an app, gives a site a window of
+  its own, with no tabs or address bar, and a shortcut beside your other apps:
+  in Applications on macOS, the Start menu on Windows, and your applications
+  menu on Linux. A link to another site opens in the browser.
 - **A picture of the whole page**, saved as a PNG, plus Save page as, View
   source, printing, PDFs in the built-in viewer, and find in page with match
   counts, match case and whole words.

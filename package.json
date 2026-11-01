@@ -151,6 +151,13 @@
               "https"
             ],
             "CFBundleTypeRole": "Viewer"
+          },
+          {
+            "CFBundleURLName": "Copacetic app",
+            "CFBundleURLSchemes": [
+              "copacetic-app"
+            ],
+            "CFBundleTypeRole": "Viewer"
           }
         ],
         "LSHandlerRank": "Owner",
