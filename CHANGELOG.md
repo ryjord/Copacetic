@@ -2,6 +2,61 @@
 
 Notable changes to Copacetic. Dates are the release date, newest first.
 
+## 2.2.0-beta.3 - 1 November 2026
+
+The third beta of 2.2, and the last before the stores: everything left on the
+list that does not wait on a signing certificate. Addresses that fill
+themselves, whole pages translated where they stand, a reading list that works
+offline, and a browser easier to use from the keyboard alone.
+
+**Your passwords are untouched.** The vault now uses the keychain calls Electron
+46 will require, and reads everything the older ones sealed; going back to beta.2
+still reads it too.
+
+### New
+
+- **Addresses.** Keep your address in the vault beside your passwords
+  (Settings, Passwords, Addresses), then right-click a form field on an
+  encrypted page and choose Fill address. Only empty fields you can see are
+  filled, and a list you already chose from is left as it is.
+- **Translate a whole page.** View, Translate this page, or the page's own
+  right-click, translates it where it stands, on this machine, from the language
+  the page says it is in. Choose Show original to put it back.
+- **A reading list.** Save for later, in reader view, keeps the article whole.
+  Add the Reading list to the start page to read it later with no connection.
+- **Find whole words.** A button beside Match case in the find bar.
+- **Back where you were.** A tab restored after a restart, or woken from sleep,
+  comes back at the place you had scrolled to.
+- **Clear the last hour properly.** Clearing the last hour, day or week now
+  clears cookies, site data and the cache too, for the sites you visited in
+  that time; the dialog says so before it runs.
+- **A first start page for a new profile** with the three things worth doing
+  first: bring your browsing over, make Copacetic the default, open a Hush tab.
+- **Shape it where it is.** Right-click the toolbar to choose its buttons. The
+  tab menu gains Mute tab, Put other tabs to sleep and Bookmark all tabs. Three
+  new shortcuts, all changeable: pin or unpin a tab, mute it, and put the
+  others to sleep.
+- **Extensions.** A blocker's report of what it blocked on a page now has
+  something in it, and an extension's own pages opened in a tab, such as its
+  options, work as they do in its popup.
+
+### Changed
+
+- **Sleeping tabs** sleep sooner, one at a time, when the computer runs low on
+  memory, and never one playing sound.
+- **Easier from the keyboard.** Move a tab with Cmd or Ctrl, Shift and an
+  arrow; move a start page bookmark with Alt and an arrow; a bookmark's
+  right-click has Move up and Move down. Focus is easier to see, and fields,
+  switches and faint text are easier to read in both themes.
+- **Colour means something.** Colour in the browser's own interface now marks
+  a state, such as a warning, an insecure page or Hush, rather than decorating.
+  The rose and teal accents moved away from the colours that mean danger and
+  secure.
+- **Faster ad blockers.** An extension with many regular-expression rules checks each
+  request about 28 times faster.
+- A privacy policy and a support page, in PRIVACY.md and SUPPORT.md, and the
+  changed translation engine file carries its own licence notice inside the app.
+
 ## 2.2.0-beta.2 - 30 October 2026
 
 The second beta of 2.2: picture in picture, a way to send feedback, bookmarks
