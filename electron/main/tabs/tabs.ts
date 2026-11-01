@@ -298,6 +298,7 @@ export class TabManager {
       isHush: tab.isHush,
       isPinned: tab.isPinned,
       isAsleep: tab.isAsleep,
+      lastActiveAt: tab.lastActiveAt,
       groupId: tab.groupId,
       isBookmarked: isSite && this.store.isBookmarked(tab.url),
     };

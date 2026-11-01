@@ -39,7 +39,7 @@ import { defaultBrowserStatus, makeDefaultBrowser } from '../system/default-brow
 import { GROUP_COLOURS, type GroupColourId } from '../../shared/tabs/tab-groups';
 import { MAX_OPEN_RULES, isOpenTarget } from '../../shared/tabs/open-rules';
 import { isInternalPage, isSection } from '../../shared/tabs/internal-pages';
-import { routeFor } from '../../shared/translation/languages';
+import { isSourceLanguage, routeFor } from '../../shared/translation/languages';
 import { MAX_SHORTCUT_ICON_BYTES, isShortcutIcon } from '../../shared/data/start-tiles';
 import { readChosenImage } from '../system/file-dialogs';
 import { clearCopiedSecret, copySecret } from '../vault/vault-clipboard';
@@ -1056,6 +1056,12 @@ export function asSettingsPatch(value: unknown): Partial<Settings> {
   }
   if (Array.isArray(value.neverSavePasswordsOn)) {
     patch.neverSavePasswordsOn = asSiteList(value.neverSavePasswordsOn);
+  }
+  if (typeof value.offerPageTranslation === 'boolean') {
+    patch.offerPageTranslation = value.offerPageTranslation;
+  }
+  if (Array.isArray(value.neverOfferTranslationFrom)) {
+    patch.neverOfferTranslationFrom = [...new Set(value.neverOfferTranslationFrom.filter(isSourceLanguage))];
   }
   if (Array.isArray(value.blockerAllowlist)) {
     patch.blockerAllowlist = asSiteList(value.blockerAllowlist);

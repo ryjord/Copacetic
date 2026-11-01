@@ -44,6 +44,7 @@ function tab(id: string, overrides: Partial<TabState> = {}): TabState {
     isHush: false,
     isPinned: false,
     isAsleep: false,
+    lastActiveAt: 0,
     isAudible: false,
     isMuted: false,
     security: {
@@ -93,5 +94,47 @@ describe('the empty half of a split', () => {
   it('stays out of the way when there is no other tab to offer', () => {
     render(<SplitView split={split} tabs={[tab('left'), startTab('empty')]} activeTabId="empty" />);
     expect(screen.queryByRole('region', { name: 'Show an open tab here' })).toBeNull();
+  });
+});
+
+/**
+ * Hundreds of open tabs listed in full pushed the page out of its half and
+ * could not be read; the picker now shows the few used last and finds the rest.
+ */
+describe('choosing among many open tabs', () => {
+  const split = { leftId: 'left', rightId: 'empty', ratio: 0.5 };
+  const many = Array.from({ length: 300 }, (_unused, index) =>
+    tab(`tab-${index}`, { title: `Page ${index}`, url: `https://site-${index}.example/`, lastActiveAt: index }),
+  );
+  const offeredIn = (picker: HTMLElement) =>
+    within(picker)
+      .queryAllByRole('listitem')
+      .map((item) => item.querySelector('button')?.lastElementChild?.textContent);
+
+  it('shows the eight used most recently, newest first, and says how many more there are', () => {
+    render(<SplitView split={split} tabs={[tab('left'), startTab('empty'), ...many]} activeTabId="empty" />);
+    const picker = screen.getByRole('region', { name: 'Show an open tab here' });
+    expect(offeredIn(picker)).toEqual(Array.from({ length: 8 }, (_unused, index) => `Page ${299 - index}`));
+    expect(within(picker).getByText('292 more tabs match. Keep typing to narrow them down.')).toBeTruthy();
+  });
+
+  it('finds any of them by title or address, and Enter puts the first in this half', () => {
+    render(<SplitView split={split} tabs={[tab('left'), startTab('empty'), ...many]} activeTabId="empty" />);
+    const picker = screen.getByRole('region', { name: 'Show an open tab here' });
+    const search = within(picker).getByRole('searchbox', { name: 'Find an open tab' });
+    fireEvent.change(search, { target: { value: 'site-42.' } });
+    expect(offeredIn(picker)).toEqual(['Page 42']);
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(replaceSplitPane).toHaveBeenCalledWith('empty', 'tab-42');
+  });
+
+  it('says so when nothing matches, and Enter does nothing', () => {
+    render(<SplitView split={split} tabs={[tab('left'), startTab('empty'), ...many]} activeTabId="empty" />);
+    const picker = screen.getByRole('region', { name: 'Show an open tab here' });
+    const search = within(picker).getByRole('searchbox', { name: 'Find an open tab' });
+    fireEvent.change(search, { target: { value: 'nowhere at all' } });
+    expect(within(picker).getByText('No open tab matches that.')).toBeTruthy();
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(replaceSplitPane).not.toHaveBeenCalled();
   });
 });

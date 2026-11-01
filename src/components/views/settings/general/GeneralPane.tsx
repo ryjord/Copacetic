@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select/Select';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow/SettingRow';
 import { SpellcheckLanguagesRow } from '@/components/views/settings/general/SpellcheckLanguagesRow';
 import { Switch } from '@/components/ui/Switch/Switch';
+import { TranslationOffers } from '@/components/views/settings/general/TranslationOffers';
 
 // Store
 import { useBrowserStore } from '@/store/useBrowserStore';
@@ -184,6 +185,8 @@ export function GeneralPane() {
           }
         />
       </SettingGroup>
+
+      <TranslationOffers />
 
       <SettingGroup title={t('settings.general.typing.title')}>
         <SettingRow

@@ -116,6 +116,12 @@ export const shell = {
   splitView: {
     divider: 'Resize the split',
     pickTab: 'Show an open tab here',
+    findTab: 'Find an open tab',
+    noMatch: 'No open tab matches that.',
+    moreMatching: {
+      one: '1 more tab matches. Keep typing to narrow it down.',
+      other: '{count} more tabs match. Keep typing to narrow them down.',
+    },
   },
   chrome: {
     outsideShell: {

@@ -37,8 +37,12 @@ export const COLLECT_PAGE_TEXT = `(() => {
   return { language: document.documentElement.lang || '', texts: nodes.map((node) => node.data.trim()) };
 })()`;
 
-/** Puts each translation where its piece was, keeping the spaces around it; a piece the page has since dropped is skipped. */
-export function applyTranslationsScript(translations: readonly string[]): string {
+/**
+ * Puts each translation where its piece was, keeping the spaces around it; a
+ * piece the page has since dropped is skipped. `offset` is where in the page's
+ * pieces these start, so a long page changes batch by batch as they arrive.
+ */
+export function applyTranslationsScript(translations: readonly string[], offset = 0): string {
   // Serialised as JSON, so nothing a translation says can become code.
   return `(() => {
   const kept = globalThis.copaceticPageText;
@@ -46,9 +50,11 @@ export function applyTranslationsScript(translations: readonly string[]): string
     return 0;
   }
   const translations = ${JSON.stringify(translations)};
+  const offset = ${Math.max(0, Math.floor(offset))};
   let applied = 0;
-  kept.nodes.forEach((node, index) => {
-    const translation = translations[index];
+  kept.nodes.slice(offset, offset + translations.length).forEach((node, place) => {
+    const index = offset + place;
+    const translation = translations[place];
     if (typeof translation !== 'string' || !translation || !node.isConnected) {
       return;
     }
@@ -61,6 +67,13 @@ export function applyTranslationsScript(translations: readonly string[]): string
   return applied;
 })()`;
 }
+
+/**
+ * The seventh, run when a page has loaded, only while offers to translate are
+ * on: it reads the language the page says it is in, one attribute, and nothing
+ * of what the page says.
+ */
+export const READ_PAGE_LANGUAGE = `document.documentElement.lang || ''`;
 
 /** Puts every piece back as the page had it. */
 export const RESTORE_PAGE_TEXT = `(() => {

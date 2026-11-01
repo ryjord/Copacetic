@@ -104,7 +104,8 @@ machine. There are no accounts and no telemetry.
 ### Working with tabs
 
 - **Split view.** Two tabs side by side, with a divider you can drag or step
-  with the arrow keys.
+  with the arrow keys. An empty half offers the tabs you used last and finds
+  any other by title or address, however many are open.
 - **Saved sessions.** Keep a window's tabs by name and open them again later in
   a window of their own.
 - **Tab groups**, each optionally keeping its own cookies and logins, and
@@ -160,7 +161,9 @@ machine. There are no accounts and no telemetry.
   typeface and line length, and shows the article's images.
 - **Translation** of an article in reader view, or of the whole page where it
   stands, on this machine, with models downloaded from Mozilla the first time a
-  language is used and checked against the hash Mozilla publishes.
+  language is used and checked against the hash Mozilla publishes. A page that
+  says it is in another language is offered for translation, and the text
+  itself decides the language when the page says none or the wrong one.
 - **A reading list.** Save an article from reader view and it is kept whole, to
   read later from the start page with no connection at all.
 - **Sites as apps.** File, Install this site as an app, gives a site a window of
@@ -332,7 +335,9 @@ and nothing of the browser's, because some sign-in pages refuse a browser
 without it. Fill password and Fill address run once, when you choose them, and
 so do Picture in picture, which reads only which video is where, and Translate
 this page, which reads the page's visible text in a world of its own and puts
-the translation in its place. A page left in full screen when you switch to
+the translation in its place. While offers to translate are on, one line in
+that world reads the language a page declares once it has loaded, and nothing
+of what it says. A page left in full screen when you switch to
 another tab is asked to leave it, with one call that reads nothing. One line,
 also in a world of its own, reads how far down a page you were and nothing
 else, so a restored tab comes back there. And on each secure page, in a world of its own the page cannot

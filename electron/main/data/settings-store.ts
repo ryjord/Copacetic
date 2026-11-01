@@ -17,6 +17,7 @@ import { readShortcutOverrides } from '../../shared/chrome/shortcuts';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
 import { isBuiltInEngine, readCustomSearchEngines } from '../../shared/browsing/search-engines';
 import { DEFAULT_RESOLVER_ID, resolverFor } from '../../shared/browsing/dns';
+import { isSourceLanguage } from '../../shared/translation/languages';
 import { PersistedFile, asBoolean, asNumber, asString, isRecord } from './persistence';
 
 // Types
@@ -50,6 +51,8 @@ export const DEFAULT_SETTINGS: Settings = {
   welcomeDismissed: false,
   offerToSavePasswords: true,
   neverSavePasswordsOn: [],
+  offerPageTranslation: true,
+  neverOfferTranslationFrom: [],
   showBookmarksBar: false,
   hiddenFromBookmarksBar: [],
   ambientHue: 0,
@@ -247,6 +250,10 @@ export function reviveSettings(raw: unknown): Settings | null {
     offerToSavePasswords: asBoolean(raw.offerToSavePasswords, DEFAULT_SETTINGS.offerToSavePasswords),
     neverSavePasswordsOn: Array.isArray(raw.neverSavePasswordsOn)
       ? raw.neverSavePasswordsOn.filter((site): site is string => typeof site === 'string' && site.length > 0)
+      : [],
+    offerPageTranslation: asBoolean(raw.offerPageTranslation, DEFAULT_SETTINGS.offerPageTranslation),
+    neverOfferTranslationFrom: Array.isArray(raw.neverOfferTranslationFrom)
+      ? raw.neverOfferTranslationFrom.filter((code): code is string => isSourceLanguage(code))
       : [],
     showBookmarksBar: raw.showBookmarksBar === true,
     hiddenFromBookmarksBar: Array.isArray(raw.hiddenFromBookmarksBar)
