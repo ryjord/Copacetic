@@ -49,6 +49,7 @@ function tab(id: string, url: string): TabState {
     isHush: false,
     isPinned: false,
     isAsleep: false,
+    lastActiveAt: 0,
     isLoading: false,
     canGoBack: false,
     canGoForward: false,

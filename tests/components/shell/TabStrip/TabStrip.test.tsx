@@ -44,6 +44,7 @@ function tab(id: string, title: string): TabState {
     isHush: false,
     isPinned: false,
     isAsleep: false,
+    lastActiveAt: 0,
     isAudible: false,
     isMuted: false,
     security: {

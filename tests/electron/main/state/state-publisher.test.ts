@@ -16,6 +16,7 @@ const tab = (id: string, over: Partial<TabState> = {}): TabState => ({
   isHush: false,
   isPinned: false,
   isAsleep: false,
+  lastActiveAt: 0,
   groupId: null,
   isAudible: false,
   isMuted: false,

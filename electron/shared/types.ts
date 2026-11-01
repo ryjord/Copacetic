@@ -104,6 +104,8 @@ export interface TabState {
   isPinned: boolean;
   /** Its page closed to free memory; it comes back where it was when chosen. */
   isAsleep: boolean;
+  /** When the tab was last in front, in milliseconds since the epoch, so a picker can put recent tabs first. */
+  lastActiveAt: number;
   /** The group this tab is in, if any. */
   groupId: string | null;
   isBookmarked: boolean;
@@ -659,6 +661,10 @@ export interface Settings {
   offerToSavePasswords: boolean;
   /** Sites, by registrable domain, never offered it. */
   neverSavePasswordsOn: string[];
+  /** Offer to translate a page whose declared language is not the reader's. */
+  offerPageTranslation: boolean;
+  /** Languages, by code, never offered for translation again once an offer was turned down. */
+  neverOfferTranslationFrom: string[];
   /** Set once someone has read what Hush does and does not do. */
   hushNoticeDismissed: boolean;
   /** Set once the start page's first-run card has been put away; a profile from before it counts as having seen it. */
