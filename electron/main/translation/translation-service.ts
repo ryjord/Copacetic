@@ -1,8 +1,8 @@
 // Libs
-import { app } from 'electron';
 import path from 'node:path';
 
 // Utils
+import { app } from '../engine/app';
 import { TranslationEngine } from './translation-engine';
 import { TranslationModels } from './translation-models';
 import { Translator } from './translator';

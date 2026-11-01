@@ -1,14 +1,18 @@
 // Libs
-import { type BrowserWindow, app, dialog, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 
 // Utils
+import { app } from '../engine/app';
+import { dialog, type MessageBoxChoice } from '../engine/dialogs';
+import { shell } from '../engine/system';
 import { sanitiseChromeText } from '../../shared/chrome/chrome-text';
 import { isAskablePermission } from '../../shared/types';
 import { hostOf, isPageNavigableUrl } from '../../shared/browsing/url';
 import { t } from '../../shared/i18n/translate';
 
 // Types
+import type { EngineEvent, EnginePage, LoginRequest, LoginResponseDetails } from '../engine/views';
+import type { EngineWindow } from '../engine/windows';
 import type { PermissionAnswer, PermissionPrompt, TabId } from '../../shared/types';
 import type { PendingPrompts } from './pending-prompts';
 import type { BrowserStore } from '../data/store';
@@ -19,11 +23,7 @@ export interface TabDirectory {
   urlFor(id: TabId): string | null;
   create(url: string, options: { activate?: boolean; openerWebContentsId?: number }): void;
   /** A page a tab opened, made a tab of its own with its opener kept; null when the opener is not a tab. */
-  adopt(
-    contents: Electron.WebContents,
-    url: string,
-    options: { activate: boolean; openerWebContentsId: number },
-  ): boolean;
+  adopt(contents: EnginePage, url: string, options: { activate: boolean; openerWebContentsId: number }): boolean;
 }
 import { describeAuthPrompt, isPromptWorthy } from './auth';
 import type { SecurityDelegate } from './security';
@@ -94,7 +94,7 @@ export class ExternalOpenGate {
 
 interface BrowserDelegateDeps {
   /** The window a dialog belongs to, if any is open; on macOS there may be none. */
-  window: () => BrowserWindow | undefined;
+  window: () => EngineWindow | undefined;
   store: BrowserStore;
   prompts: PendingPrompts;
   /** Read when a page asks, because the sessions it guards are made before the tabs are. */
@@ -105,8 +105,8 @@ interface BrowserDelegateDeps {
 }
 
 // Attached to a window when there is one, so the question is not lost behind it.
-function showQuestion(parent: BrowserWindow | undefined, options: Electron.MessageBoxOptions) {
-  return parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options);
+function showQuestion(parent: EngineWindow | undefined, options: MessageBoxChoice) {
+  return dialog.showMessageBox(parent ?? null, options);
 }
 
 /** What every web session asks of the browser: the person's answers, and where pages may go. */
@@ -212,10 +212,10 @@ const claimedChallenges = new WeakSet<object>();
 
 export function watchAuthChallenges(deps: BrowserDelegateDeps): () => void {
   const onLogin = (
-    event: Electron.Event,
-    webContents: Electron.WebContents | null,
-    details: Electron.AuthenticationResponseDetails,
-    authInfo: Electron.AuthInfo,
+    event: EngineEvent,
+    webContents: EnginePage | null,
+    details: LoginResponseDetails,
+    authInfo: LoginRequest,
     callback: (username?: string, password?: string) => void,
   ) => {
     // Only challenges a person can actually evaluate. A subresource buried in a

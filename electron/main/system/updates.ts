@@ -1,8 +1,11 @@
 // Libs
-import { app, net, shell } from 'electron';
 import path from 'node:path';
 
 // Utils
+import { app } from '../engine/app';
+import { net } from '../engine/requests';
+import { shell } from '../engine/system';
+import { loadAutoUpdater } from '../engine/updater';
 import { compareVersions, isNewerVersion, parseVersion } from '../../shared/version';
 import { t } from '../../shared/i18n/translate';
 import { writeVerified } from './installer-download';
@@ -317,31 +320,6 @@ export class UpdateManager {
     this.status = status;
     this.onChanged();
   }
-}
-
-/** The updater, from whichever shape the import gives back. */
-export function pickAutoUpdater(imported: unknown): AutoUpdaterLike {
-  const namespace = imported as { autoUpdater?: unknown; default?: { autoUpdater?: unknown } };
-  const updater = namespace.autoUpdater ?? namespace.default?.autoUpdater;
-  if (!updater || typeof updater !== 'object') {
-    throw new Error(t('main.updates.loadFailed'));
-  }
-  return updater as AutoUpdaterLike;
-}
-
-/** Only the parts of the updater this file touches. */
-export interface AutoUpdaterLike {
-  autoDownload: boolean;
-  allowPrerelease: boolean;
-  autoInstallOnAppQuit: boolean;
-  removeAllListeners(): void;
-  on(event: string, listener: (...args: never[]) => void): unknown;
-  checkForUpdates(): Promise<unknown>;
-  quitAndInstall(): void;
-}
-
-async function loadAutoUpdater(): Promise<AutoUpdaterLike> {
-  return pickAutoUpdater(await import('electron-updater'));
 }
 
 const GITHUB_HEADERS = () => ({

@@ -1,5 +1,5 @@
 // Types
-import type { WebContents } from 'electron';
+import type { EnginePage } from '../engine/views';
 
 // A world of its own, apart from the page's (0), Electron's preload world (999) and the sign-in watch (1031).
 const PICTURE_IN_PICTURE_WORLD = 1032;
@@ -41,7 +41,7 @@ export function pictureInPictureScript(point: { x: number; y: number } | null): 
 
 /** Asks the page in a tab to put a video into picture in picture, or bring it back, and says what happened. */
 export async function togglePictureInPicture(
-  contents: WebContents | null,
+  contents: EnginePage | null,
   point: { x: number; y: number } | null,
 ): Promise<PictureInPictureOutcome> {
   if (!contents) {

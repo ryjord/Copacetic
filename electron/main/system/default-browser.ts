@@ -1,7 +1,6 @@
-// Libs
-import { app, shell } from 'electron';
-
 // Utils
+import { app } from '../engine/app';
+import { shell } from '../engine/system';
 import { isPageNavigableUrl } from '../../shared/browsing/url';
 import { t } from '../../shared/i18n/translate';
 

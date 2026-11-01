@@ -1,7 +1,5 @@
-// Libs
-import { clipboard } from 'electron';
-
 // Utils
+import { clipboard } from '../engine/system';
 import { describeError, log } from './diagnostics';
 
 /** Puts plain text on the clipboard. Resolves whether it landed; a write the clipboard refuses is logged, not thrown. */

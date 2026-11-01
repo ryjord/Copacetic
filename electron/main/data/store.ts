@@ -1,9 +1,9 @@
 // Libs
-import { app } from 'electron';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
+import { app } from '../engine/app';
 import {
   type KeptAboutSites,
   type KeptKind,

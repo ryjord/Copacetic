@@ -1,8 +1,16 @@
-// Libs
-import { type BrowserWindow, type Session, type WebContents, WebContentsView } from 'electron';
-
 // Utils
+import {
+  type EngineEvent,
+  type EngineInputEvent,
+  type EnginePage,
+  type EngineView,
+  createView,
+} from '../engine/views';
 import { log } from '../system/diagnostics';
+
+// Types
+import type { EngineSession } from '../engine/sessions';
+import type { EngineWindow } from '../engine/windows';
 
 // The smallest and largest Chrome lets an extension popup be.
 const SMALLEST = { width: 25, height: 25 };
@@ -17,15 +25,15 @@ export interface PopupAnchor {
 }
 
 interface PopupOptions {
-  window: BrowserWindow;
-  session: Session;
+  window: EngineWindow;
+  session: EngineSession;
   url: string;
   /** `chrome-extension://id/`: anything the popup navigates to outside it goes to a tab instead. */
   origin: string;
   anchor: PopupAnchor;
   preload: string;
   /** Called once the page exists, to give it the extension API. */
-  onContents: (contents: WebContents) => void;
+  onContents: (contents: EnginePage) => void;
   /** A link the popup opens goes to a tab; a popup never becomes a window. */
   openInTab: (url: string) => void;
 }
@@ -36,12 +44,12 @@ interface PopupOptions {
  * limits. One at a time; anything that takes focus away closes it.
  */
 export class ActionPopup {
-  private view: WebContentsView | null = null;
-  private window: BrowserWindow | null = null;
+  private view: EngineView | null = null;
+  private window: EngineWindow | null = null;
   private readonly closeOnResize = () => this.close('the window was resized');
   private readonly closeOnLeaving = () => this.close('the window was left');
   // A press in the browser's own interface; focus moving there on its own, as an extension asking for its window does, is not one.
-  private readonly closeOnPress = (_event: Electron.Event, input: Electron.InputEvent) => {
+  private readonly closeOnPress = (_event: EngineEvent, input: EngineInputEvent) => {
     if (input.type === 'mouseDown') {
       this.close('the browser was pressed');
     }
@@ -53,9 +61,9 @@ export class ActionPopup {
 
   open(options: PopupOptions): void {
     this.close('another popup opened');
-    const view = new WebContentsView({
-      webPreferences: {
-        session: options.session,
+    const view = createView({
+      session: options.session,
+      preferences: {
         preload: options.preload,
         sandbox: true,
         contextIsolation: true,

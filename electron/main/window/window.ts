@@ -1,8 +1,8 @@
 // Libs
-import { BrowserWindow, screen } from 'electron';
 import { existsSync } from 'node:fs';
 
 // Utils
+import { type EngineWindow, allDisplays, createWindow, displayMatching } from '../engine/windows';
 import { PersistedFile, asBoolean, asNumber, isRecord } from '../data/persistence';
 import { devIconPath, isDevelopment, preloadPath } from '../app/env';
 import { guardChromeWebContents } from '../security/security';
@@ -33,13 +33,13 @@ const MIN_HEIGHT = 480;
 const CASCADE_STEP = 28;
 
 /** Every chrome window still open, newest last, so a new one can be placed against the last. */
-const openWindows: BrowserWindow[] = [];
+const openWindows: EngineWindow[] = [];
 
-export function createChromeWindow(density: DensityId, layout: HeaderLayoutId): BrowserWindow {
+export function createChromeWindow(density: DensityId, layout: HeaderLayoutId): EngineWindow {
   const boundsFile = new PersistedFile<WindowBounds>('window.json', () => ({ ...DEFAULT_BOUNDS }), reviveBounds, {
     flushDelayMs: 600,
   });
-  const workAreas = screen.getAllDisplays().map((display) => display.workArea);
+  const workAreas = allDisplays().map((display) => display.workArea);
   const saved = clampToVisibleDisplay(boundsFile.get(), workAreas);
   // A second window opens down and to the right of the last, rather than exactly on top of it.
   const previous = openWindows.at(-1);
@@ -47,11 +47,11 @@ export function createChromeWindow(density: DensityId, layout: HeaderLayoutId): 
     previous && !previous.isDestroyed() && !previous.isMaximized()
       ? {
           ...saved,
-          ...cascadedPosition(previous.getBounds(), saved, screen.getDisplayMatching(previous.getBounds()).workArea),
+          ...cascadedPosition(previous.getBounds(), saved, displayMatching(previous.getBounds()).workArea),
         }
       : saved;
 
-  const window = new BrowserWindow({
+  const window = createWindow({
     width: placed.width,
     height: placed.height,
     ...(placed.x !== null && placed.y !== null ? { x: placed.x, y: placed.y } : {}),

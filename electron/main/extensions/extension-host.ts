@@ -1,10 +1,11 @@
 // Libs
-import { Notification, type Session, type WebContents, app, powerMonitor } from 'electron';
 import { rmSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 
 // Utils
+import { app } from '../engine/app';
+import { createNotification, engineVersions, powerMonitor } from '../engine/system';
 import { ActionPopup, type PopupAnchor } from './action-popup';
 import {
   ChromeApi,
@@ -43,7 +44,9 @@ import { matchesPattern } from '../../shared/extensions/extensions';
 import { t } from '../../shared/i18n/translate';
 
 // Types
-import type { BrowserWindow, ServiceWorkerMain } from 'electron';
+import type { EngineServiceWorker, EngineSession } from '../engine/sessions';
+import type { EnginePage } from '../engine/views';
+import type { EngineWindow } from '../engine/windows';
 import type { ExtensionAction, ExtensionRequest, ExtensionSummary } from '../../shared/extensions/extensions';
 
 /** What the host needs from the profile it belongs to. */
@@ -116,10 +119,10 @@ export class ExtensionHost {
   private readonly waitingUpdates = new Map<string, string>();
   private readonly api: ChromeApi;
   private readonly loaded = new Map<string, Loaded>();
-  private readonly sessions = new Map<string, Session>();
-  private readonly preloadedSessions = new Set<Session>();
-  private readonly workers = new Map<string, Set<ServiceWorkerMain>>();
-  private readonly pages = new Map<string, Set<WebContents>>();
+  private readonly sessions = new Map<string, EngineSession>();
+  private readonly preloadedSessions = new Set<EngineSession>();
+  private readonly workers = new Map<string, Set<EngineServiceWorker>>();
+  private readonly pages = new Map<string, Set<EnginePage>>();
   private readonly listening = new Map<string, Set<string>>();
   private readonly actions = new Map<string, ActionState>();
   /** Changes an extension made for one tab only, keyed `id:tabId`. */
@@ -145,7 +148,7 @@ export class ExtensionHost {
       listen: (id, eventName) => this.listening.set(id, new Set([...(this.listening.get(id) ?? []), eventName])),
       openOptions: (grant) => this.openOptions(grant.id),
       idleState: (threshold) => {
-        const state = powerMonitor.getSystemIdleState(threshold);
+        const state = powerMonitor.idleState(threshold);
         return state === 'unknown' ? 'active' : state;
       },
       netRules: (id, method, args) => this.netRules.call(id, method, args),
@@ -159,7 +162,7 @@ export class ExtensionHost {
     });
   }
 
-  private watchNavigation(contents: WebContents): void {
+  private watchNavigation(contents: EnginePage): void {
     // Only a tab: the id is its page's, and a popup or an extension's own page is not one.
     const isTab = () => this.lastTabs.has(contents.id);
     contents.on('did-start-navigation', (details) => {
@@ -194,7 +197,7 @@ export class ExtensionHost {
   // ------------------------------------------------------------- sessions
 
   /** A session this profile's tabs run in. Only one written to disk ever gets extensions. */
-  attach(session: Session, partition: string): void {
+  attach(session: EngineSession, partition: string): void {
     if (!partition.startsWith('persist:') || this.sessions.has(partition)) {
       return;
     }
@@ -210,7 +213,7 @@ export class ExtensionHost {
     }
   }
 
-  private async loadAllInto(session: Session): Promise<void> {
+  private async loadAllInto(session: EngineSession): Promise<void> {
     this.preload(session);
     await Promise.all(
       [...this.loaded.values()]
@@ -220,7 +223,7 @@ export class ExtensionHost {
   }
 
   /** Registered only once there is an extension, so a profile without one has nothing of this in any worker. */
-  private preload(session: Session): void {
+  private preload(session: EngineSession): void {
     if (this.preloadedSessions.has(session)) {
       return;
     }
@@ -228,7 +231,7 @@ export class ExtensionHost {
     session.registerPreloadScript({ type: 'service-worker', filePath: this.deps.workerPreload });
   }
 
-  private async loadInto(session: Session, entry: InstalledExtension): Promise<void> {
+  private async loadInto(session: EngineSession, entry: InstalledExtension): Promise<void> {
     try {
       const extension = await session.extensions.loadExtension(entry.folder, { allowFileAccess: false });
       if (extension.id !== entry.id) {
@@ -265,7 +268,7 @@ export class ExtensionHost {
         id,
         this.store.extensionsDirectory,
         this.deps.fetchBytes,
-        process.versions.chrome,
+        engineVersions().chromium,
       );
       const isWanted = await this.deps.confirmAdd(this.requestFor(id, staged.manifest));
       if (!isWanted) {
@@ -349,7 +352,7 @@ export class ExtensionHost {
     this.isUpdating = true;
     try {
       const answer = await this.deps.fetchBytes(
-        updateCheckUrl(installed, process.versions.chrome),
+        updateCheckUrl(installed, engineVersions().chromium),
         MOST_UPDATE_CHECK_BYTES,
       );
       // One at a time, since each reloads every extension into each session.
@@ -369,7 +372,7 @@ export class ExtensionHost {
         id,
         this.store.extensionsDirectory,
         this.deps.fetchBytes,
-        process.versions.chrome,
+        engineVersions().chromium,
       );
       const found = this.loaded.get(id);
       if (!found || !isNewerExtensionVersion(staged.manifest.version, found.manifest.version)) {
@@ -570,7 +573,7 @@ export class ExtensionHost {
   }
 
   /** The toolbar button was pressed: its popup opens under it, or the extension is told. */
-  press(id: string, window: BrowserWindow, tabId: number | null, anchor: PopupAnchor): void {
+  press(id: string, window: EngineWindow, tabId: number | null, anchor: PopupAnchor): void {
     const found = this.loaded.get(id);
     const action = this.actionFor(id, tabId);
     const session = this.sessions.get([...this.sessions.keys()][0] ?? '');
@@ -614,7 +617,7 @@ export class ExtensionHost {
 
   // ------------------------------------------------------------ the bridge
 
-  private wireWorker(worker: ServiceWorkerMain): void {
+  private wireWorker(worker: EngineServiceWorker): void {
     const id = /^chrome-extension:\/\/([a-p]{32})\//.exec(worker.scope)?.[1];
     const found = id ? this.loaded.get(id) : undefined;
     if (!id || !found) {
@@ -632,7 +635,7 @@ export class ExtensionHost {
   }
 
   /** A popup or page Copacetic opened for an extension, given the same bridge as its worker. */
-  wirePage(id: string, contents: WebContents, tabId: number | null): void {
+  wirePage(id: string, contents: EnginePage, tabId: number | null): void {
     const known = this.pages.get(id) ?? new Set();
     known.add(contents);
     this.pages.set(id, known);
@@ -944,12 +947,10 @@ export class ExtensionHost {
       const options = isRecord(hasId ? args[1] : args[0]) ? (hasId ? args[1] : args[0]) : {};
       const title = isRecord(options) && typeof options.title === 'string' ? options.title : '';
       const body = isRecord(options) && typeof options.message === 'string' ? options.message : '';
-      if (Notification.isSupported()) {
-        const notification = new Notification({ title: title.slice(0, 120), body: body.slice(0, 400), silent: true });
-        notification.on('click', () => this.emitTo(id, 'notifications.onClicked', [notificationId], { wake: true }));
-        notification.on('close', () => this.emitTo(id, 'notifications.onClosed', [notificationId, true]));
-        notification.show();
-      }
+      const notification = createNotification({ title: title.slice(0, 120), body: body.slice(0, 400), silent: true });
+      notification?.on('click', () => this.emitTo(id, 'notifications.onClicked', [notificationId], { wake: true }));
+      notification?.on('close', () => this.emitTo(id, 'notifications.onClosed', [notificationId, true]));
+      notification?.show();
       return notificationId;
     }
     if (method === 'getAll') {

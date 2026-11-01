@@ -115,15 +115,17 @@ describe('every session is hardened in exactly one place', () => {
    * is a new session, and it has to be justified rather than appear.
    */
   it('creates a session in only the places that are accounted for', () => {
-    const calls = [...mainSources.matchAll(/(?<!function )fromPartition\(/g)];
-    // prepareSession itself. Everything else asks it.
-    expect(calls).toHaveLength(1);
+    // The engine's sessionFor is the only way to Electron's, and prepareSession the only caller of it.
+    expect([...mainSources.matchAll(/(?<!function )fromPartition\(/g)]).toHaveLength(1);
+    expect([...mainSources.matchAll(/(?<!function )sessionFor\(/g)]).toHaveLength(1);
   });
 
   // And that one place is reached before the tab exists, not after: a session
   // hardened once a page is already loading in it has been used unprotected.
   it('prepares the partition before the view that uses it is made', () => {
     const create = tabsSource.slice(tabsSource.indexOf('const partition = partitionFor('));
-    expect(create.indexOf('this.prepareSession(partition)')).toBeLessThan(create.indexOf('new WebContentsView('));
+    const madeAt = create.indexOf('this.makeView(');
+    expect(madeAt).toBeGreaterThan(-1);
+    expect(create.indexOf('this.prepareSession(partition)')).toBeLessThan(madeAt);
   });
 });

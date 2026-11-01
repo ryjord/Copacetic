@@ -1,20 +1,17 @@
-// Libs
-import { Menu, nativeImage, type MenuItemConstructorOptions } from 'electron';
-
 // Utils
+import { type MenuEntry, menuIconFrom, popupMenu } from '../engine/menus';
 import { t } from '../../shared/i18n/translate';
 
 // Types
 import type { Browser } from '../app/browser';
 import type { PopupAnchor } from '../extensions/action-popup';
 
-const SEPARATOR: MenuItemConstructorOptions = { type: 'separator' };
+const SEPARATOR: MenuEntry = { type: 'separator' };
 
-const iconFrom = (dataUrl: string | null) =>
-  dataUrl ? nativeImage.createFromDataURL(dataUrl).resize({ width: 16, height: 16 }) : undefined;
+const iconFrom = (dataUrl: string | null) => (dataUrl ? menuIconFrom(dataUrl, 16) : undefined);
 
 /** Every extension that is on: its button, whether it is pinned, its options, and the way to manage them all. */
-export function extensionsMenuItems(browser: Browser, anchor: PopupAnchor): MenuItemConstructorOptions[] {
+export function extensionsMenuItems(browser: Browser, anchor: PopupAnchor): MenuEntry[] {
   const { extensions } = browser.profile;
   const tabId = browser.activeChromeTabId();
   const enabled = extensions.summaries(tabId).filter((extension) => extension.isEnabled);
@@ -22,12 +19,12 @@ export function extensionsMenuItems(browser: Browser, anchor: PopupAnchor): Menu
     extension.action ? [{ ...extension, action: extension.action }] : [],
   );
   const withOptions = enabled.filter((extension) => extension.hasOptionsPage);
-  const buttons: MenuItemConstructorOptions[] =
+  const buttons: MenuEntry[] =
     withButtons.length === 0
       ? []
       : [
           // An unpinned extension's popup opens under the extensions button, as in Chrome.
-          ...withButtons.map((extension): MenuItemConstructorOptions => ({
+          ...withButtons.map((extension): MenuEntry => ({
             label: extension.name,
             icon: iconFrom(extension.action.iconDataUrl ?? extension.iconDataUrl),
             enabled: extension.action.isEnabled,
@@ -36,7 +33,7 @@ export function extensionsMenuItems(browser: Browser, anchor: PopupAnchor): Menu
           SEPARATOR,
           {
             label: t('main.menu.extensions.pin'),
-            submenu: withButtons.map((extension): MenuItemConstructorOptions => ({
+            submenu: withButtons.map((extension): MenuEntry => ({
               label: extension.name,
               type: 'checkbox',
               checked: extension.isPinned,
@@ -44,13 +41,13 @@ export function extensionsMenuItems(browser: Browser, anchor: PopupAnchor): Menu
             })),
           },
         ];
-  const options: MenuItemConstructorOptions[] =
+  const options: MenuEntry[] =
     withOptions.length === 0
       ? []
       : [
           {
             label: t('main.menu.extensions.options'),
-            submenu: withOptions.map((extension): MenuItemConstructorOptions => ({
+            submenu: withOptions.map((extension): MenuEntry => ({
               label: extension.name,
               click: () => extensions.openOptions(extension.id),
             })),
@@ -65,7 +62,7 @@ export function extensionsMenuItems(browser: Browser, anchor: PopupAnchor): Menu
 }
 
 export function showExtensionsMenu(browser: Browser, anchor: PopupAnchor): void {
-  Menu.buildFromTemplate(extensionsMenuItems(browser, anchor)).popup({
+  popupMenu(extensionsMenuItems(browser, anchor), {
     window: browser.window,
     x: anchor.left,
     y: anchor.bottom,

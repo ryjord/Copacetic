@@ -1,9 +1,9 @@
 // Libs
-import { app } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync } from 'node:fs';
 
 // Utils
+import { app } from '../engine/app';
 import { type DiskOperations, REAL_DISK, renameOverAnyLock } from './durable-write';
 
 // Re-exported because a store's durable write is still part of this module's

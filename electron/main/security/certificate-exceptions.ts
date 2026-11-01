@@ -1,6 +1,10 @@
-import { type Session, app } from 'electron';
+// Utils
+import { app } from '../engine/app';
 import { isLoopbackHost, originOf } from '../../shared/browsing/url';
 import { log } from '../system/diagnostics';
+
+// Types
+import type { EngineSession } from '../engine/sessions';
 
 /**
  * When a certificate Chromium refused is accepted anyway, and nowhere else.
@@ -24,14 +28,14 @@ const NEVER_ACCEPTED = new Set(['net::ERR_CERT_REVOKED']);
 /** Origins accepted because they are this machine, so the badge can stop claiming a check happened. */
 const local = new Set<string>();
 /** By session, origin to the fingerprint of the one certificate a person accepted there. */
-const accepted = new Map<Session | undefined, Map<string, string>>();
+const accepted = new Map<EngineSession | undefined, Map<string, string>>();
 /** The last certificate refused in each tab, so its error page can offer to continue. */
 const refused = new Map<
   number,
-  { origin: string; fingerprint: string; error: string; session: Session | undefined }
+  { origin: string; fingerprint: string; error: string; session: EngineSession | undefined }
 >();
 
-function acceptedIn(session: Session | undefined): Map<string, string> {
+function acceptedIn(session: EngineSession | undefined): Map<string, string> {
   const existing = accepted.get(session);
   if (existing) {
     return existing;
@@ -53,7 +57,7 @@ export function mayTrustLocally(url: string): boolean {
 }
 
 /** How a page's certificate came to be accepted, when Chromium did not accept it. */
-export function exceptionFor(origin: string, session: Session | undefined): 'local' | 'accepted' | null {
+export function exceptionFor(origin: string, session: EngineSession | undefined): 'local' | 'accepted' | null {
   const key = origin.toLowerCase();
   if (local.has(key)) {
     return 'local';

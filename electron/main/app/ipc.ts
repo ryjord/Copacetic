@@ -1,8 +1,8 @@
 // Libs
-import { type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { randomBytes } from 'node:crypto';
 
 // Utils
+import { type IpcCaller, handleIpc, removeIpcHandler } from '../engine/ipc';
 import { type ApiArgs, type ApiMethod, type ApiResult, CHANNELS } from '../../shared/ipc/ipc-contract';
 import { PUSH } from '../../shared/ipc/channels';
 import { resolverFor } from '../../shared/browsing/dns';
@@ -91,12 +91,12 @@ export function registerIpcHandlers(profiles: Profiles): void {
     method: Method,
     handler: (
       browser: Browser,
-      event: IpcMainInvokeEvent,
+      event: IpcCaller,
       ...args: Untrusted<ApiArgs<Method>>
     ) => ApiResult<Method> | Promise<ApiResult<Method>>,
   ) => {
     const channel = CHANNELS[method];
-    ipcMain.handle(channel, (event, ...args) => {
+    handleIpc(channel, (event, ...args) => {
       // Answered by the window that asked: its chrome or one of its overlays, and nothing else.
       const browser = profiles.browserFor(event.sender);
       if (!browser?.isOwnFrame(event.senderFrame)) {
@@ -695,7 +695,7 @@ export function registerIpcHandlers(profiles: Profiles): void {
 
 export function removeIpcHandlers(): void {
   for (const channel of Object.values(CHANNELS)) {
-    ipcMain.removeHandler(channel);
+    removeIpcHandler(channel);
   }
 }
 

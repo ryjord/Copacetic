@@ -1,12 +1,11 @@
-// Libs
-import { WebContentsView, type BaseWindow, type WebContents, type WebFrameMain } from 'electron';
-
 // Utils
+import { type EngineFrame, type EnginePage, type EngineView, createView } from '../engine/views';
 import { guardChromeWebContents } from '../security/security';
 import { focusContents } from '../system/launch-mode';
 import { chromeEntryUrl, preloadPath } from '../app/env';
 
 // Types
+import type { EngineWindow } from '../engine/windows';
 import type { ContentBounds } from '../tabs/tab-layout';
 import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
 
@@ -26,7 +25,7 @@ import type { OverlayRegion } from '../../shared/chrome/overlay-regions';
  * hidden outright when it has nothing to show, for the same reason.
  */
 export class OverlayLayer {
-  private readonly view: WebContentsView;
+  private readonly view: EngineView;
   private width = 0;
   private height = 0;
   private bounds: ContentBounds = { x: 0, y: 0, width: 0, height: 0 };
@@ -35,11 +34,11 @@ export class OverlayLayer {
   private wantsFocus = false;
 
   constructor(
-    private readonly window: BaseWindow,
+    private readonly window: EngineWindow,
     private readonly region: OverlayRegion,
   ) {
-    this.view = new WebContentsView({
-      webPreferences: {
+    this.view = createView({
+      preferences: {
         preload: preloadPath(),
         contextIsolation: true,
         nodeIntegration: false,
@@ -72,11 +71,11 @@ export class OverlayLayer {
    * even its own request to be measured.
    */
   /** Whether these are this overlay's own contents, for routing what they ask to the window they belong to. */
-  holds(contents: WebContents): boolean {
+  holds(contents: EnginePage): boolean {
     return !this.isDisposed && contents === this.view.webContents;
   }
 
-  ownsFrame(frame: WebFrameMain | null): boolean {
+  ownsFrame(frame: EngineFrame | null): boolean {
     if (this.isDisposed || this.view.webContents.isDestroyed()) {
       return false;
     }

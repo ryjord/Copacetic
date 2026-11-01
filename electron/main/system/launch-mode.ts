@@ -1,4 +1,9 @@
-import { app, type BrowserWindow, type WebContents } from 'electron';
+// Utils
+import { app } from '../engine/app';
+
+// Types
+import type { EnginePage } from '../engine/views';
+import type { EngineWindow } from '../engine/windows';
 import type { CommandLine } from './command-line';
 
 /**
@@ -54,14 +59,14 @@ export function applyLaunchMode(): void {
  * nothing there can see which part holds the keyboard, and asking would take
  * it from whatever the person is using.
  */
-export function focusContents(contents: WebContents): void {
+export function focusContents(contents: EnginePage): void {
   if (isLaunchedInBackground() || contents.isDestroyed()) {
     return;
   }
   contents.focus();
 }
 
-export function showWindow(window: BrowserWindow): void {
+export function showWindow(window: EngineWindow): void {
   if (isLaunchedInBackground()) {
     window.showInactive();
     return;

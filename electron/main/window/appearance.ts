@@ -1,4 +1,4 @@
-import { nativeTheme } from 'electron';
+import { theme } from '../engine/system';
 import type { AppearanceId, DensityId, HeaderLayoutId } from '../../shared/types';
 
 /** What shows behind a page before it has painted, so nothing flashes the wrong colour. */
@@ -23,15 +23,15 @@ const WINDOW_BUTTON_INSET = 16;
  * agree without being told separately.
  */
 export function applyAppearance(appearance: AppearanceId): void {
-  nativeTheme.themeSource = appearance;
+  theme.setSource(appearance);
 }
 
 export function surfaceColour(): string {
-  return nativeTheme.shouldUseDarkColors ? SURFACE.dark : SURFACE.light;
+  return theme.isDark() ? SURFACE.dark : SURFACE.light;
 }
 
 export function groundColour(): string {
-  return nativeTheme.shouldUseDarkColors ? GROUND.dark : GROUND.light;
+  return theme.isDark() ? GROUND.dark : GROUND.light;
 }
 
 /** The system's own minimise, maximise and close, on Windows and Linux, in the top row's colours and height. */
@@ -39,7 +39,7 @@ export function titleBarOverlayFor(
   density: DensityId,
   layout: HeaderLayoutId,
 ): { color: string; symbolColor: string; height: number } {
-  const isDark = nativeTheme.shouldUseDarkColors;
+  const isDark = theme.isDark();
   return {
     color: isDark ? GROUND.dark : GROUND.light,
     symbolColor: isDark ? CONTROL_SYMBOL.dark : CONTROL_SYMBOL.light,
@@ -54,8 +54,5 @@ export function windowButtonPositionFor(density: DensityId, layout: HeaderLayout
 
 /** Called whenever the effective appearance changes, from a setting or from the system. */
 export function onAppearanceChange(listener: () => void): () => void {
-  nativeTheme.on('updated', listener);
-  return () => {
-    nativeTheme.removeListener('updated', listener);
-  };
+  return theme.onChange(listener);
 }

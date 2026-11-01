@@ -1,4 +1,5 @@
 // Utils
+import { engineVersions, systemVersion } from '../engine/system';
 import {
   CHROME_OBJECT_SCRIPT,
   acceptLanguagesFor,
@@ -9,7 +10,8 @@ import {
 import { describeError, log } from './diagnostics';
 
 // Types
-import type { Session, WebContents } from 'electron';
+import type { EngineSession } from '../engine/sessions';
+import type { EnginePage } from '../engine/views';
 import type { ClientHints } from '../../shared/browsing/browser-identity';
 
 /**
@@ -31,7 +33,7 @@ import type { ClientHints } from '../../shared/browsing/browser-identity';
  * Nothing here is new information: the version and platform are already in the
  * user agent this same session sends.
  */
-export function describeSession(session: Session, platform: string, locale: string): Record<string, string> {
+export function describeSession(session: EngineSession, platform: string, locale: string): Record<string, string> {
   const userAgent = stripElectronFromUserAgent(session.getUserAgent());
   session.setUserAgent(userAgent, acceptLanguagesFor(locale));
 
@@ -53,7 +55,7 @@ export function describeSession(session: Session, platform: string, locale: stri
  * document answers no DevTools command at all, so the empty document comes
  * first.
  */
-export async function describeTab(contents: WebContents, platform: string): Promise<void> {
+export async function describeTab(contents: EnginePage, platform: string): Promise<void> {
   // The caller waits for an empty document first, and a tab can be closed
   // during it. Everything below would then throw on a destroyed object.
   if (contents.isDestroyed()) {
@@ -75,11 +77,10 @@ export async function describeTab(contents: WebContents, platform: string): Prom
 /** The real Chromium build and system version, which Chrome answers in full when a page asks. */
 function actualVersions(): { chromium?: string; system?: string } {
   // Electron's own additions to process, absent when this runs under plain Node in a test.
-  const system = typeof process.getSystemVersion === 'function' ? process.getSystemVersion() : undefined;
-  return { chromium: process.versions.chrome, system };
+  return { chromium: engineVersions().chromium, system: systemVersion() ?? undefined };
 }
 
-async function describeAsChrome(contents: WebContents, userAgent: string, hints: ClientHints): Promise<void> {
+async function describeAsChrome(contents: EnginePage, userAgent: string, hints: ClientHints): Promise<void> {
   try {
     contents.debugger.attach('1.3');
   } catch (error) {

@@ -3,9 +3,10 @@ import { execFile } from 'node:child_process';
 import { chmod, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { app, shell } from 'electron';
 
 // Utils
+import { app } from '../engine/app';
+import { shell } from '../engine/system';
 import { type InstalledApp, appLinkFor } from '../../shared/data/installed-apps';
 import { describeError, log } from './diagnostics';
 
@@ -127,7 +128,7 @@ export async function createShortcut(installed: InstalledApp, icon: Buffer | nul
       await chmod(path.join(contents, 'MacOS', 'launch'), 0o755);
     } else if (process.platform === 'win32') {
       await mkdir(path.dirname(target), { recursive: true });
-      const isWritten = shell.writeShortcutLink(target, 'create', {
+      const isWritten = shell.writeShortcutLink(target, {
         target: process.execPath,
         args: `--app=${installed.id}`,
         description: installed.url,

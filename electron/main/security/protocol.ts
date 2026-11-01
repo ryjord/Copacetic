@@ -1,11 +1,11 @@
 // Libs
-import { protocol } from 'electron';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 
 // Utils
+import { protocol } from '../engine/requests';
 import { APP_HOST, APP_SCHEME, rendererRoot } from '../app/env';
 
 const MIME_TYPES: Record<string, string> = {
@@ -30,7 +30,7 @@ const MIME_TYPES: Record<string, string> = {
 
 /** Registered before `app.ready` so the scheme behaves like a real origin: it gets its own storage partition, counts as a secure context, and is not exempted from CSP the way `file://` is. */
 export function registerAppProtocolScheme(): void {
-  protocol.registerSchemesAsPrivileged([
+  protocol.registerPrivilegedSchemes([
     {
       scheme: APP_SCHEME,
       privileges: {

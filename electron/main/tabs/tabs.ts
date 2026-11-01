@@ -1,18 +1,18 @@
 // Libs
-import {
-  type BrowserWindow,
-  type ContextMenuParams,
-  type Session,
-  WebContentsView,
-  type WebContents,
-  app,
-  dialog,
-} from 'electron';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 // Utils
+import {
+  type EngineEvent,
+  type EnginePage,
+  type EngineView,
+  type PageContextMenu,
+  createView,
+} from '../engine/views';
+import { app } from '../engine/app';
+import { dialog } from '../engine/dialogs';
 import { sanitiseFilename } from '../data/downloads';
 import { focusContents } from '../system/launch-mode';
 import {
@@ -97,6 +97,8 @@ import { type SecurityDelegate, guardTabWebContents } from '../security/security
 import { t } from '../../shared/i18n/translate';
 
 // Types
+import type { EngineSession } from '../engine/sessions';
+import type { EngineWindow } from '../engine/windows';
 import type { FindState, TabId, TabState, WebRtcPolicy } from '../../shared/types';
 import type { InternalPage } from '../../shared/tabs/internal-pages';
 import type { ContentBlocker } from '../security/blocker';
@@ -123,7 +125,7 @@ export class TabManager {
   private readonly stopCounting: () => void;
   private find: FindState = CLOSED_FIND;
   /** The page's text for a whole-words search, read once while the bar is open rather than at every keystroke. */
-  private pageText: { contents: WebContents; url: string; text: Promise<string> } | null = null;
+  private pageText: { contents: EnginePage; url: string; text: Promise<string> } | null = null;
   /** Which of the occurrences of a whole-words search are whole words, read once per search. */
   private wholeWordPlan: { query: string; matchCase: boolean; flags: boolean[] } | null = null;
   // The way the last step went, so a skip past a part of a word keeps going that way.
@@ -131,7 +133,7 @@ export class TabManager {
   private isDisposed = false;
   /** What has already been added to history per tab, so only the difference is. */
   private readonly countedBlocked = new Map<number, number>();
-  private contextMenuHandler: ((tabId: TabId, params: ContextMenuParams) => void) | null = null;
+  private contextMenuHandler: ((tabId: TabId, params: PageContextMenu) => void) | null = null;
   private pageChangeHandler: ((tabId: TabId, change: PageChange) => void) | null = null;
   private lastTabClosedHandler: (() => void) | null = null;
   private pageFocusHandler: (() => void) | null = null;
@@ -145,7 +147,7 @@ export class TabManager {
   private split: SplitView | null = null;
 
   constructor(
-    private readonly window: BrowserWindow,
+    private readonly window: EngineWindow,
     private readonly store: BrowserStore,
     private readonly blocker: ContentBlocker,
     private readonly httpsFirst: HttpsFirst,
@@ -158,7 +160,7 @@ export class TabManager {
      * Hardens a partition and returns its session. Called before a tab exists,
      * because a session that is hardened afterwards has already been used.
      */
-    private readonly prepareSession: (partition: string) => Session,
+    private readonly prepareSession: (partition: string) => EngineSession,
     private readonly onChanged: () => void,
     /** Fired once per closed tab so owners can drop state keyed to it. */
     private readonly onTabClosed: (id: TabId) => void = () => {},
@@ -809,7 +811,7 @@ export class TabManager {
        * linked to its opener. It becomes this tab as it is, never loaded again,
        * so `window.opener` still reaches the page that opened it.
        */
-      adopting?: Electron.WebContents;
+      adopting?: EnginePage;
     } = {},
   ): TabId {
     // An app window keeps its one tab; anything opened from it goes to the browser, and its tab answers for it.
@@ -924,10 +926,10 @@ export class TabManager {
    * A page's own view: no bridge, no Node, its session's partition, as close to a plain browser tab as Electron allows.
    * `extensionPreload` is given only for an extension's own page; a website never loads in a view that has one.
    */
-  private makeView(partition: string, adopting?: Electron.WebContents, extensionPreload?: string): WebContentsView {
-    const view = new WebContentsView({
-      ...(adopting ? { webContents: adopting } : {}),
-      webPreferences: {
+  private makeView(partition: string, adopting?: EnginePage, extensionPreload?: string): EngineView {
+    const view = createView({
+      adopting,
+      preferences: {
         preload: extensionPreload,
         sandbox: true,
         contextIsolation: true,
@@ -990,7 +992,7 @@ export class TabManager {
       }
       this.pageFocusHandler?.();
     });
-    const followRule = (event: Electron.Event<{ url: string; isMainFrame: boolean }>) => {
+    const followRule = (event: EngineEvent<{ url: string; isMainFrame: boolean }>) => {
       if (event.isMainFrame && (this.elsewhere?.leaving(event.url) || this.placeByOpenRule(tab, event.url))) {
         event.preventDefault();
       }
@@ -1019,7 +1021,7 @@ export class TabManager {
 
   // Electron restores history only into a view that has loaded nothing, so a restored one is primed by the restore,
   // with the empty page after it; the empty page is dropped once the real one commits.
-  private prime(page: WebContents, history: SessionHistory | null): Promise<unknown> {
+  private prime(page: EnginePage, history: SessionHistory | null): Promise<unknown> {
     if (!history || history.entries.length === 0) {
       return page.loadURL('about:blank');
     }
@@ -1100,7 +1102,7 @@ export class TabManager {
           this.leaveExtensionView(tab, url);
         }
       });
-    const stopAtTheDoor = (event: Electron.Event<{ url: string; isMainFrame: boolean }>) => {
+    const stopAtTheDoor = (event: EngineEvent<{ url: string; isMainFrame: boolean }>) => {
       if (event.isMainFrame && !isOwnPage(extensionId, event.url)) {
         event.preventDefault();
         leave(event.url);
@@ -1138,7 +1140,7 @@ export class TabManager {
   }
 
   /** Takes a primed page where it was going: to its place in the history restored, or to its address. */
-  private arrive(tab: TabRecord, page: WebContents, history: SessionHistory | null, url: string): void {
+  private arrive(tab: TabRecord, page: EnginePage, history: SessionHistory | null, url: string): void {
     const isRestored =
       history !== null && page.navigationHistory.getAllEntries().length === history.entries.length + 1;
     if (isRestored) {
@@ -1161,7 +1163,7 @@ export class TabManager {
     }
   }
 
-  private putBackScroll(tab: TabRecord, contents: WebContents): void {
+  private putBackScroll(tab: TabRecord, contents: EnginePage): void {
     const pending = tab.pendingScroll;
     // The primed empty page loads first, and is no reason to give up waiting.
     if (!pending || pageOf(tab) !== contents || contents.getURL() === 'about:blank') {
@@ -1810,13 +1812,13 @@ export class TabManager {
    * sleeping tab stays asleep, since waking reloads its page, and a video in it
    * starts playing in a tab nobody chose.
    */
-  livePageFor(id: TabId): WebContents | null {
+  livePageFor(id: TabId): EnginePage | null {
     const tab = this.tabs.get(id);
     return tab ? pageOf(tab) : null;
   }
 
   // For an action on the tab itself: reloading or going back in one asleep is asking for it back.
-  private contentsFor(id: TabId): WebContents | null {
+  private contentsFor(id: TabId): EnginePage | null {
     const tab = this.tabs.get(id);
     if (tab?.isAsleep) {
       this.wake(tab);
@@ -1853,7 +1855,7 @@ export class TabManager {
    * read through DevTools, as reader view reads it, to know which of the
    * occurrences find will step through are whole words; no script runs in it.
    */
-  private pageTextFor(contents: WebContents): Promise<string> {
+  private pageTextFor(contents: EnginePage): Promise<string> {
     const url = contents.getURL();
     if (this.pageText?.contents !== contents || this.pageText.url !== url) {
       const text = withPageDebugger(contents, (send) =>
@@ -1864,7 +1866,7 @@ export class TabManager {
     return this.pageText.text;
   }
 
-  private async findWholeWords(contents: WebContents, query: string): Promise<void> {
+  private async findWholeWords(contents: EnginePage, query: string): Promise<void> {
     const { matchCase } = this.find;
     const text = await this.pageTextFor(contents);
     const isStillAsked =
@@ -1922,7 +1924,7 @@ export class TabManager {
   }
 
   // Electron's `findNext` option reads backwards from its name: it means "this request starts a new finding session", so it is true for the first request and false for every follow-up.
-  private runFind(contents: WebContents, query: string, options: { forward: boolean; isNewSession: boolean }): void {
+  private runFind(contents: EnginePage, query: string, options: { forward: boolean; isNewSession: boolean }): void {
     contents.findInPage(query, {
       forward: options.forward,
       findNext: options.isNewSession,
@@ -1972,7 +1974,7 @@ export class TabManager {
     this.elsewhere = handlers;
   }
 
-  onPageContextMenu(handler: (tabId: TabId, params: ContextMenuParams) => void): void {
+  onPageContextMenu(handler: (tabId: TabId, params: PageContextMenu) => void): void {
     this.contextMenuHandler = handler;
   }
 
@@ -2052,7 +2054,7 @@ const MAX_SCREENSHOT_HEIGHT = 16_384;
  * the tab's identity; attached and let go here only when nobody holds it.
  */
 async function withPageDebugger<T>(
-  contents: WebContents,
+  contents: EnginePage,
   work: (send: (method: string, parameters?: object) => Promise<unknown>) => Promise<T>,
 ): Promise<{ value: T } | { problem: string }> {
   const debuggerSession = contents.debugger;
@@ -2075,7 +2077,7 @@ async function withPageDebugger<T>(
   }
 }
 
-async function captureWholePage(contents: WebContents): Promise<Buffer | string> {
+async function captureWholePage(contents: EnginePage): Promise<Buffer | string> {
   const outcome = await withPageDebugger(contents, async (send): Promise<Buffer | string> => {
     const metrics: unknown = await send('Page.getLayoutMetrics');
     const size = typeof metrics === 'object' && metrics !== null ? Reflect.get(metrics, 'cssContentSize') : null;
@@ -2096,7 +2098,7 @@ async function captureWholePage(contents: WebContents): Promise<Buffer | string>
 }
 
 /** The page as it stands now, serialised by DevTools, so reading it runs nothing in it. */
-async function documentOf(contents: WebContents): Promise<string> {
+async function documentOf(contents: EnginePage): Promise<string> {
   const outcome = await withPageDebugger(contents, async (send) => {
     const document: unknown = await send('DOM.getDocument', { depth: 0 });
     const root = typeof document === 'object' && document !== null ? Reflect.get(document, 'root') : null;

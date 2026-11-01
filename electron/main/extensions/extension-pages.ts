@@ -1,10 +1,10 @@
 // Types
-import type { WebContents } from 'electron';
+import type { EnginePage } from '../engine/views';
 
 /** What a tab needs to give an extension's own page the API its popup has: the preload, and the bridge. */
 export interface ExtensionPageHost {
   preload: string;
-  wire(contents: WebContents): void;
+  wire(contents: EnginePage): void;
 }
 
 /**

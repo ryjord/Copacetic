@@ -1,9 +1,12 @@
 // Libs
-import { BrowserWindow, type WebContents, app, session as electronSession, powerMonitor } from 'electron';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
+import { app } from '../engine/app';
+import { defaultSession } from '../engine/sessions';
+import { powerMonitor } from '../engine/system';
+import { type EngineWindow, focusedWindow } from '../engine/windows';
 import { hostResolverFor } from '../../shared/browsing/dns';
 import { FIRST_PROFILE_ID } from '../../shared/data/partitions';
 import { profileDirectory, sweepRemovedProfiles } from '../data/profile-folders';
@@ -29,6 +32,7 @@ import { t } from '../../shared/i18n/translate';
 import { MAX_PROFILE_PICTURE_BYTES } from '../../shared/data/profiles';
 
 // Types
+import type { EnginePage } from '../engine/views';
 import type { AppWideSetting, ProfileSummary } from '../../shared/data/profiles';
 import type { ShortcutOverrides } from '../../shared/chrome/shortcuts';
 import type { GroupColourId } from '../../shared/tabs/tab-groups';
@@ -62,7 +66,7 @@ export class Profiles {
       appData,
       this.list.list().map((profile) => profile.id),
     );
-    hardenChromeSession(electronSession.defaultSession);
+    hardenChromeSession(defaultSession());
     // A list fetched on request is preferred to the one that shipped, and the shipped one is the floor.
     if (this.blocker.loadShippedLists(path.join(appData, 'filters'))) {
       this.blocker.adoptListsMissingFrom(filtersRoot());
@@ -174,7 +178,7 @@ export class Profiles {
 
   /** The window in front, whichever profile it is in, or the one that was last. */
   focused(): Browser | null {
-    const inFront = BrowserWindow.getFocusedWindow();
+    const inFront = focusedWindow();
     const match = this.allWindows().find((window) => window.window === inFront);
     if (match) {
       return match;
@@ -205,7 +209,7 @@ export class Profiles {
     return true;
   }
 
-  browserFor(contents: WebContents): Browser | null {
+  browserFor(contents: EnginePage): Browser | null {
     return this.allWindows().find((window) => window.owns(contents)) ?? null;
   }
 
@@ -231,7 +235,7 @@ export class Profiles {
   }
 
   /** Asks for a photo and makes it the profile's picture. Resolves empty, or with what went wrong. */
-  async choosePicture(window: BrowserWindow, id: string): Promise<string> {
+  async choosePicture(window: EngineWindow, id: string): Promise<string> {
     if (!this.list.find(id)) {
       return '';
     }

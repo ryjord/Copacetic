@@ -1,27 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-
-type Template = Record<string, unknown>[];
-
-let captured: Template = [];
+import type { MenuEntry } from '../../../../electron/main/engine/menus';
 
 vi.mock('electron', () => ({
   app: { name: 'Copacetic' },
   shell: { openExternal: () => {} },
-  Menu: {
-    buildFromTemplate: (template: Template) => {
-      captured = template;
-      return { template };
-    },
-  },
 }));
 
 const { buildApplicationMenu } = await import('../../../../electron/main/menus/menu');
 
-function everyItem(template: Template): Record<string, unknown>[] {
-  return template.flatMap((item) => {
-    const submenu = item.submenu as Template | undefined;
-    return [item, ...(Array.isArray(submenu) ? everyItem(submenu) : [])];
-  });
+function everyItem(template: MenuEntry[]): MenuEntry[] {
+  return template.flatMap((item) => [item, ...(Array.isArray(item.submenu) ? everyItem(item.submenu) : [])]);
 }
 
 /** Stands in for any part of Browser a click might reach into; nothing here clicks. */
@@ -47,8 +35,7 @@ describe('the application menu', () => {
   // Two items on one accelerator means one of them can never be reached by the
   // shortcut it advertises.
   it('binds no accelerator twice', () => {
-    buildApplicationMenu(profileWithWindow());
-    const accelerators = everyItem(captured)
+    const accelerators = everyItem(buildApplicationMenu(profileWithWindow()))
       .map((item) => item.accelerator)
       .filter((accelerator): accelerator is string => typeof accelerator === 'string');
     const duplicates = accelerators.filter((value, index) => accelerators.indexOf(value) !== index);
@@ -67,14 +54,13 @@ describe('the application menu', () => {
  * found" and "the item did not work" fail the same way.
  */
 describe('what every platform can reach', () => {
-  const menuOn = async (platform: string): Promise<Record<string, unknown>[]> => {
+  const menuOn = async (platform: string): Promise<MenuEntry[]> => {
     const original = process.platform;
     Object.defineProperty(process, 'platform', { value: platform, configurable: true });
     try {
       vi.resetModules();
       const { buildApplicationMenu: build } = await import('../../../../electron/main/menus/menu');
-      build(profileWithWindow());
-      return everyItem(captured);
+      return everyItem(build(profileWithWindow()));
     } finally {
       Object.defineProperty(process, 'platform', { value: original, configurable: true });
     }
@@ -98,8 +84,8 @@ describe('what every platform can reach', () => {
 
 describe('keys someone moved', () => {
   const acceleratorOf = (label: string, shortcuts: Parameters<typeof profileWithWindow>[0]) => {
-    buildApplicationMenu(profileWithWindow(shortcuts));
-    return everyItem(captured).find((item) => item.label === label)?.accelerator;
+    return everyItem(buildApplicationMenu(profileWithWindow(shortcuts))).find((item) => item.label === label)
+      ?.accelerator;
   };
 
   it('binds a shortcut where it was moved to, or nowhere when it was taken off', () => {

@@ -1,10 +1,14 @@
 // Libs
-import { dialog, nativeImage, type BrowserWindow } from 'electron';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 // Utils
+import { dialog } from '../engine/dialogs';
+import { imageFromPath } from '../engine/images';
 import { t } from '../../shared/i18n/translate';
+
+// Types
+import type { EngineWindow } from '../engine/windows';
 
 /** Wide enough for any display this will run on, small enough to stay sane. */
 const MAX_WIDTH = 2560;
@@ -58,7 +62,7 @@ export class Wallpaper {
       return null;
     }
     try {
-      const image = nativeImage.createFromPath(this.file);
+      const image = imageFromPath(this.file);
       if (image.isEmpty()) {
         return null;
       }
@@ -110,7 +114,7 @@ export class Wallpaper {
   }
 
   /** Asks for an image and stages a copy. */
-  async choose(window: BrowserWindow): Promise<string> {
+  async choose(window: EngineWindow): Promise<string> {
     const { canceled, filePaths } = await dialog.showOpenDialog(window, {
       title: t('main.wallpaper.chooseTitle'),
       properties: ['openFile'],
@@ -123,7 +127,7 @@ export class Wallpaper {
     }
 
     try {
-      let image = nativeImage.createFromPath(source);
+      let image = imageFromPath(source);
       if (image.isEmpty()) {
         return t('main.wallpaper.notAnImage');
       }
