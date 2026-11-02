@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "^2.20.1",
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.11"
   },
   "devDependencies": {
     "@browsermt/bergamot-translator": "0.4.9",
