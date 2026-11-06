@@ -202,21 +202,64 @@ jobs:
       - name: Build and publish
         shell: bash
         run: |
+          set -euo pipefail
+          args=(--publish always)
           # package.json pins releaseType to `release`, which would publish a
           # beta as though it were finished. A tag carrying a prerelease part
-          # overrides it, so the GitHub release is marked accordingly and
-          # electron-updater keeps it on its own channel.
+          # overrides it, so the GitHub release is marked accordingly.
           case "$GITHUB_REF_NAME" in
-            *-*) npx electron-builder --publish always -c.publish.releaseType=prerelease ;;
-            *)   npx electron-builder --publish always ;;
+            *-*) args+=(-c.publish.releaseType=prerelease) ;;
           esac
+          # With a Developer ID certificate the Mac build is signed and notarised,
+          # and gains the zip electron-updater installs from and the pkg an MDM
+          # deploys; without one it stays ad-hoc signed, as every release so far.
+          if [ "$RUNNER_OS" = macOS ] && [ -n "${CSC_LINK:-}" ]; then
+            targets=(dmg zip)
+            if [ -n "${CSC_INSTALLER_LINK:-}" ]; then
+              targets+=(pkg)
+            fi
+            args+=(--mac "${targets[@]}" --x64 --arm64 -c.mac.notarize=true)
+          else
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+          npx electron-builder "${args[@]}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No Apple Developer certificate is configured, so let the build run
-          # ad-hoc signed rather than failing while looking for one.
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Only on the Mac runner: on Windows electron-builder would try to sign the installer with an Apple certificate.
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
+          CSC_INSTALLER_LINK: ${{ runner.os == 'macOS' && secrets.CSC_INSTALLER_LINK || '' }}
+          CSC_INSTALLER_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.CSC_INSTALLER_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      # The builds are not signed, so nothing says who made them. This is the
+      # The Store package is uploaded to Partner Center by hand, so it is kept
+      # with the run rather than published. Built only once the identity
+      # Partner Center assigns is set, because the Store refuses any other.
+      - name: Build the Microsoft Store package
+        if: runner.os == 'Windows' && vars.STORE_IDENTITY_NAME != ''
+        shell: bash
+        env:
+          STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
+          STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}
+        run: |
+          set -euo pipefail
+          npx electron-builder --win appx --x64 --arm64 --publish never \
+            -c.appx.identityName="$STORE_IDENTITY_NAME" \
+            -c.appx.publisher="$STORE_PUBLISHER" \
+            -c.appx.publisherDisplayName="$STORE_PUBLISHER_DISPLAY_NAME"
+
+      - name: Keep the Store package with the run
+        if: runner.os == 'Windows' && vars.STORE_IDENTITY_NAME != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: microsoft-store-${{ github.ref_name }}
+          path: release/*.appx
+          if-no-files-found: error
+
+      # An unsigned build says nothing about who made it. This is the
       # other half of that question and the half that costs nothing: GitHub
       # attests that these exact files came out of this workflow at this commit,
       # and anyone can check it before installing:
@@ -225,7 +268,9 @@ jobs:
       #
       # It does not make a download trusted. It makes it checkable, which is
       # what an unsigned build otherwise cannot offer at all.
+      # Attestations need a public repository on GitHub's free plan; once private this step would fail the release.
       - name: Attest what was built
+        if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: ${{ matrix.artifacts }}
@@ -276,6 +321,107 @@ jobs:
             exit 1
           fi
           echo "All platforms published."
+
+  # Updates and installers are served from the bucket rather than from this
+  # repository's releases, so they keep working whatever its visibility: the
+  # app reads releases.json and its channel's feed there, and an IT team can
+  # link to an installer by version. Only a few versions are kept, because the
+  # bucket's free tier is 10 GB and one release is over a gigabyte.
+  downloads:
+    name: Publish updates and installers to the bucket
+    # A job that hangs should fail rather than hold the runner until someone looks.
+    timeout-minutes: 30
+    needs: complete
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to publish
+        id: gate
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_KEY: ${{ secrets.R2_ACCESS_KEY_ID }}
+        run: |
+          if [ -z "$R2_BUCKET" ] || [ -z "$R2_ACCOUNT_ID" ] || [ -z "$R2_KEY" ] || [ -z "$APT_REPO_URL" ]; then
+            echo "::warning::The bucket is not configured, so this release reaches updaters only through GitHub."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 24
+
+      - name: Fetch the release
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir assets \
+            --pattern '*.dmg' --pattern '*.zip' --pattern '*.pkg' --pattern '*.exe' \
+            --pattern '*.AppImage' --pattern '*.blockmap' --pattern 'latest*.yml'
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --json body,isPrerelease,publishedAt,url > release.json
+          jq -r '.body' release.json > notes.md
+          ls -l assets
+
+      - name: Stage it for the bucket
+        if: steps.gate.outputs.run == 'true'
+        env:
+          RELEASE_PAGE_URL: ${{ vars.RELEASE_PAGE_URL }}
+        run: |
+          set -euo pipefail
+          export VERSION="${GITHUB_REF_NAME#v}"
+          export IS_PRERELEASE="$(jq -r '.isPrerelease' release.json)"
+          export PUBLISHED_AT="$(jq -r '.publishedAt' release.json)"
+          export NOTES_FILE=notes.md
+          # The release's own page while the repository is public; a page elsewhere once RELEASE_PAGE_URL is set.
+          export PAGE_URL="${RELEASE_PAGE_URL:-$(jq -r '.url' release.json)}"
+          export PUBLIC_ORIGIN="$APT_REPO_URL"
+          node scripts/publish-downloads.mjs assets staging
+
+      # Installers first and the index last, so nothing published ever points at a file not there yet.
+      - name: Upload
+        if: steps.gate.outputs.run == 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          version="${GITHUB_REF_NAME#v}"
+          aws s3 sync "staging/download/$version" "s3://$R2_BUCKET/download/$version" \
+            --endpoint-url "$endpoint" --no-progress
+          aws s3 sync staging/feed "s3://$R2_BUCKET/feed" \
+            --endpoint-url "$endpoint" --no-progress --cache-control 'no-cache'
+          aws s3 cp staging/releases.json "s3://$R2_BUCKET/releases.json" \
+            --endpoint-url "$endpoint" --no-progress --cache-control 'no-cache' --content-type application/json
+
+      - name: Remove installers no longer kept
+        if: steps.gate.outputs.run == 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          aws s3 ls "s3://$R2_BUCKET/download/" --endpoint-url "$endpoint" \
+            | awk '$1 == "PRE" { sub("/$", "", $2); print $2 }' > published.txt
+          grep -vxF -f staging/keep.txt published.txt > remove.txt || true
+          while read -r version; do
+            [ -n "$version" ] || continue
+            echo "Removing the installers for $version"
+            aws s3 rm "s3://$R2_BUCKET/download/$version/" --recursive --endpoint-url "$endpoint" --no-progress
+          done < remove.txt
 
   apt:
     name: Publish the apt repository

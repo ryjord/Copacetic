@@ -8,6 +8,7 @@ import { EMPTY_VAULT_FILE, Vault, type VaultFile, reviveVaultFile } from './vaul
 import { PersistedFile } from '../data/persistence';
 import { AddressBook, type AddressFile, EMPTY_ADDRESS_FILE, reviveAddressFile } from './address-book';
 import { t } from '../../shared/i18n/translate';
+import { isThisCopySigned } from '../system/code-signature';
 
 // Types
 import type { VaultFacts, VaultLock } from '../../shared/types';
@@ -100,8 +101,7 @@ export class VaultSession {
       keychainName: keychain.name,
       keychainProblem: keychain.problem,
       canAskWhoYouAre: this.method() !== 'none',
-      // No certificate is bought, so this is false everywhere until one is.
-      isSigned: false,
+      isSigned: await isThisCopySigned(),
       entryCount: this.vault.count(),
     };
   }

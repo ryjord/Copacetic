@@ -106,6 +106,11 @@ export function forkUtilityProcess(modulePath: string, serviceName: string): Eng
   return utilityProcess.fork(modulePath, [], { serviceName });
 }
 
+/** Whether this copy came from the Microsoft Store, which signs it and keeps it up to date itself. */
+export function isStoreBuild(): boolean {
+  return process.windowsStore === true;
+}
+
 /** The folder the packaged app's resources live in. */
 export function resourcesPath(): string {
   return process.resourcesPath;

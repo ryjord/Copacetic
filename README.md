@@ -46,12 +46,11 @@ connection that is genuinely encrypted, a Hush tab, a certificate about to
 expire. Nothing is coloured for decoration, so the coloured thing is always the
 thing worth looking at.
 
-**Privacy you can check, not take on trust.** Settings has a page that lists
-every request Copacetic makes for itself and everything it keeps. Pages run no
-script of Copacetic's beyond three that are named there, and an extension runs
-only what you added it to run. Blocking counts are real
-counts. Where something cannot be done, the interface says so rather than
-implying it was.
+**Privacy laid out, not taken on trust.** Every request Copacetic makes for
+itself is listed in Settings, with everything it keeps and every script it puts
+in a page, and an extension runs only what you added it to run. Blocking counts
+are real counts. Where something cannot be done, the interface says so rather
+than implying it was.
 
 **Local first.** Suggestions, spellcheck, blocking and reader view run on this
 machine. There are no accounts and no telemetry.
@@ -356,8 +355,8 @@ extension and does nothing in a website's worker. None of it reaches Hush.
 
 - **No accounts, sync or cloud.** Everything lives on this machine, and Settings
   writes it back out in open formats, so that is a statement you can check. The
-  scheduled requests are the update check, which reads a version number from
-  GitHub, and, once a profile has store extensions, the Chrome Web Store's own
+  scheduled requests are the update check, which reads the list of releases from
+  Copacetic's download server, and, once a profile has store extensions, the Chrome Web Store's own
   check for newer versions of them. Each can be turned off.
 - **Extensions are a beta.** An ad blocker's report of which rules matched is
   always empty, an extension's page opened in a tab lacks the parts of the API

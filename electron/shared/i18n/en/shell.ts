@@ -212,7 +212,7 @@ export const shell = {
       noRequests: 'No requests recorded for this page yet.',
       hostsContacted: 'Hosts contacted',
       hostCount: { one: '{count} host', other: '{count} hosts' },
-      blockedHosts: '· {count} blocked',
+      blockedHosts: '· {count} of them blocked',
       blockedRequests: 'Blocked {count}',
       byRule: 'by rule {rule}',
       byHostname: 'by hostname',

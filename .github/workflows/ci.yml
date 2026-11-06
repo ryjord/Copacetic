@@ -76,7 +76,9 @@ jobs:
       fail-fast: false
       matrix:
         # Every system unless a run by hand asked for one; a push, a pull request and a release pass no input.
-        os: ${{ fromJSON((inputs.platform == '' || inputs.platform == 'all' || inputs.platform == null) && '["macos-latest","ubuntu-latest","windows-latest"]' || format('["{0}"]', inputs.platform)) }}
+        # In a private repository a macOS minute costs ten of the free plan's, so pushes and pull requests build on
+        # Ubuntu alone there, and a release tag or a run by hand still builds all three.
+        os: ${{ fromJSON(((inputs.platform == '' || inputs.platform == 'all' || inputs.platform == null) && ((github.event.repository.private && github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')) && '["ubuntu-latest"]' || '["macos-latest","ubuntu-latest","windows-latest"]')) || format('["{0}"]', inputs.platform)) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

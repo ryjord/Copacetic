@@ -7,6 +7,7 @@ export interface AutoUpdaterLike {
   allowPrerelease: boolean;
   autoInstallOnAppQuit: boolean;
   removeAllListeners(): void;
+  setFeedURL(options: { provider: 'generic'; url: string }): void;
   on(event: string, listener: (...args: never[]) => void): unknown;
   checkForUpdates(): Promise<unknown>;
   quitAndInstall(): void;

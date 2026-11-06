@@ -59,7 +59,7 @@ const eslintConfig = defineConfig([
       ],
       'no-restricted-properties': [
         'error',
-        ...['resourcesPath', 'getSystemVersion', 'getSystemMemoryInfo'].map((property) => ({
+        ...['resourcesPath', 'getSystemVersion', 'getSystemMemoryInfo', 'windowsStore'].map((property) => ({
           object: 'process',
           property,
           message: 'Electron adds this to process; reach it through electron/main/engine/system.',

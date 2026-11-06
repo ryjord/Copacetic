@@ -22,6 +22,7 @@ import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { DOWNLOADS_ORIGIN, feedUrl } from '../electron/shared/distribution/releases.ts';
 
 const RELEASE = path.join(process.cwd(), 'release');
 
@@ -333,9 +334,14 @@ try {
       writeFileSync(updateConfig, `provider: generic\nurl: ${feed.url}\nupdaterCacheDirName: copacetic-updater\n`);
     }
     try {
+      // The app points the updater at the bucket on every check; that address is recorded and checked below,
+      // and the updater kept on this machine's feed so the rest of the check can watch what it fetches.
       await app.evaluate((_electron, url) => {
         const { autoUpdater } = process.mainModule.require('electron-updater');
-        autoUpdater.setFeedURL({ provider: 'generic', url });
+        const setFeedURL = autoUpdater.setFeedURL.bind(autoUpdater);
+        setFeedURL({ provider: 'generic', url });
+        globalThis.copaceticFeedsAsked = [];
+        autoUpdater.setFeedURL = (options) => globalThis.copaceticFeedsAsked.push(options.url);
       }, feed.url);
       await chrome.evaluate(() => window.copacetic.updates.check());
       const askedForInstaller = await until(
@@ -351,6 +357,13 @@ try {
       console.log(
         `The updater loaded, read the feed (${feed.requested.find((request) => request.endsWith('.yml'))}) and fetched the newer build.`,
       );
+      const asked = await app.evaluate(() => globalThis.copaceticFeedsAsked);
+      const version = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')).version;
+      const expected = feedUrl(DOWNLOADS_ORIGIN, version.includes('-') ? 'beta' : 'stable');
+      if (asked.at(-1) !== expected) {
+        throw new Error(`the app pointed its updater at ${asked.at(-1) ?? 'nothing'}, not ${expected}`);
+      }
+      console.log(`The app points its updater at the bucket's feed for its channel (${expected}).`);
     } finally {
       feed.close();
       if (isWritingUpdateConfig) {

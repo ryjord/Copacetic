@@ -46,14 +46,14 @@ there.
 
 Copacetic contacts these on its own, and only these:
 
-| What                                      | Who receives it                     | When                                                                                                     | Can you turn it off           |
-| ----------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| Update check                              | GitHub (api.github.com, github.com) | Shortly after start, then every six hours                                                                | Yes, in Settings > Updates    |
-| Installer download (macOS)                | GitHub                              | Only when you press Download and open                                                                    | Not needed                    |
-| Extension updates                         | Google's Chrome Web Store           | Every six hours, once a profile has an extension from it; it is told the extensions' ids, as Chrome does | Yes, in Settings > Extensions |
-| Filter lists                              | easylist.to and secure.fanboy.co.nz | Only when you press Check now                                                                            | Not needed                    |
-| Spelling dictionaries (Windows and Linux) | Google                              | Once per language, the first time it is used; nothing you type is sent                                   | Yes, by turning spelling off  |
-| Translation models                        | Mozilla                             | Once per language, the first time you translate from or into it; what you read is never sent             | Not needed                    |
+| What                                      | Who receives it                               | When                                                                                                     | Can you turn it off           |
+| ----------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Update check                              | Copacetic's download server, on Cloudflare R2 | Shortly after start, then every six hours                                                                | Yes, in Settings > Updates    |
+| Installer download (macOS)                | Copacetic's download server, on Cloudflare R2 | Only when you press Download and open                                                                    | Not needed                    |
+| Extension updates                         | Google's Chrome Web Store                     | Every six hours, once a profile has an extension from it; it is told the extensions' ids, as Chrome does | Yes, in Settings > Extensions |
+| Filter lists                              | easylist.to and secure.fanboy.co.nz           | Only when you press Check now                                                                            | Not needed                    |
+| Spelling dictionaries (Windows and Linux) | Google                                        | Once per language, the first time it is used; nothing you type is sent                                   | Yes, by turning spelling off  |
+| Translation models                        | Mozilla                                       | Once per language, the first time you translate from or into it; what you read is never sent             | Not needed                    |
 
 The update check and downloads send nothing about you beyond what any
 connection reveals, such as your IP address, which the receiving service
