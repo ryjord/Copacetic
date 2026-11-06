@@ -5,7 +5,7 @@
   "description": "A calm, honest browser that shows you the true state of every page.",
   "author": {
     "name": "Riley Jordan",
-    "email": "rileyjordan21@hotmail.com"
+    "email": "contact@mrenigma.uk"
   },
   "license": "MIT",
   "private": true,
@@ -89,7 +89,7 @@
     "node": ">=24.0.0"
   },
   "build": {
-    "appId": "uk.co.ryjord.copacetic",
+    "appId": "uk.mrenigma.copacetic",
     "productName": "Copacetic",
     "copyright": "Copyright © 2026 Riley Jordan",
     "publish": {
@@ -217,7 +217,24 @@
           "copacetic-apt-source"
         ]
       }
-    ]
+    ],
+    "nsis": {
+      "guid": "2eac962b-73f1-5e2e-b34a-e28cd21c1c00"
+    },
+    "pkg": {
+      "installLocation": "/Applications",
+      "artifactName": "Copacetic-${version}-${arch}.${ext}"
+    },
+    "appx": {
+      "applicationId": "Copacetic",
+      "displayName": "Copacetic",
+      "backgroundColor": "#0e1114",
+      "languages": [
+        "en-GB"
+      ],
+      "artifactName": "Copacetic-${version}-${arch}.${ext}",
+      "customExtensionsPath": "build/appx/extensions.xml"
+    }
   },
   "lint-staged": {
     "*.{ts,tsx,mts,mjs}": [
