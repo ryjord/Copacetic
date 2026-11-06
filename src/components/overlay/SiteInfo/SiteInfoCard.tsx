@@ -1,7 +1,7 @@
 'use client';
 
 // Libs
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Components
 import { Button } from '@/components/ui/Button/Button';
@@ -111,7 +111,7 @@ export function SiteInfoCard({ tab }: { tab: TabState }) {
         </div>
       )}
       {/* Keyed by tab, so a switch never shows one tab's hosts under another's heading. */}
-      <ConnectionLog key={tab.id} tabId={tab.id} />
+      <ConnectionLog key={tab.id} tabId={tab.id} blockedCount={tab.blockedCount} isLoading={tab.isLoading} />
       <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
         <Button size="sm" variant="ghost" onClick={() => send((api) => api.chrome.showPage('settings', 'sites'))}>
           {t('shell.overlay.siteInfo.siteSettings')}
@@ -242,23 +242,40 @@ function SitePermissions({ url, onChanged }: { url: string; onChanged: () => voi
   );
 }
 
-// Every host the page has actually talked to.
-function ConnectionLog({ tabId }: { tabId: string }) {
+// Often enough to keep up with a page as it loads, seldom enough that a page making hundreds of requests costs a few asks.
+const CONNECTIONS_REFRESH_MS = 500;
+
+interface ConnectionLogProps {
+  tabId: string;
+  /** The live count above the list; each change means the list has moved on too. */
+  blockedCount: number;
+  isLoading: boolean;
+}
+
+// Every host the page has actually talked to, kept up to date while the page is still loading.
+function ConnectionLog({ tabId, blockedCount, isLoading }: ConnectionLogProps) {
   const [entries, setEntries] = useState<ConnectionEntry[] | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [exportProblem, setExportProblem] = useState('');
+  const lastAskedAt = useRef(0);
 
   useEffect(() => {
     let isCurrent = true;
-    void ask((api) => api.connections.list(tabId), []).then((result) => {
-      if (isCurrent) {
-        setEntries(result);
-      }
-    });
+    // Rescheduled on every change but timed from the last ask, so a steady stream of requests still refreshes.
+    const wait = Math.max(0, lastAskedAt.current + CONNECTIONS_REFRESH_MS - Date.now());
+    const timer = setTimeout(() => {
+      lastAskedAt.current = Date.now();
+      void ask((api) => api.connections.list(tabId), []).then((result) => {
+        if (isCurrent) {
+          setEntries(result);
+        }
+      });
+    }, wait);
     return () => {
       isCurrent = false;
+      clearTimeout(timer);
     };
-  }, [tabId]);
+  }, [tabId, blockedCount, isLoading]);
 
   if (entries === null) {
     return null;

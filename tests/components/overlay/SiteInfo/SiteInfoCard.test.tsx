@@ -1,11 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { TabState } from '@shared/types';
 import { DEFAULT_SETTINGS_SHAPE } from '@/lib/state/defaults';
 
+// What the page has contacted so far, as the main process would list it; a test changes it as the page loads.
+const connections = vi.hoisted(() => ({ now: [] as unknown[] }));
 vi.mock('@/lib/bridge/bridge', () => ({
   send: () => {},
-  ask: async (_action: unknown, fallback: unknown) => fallback,
+  // Anything but the connection list answers with its fallback, as a bridge that is not there would.
+  ask: async (action: (api: unknown) => unknown, fallback: unknown) => {
+    try {
+      return (await action({ connections: { list: () => connections.now } })) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  },
   getBridge: () => null,
   isRunningInShell: () => false,
 }));
@@ -22,7 +31,7 @@ const { SiteInfoCard } = await import('@/components/overlay/SiteInfo/SiteInfoCar
 
 afterEach(cleanup);
 
-const tab = (certificateChange = ''): TabState =>
+const tab = (certificateChange = '', blockedCount = 0): TabState =>
   ({
     id: 'a',
     url: 'https://example.com/',
@@ -43,7 +52,7 @@ const tab = (certificateChange = ''): TabState =>
       certificateChange,
     },
     error: null,
-    blockedCount: 0,
+    blockedCount,
     loadMs: null,
     zoomFactor: 1,
     internalPage: null,
@@ -71,5 +80,31 @@ describe('the certificate change notice', () => {
     expect(screen.getByText('This certificate has changed')).toBeTruthy();
     const statuses = screen.getAllByRole('status');
     expect(statuses.some((node) => node.textContent?.includes('reading this connection'))).toBe(true);
+  });
+});
+
+/**
+ * The list was read once, when the panel opened, while the count above it kept
+ * climbing as the page loaded: 20 blocked over a list that said 4. It now
+ * follows the count.
+ */
+describe('the hosts a page contacted', () => {
+  const host = (name: string, blocked: number) => ({
+    host: name,
+    requests: blocked + 1,
+    blocked,
+    isTracker: true,
+    rule: null,
+  });
+
+  it('catches up with the live count while the panel stays open', async () => {
+    connections.now = [host('ads.example', 4)];
+    const { rerender } = render(<SiteInfoCard tab={tab('', 4)} />);
+    await waitFor(() => expect(screen.getByText('1 host')).toBeTruthy());
+
+    connections.now = [host('ads.example', 12), host('tracker.example', 8)];
+    rerender(<SiteInfoCard tab={tab('', 20)} />);
+    await waitFor(() => expect(screen.getByText('2 hosts')).toBeTruthy(), { timeout: 2_000 });
+    expect(screen.getByText('· 2 of them blocked')).toBeTruthy();
   });
 });
