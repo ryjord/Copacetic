@@ -259,7 +259,7 @@ jobs:
           path: release/*.appx
           if-no-files-found: error
 
-      # The builds are not signed, so nothing says who made them. This is the
+      # An unsigned build says nothing about who made it. This is the
       # other half of that question and the half that costs nothing: GitHub
       # attests that these exact files came out of this workflow at this commit,
       # and anyone can check it before installing:
