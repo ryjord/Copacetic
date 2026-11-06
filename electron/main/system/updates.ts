@@ -4,9 +4,21 @@ import path from 'node:path';
 // Utils
 import { app } from '../engine/app';
 import { net } from '../engine/requests';
-import { shell } from '../engine/system';
 import { loadAutoUpdater } from '../engine/updater';
+import { isStoreBuild, shell } from '../engine/system';
 import { compareVersions, isNewerVersion, parseVersion } from '../../shared/version';
+import {
+  DOWNLOADS_ORIGIN,
+  type FeedChannel,
+  RELEASES_INDEX,
+  RELEASES_PAGE,
+  type ReleaseEntry,
+  downloadUrl,
+  feedUrl,
+  isOwnDownload,
+  readReleasesIndex,
+} from '../../shared/distribution/releases';
+import { isThisCopySigned } from './code-signature';
 import { t } from '../../shared/i18n/translate';
 import { writeVerified } from './installer-download';
 import { installerFor, plainReleaseNotes, readManifestFiles } from './update-manifest';
@@ -14,14 +26,7 @@ import { installerFor, plainReleaseNotes, readManifestFiles } from './update-man
 // Types
 import type { UpdateChannel, UpdateDelivery, UpdateState, UpdateStatus } from '../../shared/types';
 
-const REPO = 'ryjord/Copacetic';
-const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
-const LATEST_API = `https://api.github.com/repos/${REPO}/releases/latest`;
-// The latest-release endpoint skips prereleases, so a beta build would never hear of the next beta from it.
-const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=20`;
-const releaseApiFor = (version: string) => `https://api.github.com/repos/${REPO}/releases/tags/v${version}`;
-const downloadUrlFor = (version: string, file: string) =>
-  `https://github.com/${REPO}/releases/download/v${version}/${encodeURIComponent(file)}`;
+const INDEX_URL = `${DOWNLOADS_ORIGIN}/${RELEASES_INDEX}`;
 
 export interface ReleaseFound {
   version: string;
@@ -29,32 +34,13 @@ export interface ReleaseFound {
   pageUrl: string;
 }
 
-function readRelease(entry: unknown): (ReleaseFound & { isPrerelease: boolean; isDraft: boolean }) | null {
-  if (typeof entry !== 'object' || entry === null) {
-    return null;
-  }
-  const { tag_name: tag, body, html_url: pageUrl, prerelease, draft } = entry as Record<string, unknown>;
-  if (typeof tag !== 'string' || !parseVersion(tag)) {
-    return null;
-  }
-  return {
-    version: stripV(tag),
-    notes: typeof body === 'string' ? plainReleaseNotes(body) : null,
-    pageUrl: typeof pageUrl === 'string' && pageUrl.startsWith('https://github.com/') ? pageUrl : RELEASES_URL,
-    isPrerelease: prerelease === true,
-    isDraft: draft === true,
-  };
-}
-
-/** The newest release in GitHub's list, a prerelease only when betas are wanted, and never a draft. */
-export function newestRelease(payload: unknown, includesBetas: boolean): ReleaseFound | null {
-  const releases = (Array.isArray(payload) ? payload : [payload])
-    .map(readRelease)
-    .filter((release) => release !== null)
-    .filter((release) => !release.isDraft && (includesBetas || !release.isPrerelease))
-    .toSorted((aRelease, bRelease) => compareVersions(bRelease.version, aRelease.version));
-  const newest = releases[0];
-  return newest ? { version: newest.version, notes: newest.notes, pageUrl: newest.pageUrl } : null;
+/** The newest release in the published index, a prerelease only when betas are wanted. */
+export function newestRelease(index: readonly ReleaseEntry[], includesBetas: boolean): ReleaseFound | null {
+  const newest = index
+    .filter((release) => includesBetas || !release.isPrerelease)
+    .filter((release) => parseVersion(release.version) !== null)
+    .toSorted((aRelease, bRelease) => compareVersions(bRelease.version, aRelease.version))[0];
+  return newest ? { version: newest.version, notes: plainReleaseNotes(newest.notes), pageUrl: newest.pageUrl } : null;
 }
 
 export function isBetaVersion(version: string): boolean {
@@ -77,17 +63,30 @@ export interface DeliveryInputs {
   isPackaged: boolean;
   /** Set by the AppImage runtime, and only by it. */
   isAppImage: boolean;
+  /** Installed from the Microsoft Store, which updates it. */
+  isStoreBuild: boolean;
+  /** Signed by its developer; macOS only lets such an app replace itself. */
+  isSigned: boolean;
 }
 
 /** The whole platform decision, as a pure function so it can be tested for every combination rather than only the one this machine happens to be. */
-export function describeDelivery({ platform, isPackaged, isAppImage }: DeliveryInputs): DeliveryDescription {
+export function describeDelivery({
+  platform,
+  isPackaged,
+  isAppImage,
+  isStoreBuild: fromStore,
+  isSigned,
+}: DeliveryInputs): DeliveryDescription {
   if (!isPackaged) {
     return { delivery: 'unsupported', manualReason: t('main.updates.manual.development') };
   }
 
-  if (platform === 'darwin') {
-    // macOS refuses to auto-update an unsigned app, and signing needs a paid
-    // Apple Developer account. Saying so is better than a button that fails.
+  if (fromStore) {
+    return { delivery: 'system', manualReason: t('main.updates.manual.store') };
+  }
+
+  if (platform === 'darwin' && !isSigned) {
+    // macOS refuses to auto-update an unsigned app. Saying so is better than a button that fails.
     return {
       delivery: 'manual',
       manualReason: t('main.updates.manual.macos'),
@@ -118,17 +117,28 @@ export class UpdateManager {
   // A beta build is always offered newer betas: it was chosen by someone who wanted them.
   private includesBetas = isBetaVersion(app.getVersion());
 
-  private readonly delivery: UpdateDelivery;
-  private readonly manualReason: string | null;
+  private delivery: UpdateDelivery;
+  private manualReason: string | null;
+  /** Settled once the signature is read; nothing checks before then, since the answer decides how. */
+  private readonly described: Promise<void>;
 
   constructor(private readonly onChanged: () => void) {
-    const described = describeDelivery({
+    const inputs = {
       platform: process.platform,
       isPackaged: app.isPackaged,
       isAppImage: Boolean(process.env.APPIMAGE),
+      isStoreBuild: isStoreBuild(),
+    };
+    // Unsigned until the signature says otherwise, so the pane never promises more than it can do.
+    ({ delivery: this.delivery, manualReason: this.manualReason } = describeDelivery({ ...inputs, isSigned: false }));
+    this.described = isThisCopySigned().then((isSigned) => {
+      ({ delivery: this.delivery, manualReason: this.manualReason } = describeDelivery({ ...inputs, isSigned }));
+      this.onChanged();
     });
-    this.delivery = described.delivery;
-    this.manualReason = described.manualReason;
+  }
+
+  private channel(): FeedChannel {
+    return this.includesBetas ? 'beta' : 'stable';
   }
 
   getState(): UpdateState {
@@ -137,7 +147,7 @@ export class UpdateManager {
       delivery: this.delivery,
       manualReason: this.manualReason,
       lastCheckedAt: this.lastCheckedAt,
-      releasesUrl: this.found?.pageUrl ?? RELEASES_URL,
+      releasesUrl: this.found?.pageUrl ?? RELEASES_PAGE,
       releaseNotes: this.found?.notes ?? null,
       currentVersion: app.getVersion(),
       includesBetas: this.includesBetas,
@@ -153,7 +163,7 @@ export class UpdateManager {
   /** Called once the window exists, and whenever the setting is turned on. */
   start(enabled: boolean): void {
     this.stop();
-    if (!enabled || this.delivery === 'unsupported') {
+    if (!enabled || !app.isPackaged || isStoreBuild()) {
       return;
     }
 
@@ -170,17 +180,22 @@ export class UpdateManager {
   }
 
   async check(): Promise<void> {
-    if (this.inFlight || this.delivery === 'unsupported') {
+    if (this.inFlight) {
       return;
     }
     this.inFlight = true;
+    await this.described;
+    // The Store updates its own copy, and a development build has nothing to update to.
+    if (this.delivery === 'unsupported' || isStoreBuild()) {
+      this.inFlight = false;
+      return;
+    }
     this.setStatus({ state: 'checking' });
-
     try {
       if (this.delivery === 'automatic') {
         await this.checkViaUpdater();
       } else {
-        await this.checkViaGitHub();
+        await this.checkViaIndex();
       }
     } catch (error) {
       this.setStatus({ state: 'error', message: messageFor(error) });
@@ -191,35 +206,36 @@ export class UpdateManager {
     }
   }
 
-  // Ask GitHub for the latest tag and compare it ourselves.
-  private async checkViaGitHub(): Promise<void> {
+  /** The published list of releases, which says what is newest and what each one changed. */
+  private async releasesIndex(): Promise<ReleaseEntry[]> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
     try {
-      const response = await net.fetch(this.includesBetas ? RELEASES_API : LATEST_API, {
-        signal: controller.signal,
-        headers: GITHUB_HEADERS(),
-      });
+      const response = await net.fetch(INDEX_URL, { signal: controller.signal, headers: REQUEST_HEADERS() });
       if (!response.ok) {
-        throw new Error(t('main.updates.githubAnswered', { status: response.status }));
+        throw new Error(t('main.updates.serverAnswered', { status: response.status }));
       }
-
-      const newest = newestRelease(await response.json(), this.includesBetas);
-      if (!newest) {
-        throw new Error(t('main.updates.noVersionTag'));
-      }
-
-      const isNewer = isNewerVersion(newest.version, app.getVersion());
-      this.found = isNewer ? newest : null;
-      this.setStatus(isNewer ? { state: 'available', version: newest.version } : { state: 'current' });
+      return readReleasesIndex(await response.json());
     } finally {
       clearTimeout(timeout);
     }
   }
 
+  // Read the published list and compare its newest release ourselves.
+  private async checkViaIndex(): Promise<void> {
+    const newest = newestRelease(await this.releasesIndex(), this.includesBetas);
+    if (!newest) {
+      throw new Error(t('main.updates.noReleases'));
+    }
+    const isNewer = isNewerVersion(newest.version, app.getVersion());
+    this.found = isNewer ? newest : null;
+    this.setStatus(isNewer ? { state: 'available', version: newest.version } : { state: 'current' });
+  }
+
   private async checkViaUpdater(): Promise<void> {
     const autoUpdater = await loadAutoUpdater();
+    // The bucket rather than the repository's releases, so updates work whatever the repository's visibility.
+    autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl(DOWNLOADS_ORIGIN, this.channel()) });
     autoUpdater.autoDownload = true;
     autoUpdater.allowPrerelease = this.includesBetas;
     // Unsigned builds have only TLS and the feed's hash behind them, so nothing installs until someone presses Restart.
@@ -253,14 +269,14 @@ export class UpdateManager {
 
   /** The manual path: hand the release page to the system browser. */
   async openReleasesPage(): Promise<void> {
-    await shell.openExternal(this.found?.pageUrl ?? RELEASES_URL);
+    await shell.openExternal(this.found?.pageUrl ?? RELEASES_PAGE);
   }
 
   // Best effort: an update with no notes is still an update.
   private async fetchNotes(version: string): Promise<void> {
     try {
-      const response = await net.fetch(releaseApiFor(version), { headers: GITHUB_HEADERS() });
-      this.found = response.ok ? newestRelease(await response.json(), true) : null;
+      const entry = (await this.releasesIndex()).filter((release) => release.version === version);
+      this.found = newestRelease(entry, true);
       this.onChanged();
     } catch {
       this.found = null;
@@ -281,16 +297,20 @@ export class UpdateManager {
     this.isFetchingInstaller = true;
     const { version } = this.status;
     try {
-      const manifest = await net.fetch(downloadUrlFor(version, 'latest-mac.yml'));
+      const manifest = await net.fetch(`${feedUrl(DOWNLOADS_ORIGIN, this.channel())}latest-mac.yml`);
       if (!manifest.ok) {
-        throw new Error(t('main.updates.githubAnswered', { status: manifest.status }));
+        throw new Error(t('main.updates.serverAnswered', { status: manifest.status }));
       }
       const installer = installerFor(readManifestFiles(await manifest.text()), process.arch);
       if (!installer) {
         throw new Error(t('main.updates.noInstaller'));
       }
-      const target = path.join(app.getPath('downloads'), path.basename(installer.url));
-      await this.saveVerified(downloadUrlFor(version, installer.url), target, installer.sha512, installer.size);
+      // The feed names its installers by full address; one anywhere but Copacetic's own downloads is not fetched.
+      const source = isOwnDownload(DOWNLOADS_ORIGIN, installer.url)
+        ? installer.url
+        : downloadUrl(DOWNLOADS_ORIGIN, version, installer.url);
+      const target = path.join(app.getPath('downloads'), decodeURIComponent(path.basename(new URL(source).pathname)));
+      await this.saveVerified(source, target, installer.sha512, installer.size);
       this.setStatus({ state: 'installerOpened', version });
       const problem = await shell.openPath(target);
       if (problem) {
@@ -306,7 +326,7 @@ export class UpdateManager {
   private async saveVerified(url: string, target: string, sha512: string, size: number): Promise<void> {
     const response = await net.fetch(url);
     if (!response.ok || !response.body) {
-      throw new Error(t('main.updates.githubAnswered', { status: response.status }));
+      throw new Error(t('main.updates.serverAnswered', { status: response.status }));
     }
     await writeVerified(response.body, target, { sha512, size }, (percent) => {
       // Once per percent: a status per chunk would push the whole state thousands of times.
@@ -322,10 +342,7 @@ export class UpdateManager {
   }
 }
 
-const GITHUB_HEADERS = () => ({
-  accept: 'application/vnd.github+json',
-  'user-agent': `Copacetic/${app.getVersion()}`,
-});
+const REQUEST_HEADERS = () => ({ 'user-agent': `Copacetic/${app.getVersion()}` });
 
 function stripV(value: string): string {
   return value.replace(/^v/, '');

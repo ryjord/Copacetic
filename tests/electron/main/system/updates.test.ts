@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 // decision under test touches none of them.
 vi.mock('electron', () => ({ app: { isPackaged: false, getVersion: () => '1.1.0' }, net: {}, shell: {} }));
 
+const unsigned = { isStoreBuild: false, isSigned: false };
+
 const { describeDelivery, newestRelease } = await import('../../../../electron/main/system/updates');
 
 describe('describeDelivery', () => {
@@ -49,7 +51,7 @@ describe('describeDelivery', () => {
       /development build/i,
     ],
   ] as const)('%s', (_name, platform, isPackaged, isAppImage, delivery, manualReason) => {
-    const result = describeDelivery({ platform, isPackaged, isAppImage });
+    const result = describeDelivery({ platform, isPackaged, isAppImage, ...unsigned });
     expect(result.delivery).toBe(delivery);
     if (manualReason === null) {
       expect(result.manualReason).toBeNull();
@@ -59,34 +61,59 @@ describe('describeDelivery', () => {
   });
 });
 
-describe('the newest release', () => {
-  const release = (tag: string, extra: Record<string, unknown> = {}) => ({
-    tag_name: tag,
-    body: '- Notes',
-    html_url: `https://github.com/ryjord/Copacetic/releases/tag/${tag}`,
-    prerelease: tag.includes('-'),
-    draft: false,
-    ...extra,
+describe('a copy that is signed, or from the Store', () => {
+  // Signed and notarised, a Mac copy may replace itself as the Windows one does.
+  it('installs itself on a signed Mac', () => {
+    expect(
+      describeDelivery({
+        platform: 'darwin',
+        isPackaged: true,
+        isAppImage: false,
+        isStoreBuild: false,
+        isSigned: true,
+      }),
+    ).toEqual({ delivery: 'automatic', manualReason: null });
   });
 
-  // The latest-release endpoint leaves betas out, which is how a beta never heard of the next one.
+  // Two updaters for one copy would fight; the Store's is the one that owns the files.
+  it('leaves a Store copy to the Store', () => {
+    const result = describeDelivery({
+      platform: 'win32',
+      isPackaged: true,
+      isAppImage: false,
+      isStoreBuild: true,
+      isSigned: true,
+    });
+    expect(result.delivery).toBe('system');
+    expect(result.manualReason).toMatch(/Microsoft Store/);
+  });
+});
+
+describe('the newest release', () => {
+  const release = (version: string) => ({
+    version,
+    isPrerelease: version.includes('-'),
+    publishedAt: '2026-11-01T10:00:00Z',
+    notes: '- Notes',
+    pageUrl: `https://github.com/ryjord/Copacetic/releases/tag/v${version}`,
+  });
+
+  // A list of stable releases alone is how a beta never heard of the next one.
   it('includes betas only when they are wanted', () => {
-    const list = [release('v1.4.1'), release('v2.0.0-beta.3'), release('v2.0.0-beta.2')];
+    const list = [release('1.4.1'), release('2.0.0-beta.3'), release('2.0.0-beta.2')];
     expect(newestRelease(list, true)?.version).toBe('2.0.0-beta.3');
     expect(newestRelease(list, false)?.version).toBe('1.4.1');
   });
 
-  it('never offers a draft, and carries its notes and page', () => {
-    const found = newestRelease([release('v2.0.0', { draft: true }), release('v1.4.1')], false);
-    expect(found).toEqual({
+  it('carries its notes as plain text, and its page', () => {
+    expect(newestRelease([release('1.4.1')], false)).toEqual({
       version: '1.4.1',
       notes: '· Notes',
       pageUrl: 'https://github.com/ryjord/Copacetic/releases/tag/v1.4.1',
     });
   });
 
-  it('reads the single release the latest endpoint answers with', () => {
-    expect(newestRelease(release('v1.4.1'), false)?.version).toBe('1.4.1');
-    expect(newestRelease({ message: 'Not Found' }, false)).toBeNull();
+  it('finds nothing in an empty list', () => {
+    expect(newestRelease([], true)).toBeNull();
   });
 });

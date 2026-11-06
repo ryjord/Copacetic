@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 
 // Utils
 import { app } from '../engine/app';
-import { shell } from '../engine/system';
+import { isStoreBuild, shell } from '../engine/system';
 import { type InstalledApp, appLinkFor } from '../../shared/data/installed-apps';
 import { describeError, log } from './diagnostics';
 
@@ -113,7 +113,8 @@ function folders() {
  */
 export async function createShortcut(installed: InstalledApp, icon: Buffer | null): Promise<string | null> {
   const target = shortcutPathFor(process.platform, installed, folders());
-  if (!target) {
+  // A Store package's writes to the Start menu folder land in its own private copy, where Start never looks.
+  if (!target || isStoreBuild()) {
     return null;
   }
   try {
